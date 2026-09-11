@@ -1,0 +1,39 @@
+# ===== Environnements & secrets =====
+.env
+.env.*
+!.env.example
+
+# ===== PHP / Laravel / Composer =====
+/vendor/
+backend/storage/*.key
+backend/storage/pail/backups/
+
+# ===== Node / JS =====
+/node_modules/
+npm-debug.log
+yarn-error.log
+
+# ===== Flutter / Dart =====
+mobile/.dart_tool/
+mobile/build/
+mobile/.flutter-plugins
+mobile/.flutter-plugins-dependencies
+mobile/*.iml
+mobile/lib/generated_plugin_registrant.dart
+mobile/android/.gradle/
+mobile/android/local.properties
+mobile/ios/Pods/
+mobile/ios/.symlinks/
+
+# ===== Base de données =====
+*.sqlite
+*.sqlite-journal
+
+# ===== IDE / OS =====
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# ===== Logs =====
+*.log
