@@ -7,6 +7,8 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
@@ -38,5 +40,46 @@ class User extends Authenticatable
             'phone_verified_at' => 'datetime',
             'password' => 'hashed',
         ];
+    }
+
+    public function roles(): BelongsToMany
+    {
+        return $this->belongsToMany(Role::class, 'user_roles')
+            ->withPivot('is_active', 'last_used_at')
+            ->withTimestamps();
+    }
+
+    public function vendor(): HasOne
+    {
+        return $this->hasOne(Vendor::class);
+    }
+
+    public function driverProfile(): HasOne
+    {
+        return $this->hasOne(DriverProfile::class);
+    }
+
+    public function hasRole(string $slug): bool
+    {
+        return $this->roles()->where('slug', $slug)->exists();
+    }
+
+    public function activeRoleSlug(): ?string
+    {
+        return $this->roles()->wherePivot('is_active', true)->value('slug');
+    }
+
+    public function permissionSlugs(): array
+    {
+        return $this->roles()->with('permissions')->get()
+            ->flatMap(fn (Role $role) => $role->permissions->pluck('slug'))
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    public function hasPermission(string $slug): bool
+    {
+        return in_array($slug, $this->permissionSlugs(), true);
     }
 }

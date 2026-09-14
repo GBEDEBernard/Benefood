@@ -2,6 +2,8 @@
 
 namespace App\Support;
 
+use App\Exceptions\DomainException;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Validation\ValidationException;
@@ -73,12 +75,20 @@ final class Api
 
     public static function renderException(Throwable $e): JsonResponse
     {
+        if ($e instanceof DomainException) {
+            return self::error($e->getMessage(), $e->errorCode, $e->status);
+        }
+
         if ($e instanceof ValidationException) {
             return self::error('La validation a échoué.', 'validation_error', 422, $e->errors());
         }
 
         if ($e instanceof AuthenticationException) {
             return self::error('Vous devez être authentifié.', 'unauthenticated', 401);
+        }
+
+        if ($e instanceof AuthorizationException) {
+            return self::error('Accès refusé.', 'forbidden', 403);
         }
 
         if ($e instanceof AccessDeniedHttpException) {

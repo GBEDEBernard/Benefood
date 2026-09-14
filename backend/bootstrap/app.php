@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\AddRequestId;
+use App\Http\Middleware\EnsureHasPermission;
 use App\Http\Middleware\ForceJsonResponse;
 use App\Support\Api;
 use Illuminate\Foundation\Application;
@@ -29,6 +30,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->alias([
             'force.json' => ForceJsonResponse::class,
+            'permission' => EnsureHasPermission::class,
             'request.id' => AddRequestId::class,
         ]);
     })

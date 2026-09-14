@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-class Vendor extends Model
+class DriverProfile extends Model
 {
     use HasUuids;
 
@@ -16,8 +16,10 @@ class Vendor extends Model
     protected function casts(): array
     {
         return [
-            'approved_at' => 'datetime',
-            'closed_at' => 'datetime',
+            'available' => 'boolean',
+            'last_latitude' => 'decimal:7',
+            'last_longitude' => 'decimal:7',
+            'rating' => 'decimal:2',
         ];
     }
 
@@ -28,21 +30,16 @@ class Vendor extends Model
 
     public function documents(): HasMany
     {
-        return $this->hasMany(VendorDocument::class);
+        return $this->hasMany(DriverDocument::class);
     }
 
-    public function hours(): HasMany
+    public function availabilityLogs(): HasMany
     {
-        return $this->hasMany(VendorHour::class);
-    }
-
-    public function settings(): BelongsTo
-    {
-        return $this->belongsTo(VendorSetting::class);
+        return $this->hasMany(DriverAvailabilityLog::class);
     }
 
     public function statusHistory(): HasMany
     {
-        return $this->hasMany(VendorStatusHistory::class);
+        return $this->hasMany(DriverStatusHistory::class, 'driver_profile_id');
     }
 }

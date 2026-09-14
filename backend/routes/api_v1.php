@@ -1,10 +1,39 @@
 <?php
 
+use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\DriverController;
 use App\Http\Controllers\Api\HealthController;
+use App\Http\Controllers\Api\VendorController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/health', [HealthController::class, 'index'])->name('api.v1.health');
 
 Route::prefix('auth')->middleware('throttle:auth')->group(function (): void {
-    // J45 : inscription / connexion
+    Route::post('/register', [AuthController::class, 'register'])->name('api.v1.auth.register');
+    Route::post('/login', [AuthController::class, 'login'])->name('api.v1.auth.login');
+    Route::post('/forgot-password', [AuthController::class, 'forgotPassword'])->name('api.v1.auth.forgot-password');
+    Route::post('/reset-password', [AuthController::class, 'resetPassword'])->name('api.v1.auth.reset-password');
+});
+
+Route::middleware('auth:sanctum')->group(function (): void {
+    Route::post('/auth/logout', [AuthController::class, 'logout'])->name('api.v1.auth.logout');
+    Route::post('/auth/refresh', [AuthController::class, 'refresh'])->name('api.v1.auth.refresh');
+    Route::post('/auth/send-phone-code', [AuthController::class, 'sendPhoneCode'])->name('api.v1.auth.send-phone-code')->middleware('throttle:auth');
+    Route::post('/auth/verify-phone', [AuthController::class, 'verifyPhone'])->name('api.v1.auth.verify-phone')->middleware('throttle:auth');
+
+    Route::prefix('vendors/me')->group(function (): void {
+        Route::post('/onboarding', [VendorController::class, 'onboarding'])->name('api.v1.vendors.me.onboarding');
+        Route::post('/documents', [VendorController::class, 'uploadDocument'])->name('api.v1.vendors.me.documents');
+        Route::get('/status', [VendorController::class, 'status'])->name('api.v1.vendors.me.status');
+    });
+
+    Route::prefix('driver/me')->group(function (): void {
+        Route::post('/onboarding', [DriverController::class, 'onboarding'])->name('api.v1.driver.me.onboarding');
+        Route::post('/documents', [DriverController::class, 'uploadDocument'])->name('api.v1.driver.me.documents');
+        Route::get('/status', [DriverController::class, 'status'])->name('api.v1.driver.me.status');
+    });
+
+    Route::prefix('admin')->group(function (): void {
+        Route::post('/drivers', [DriverController::class, 'createInternal'])->name('api.v1.admin.drivers.create');
+    });
 });
