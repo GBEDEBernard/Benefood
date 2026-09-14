@@ -222,6 +222,69 @@ class VendorController extends Controller
         return Api::noContent();
     }
 
+    public function listZones(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        $vendor = $user->vendor()->with('zones')->first();
+
+        if ($vendor === null) {
+            return Api::error('Aucun profil vendeur associé à ce compte.', 'vendor.not_onboarded', 404);
+        }
+
+        $this->authorize('view', $vendor);
+
+        return Api::ok($vendor->zones()->orderBy('name')->get()->map(fn($z) => [
+            'id' => $z->id,
+            'name' => $z->name,
+            'city' => $z->city,
+        ])->values());
+    }
+
+    public function syncZones(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        $vendor = $user->vendor()->first();
+
+        if ($vendor === null) {
+            return Api::error('Aucun profil vendeur associé à ce compte.', 'vendor.not_onboarded', 404);
+        }
+
+        if (! $user->hasPermission('vendor.profile.manage')) {
+            return Api::error('Accès refusé.', 'forbidden', 403);
+        }
+
+        $data = $request->validate([
+            'zone_ids' => ['required', 'array'],
+            'zone_ids.*' => ['uuid'],
+        ]);
+
+        $vendor->zones()->sync(array_values($data['zone_ids']));
+
+        return Api::ok($vendor->zones()->orderBy('name')->get()->map(fn($z) => [
+            'id' => $z->id,
+            'name' => $z->name,
+            'city' => $z->city,
+        ])->values());
+    }
+
+    public function detachZone(Request $request, $zoneId): JsonResponse
+    {
+        $user = $request->user();
+        $vendor = $user->vendor()->first();
+
+        if ($vendor === null) {
+            return Api::error('Aucun profil vendeur associé à ce compte.', 'vendor.not_onboarded', 404);
+        }
+
+        if (! $user->hasPermission('vendor.profile.manage')) {
+            return Api::error('Accès refusé.', 'forbidden', 403);
+        }
+
+        $vendor->zones()->detach($zoneId);
+
+        return Api::noContent();
+    }
+
     public function index(Request $request): JsonResponse
     {
         $vendors = Vendor::query()

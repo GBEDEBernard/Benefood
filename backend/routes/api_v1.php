@@ -42,6 +42,9 @@ Route::middleware('auth:sanctum')->group(function (): void {
         Route::get('/contacts', [VendorController::class, 'listContacts'])->name('api.v1.vendors.me.contacts.index');
         Route::post('/contacts', [VendorController::class, 'addContact'])->name('api.v1.vendors.me.contacts.store');
         Route::delete('/contacts/{contact}', [VendorController::class, 'removeContact'])->name('api.v1.vendors.me.contacts.destroy');
+        Route::get('/zones', [VendorController::class, 'listZones'])->name('api.v1.vendors.me.zones.index');
+        Route::post('/zones', [VendorController::class, 'syncZones'])->name('api.v1.vendors.me.zones.sync');
+        Route::delete('/zones/{zone}', [VendorController::class, 'detachZone'])->name('api.v1.vendors.me.zones.detach');
     });
 
     Route::prefix('driver/me')->group(function (): void {
