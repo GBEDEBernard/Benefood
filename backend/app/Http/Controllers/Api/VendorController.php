@@ -11,6 +11,8 @@ use App\Support\Api;
 use App\Support\Phone;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use App\Http\Resources\ProductResource;
+use App\Models\Product;
 
 class VendorController extends Controller
 {
@@ -77,5 +79,33 @@ class VendorController extends Controller
         $this->authorize('view', $vendor);
 
         return Api::ok($this->vendorService->getStatus($vendor));
+    }
+
+    public function index(Request $request): JsonResponse
+    {
+        $vendors = Vendor::query()
+            ->where('is_active', true)
+            ->orderBy('business_name')
+            ->get();
+
+        return Api::ok(VendorResource::collection($vendors)->values());
+    }
+
+    public function myProducts(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        $vendor = $user->vendor()->first();
+
+        if ($vendor === null) {
+            return Api::error('Aucun profil vendeur associé à ce compte.', 'vendor.not_onboarded', 404);
+        }
+
+        if ($user->id !== $vendor->user_id || ! $user->hasPermission('vendor.products.manage')) {
+            return Api::error('Accès refusé.', 'forbidden', 403);
+        }
+
+        $products = $vendor->products()->where('is_active', true)->orderBy('name')->get();
+
+        return Api::ok(ProductResource::collection($products)->values());
     }
 }

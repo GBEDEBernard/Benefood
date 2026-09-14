@@ -33,6 +33,7 @@ Route::middleware('auth:sanctum')->group(function (): void {
         Route::post('/onboarding', [VendorController::class, 'onboarding'])->name('api.v1.vendors.me.onboarding');
         Route::post('/documents', [VendorController::class, 'uploadDocument'])->name('api.v1.vendors.me.documents');
         Route::get('/status', [VendorController::class, 'status'])->name('api.v1.vendors.me.status');
+        Route::get('/products', [VendorController::class, 'myProducts'])->name('api.v1.vendors.me.products');
     });
 
     Route::prefix('driver/me')->group(function (): void {
@@ -45,3 +46,5 @@ Route::middleware('auth:sanctum')->group(function (): void {
         Route::post('/drivers', [DriverController::class, 'createInternal'])->name('api.v1.admin.drivers.create');
     });
 });
+
+Route::get('/vendors', [VendorController::class, 'index'])->name('api.v1.vendors.index');
