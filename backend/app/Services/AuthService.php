@@ -149,6 +149,47 @@ class AuthService
         $user->tokens()->delete();
     }
 
+    public function updateProfile(User $user, array $data): User
+    {
+        if (isset($data['email']) && $data['email'] !== null) {
+            $taken = User::where('email', $data['email'])
+                ->where('id', '!=', $user->id)
+                ->exists();
+
+            if ($taken) {
+                throw new DomainException('auth.email_taken', 'Cet email est déjà utilisé.', 409);
+            }
+        }
+
+        $user->update(array_filter([
+            'name' => $data['name'] ?? null,
+            'email' => $data['email'] ?? null,
+        ], fn ($value) => $value !== null));
+
+        return $user->fresh();
+    }
+
+    public function registerDevice(User $user, array $data): UserDevice
+    {
+        $device = UserDevice::updateOrCreate(
+            ['fcm_token' => $data['fcm_token']],
+            [
+                'user_id' => $user->id,
+                'platform' => $data['platform'],
+                'device_type' => $data['device_type'] ?? null,
+                'app_version' => $data['app_version'] ?? null,
+                'is_active' => true,
+                'last_seen_at' => now(),
+            ],
+        );
+
+        if ($device->wasRecentlyCreated) {
+            $device->update(['last_seen_at' => now()]);
+        }
+
+        return $device;
+    }
+
     public function assignRole(User $user, string $slug, bool $isActive = false): void
     {
         $role = Role::where('slug', $slug)->first();

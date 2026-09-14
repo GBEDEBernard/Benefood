@@ -25,6 +25,9 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::get('/me', [MeController::class, 'show'])->name('api.v1.me.show');
     Route::get('/me/roles', [MeController::class, 'roles'])->name('api.v1.me.roles');
     Route::post('/me/active-role', [MeController::class, 'activeRole'])->name('api.v1.me.active-role');
+    Route::patch('/me', [MeController::class, 'update'])->name('api.v1.me.update');
+    Route::get('/me/devices', [MeController::class, 'devices'])->name('api.v1.me.devices.index');
+    Route::post('/me/devices', [MeController::class, 'registerDevice'])->name('api.v1.me.devices.store');
 
     Route::prefix('vendors/me')->group(function (): void {
         Route::post('/onboarding', [VendorController::class, 'onboarding'])->name('api.v1.vendors.me.onboarding');
