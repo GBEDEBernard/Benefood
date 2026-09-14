@@ -160,6 +160,20 @@ class AuthService
         $user->roles()->syncWithoutDetaching([$role->id => ['is_active' => $isActive]]);
     }
 
+    public function switchActiveRole(User $user, string $slug): string
+    {
+        $role = Role::where('slug', $slug)->first();
+
+        if ($role === null || ! $user->roles()->where('slug', $slug)->exists()) {
+            throw new DomainException('role.not_assigned', "Vous ne disposez pas du rôle « {$slug} ».", 422);
+        }
+
+        $user->roles()->update(['is_active' => false]);
+        $user->roles()->updateExistingPivot($role->id, ['is_active' => true, 'last_used_at' => now()]);
+
+        return $slug;
+    }
+
     protected function tokenPayload(User $user): array
     {
         $user->loadMissing('roles');

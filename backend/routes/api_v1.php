@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\DriverController;
 use App\Http\Controllers\Api\HealthController;
+use App\Http\Controllers\Api\MeController;
 use App\Http\Controllers\Api\VendorController;
 use Illuminate\Support\Facades\Route;
 
@@ -20,6 +21,10 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::post('/auth/refresh', [AuthController::class, 'refresh'])->name('api.v1.auth.refresh');
     Route::post('/auth/send-phone-code', [AuthController::class, 'sendPhoneCode'])->name('api.v1.auth.send-phone-code')->middleware('throttle:auth');
     Route::post('/auth/verify-phone', [AuthController::class, 'verifyPhone'])->name('api.v1.auth.verify-phone')->middleware('throttle:auth');
+
+    Route::get('/me', [MeController::class, 'show'])->name('api.v1.me.show');
+    Route::get('/me/roles', [MeController::class, 'roles'])->name('api.v1.me.roles');
+    Route::post('/me/active-role', [MeController::class, 'activeRole'])->name('api.v1.me.active-role');
 
     Route::prefix('vendors/me')->group(function (): void {
         Route::post('/onboarding', [VendorController::class, 'onboarding'])->name('api.v1.vendors.me.onboarding');
