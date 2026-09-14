@@ -1,0 +1,51 @@
+/* Layout fixes: fixed sidebar and main content responsive adjustments */
+.app-navbar{
+  width:260px !important;
+  position:fixed !important;
+  top:0 !important;
+  left:0 !important;
+  bottom:0 !important;
+  z-index:1050 !important;
+  overflow-y:auto !important;
+  background:transparent; /* keep original bg from template */
+}
+
+/* main content should sit to the right of the fixed sidebar */
+.app-content{
+  margin-left:260px !important;
+  transition: margin-left .25s ease-in-out;
+  padding: 20px;
+  box-sizing: border-box;
+}
+
+/* ensure header does not overlap content */
+.app-header{z-index:1100}
+
+/* prevent cards and chart wrappers from overflowing */
+.card, .card-body, .apexchart-wrapper, .container-fluid{
+  max-width:100% !important;
+  box-sizing:border-box !important;
+}
+
+/* Responsive behavior: tablet and mobile collapse sidebar into flow */
+@media (max-width: 991.98px){
+  .app-navbar{
+    position:relative !important;
+    width:100% !important;
+    height:auto !important;
+    bottom:auto !important;
+    left:0 !important;
+  }
+  .app-content{
+    margin-left:0 !important;
+    padding: 15px;
+  }
+}
+
+/* Small screens: prevent elements from forcing horizontal scroll */
+@media (max-width: 575.98px){
+  .apexchart-wrapper, .card, .card-body{
+    padding-left:0 !important;
+    padding-right:0 !important;
+  }
+}
