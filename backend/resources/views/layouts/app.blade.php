@@ -4,7 +4,8 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Admin - Benefood</title>
-    <link rel="stylesheet" href="{{ asset('admin-assets/css/style.css') }}">
+    <link rel="stylesheet" href="{{ asset('admin-assets/assets/css/vendors.css') }}">
+    <link rel="stylesheet" href="{{ asset('admin-assets/assets/css/style.css') }}">
     @stack('styles')
     <style>body{padding-top:60px;}</style>
 </head>
@@ -17,7 +18,8 @@
 
     @include('layouts.partials.footer')
 
-    <script src="{{ asset('admin-assets/js/app.js') }}"></script>
+    <script src="{{ asset('admin-assets/assets/js/vendors.js') }}"></script>
+    <script src="{{ asset('admin-assets/assets/js/app.js') }}"></script>
     @stack('scripts')
 </body>
 </html>
