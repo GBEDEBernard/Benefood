@@ -50,4 +50,9 @@ class Vendor extends Model
     {
         return $this->hasMany(Product::class);
     }
+
+    public function contacts(): HasMany
+    {
+        return $this->hasMany(VendorContact::class);
+    }
 }

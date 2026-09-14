@@ -38,6 +38,10 @@ Route::middleware('auth:sanctum')->group(function (): void {
         Route::post('/products', [VendorProductController::class, 'store'])->name('api.v1.vendors.me.products.store');
         Route::patch('/products/{product}', [VendorProductController::class, 'update'])->name('api.v1.vendors.me.products.update');
         Route::delete('/products/{product}', [VendorProductController::class, 'destroy'])->name('api.v1.vendors.me.products.destroy');
+        Route::patch('/', [VendorController::class, 'updateProfile'])->name('api.v1.vendors.me.update');
+        Route::get('/contacts', [VendorController::class, 'listContacts'])->name('api.v1.vendors.me.contacts.index');
+        Route::post('/contacts', [VendorController::class, 'addContact'])->name('api.v1.vendors.me.contacts.store');
+        Route::delete('/contacts/{contact}', [VendorController::class, 'removeContact'])->name('api.v1.vendors.me.contacts.destroy');
     });
 
     Route::prefix('driver/me')->group(function (): void {
