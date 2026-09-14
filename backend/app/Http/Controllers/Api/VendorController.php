@@ -105,12 +105,25 @@ class VendorController extends Controller
             'address' => ['sometimes', 'nullable', 'string'],
             'logo_url' => ['sometimes', 'nullable', 'string'],
             'cover_url' => ['sometimes', 'nullable', 'string'],
+            'logo' => ['sometimes', 'file', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
+            'cover' => ['sometimes', 'file', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
             'hours' => ['sometimes', 'array'],
             'hours.*.day_of_week' => ['required_with:hours', 'integer', 'between:0,6'],
             'hours.*.opens_at' => ['nullable', 'date_format:H:i'],
             'hours.*.closes_at' => ['nullable', 'date_format:H:i'],
             'hours.*.is_closed' => ['boolean'],
         ]);
+
+        // Handle image uploads
+        if ($request->hasFile('logo')) {
+            $path = $request->file('logo')->storeAs("vendor-media/{$vendor->id}", 'logo_'.uniqid().'.'.$request->file('logo')->getClientOriginalExtension(), 'private');
+            $data['logo_url'] = $path;
+        }
+
+        if ($request->hasFile('cover')) {
+            $path = $request->file('cover')->storeAs("vendor-media/{$vendor->id}", 'cover_'.uniqid().'.'.$request->file('cover')->getClientOriginalExtension(), 'private');
+            $data['cover_url'] = $path;
+        }
 
         $vendor->update(array_filter($data, fn($v) => $v !== null && $v !== []));
 

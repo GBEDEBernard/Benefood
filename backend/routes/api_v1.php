@@ -52,6 +52,8 @@ Route::middleware('auth:sanctum')->group(function (): void {
 
     Route::prefix('admin')->group(function (): void {
         Route::post('/drivers', [DriverController::class, 'createInternal'])->name('api.v1.admin.drivers.create');
+        Route::post('/vendors/{vendor}/approve', [\App\Http\Controllers\Admin\AdminVendorController::class, 'approve'])->name('api.v1.admin.vendors.approve');
+        Route::post('/vendors/{vendor}/suspend', [\App\Http\Controllers\Admin\AdminVendorController::class, 'suspend'])->name('api.v1.admin.vendors.suspend');
     });
 });
 

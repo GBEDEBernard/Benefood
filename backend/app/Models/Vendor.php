@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class Vendor extends Model
 {
@@ -54,5 +55,10 @@ class Vendor extends Model
     public function contacts(): HasMany
     {
         return $this->hasMany(VendorContact::class);
+    }
+
+    public function zones(): BelongsToMany
+    {
+        return $this->belongsToMany(DeliveryZone::class, 'vendor_zones');
     }
 }
