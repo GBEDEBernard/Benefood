@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\DriverController;
 use App\Http\Controllers\Api\HealthController;
 use App\Http\Controllers\Api\MeController;
 use App\Http\Controllers\Api\VendorController;
+use App\Http\Controllers\Api\VendorProductController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/health', [HealthController::class, 'index'])->name('api.v1.health');
@@ -34,6 +35,9 @@ Route::middleware('auth:sanctum')->group(function (): void {
         Route::post('/documents', [VendorController::class, 'uploadDocument'])->name('api.v1.vendors.me.documents');
         Route::get('/status', [VendorController::class, 'status'])->name('api.v1.vendors.me.status');
         Route::get('/products', [VendorController::class, 'myProducts'])->name('api.v1.vendors.me.products');
+        Route::post('/products', [VendorProductController::class, 'store'])->name('api.v1.vendors.me.products.store');
+        Route::patch('/products/{product}', [VendorProductController::class, 'update'])->name('api.v1.vendors.me.products.update');
+        Route::delete('/products/{product}', [VendorProductController::class, 'destroy'])->name('api.v1.vendors.me.products.destroy');
     });
 
     Route::prefix('driver/me')->group(function (): void {
@@ -48,3 +52,4 @@ Route::middleware('auth:sanctum')->group(function (): void {
 });
 
 Route::get('/vendors', [VendorController::class, 'index'])->name('api.v1.vendors.index');
+Route::get('/vendors/{vendor}/products', [VendorProductController::class, 'index'])->name('api.v1.vendors.products.index');
