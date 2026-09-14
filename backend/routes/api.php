@@ -3,12 +3,5 @@
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function (): void {
-    Route::get('/health', fn () => response()->json([
-        'status' => 'ok',
-        'service' => 'beninfood-api',
-    ]));
-
-    Route::prefix('auth')->group(function (): void {
-        // J45 : inscription / connexion
-    });
+    require __DIR__.'/api_v1.php';
 });
