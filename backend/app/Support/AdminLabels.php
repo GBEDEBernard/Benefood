@@ -94,4 +94,62 @@ class AdminLabels
 
         return $days[$day] ?? '—';
     }
+
+    /** @return array{label: string, bg: string, fg: string} */
+    public static function productStatus(bool $isActive): array
+    {
+        return $isActive
+            ? ['label' => 'Actif', 'bg' => '#E8F5E9', 'fg' => '#2E7D32']
+            : ['label' => 'Inactif', 'bg' => '#ECEFF1', 'fg' => '#37474F'];
+    }
+
+    public static function productStatusBadge(bool $isActive): string
+    {
+        $s = self::productStatus($isActive);
+
+        return '<span class="badge badge-pill" style="background-color: '.$s['bg'].'; color: '.$s['fg'].'; font-weight: 600; padding: 6px 12px; border-radius: 20px;">'.$s['label'].'</span>';
+    }
+
+    /** @return array{label: string, bg: string, fg: string} */
+    public static function stockStatus(?int $stockQty, bool $isAvailable): array
+    {
+        if ($stockQty === null) {
+            return ['label' => 'Illimité', 'bg' => '#E1F5FE', 'fg' => '#0277BD'];
+        }
+
+        return $stockQty > 0 && $isAvailable
+            ? ['label' => "En stock ({$stockQty})", 'bg' => '#E8F5E9', 'fg' => '#2E7D32']
+            : ['label' => 'Épuisé', 'bg' => '#FFEBEE', 'fg' => '#C62828'];
+    }
+
+    public static function stockBadge(?int $stockQty, bool $isAvailable): string
+    {
+        $s = self::stockStatus($stockQty, $isAvailable);
+
+        return '<span class="badge badge-pill" style="background-color: '.$s['bg'].'; color: '.$s['fg'].'; font-weight: 600; padding: 6px 12px; border-radius: 20px;">'.$s['label'].'</span>';
+    }
+
+    /** @return array{label: string, bg: string, fg: string} */
+    public static function categoryStatus(bool $isActive): array
+    {
+        return $isActive
+            ? ['label' => 'Active', 'bg' => '#E8F5E9', 'fg' => '#2E7D32']
+            : ['label' => 'Inactive', 'bg' => '#ECEFF1', 'fg' => '#37474F'];
+    }
+
+    public static function categoryStatusBadge(bool $isActive): string
+    {
+        $s = self::categoryStatus($isActive);
+
+        return '<span class="badge badge-pill" style="background-color: '.$s['bg'].'; color: '.$s['fg'].'; font-weight: 600; padding: 6px 12px; border-radius: 20px;">'.$s['label'].'</span>';
+    }
+
+    /**
+     * Formate un prix produit en FCFA (montant entier — convention repère
+     * existante côté back-office).
+     */
+    public static function priceLabel(int $price): string
+    {
+        return number_format($price, 0, ',', ' ').' F';
+    }
 }

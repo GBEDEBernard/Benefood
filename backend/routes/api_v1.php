@@ -1,6 +1,8 @@
 <?php
 
+use App\Http\Controllers\Admin\AdminVendorController;
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\CatalogController;
 use App\Http\Controllers\Api\DriverController;
 use App\Http\Controllers\Api\HealthController;
 use App\Http\Controllers\Api\MeController;
@@ -38,6 +40,8 @@ Route::middleware('auth:sanctum')->group(function (): void {
         Route::post('/products', [VendorProductController::class, 'store'])->name('api.v1.vendors.me.products.store');
         Route::patch('/products/{product}', [VendorProductController::class, 'update'])->name('api.v1.vendors.me.products.update');
         Route::delete('/products/{product}', [VendorProductController::class, 'destroy'])->name('api.v1.vendors.me.products.destroy');
+        Route::post('/products/{product}/images', [VendorProductController::class, 'uploadImage'])->name('api.v1.vendors.me.products.images.store');
+        Route::delete('/products/{product}/images/{image}', [VendorProductController::class, 'removeImage'])->name('api.v1.vendors.me.products.images.destroy');
         Route::patch('/', [VendorController::class, 'updateProfile'])->name('api.v1.vendors.me.update');
         Route::get('/contacts', [VendorController::class, 'listContacts'])->name('api.v1.vendors.me.contacts.index');
         Route::post('/contacts', [VendorController::class, 'addContact'])->name('api.v1.vendors.me.contacts.store');
@@ -55,10 +59,13 @@ Route::middleware('auth:sanctum')->group(function (): void {
 
     Route::prefix('admin')->group(function (): void {
         Route::post('/drivers', [DriverController::class, 'createInternal'])->name('api.v1.admin.drivers.create');
-        Route::post('/vendors/{vendor}/approve', [\App\Http\Controllers\Admin\AdminVendorController::class, 'approve'])->name('api.v1.admin.vendors.approve');
-        Route::post('/vendors/{vendor}/suspend', [\App\Http\Controllers\Admin\AdminVendorController::class, 'suspend'])->name('api.v1.admin.vendors.suspend');
+        Route::post('/vendors/{vendor}/approve', [AdminVendorController::class, 'approve'])->name('api.v1.admin.vendors.approve');
+        Route::post('/vendors/{vendor}/suspend', [AdminVendorController::class, 'suspend'])->name('api.v1.admin.vendors.suspend');
     });
 });
 
+Route::get('/categories', [CatalogController::class, 'categories'])->name('api.v1.categories.index');
+Route::get('/products', [CatalogController::class, 'index'])->name('api.v1.products.index');
+Route::get('/products/{product}', [CatalogController::class, 'show'])->name('api.v1.products.show');
 Route::get('/vendors', [VendorController::class, 'index'])->name('api.v1.vendors.index');
 Route::get('/vendors/{vendor}/products', [VendorProductController::class, 'index'])->name('api.v1.vendors.products.index');

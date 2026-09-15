@@ -1,16 +1,19 @@
 <?php
 
+use App\Http\Controllers\Admin\AdminCategoriesController;
 use App\Http\Controllers\Admin\AdminController;
+use App\Http\Controllers\Admin\AdminProductsController;
 use App\Http\Controllers\Admin\RolesController;
 use App\Http\Controllers\Admin\UsersController;
 use App\Http\Controllers\Admin\VendorsController;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
 // --- Dev login (local only) ---
 Route::get('/admin/dev-login', function () {
-    $user = \App\Models\User::where('email', 'admin@local')->first();
+    $user = User::where('email', 'admin@local')->first();
 
     if (! $user) {
         abort(404, 'Admin user not found. Run AdminDashboardSeeder.');
@@ -69,12 +72,23 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function (): v
     Route::get('vendors/{vendor}/documents/{document}/download', [VendorsController::class, 'downloadDocument'])->name('vendors.documents.download');
     Route::post('vendors/{vendor}/documents/{document}/review', [VendorsController::class, 'reviewDocument'])->name('vendors.documents.review');
 
+    // ---------- Phase 08 — Catalogue (produits & catégories) ----------
+    Route::resource('products', AdminProductsController::class)->except(['destroy']);
+    Route::delete('products/{product}', [AdminProductsController::class, 'destroy'])->name('products.destroy');
+    Route::post('products/{product}/active', [AdminProductsController::class, 'toggleActive'])->name('products.active');
+    Route::post('products/{product}/availability', [AdminProductsController::class, 'setAvailability'])->name('products.availability');
+    Route::post('products/{product}/images', [AdminProductsController::class, 'addImage'])->name('products.images.store');
+    Route::delete('products/{product}/images/{image}', [AdminProductsController::class, 'removeImage'])->name('products.images.destroy');
+
+    Route::resource('categories', AdminCategoriesController::class)->except(['show', 'destroy']);
+    Route::delete('categories/{category}', [AdminCategoriesController::class, 'destroy'])->name('categories.destroy');
+    Route::post('categories/{category}/active', [AdminCategoriesController::class, 'toggleActive'])->name('categories.active');
+
     // ---------- Placeholders (sections pas encore développées) ----------
     Route::get('/clients', fn () => view('admin.placeholder', ['title' => 'Clients', 'section' => 'Gestion des clients']))->name('clients.index');
     Route::get('/livreurs', fn () => view('admin.placeholder', ['title' => 'Livreurs', 'section' => 'Gestion des livreurs']))->name('drivers.index');
     Route::get('/commandes', fn () => view('admin.placeholder', ['title' => 'Commandes', 'section' => 'Gestion des commandes']))->name('orders.index');
     Route::get('/boutiques', fn () => view('admin.placeholder', ['title' => 'Boutiques', 'section' => 'Gestion des boutiques']))->name('shops.index');
-    Route::get('/produits', fn () => view('admin.placeholder', ['title' => 'Produits', 'section' => 'Gestion des produits']))->name('products.index');
     Route::get('/commissions', fn () => view('admin.placeholder', ['title' => 'Commissions', 'section' => 'Gestion des commissions']))->name('commissions.index');
     Route::get('/zones', fn () => view('admin.placeholder', ['title' => 'Zones', 'section' => 'Gestion des zones de livraison']))->name('zones.index');
     Route::get('/tarifs', fn () => view('admin.placeholder', ['title' => 'Tarifs', 'section' => 'Gestion des tarifs de livraison']))->name('rates.index');
