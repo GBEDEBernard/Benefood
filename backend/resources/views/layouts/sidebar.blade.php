@@ -100,13 +100,27 @@
             
             <li class="nav-static-title" style="color: var(--sidebar-text); font-size: 11px; text-transform: uppercase; letter-spacing: 1px; padding: 20px 20px 10px;">Configuration</li>
             
+            <li class="{{ request()->routeIs('admin.users.*') ? 'active' : '' }}">
+                <a href="{{ route('admin.users.index') }}" style="color: {{ request()->routeIs('admin.users.*') ? '#FFFFFF' : 'var(--sidebar-text)' }}; background-color: {{ request()->routeIs('admin.users.*') ? 'var(--sidebar-active-bg)' : 'transparent' }};">
+                    <i class="nav-icon ti ti-user" style="color: {{ request()->routeIs('admin.users.*') ? '#FFFFFF' : 'var(--sidebar-text)' }};"></i>
+                    <span class="nav-title">Utilisateurs</span>
+                </a>
+            </li>
+
+            <li class="{{ request()->routeIs('admin.roles.*') ? 'active' : '' }}">
+                <a href="{{ route('admin.roles.index') }}" style="color: {{ request()->routeIs('admin.roles.*') ? '#FFFFFF' : 'var(--sidebar-text)' }}; background-color: {{ request()->routeIs('admin.roles.*') ? 'var(--sidebar-active-bg)' : 'transparent' }};">
+                    <i class="nav-icon ti ti-lock" style="color: {{ request()->routeIs('admin.roles.*') ? '#FFFFFF' : 'var(--sidebar-text)' }};"></i>
+                    <span class="nav-title">Rôles & Permissions</span>
+                </a>
+            </li>
+
             <li class="{{ request()->routeIs('admin.settings.*') ? 'active' : '' }}">
                 <a href="{{ route('admin.settings.index') }}" style="color: {{ request()->routeIs('admin.settings.*') ? '#FFFFFF' : 'var(--sidebar-text)' }}; background-color: {{ request()->routeIs('admin.settings.*') ? 'var(--sidebar-active-bg)' : 'transparent' }};">
                     <i class="nav-icon ti ti-settings" style="color: {{ request()->routeIs('admin.settings.*') ? '#FFFFFF' : 'var(--sidebar-text)' }};"></i>
                     <span class="nav-title">Paramètres</span>
                 </a>
             </li>
-            
+
             <li class="{{ request()->routeIs('admin.audit.*') || request()->routeIs('admin.reports.*') ? 'active' : '' }}">
                 <a class="has-arrow" href="javascript:void(0)" aria-expanded="false" style="color: {{ request()->routeIs('admin.audit.*') || request()->routeIs('admin.reports.*') ? '#FFFFFF' : 'var(--sidebar-text)' }}; background-color: {{ request()->routeIs('admin.audit.*') || request()->routeIs('admin.reports.*') ? 'var(--sidebar-active-bg)' : 'transparent' }};">
                     <i class="nav-icon ti ti-pie-chart" style="color: {{ request()->routeIs('admin.audit.*') || request()->routeIs('admin.reports.*') ? '#FFFFFF' : 'var(--sidebar-text)' }};"></i>

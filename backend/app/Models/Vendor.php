@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Vendor extends Model
 {
@@ -37,9 +38,9 @@ class Vendor extends Model
         return $this->hasMany(VendorHour::class);
     }
 
-    public function settings(): BelongsTo
+    public function settings(): HasOne
     {
-        return $this->belongsTo(VendorSetting::class);
+        return $this->hasOne(VendorSetting::class);
     }
 
     public function statusHistory(): HasMany
@@ -59,6 +60,6 @@ class Vendor extends Model
 
     public function zones(): BelongsToMany
     {
-        return $this->belongsToMany(DeliveryZone::class, 'vendor_zones');
+        return $this->belongsToMany(DeliveryZone::class, 'vendor_zones', 'vendor_id', 'zone_id')->using(VendorZone::class);
     }
 }

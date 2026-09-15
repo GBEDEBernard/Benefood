@@ -1,10 +1,14 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Admin\AdminController;
+use App\Http\Controllers\Admin\RolesController;
+use App\Http\Controllers\Admin\UsersController;
+use App\Http\Controllers\Admin\VendorsController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use App\Http\Controllers\Admin\AdminController;
+use Illuminate\Support\Facades\Route;
 
+// --- Dev login (local only) ---
 Route::get('/admin/dev-login', function () {
     $user = \App\Models\User::where('email', 'admin@local')->first();
 
@@ -17,7 +21,7 @@ Route::get('/admin/dev-login', function () {
     return redirect()->route('admin.dashboard');
 });
 
-// Simple web login/logout routes for dashboard
+// --- Auth web (login / logout) ---
 Route::get('/login', function () {
     return view('auth.login');
 })->name('login');
@@ -27,6 +31,7 @@ Route::post('/login', function (Request $request) {
 
     if (Auth::attempt($credentials, $request->filled('remember'))) {
         $request->session()->regenerate();
+
         return redirect()->intended(route('admin.dashboard'));
     }
 
@@ -37,58 +42,51 @@ Route::post('/logout', function (Request $request) {
     Auth::logout();
     $request->session()->invalidate();
     $request->session()->regenerateToken();
+
     return redirect()->route('login');
 })->name('logout');
 
-Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () {
+// --- Back-office (auth required) ---
+Route::middleware('auth')->prefix('admin')->name('admin.')->group(function (): void {
+
+    // Dashboard
     Route::get('', [AdminController::class, 'index'])->name('dashboard');
 
-    // --- Vendeurs ---
-    Route::get('/vendeurs', fn () => view('admin.placeholder', ['title' => 'Vendeurs', 'section' => 'Gestion des vendeurs']))->name('vendors.index');
+    // ---------- Phase 06 — Utilisateurs ----------
+    Route::resource('users', UsersController::class)->only(['index', 'show']);
+    Route::post('users/{user}/status', [UsersController::class, 'updateStatus'])->name('users.status');
+    Route::post('users/{user}/roles', [UsersController::class, 'updateRoles'])->name('users.roles');
 
-    // --- Clients ---
+    // ---------- Phase 06 — Rôles & Permissions ----------
+    Route::resource('roles', RolesController::class)->only(['index', 'show', 'update']);
+
+    // ---------- Phase 07 — Vendeurs ----------
+    Route::resource('vendors', VendorsController::class)->only(['index', 'show']);
+    Route::post('vendors/{vendor}/approve', [VendorsController::class, 'approve'])->name('vendors.approve');
+    Route::post('vendors/{vendor}/suspend', [VendorsController::class, 'suspend'])->name('vendors.suspend');
+    Route::post('vendors/{vendor}/activate', [VendorsController::class, 'activate'])->name('vendors.activate');
+    Route::post('vendors/{vendor}/close', [VendorsController::class, 'close'])->name('vendors.close');
+    Route::get('vendors/{vendor}/documents/{document}/download', [VendorsController::class, 'downloadDocument'])->name('vendors.documents.download');
+    Route::post('vendors/{vendor}/documents/{document}/review', [VendorsController::class, 'reviewDocument'])->name('vendors.documents.review');
+
+    // ---------- Placeholders (sections pas encore développées) ----------
     Route::get('/clients', fn () => view('admin.placeholder', ['title' => 'Clients', 'section' => 'Gestion des clients']))->name('clients.index');
-
-    // --- Livreurs ---
     Route::get('/livreurs', fn () => view('admin.placeholder', ['title' => 'Livreurs', 'section' => 'Gestion des livreurs']))->name('drivers.index');
-
-    // --- Commandes ---
     Route::get('/commandes', fn () => view('admin.placeholder', ['title' => 'Commandes', 'section' => 'Gestion des commandes']))->name('orders.index');
-
-    // --- Boutiques ---
     Route::get('/boutiques', fn () => view('admin.placeholder', ['title' => 'Boutiques', 'section' => 'Gestion des boutiques']))->name('shops.index');
-
-    // --- Produits ---
     Route::get('/produits', fn () => view('admin.placeholder', ['title' => 'Produits', 'section' => 'Gestion des produits']))->name('products.index');
-
-    // --- Commissions ---
     Route::get('/commissions', fn () => view('admin.placeholder', ['title' => 'Commissions', 'section' => 'Gestion des commissions']))->name('commissions.index');
-
-    // --- Livraison ---
     Route::get('/zones', fn () => view('admin.placeholder', ['title' => 'Zones', 'section' => 'Gestion des zones de livraison']))->name('zones.index');
     Route::get('/tarifs', fn () => view('admin.placeholder', ['title' => 'Tarifs', 'section' => 'Gestion des tarifs de livraison']))->name('rates.index');
-
-    // --- Paiements ---
     Route::get('/transactions', fn () => view('admin.placeholder', ['title' => 'Transactions', 'section' => 'Gestion des transactions']))->name('payments.index');
     Route::get('/remboursements', fn () => view('admin.placeholder', ['title' => 'Remboursements', 'section' => 'Gestion des remboursements']))->name('refunds.index');
-
-    // --- Réclamations ---
     Route::get('/reclamations', fn () => view('admin.placeholder', ['title' => 'Réclamations', 'section' => 'Gestion des réclamations et litiges']))->name('complaints.index');
-
-    // --- Paramètres ---
     Route::get('/parametres', fn () => view('admin.placeholder', ['title' => 'Paramètres', 'section' => 'Configuration des règles métier']))->name('settings.index');
-
-    // --- Audit & Rapports ---
     Route::get('/audit', fn () => view('admin.placeholder', ['title' => 'Audit', 'section' => "Journal d'audit"]))->name('audit.index');
     Route::get('/rapports', fn () => view('admin.placeholder', ['title' => 'Rapports', 'section' => 'Rapports et statistiques']))->name('reports.index');
 });
 
-// legacy/alias route: keep /dashboard working
-Route::get('/dashboard', function () {
-    return redirect()->route('admin.dashboard');
-});
+// Legacy / redirect / landing
+Route::get('/dashboard', fn () => redirect()->route('admin.dashboard'));
 
-
-Route::get('/', function () {
-    return view('welcome');
-});
+Route::get('/', fn () => view('welcome'));
