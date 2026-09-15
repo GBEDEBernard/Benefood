@@ -17,6 +17,8 @@ class DatabaseSeeder extends Seeder
             DeliveryZonesSeeder::class,
             CategoriesSeeder::class,
             NotificationTemplatesSeeder::class,
+            AdminDashboardSeeder::class,
+            
         ]);
     }
 }

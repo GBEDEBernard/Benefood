@@ -17,11 +17,11 @@ class EnsureHasPermission
         $user = $request->user();
 
         if ($user === null) {
-            return Api::error('Vous devez être authentifié.', 'unauthenticated', 401)->toResponse($request);
+            return Api::error('Vous devez être authentifié.', 'unauthenticated', 401);
         }
 
         if (! $user->hasPermission($permission)) {
-            return Api::error('Accès refusé.', 'forbidden', 403)->toResponse($request);
+            return Api::error('Accès refusé.', 'forbidden', 403);
         }
 
         return $next($request);

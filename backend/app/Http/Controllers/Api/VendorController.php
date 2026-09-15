@@ -3,7 +3,9 @@
 namespace App\Http\Controllers\Api;
 
 use App\Enums\VendorDocumentType;
+use App\Enums\VendorStatus;
 use App\Http\Controllers\Controller;
+use App\Http\Resources\ProductResource;
 use App\Http\Resources\VendorResource;
 use App\Models\Vendor;
 use App\Services\VendorOnboardingService;
@@ -11,8 +13,6 @@ use App\Support\Api;
 use App\Support\Phone;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use App\Http\Resources\ProductResource;
-use App\Models\Product;
 
 class VendorController extends Controller
 {
@@ -125,7 +125,7 @@ class VendorController extends Controller
             $data['cover_url'] = $path;
         }
 
-        $vendor->update(array_filter($data, fn($v) => $v !== null && $v !== []));
+        $vendor->update(array_filter($data, fn ($v) => $v !== null && $v !== []));
 
         if (isset($data['hours']) && is_array($data['hours'])) {
             // replace existing hours with provided set
@@ -155,13 +155,13 @@ class VendorController extends Controller
 
         $this->authorize('view', $vendor);
 
-        return Api::ok($vendor->contacts()->orderByDesc('is_primary')->get()->map(fn($c) => [
+        return Api::ok($vendor->contacts()->orderByDesc('is_primary')->get()->map(fn ($c) => [
             'id' => $c->id,
             'name' => $c->name,
             'role' => $c->role,
             'phone' => $c->phone,
             'email' => $c->email,
-            'is_primary' => (bool)$c->is_primary,
+            'is_primary' => (bool) $c->is_primary,
         ])->values());
     }
 
@@ -233,7 +233,7 @@ class VendorController extends Controller
 
         $this->authorize('view', $vendor);
 
-        return Api::ok($vendor->zones()->orderBy('name')->get()->map(fn($z) => [
+        return Api::ok($vendor->zones()->orderBy('name')->get()->map(fn ($z) => [
             'id' => $z->id,
             'name' => $z->name,
             'city' => $z->city,
@@ -260,7 +260,7 @@ class VendorController extends Controller
 
         $vendor->zones()->sync(array_values($data['zone_ids']));
 
-        return Api::ok($vendor->zones()->orderBy('name')->get()->map(fn($z) => [
+        return Api::ok($vendor->zones()->orderBy('name')->get()->map(fn ($z) => [
             'id' => $z->id,
             'name' => $z->name,
             'city' => $z->city,
@@ -287,12 +287,87 @@ class VendorController extends Controller
 
     public function index(Request $request): JsonResponse
     {
-        $vendors = Vendor::query()
-            ->where('is_active', true)
-            ->orderBy('business_name')
-            ->get();
+        $query = Vendor::query()
+            ->with(['settings'])
+            ->where('status', VendorStatus::Active->value)
+            ->whereNull('closed_at');
 
-        return Api::ok(VendorResource::collection($vendors)->values());
+        $q = trim((string) $request->query('q'));
+        if ($q !== '') {
+            $query->where(function ($builder) use ($q) {
+                $builder->where('business_name', 'like', "%{$q}%")
+                    ->orWhere('description', 'like', "%{$q}%")
+                    ->orWhere('city', 'like', "%{$q}%");
+            });
+        }
+
+        if ($request->filled('city')) {
+            $query->where('city', $request->query('city'));
+        }
+
+        if ($request->filled('category_id')) {
+            $query->whereHas('products', fn ($products) => $products->orderable()->where('category_id', $request->query('category_id')));
+        }
+
+        $perPage = (int) $request->query('per_page', config('beninfood.pagination.per_page'));
+        $perPage = $perPage > 0 && $perPage <= config('beninfood.pagination.max_per_page') ? $perPage : config('beninfood.pagination.per_page');
+
+        $paginator = $query->orderBy('business_name')->paginate($perPage);
+
+        return Api::ok(VendorResource::collection($paginator->items())->values(), [
+            'pagination' => [
+                'total' => $paginator->total(),
+                'per_page' => $paginator->perPage(),
+                'current_page' => $paginator->currentPage(),
+                'last_page' => $paginator->lastPage(),
+            ],
+        ]);
+    }
+
+    public function show(Request $request, Vendor $vendor): JsonResponse
+    {
+        if ($vendor->status !== VendorStatus::Active->value || $vendor->closed_at !== null) {
+            return Api::error('Boutique introuvable.', 'not_found', 404);
+        }
+
+        $vendor->load([
+            'settings',
+            'hours',
+            'products' => fn ($products) => $products->orderable()->orderBy('name'),
+        ]);
+
+        return Api::ok($this->shopPayload($vendor));
+    }
+
+    /**
+     * Fiche boutique (J78) : informations, horaires et produits commandables.
+     *
+     * @return array<string, mixed>
+     */
+    private function shopPayload(Vendor $vendor): array
+    {
+        return [
+            'id' => $vendor->id,
+            'business_name' => $vendor->business_name,
+            'description' => $vendor->description,
+            'logo_url' => $vendor->logo_url,
+            'cover_url' => $vendor->cover_url,
+            'phone' => $vendor->phone,
+            'city' => $vendor->city,
+            'address' => $vendor->address,
+            'latitude' => $vendor->latitude,
+            'longitude' => $vendor->longitude,
+            'is_open' => $vendor->isOpenNow(),
+            'delivery_fee_share' => $vendor->settings?->delivery_fee_share,
+            'max_preparation_minutes' => $vendor->settings?->max_preparation_minutes ?? 30,
+            'hours' => $vendor->hours->map(fn ($hour) => [
+                'day_of_week' => $hour->day_of_week,
+                'opens_at' => $hour->opens_at,
+                'closes_at' => $hour->closes_at,
+                'is_closed' => (bool) $hour->is_closed,
+            ])->values(),
+            'products' => ProductResource::collection($vendor->products)->resolve(),
+        ];
     }
 
     public function myProducts(Request $request): JsonResponse

@@ -11,6 +11,15 @@ class AdminPolicy
 {
     public function manage(User $user): bool
     {
-        return $user->hasRole('porteuse') || $user->hasRole('admin-technique');
+        // Allow platform administrators and technical admins to manage the back-office.
+        $allowed = ['porteuse', 'admin-technique', 'admin', 'super-admin'];
+
+        foreach ($allowed as $role) {
+            if ($user->hasRole($role)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

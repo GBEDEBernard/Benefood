@@ -7,6 +7,7 @@ use App\Http\Controllers\Admin\AdminRatesController;
 use App\Http\Controllers\Admin\AdminZonesController;
 use App\Http\Controllers\Admin\RolesController;
 use App\Http\Controllers\Admin\UsersController;
+use App\Http\Controllers\Admin\AdminClientsController;
 use App\Http\Controllers\Admin\VendorsController;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -62,6 +63,9 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function (): v
     Route::post('users/{user}/status', [UsersController::class, 'updateStatus'])->name('users.status');
     Route::post('users/{user}/roles', [UsersController::class, 'updateRoles'])->name('users.roles');
 
+    // ---------- Phase 10 — Clients (CRUD back-office) ----------
+    Route::resource('clients', AdminClientsController::class)->only(['index', 'show', 'edit', 'update', 'destroy']);
+
     // ---------- Phase 06 — Rôles & Permissions ----------
     Route::resource('roles', RolesController::class)->only(['index', 'show', 'update']);
 
@@ -96,7 +100,11 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function (): v
     Route::post('rates/{rate}/active', [AdminRatesController::class, 'toggleActive'])->name('rates.active');
 
     // ---------- Placeholders (sections pas encore développées) ----------
-    Route::get('/clients', fn () => view('admin.placeholder', ['title' => 'Clients', 'section' => 'Gestion des clients']))->name('clients.index');
+    Route::get('/clients', function () {
+        // Redirige vers la liste des utilisateurs avec le filtre rôle=client
+        return redirect()->route('admin.users.index', ['role' => 'client']);
+    })->name('clients.index');
+    Route::resource('payments', \App\Http\Controllers\Admin\AdminPaymentsController::class)->only(['index', 'show']);
     Route::get('/livreurs', fn () => view('admin.placeholder', ['title' => 'Livreurs', 'section' => 'Gestion des livreurs']))->name('drivers.index');
     Route::get('/commandes', fn () => view('admin.placeholder', ['title' => 'Commandes', 'section' => 'Gestion des commandes']))->name('orders.index');
     Route::get('/boutiques', fn () => view('admin.placeholder', ['title' => 'Boutiques', 'section' => 'Gestion des boutiques']))->name('shops.index');
@@ -111,5 +119,8 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function (): v
 
 // Legacy / redirect / landing
 Route::get('/dashboard', fn () => redirect()->route('admin.dashboard'));
+
+// Backoffice shortlink
+Route::get('/backoffice', fn () => redirect()->route('admin.dashboard'))->name('backoffice');
 
 Route::get('/', fn () => view('welcome'));

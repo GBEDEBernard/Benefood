@@ -1,17 +1,24 @@
 <?php
 
 use App\Http\Controllers\Admin\AdminVendorController;
+use App\Http\Controllers\Api\AddressController;
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\CartController;
 use App\Http\Controllers\Api\CatalogController;
 use App\Http\Controllers\Api\DeliveryQuoteController;
 use App\Http\Controllers\Api\DriverController;
 use App\Http\Controllers\Api\HealthController;
+use App\Http\Controllers\Api\HomeController;
 use App\Http\Controllers\Api\MeController;
+use App\Http\Controllers\Api\OrderController;
+use App\Http\Controllers\Api\PaymentController;
 use App\Http\Controllers\Api\VendorController;
 use App\Http\Controllers\Api\VendorProductController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/health', [HealthController::class, 'index'])->name('api.v1.health');
+
+Route::get('/home', [HomeController::class, 'index'])->name('api.v1.home');
 
 Route::prefix('auth')->middleware('throttle:auth')->group(function (): void {
     Route::post('/register', [AuthController::class, 'register'])->name('api.v1.auth.register');
@@ -58,10 +65,47 @@ Route::middleware('auth:sanctum')->group(function (): void {
         Route::get('/status', [DriverController::class, 'status'])->name('api.v1.driver.me.status');
     });
 
+    Route::prefix('addresses')->middleware('permission:client.cart.manage')->group(function (): void {
+        Route::get('/', [AddressController::class, 'index'])->name('api.v1.addresses.index');
+        Route::post('/', [AddressController::class, 'store'])->name('api.v1.addresses.store');
+        Route::patch('/{address}', [AddressController::class, 'update'])->name('api.v1.addresses.update');
+        Route::delete('/{address}', [AddressController::class, 'destroy'])->name('api.v1.addresses.destroy');
+    });
+
+    Route::prefix('cart')->middleware('permission:client.cart.manage')->group(function (): void {
+        Route::get('/', [CartController::class, 'show'])->name('api.v1.cart.show');
+        Route::delete('/', [CartController::class, 'clear'])->name('api.v1.cart.clear');
+        Route::post('/items', [CartController::class, 'addItem'])->name('api.v1.cart.items.store');
+        Route::patch('/items/{item}', [CartController::class, 'updateItem'])->name('api.v1.cart.items.update');
+        Route::delete('/items/{item}', [CartController::class, 'destroyItem'])->name('api.v1.cart.items.destroy');
+    });
+
+    Route::prefix('orders')->group(function (): void {
+        Route::post('/summary', [OrderController::class, 'summary'])->name('api.v1.orders.summary')->middleware('permission:client.orders.manage');
+        Route::post('/', [OrderController::class, 'store'])->name('api.v1.orders.store')->middleware('permission:client.orders.manage');
+        Route::get('/', [OrderController::class, 'index'])->name('api.v1.orders.index')->middleware('permission:client.orders.manage');
+        Route::get('/{order}', [OrderController::class, 'show'])->name('api.v1.orders.show')->middleware('permission:client.orders.manage');
+        Route::post('/{order}/cancel', [OrderController::class, 'cancel'])->name('api.v1.orders.cancel')->middleware('permission:client.orders.manage');
+    });
+
+    Route::prefix('vendors/me/orders')->middleware('permission:vendor.orders.manage')->group(function (): void {
+        Route::get('/', [OrderController::class, 'vendorIndex'])->name('api.v1.vendors.orders.index');
+        Route::get('/{order}', [OrderController::class, 'show'])->name('api.v1.vendors.orders.show');
+        Route::post('/{order}/accept', [OrderController::class, 'accept'])->name('api.v1.vendors.orders.accept')->middleware('permission:vendor.orders.accept');
+        Route::post('/{order}/refuse', [OrderController::class, 'refuse'])->name('api.v1.vendors.orders.refuse')->middleware('permission:vendor.orders.accept');
+    });
+
     Route::prefix('admin')->group(function (): void {
         Route::post('/drivers', [DriverController::class, 'createInternal'])->name('api.v1.admin.drivers.create');
         Route::post('/vendors/{vendor}/approve', [AdminVendorController::class, 'approve'])->name('api.v1.admin.vendors.approve');
         Route::post('/vendors/{vendor}/suspend', [AdminVendorController::class, 'suspend'])->name('api.v1.admin.vendors.suspend');
+        Route::post('/orders/{order}/cancel', [OrderController::class, 'adminCancel'])->name('api.v1.admin.orders.cancel')->middleware('permission:admin.orders.cancel');
+    });
+
+    // Payments (client)
+    Route::prefix('payments')->group(function (): void {
+        Route::post('/create', [PaymentController::class, 'create'])->name('api.v1.payments.create')->middleware('permission:client.orders.manage');
+        Route::post('/verify', [PaymentController::class, 'verify'])->name('api.v1.payments.verify')->middleware('permission:client.orders.manage');
     });
 });
 
@@ -69,6 +113,10 @@ Route::get('/categories', [CatalogController::class, 'categories'])->name('api.v
 Route::get('/products', [CatalogController::class, 'index'])->name('api.v1.products.index');
 Route::get('/products/{product}', [CatalogController::class, 'show'])->name('api.v1.products.show');
 Route::get('/vendors', [VendorController::class, 'index'])->name('api.v1.vendors.index');
+Route::get('/vendors/{vendor}', [VendorController::class, 'show'])->name('api.v1.vendors.show');
 Route::get('/vendors/{vendor}/products', [VendorProductController::class, 'index'])->name('api.v1.vendors.products.index');
 
 Route::post('/delivery/quote', [DeliveryQuoteController::class, 'quote'])->name('api.v1.delivery.quote');
+
+// Public webhook for payment providers
+Route::post('/payments/webhook', [PaymentController::class, 'webhook'])->name('api.v1.payments.webhook');

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\VendorStatus;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -9,6 +10,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Support\Carbon;
 
 class Vendor extends Model
 {
@@ -63,5 +65,34 @@ class Vendor extends Model
     public function zones(): BelongsToMany
     {
         return $this->belongsToMany(DeliveryZone::class, 'vendor_zones', 'vendor_id', 'zone_id')->using(VendorZone::class);
+    }
+
+    /**
+     * La boutique accepte-t-elle des commandes à l'instant donné ?
+     * Un vendeur sans horaire défini pour le jour est considéré ouvert.
+     */
+    public function isOpenNow(?\DateTimeInterface $at = null): bool
+    {
+        $at ??= now();
+
+        if ($this->status !== VendorStatus::Active->value || $this->closed_at !== null) {
+            return false;
+        }
+
+        $day = (new Carbon($at))->dayOfWeek; // 0 = dimanche
+        $hour = $this->hours()->where('day_of_week', $day)->first();
+
+        if ($hour === null) {
+            return true;
+        }
+
+        if ($hour->is_closed) {
+            return false;
+        }
+
+        $time = $at->format('H:i:s');
+
+        return ($hour->opens_at === null || $time >= $hour->opens_at)
+            && ($hour->closes_at === null || $time <= $hour->closes_at);
     }
 }
