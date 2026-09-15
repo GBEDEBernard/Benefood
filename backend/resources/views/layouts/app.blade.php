@@ -1,64 +1,71 @@
 <!DOCTYPE html>
-<html lang="en">
-
+<html lang="fr">
 
 <head>
-    <title>Béninfood</title>
+    <title>Béninfood — Back-office</title>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
-    <meta name="description" content="Admin template that can be used to build dashboards for CRM, CMS, etc." />
-    <meta name="author" content="Potenza Global Solutions" />
+    <meta name="description" content="Back-office Béninfood — Gestion du marketplace alimentaire" />
+    <meta name="author" content="Béninfood" />
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-    <!-- app favicon -->
-    <link rel="shortcut icon" href="{{ asset('assets/img/favicon.ico') }}">
-    <!-- google fonts -->
+    <link rel="icon" href="{{ asset('assets/img/logo.jpeg') }}" type="image/jpeg">
     <link href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700" rel="stylesheet">
-    <!-- plugin stylesheets -->
     <link rel="stylesheet" type="text/css" href="{{ asset('assets/css/vendors.css') }}" />
-    <!-- app style -->
     <link rel="stylesheet" type="text/css" href="{{ asset('assets/css/style.css') }}" />
-    <!-- layout fixes (temporarily disabled) -->
-    <!-- <link rel="stylesheet" type="text/css" href="{{ asset('assets/css/layout-fix.css') }}" /> -->
+    <link rel="stylesheet" type="text/css" href="{{ asset('assets/css/beninfood.css') }}" />
+    
+    <style>
+        .app-main {
+            padding: 30px;
+            min-height: calc(100vh - 60px);
+            margin-left: 250px;
+            background: #F4F6F8;
+        }
+        @media (max-width: 991px) {
+            .app-main { margin-left: 0; padding: 15px; }
+        }
+    </style>
 </head>
 
 <body>
-    <!-- begin app -->
     <div class="app">
-        <!-- begin app-wrap -->
         <div class="app-wrap">
-            <!-- begin pre-loader -->
             <div class="loader">
                 <div class="h-100 d-flex justify-content-center">
                     <div class="align-self-center">
-                        <img src="{{ asset('assets/img/loader/loader.svg') }}" alt="loader">
+                        <img src="{{ asset('assets/img/loader/loader.svg') }}" alt="Chargement...">
                     </div>
                 </div>
             </div>
-            <!-- end pre-loader -->
-    @include('layouts.header')
-    @include('layouts.sidebar')
 
-    <main class="app-content">
-        @yield('content')
-    </main>
+            @include('layouts.header')
+            @include('layouts.sidebar')
 
-    @include('layouts.footer')
+            <main class="app-main" id="main">
+                <div class="container-fluid">
+                    @yield('content')
+                </div>
+            </main>
 
-    </div> <!-- end app-container -->
-
-    @stack('scripts')
-    <!-- end footer -->
+            @include('layouts.footer')
         </div>
-        <!-- end app-wrap -->
     </div>
-    <!-- end app -->
 
-    <!-- plugins -->
     <script src="{{ asset('assets/js/vendors.js') }}"></script>
-
-    <!-- custom app -->
     <script src="{{ asset('assets/js/app.js') }}"></script>
+    <script>
+        // Fermer la sidebar mobile en cliquant sur l'overlay
+        document.addEventListener('click', function(e) {
+            if (window.innerWidth <= 991 && document.body.classList.contains('sidebar-toggled')) {
+                var sidebar = document.querySelector('.app-navbar');
+                var toggle = document.querySelector('.mobile-toggle');
+                if (sidebar && !sidebar.contains(e.target) && toggle && !toggle.contains(e.target)) {
+                    document.body.classList.remove('sidebar-toggled');
+                }
+            }
+        });
+    </script>
+    @stack('scripts')
 </body>
-
 
 </html>

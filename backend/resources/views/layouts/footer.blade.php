@@ -1,12 +1,11 @@
- <!-- begin footer -->
-            <footer class="footer">
-                <div class="row">
-                    <div class="col-12 col-sm-6 text-center text-sm-left">
-                        <p>&copy; Copyright 2026. All rights reserved.</p>
-                    </div>
-                   <div class="col  col-sm-6 ml-sm-auto text-center text-sm-right">
-                        <p><a target="_blank" href="https://www.templateshub.net">Templates Hub</a></p>
-                    </div>
-                </div>
-            </footer>
-            <!-- end footer -->
+<!-- begin footer -->
+<footer class="footer">
+    <div class="row">
+        <div class="col-12 text-center">
+            <p class="mb-0" style="color: var(--text-muted); font-size: 13px;">
+                &copy; {{ date('Y') }} <strong style="color: var(--benin-green);">Bénin<span style="color: var(--benin-orange);">Food</span></strong>. Tous droits réservés.
+            </p>
+        </div>
+    </div>
+</footer>
+<!-- end footer -->
