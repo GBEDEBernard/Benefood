@@ -10,6 +10,8 @@ class ProductPriceHistory extends Model
 {
     use HasUuids;
 
+    protected $table = 'product_price_history';
+
     protected $guarded = [];
 
     public $timestamps = false;
