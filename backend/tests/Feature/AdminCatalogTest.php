@@ -167,7 +167,7 @@ class AdminCatalogTest extends TestCase
         $this->actingAs($this->admin())
             ->post(route('admin.products.images.store', $product), [
                 'image' => UploadedFile::fake()->image('special.jpg', 800, 600),
-            ])->assertOk();
+            ])->assertCreated();
 
         $this->assertDatabaseHas('product_images', [
             'product_id' => $product->id,
@@ -204,7 +204,7 @@ class AdminCatalogTest extends TestCase
         ])->assertRedirect();
         $this->assertSame($root->id, $created->fresh()->parent_id);
 
-        $this->post(route('admin.categories.destroy', $created))
+        $this->delete(route('admin.categories.destroy', $created))
             ->assertRedirect();
         $this->assertDatabaseHas('categories', ['id' => $created->id, 'is_active' => false]);
     }

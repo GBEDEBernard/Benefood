@@ -7,6 +7,7 @@ use App\Enums\VendorDocumentStatus;
 use App\Enums\VendorDocumentType;
 use App\Enums\VendorStatus;
 use App\Models\Category;
+use App\Models\DeliveryRate;
 use App\Models\DeliveryZone;
 use App\Models\Role;
 use App\Models\User;
@@ -39,6 +40,11 @@ class DemoDataSeeder extends Seeder
             'name' => 'Cotonou Centre',
             'city' => 'Cotonou',
         ]);
+
+        DeliveryRate::updateOrCreate(
+            ['zone_id' => $zone->id, 'vendor_id' => null],
+            ['price' => 1000, 'is_active' => true],
+        );
 
         $roleClient = Role::where('slug', 'client')->firstOrFail();
         $roleVendor = Role::where('slug', 'vendor')->firstOrFail();
@@ -154,6 +160,11 @@ class DemoDataSeeder extends Seeder
         ]);
 
         $activeVendor->zones()->sync([$zone->id]);
+
+        DeliveryRate::updateOrCreate(
+            ['zone_id' => $zone->id, 'vendor_id' => $activeVendor->id],
+            ['price' => 1500, 'is_active' => true],
+        );
 
         $products = [
             ['name' => 'Poulet braisé + riz', 'price' => 2500, 'unit' => 'plat', 'stock_qty' => 20],

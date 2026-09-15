@@ -6,6 +6,7 @@ use App\Enums\UserStatus;
 use App\Enums\VendorDocumentStatus;
 use App\Enums\VendorDocumentType;
 use App\Enums\VendorStatus;
+use App\Enums\ZoneIdentificationMode;
 
 /**
  * Libellés et badges de statut pour le back-office (cohérence UI Phase 06/07).
@@ -142,6 +143,33 @@ class AdminLabels
         $s = self::categoryStatus($isActive);
 
         return '<span class="badge badge-pill" style="background-color: '.$s['bg'].'; color: '.$s['fg'].'; font-weight: 600; padding: 6px 12px; border-radius: 20px;">'.$s['label'].'</span>';
+    }
+
+    /** @return array{label: string, bg: string, fg: string} */
+    public static function zoneStatus(bool $isActive): array
+    {
+        return $isActive
+            ? ['label' => 'Active', 'bg' => '#E8F5E9', 'fg' => '#2E7D32']
+            : ['label' => 'Inactive', 'bg' => '#ECEFF1', 'fg' => '#37474F'];
+    }
+
+    public static function zoneStatusBadge(bool $isActive): string
+    {
+        $s = self::zoneStatus($isActive);
+
+        return '<span class="badge badge-pill" style="background-color: '.$s['bg'].'; color: '.$s['fg'].'; font-weight: 600; padding: 6px 12px; border-radius: 20px;">'.$s['label'].'</span>';
+    }
+
+    public static function rateStatusBadge(bool $isActive): string
+    {
+        return $isActive
+            ? '<span class="badge badge-pill" style="background-color: #E8F5E9; color: #2E7D32; font-weight: 600; padding: 6px 12px; border-radius: 20px;">Actif</span>'
+            : '<span class="badge badge-pill" style="background-color: #ECEFF1; color: #37474F; font-weight: 600; padding: 6px 12px; border-radius: 20px;">Inactif</span>';
+    }
+
+    public static function zoneModeLabel(string $mode): string
+    {
+        return ZoneIdentificationMode::tryFrom($mode)?->label() ?? ucfirst($mode);
     }
 
     /**

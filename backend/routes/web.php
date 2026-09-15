@@ -3,6 +3,8 @@
 use App\Http\Controllers\Admin\AdminCategoriesController;
 use App\Http\Controllers\Admin\AdminController;
 use App\Http\Controllers\Admin\AdminProductsController;
+use App\Http\Controllers\Admin\AdminRatesController;
+use App\Http\Controllers\Admin\AdminZonesController;
 use App\Http\Controllers\Admin\RolesController;
 use App\Http\Controllers\Admin\UsersController;
 use App\Http\Controllers\Admin\VendorsController;
@@ -84,14 +86,21 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function (): v
     Route::delete('categories/{category}', [AdminCategoriesController::class, 'destroy'])->name('categories.destroy');
     Route::post('categories/{category}/active', [AdminCategoriesController::class, 'toggleActive'])->name('categories.active');
 
+    // ---------- Phase 09 — Zones & tarifs de livraison ----------
+    Route::resource('zones', AdminZonesController::class)->except(['show', 'destroy']);
+    Route::delete('zones/{zone}', [AdminZonesController::class, 'destroy'])->name('zones.destroy');
+    Route::post('zones/{zone}/active', [AdminZonesController::class, 'toggleActive'])->name('zones.active');
+
+    Route::resource('rates', AdminRatesController::class)->except(['show', 'destroy']);
+    Route::delete('rates/{rate}', [AdminRatesController::class, 'destroy'])->name('rates.destroy');
+    Route::post('rates/{rate}/active', [AdminRatesController::class, 'toggleActive'])->name('rates.active');
+
     // ---------- Placeholders (sections pas encore développées) ----------
     Route::get('/clients', fn () => view('admin.placeholder', ['title' => 'Clients', 'section' => 'Gestion des clients']))->name('clients.index');
     Route::get('/livreurs', fn () => view('admin.placeholder', ['title' => 'Livreurs', 'section' => 'Gestion des livreurs']))->name('drivers.index');
     Route::get('/commandes', fn () => view('admin.placeholder', ['title' => 'Commandes', 'section' => 'Gestion des commandes']))->name('orders.index');
     Route::get('/boutiques', fn () => view('admin.placeholder', ['title' => 'Boutiques', 'section' => 'Gestion des boutiques']))->name('shops.index');
     Route::get('/commissions', fn () => view('admin.placeholder', ['title' => 'Commissions', 'section' => 'Gestion des commissions']))->name('commissions.index');
-    Route::get('/zones', fn () => view('admin.placeholder', ['title' => 'Zones', 'section' => 'Gestion des zones de livraison']))->name('zones.index');
-    Route::get('/tarifs', fn () => view('admin.placeholder', ['title' => 'Tarifs', 'section' => 'Gestion des tarifs de livraison']))->name('rates.index');
     Route::get('/transactions', fn () => view('admin.placeholder', ['title' => 'Transactions', 'section' => 'Gestion des transactions']))->name('payments.index');
     Route::get('/remboursements', fn () => view('admin.placeholder', ['title' => 'Remboursements', 'section' => 'Gestion des remboursements']))->name('refunds.index');
     Route::get('/reclamations', fn () => view('admin.placeholder', ['title' => 'Réclamations', 'section' => 'Gestion des réclamations et litiges']))->name('complaints.index');

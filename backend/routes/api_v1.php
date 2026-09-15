@@ -3,6 +3,7 @@
 use App\Http\Controllers\Admin\AdminVendorController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CatalogController;
+use App\Http\Controllers\Api\DeliveryQuoteController;
 use App\Http\Controllers\Api\DriverController;
 use App\Http\Controllers\Api\HealthController;
 use App\Http\Controllers\Api\MeController;
@@ -69,3 +70,5 @@ Route::get('/products', [CatalogController::class, 'index'])->name('api.v1.produ
 Route::get('/products/{product}', [CatalogController::class, 'show'])->name('api.v1.products.show');
 Route::get('/vendors', [VendorController::class, 'index'])->name('api.v1.vendors.index');
 Route::get('/vendors/{vendor}/products', [VendorProductController::class, 'index'])->name('api.v1.vendors.products.index');
+
+Route::post('/delivery/quote', [DeliveryQuoteController::class, 'quote'])->name('api.v1.delivery.quote');
