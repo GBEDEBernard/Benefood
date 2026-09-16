@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Enums\VendorStatus;
 use App\Http\Controllers\Controller;
+use App\Http\Resources\VendorResource;
 use App\Models\Vendor;
 use App\Services\VendorOnboardingService;
 use App\Support\Api;
@@ -22,7 +23,7 @@ class AdminVendorController extends Controller
 
         $vendor->update(['status' => VendorStatus::Active->value]);
 
-        return Api::ok(new \App\Http\Resources\VendorResource($vendor->fresh()));
+        return Api::ok(new VendorResource($vendor->fresh()));
     }
 
     public function suspend(Request $request, Vendor $vendor): JsonResponse
@@ -33,6 +34,6 @@ class AdminVendorController extends Controller
 
         $vendor->update(['status' => VendorStatus::Closed->value]);
 
-        return Api::ok(new \App\Http\Resources\VendorResource($vendor->fresh()));
+        return Api::ok(new VendorResource($vendor->fresh()));
     }
 }

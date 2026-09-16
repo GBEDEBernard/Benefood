@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Payment;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -12,7 +13,7 @@ class AdminPaymentsController extends Controller
     public function index(Request $request): View
     {
         // Back-office manage permission is evaluated on the User/admin policy
-        $this->authorize('manage', \App\Models\User::class);
+        $this->authorize('manage', User::class);
 
         $query = Payment::query()->with('order');
 
@@ -27,7 +28,7 @@ class AdminPaymentsController extends Controller
 
     public function show(Payment $payment): View
     {
-        $this->authorize('manage', \App\Models\User::class);
+        $this->authorize('manage', User::class);
 
         $payment->load('order');
 

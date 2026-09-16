@@ -1,13 +1,14 @@
 <?php
 
 use App\Http\Controllers\Admin\AdminCategoriesController;
+use App\Http\Controllers\Admin\AdminClientsController;
 use App\Http\Controllers\Admin\AdminController;
+use App\Http\Controllers\Admin\AdminPaymentsController;
 use App\Http\Controllers\Admin\AdminProductsController;
 use App\Http\Controllers\Admin\AdminRatesController;
 use App\Http\Controllers\Admin\AdminZonesController;
 use App\Http\Controllers\Admin\RolesController;
 use App\Http\Controllers\Admin\UsersController;
-use App\Http\Controllers\Admin\AdminClientsController;
 use App\Http\Controllers\Admin\VendorsController;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -104,7 +105,7 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function (): v
         // Redirige vers la liste des utilisateurs avec le filtre rôle=client
         return redirect()->route('admin.users.index', ['role' => 'client']);
     })->name('clients.index');
-    Route::resource('payments', \App\Http\Controllers\Admin\AdminPaymentsController::class)->only(['index', 'show']);
+    Route::resource('payments', AdminPaymentsController::class)->only(['index', 'show']);
     Route::get('/livreurs', fn () => view('admin.placeholder', ['title' => 'Livreurs', 'section' => 'Gestion des livreurs']))->name('drivers.index');
     Route::get('/commandes', fn () => view('admin.placeholder', ['title' => 'Commandes', 'section' => 'Gestion des commandes']))->name('orders.index');
     Route::get('/boutiques', fn () => view('admin.placeholder', ['title' => 'Boutiques', 'section' => 'Gestion des boutiques']))->name('shops.index');

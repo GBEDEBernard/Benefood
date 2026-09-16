@@ -18,7 +18,7 @@ class DatabaseSeeder extends Seeder
             CategoriesSeeder::class,
             NotificationTemplatesSeeder::class,
             AdminDashboardSeeder::class,
-            
+
         ]);
     }
 }

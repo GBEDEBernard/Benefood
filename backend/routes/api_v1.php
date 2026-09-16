@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\AddressController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CartController;
 use App\Http\Controllers\Api\CatalogController;
+use App\Http\Controllers\Api\DeliveryController;
 use App\Http\Controllers\Api\DeliveryQuoteController;
 use App\Http\Controllers\Api\DriverController;
 use App\Http\Controllers\Api\HealthController;
@@ -63,6 +64,22 @@ Route::middleware('auth:sanctum')->group(function (): void {
         Route::post('/onboarding', [DriverController::class, 'onboarding'])->name('api.v1.driver.me.onboarding');
         Route::post('/documents', [DriverController::class, 'uploadDocument'])->name('api.v1.driver.me.documents');
         Route::get('/status', [DriverController::class, 'status'])->name('api.v1.driver.me.status');
+
+        Route::prefix('availability')->middleware('permission:driver.availability.manage')->group(function (): void {
+            Route::post('/', [DeliveryController::class, 'setAvailability'])->name('api.v1.driver.me.availability');
+            Route::patch('/location', [DeliveryController::class, 'updateLocation'])->name('api.v1.driver.me.location');
+        });
+
+        Route::prefix('deliveries')->middleware('permission:driver.deliveries.manage')->group(function (): void {
+            Route::get('/', [DeliveryController::class, 'myDeliveries'])->name('api.v1.driver.me.deliveries.index');
+            Route::get('/offers', [DeliveryController::class, 'availableOffers'])->name('api.v1.driver.me.deliveries.offers');
+            Route::post('/{delivery}/accept', [DeliveryController::class, 'accept'])->name('api.v1.driver.me.deliveries.accept');
+            Route::post('/{delivery}/decline', [DeliveryController::class, 'decline'])->name('api.v1.driver.me.deliveries.decline');
+            Route::post('/{delivery}/pickup', [DeliveryController::class, 'pickup'])->name('api.v1.driver.me.deliveries.pickup');
+            Route::post('/{delivery}/start', [DeliveryController::class, 'start'])->name('api.v1.driver.me.deliveries.start');
+            Route::post('/{delivery}/deliver', [DeliveryController::class, 'deliver'])->name('api.v1.driver.me.deliveries.deliver');
+            Route::post('/{delivery}/incident', [DeliveryController::class, 'incident'])->name('api.v1.driver.me.deliveries.incident');
+        });
     });
 
     Route::prefix('addresses')->middleware('permission:client.cart.manage')->group(function (): void {
@@ -93,6 +110,8 @@ Route::middleware('auth:sanctum')->group(function (): void {
         Route::get('/{order}', [OrderController::class, 'show'])->name('api.v1.vendors.orders.show');
         Route::post('/{order}/accept', [OrderController::class, 'accept'])->name('api.v1.vendors.orders.accept')->middleware('permission:vendor.orders.accept');
         Route::post('/{order}/refuse', [OrderController::class, 'refuse'])->name('api.v1.vendors.orders.refuse')->middleware('permission:vendor.orders.accept');
+        Route::post('/{order}/preparing', [OrderController::class, 'markPreparing'])->name('api.v1.vendors.orders.preparing')->middleware('permission:vendor.orders.accept');
+        Route::post('/{order}/ready', [OrderController::class, 'markReady'])->name('api.v1.vendors.orders.ready')->middleware('permission:vendor.orders.accept');
     });
 
     Route::prefix('admin')->group(function (): void {

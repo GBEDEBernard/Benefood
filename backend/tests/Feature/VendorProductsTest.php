@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Category;
 use App\Models\Product;
+use App\Models\ProductImage;
 use App\Models\Role;
 use App\Models\User;
 use App\Models\Vendor;
@@ -188,7 +189,7 @@ class VendorProductsTest extends TestCase
             'mime' => 'image/webp',
         ]);
 
-        $path = \App\Models\ProductImage::find($imageId)->path;
+        $path = ProductImage::find($imageId)->path;
         Storage::disk('public')->assertExists($path);
         Storage::disk('public')->assertExists(preg_replace('/\.webp$/', '_thumb.webp', $path));
 

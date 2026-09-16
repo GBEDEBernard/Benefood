@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\DeliveryStatus;
 use App\Enums\OrderStatus;
 use App\Enums\PaymentStatus;
 use App\Exceptions\DomainException;
@@ -197,10 +198,12 @@ class OrderService
     }
 
     // ------------------------------------------------------------------ J85
-    /** Le vendeur valide la commande (awaiting_payment → accepted). */
+    /** Le vendeur valide la commande (awaiting_payment/paid → accepted). */
     public function acceptVendorOrder(Order $order, ?string $actorId = null): Order
     {
         $this->assertTransition($order, OrderStatus::Accepted);
+
+        $from = $order->status;
 
         $order->update([
             'status' => OrderStatus::Accepted->value,
@@ -208,7 +211,7 @@ class OrderService
             'vendor_acceptance_deadline_at' => null,
         ]);
 
-        $this->logTransition($order, OrderStatus::AwaitingPayment, OrderStatus::Accepted, 'vendor', $actorId, null);
+        $this->logTransition($order, $from, OrderStatus::Accepted, 'vendor', $actorId, null);
 
         return $order->fresh('statusHistory');
     }
@@ -218,6 +221,8 @@ class OrderService
     {
         $this->assertTransition($order, OrderStatus::Cancelled);
 
+        $from = $order->status;
+
         $order->update([
             'status' => OrderStatus::Cancelled->value,
             'cancelled_at' => now(),
@@ -225,17 +230,19 @@ class OrderService
             'cancellation_reason' => $reason !== null && $reason !== '' ? $reason : 'Commande refusée par le vendeur.',
         ]);
 
-        $this->logTransition($order, OrderStatus::AwaitingPayment, OrderStatus::Cancelled, 'vendor', $actorId, $reason ?? 'refus vendeur');
+        $this->logTransition($order, $from, OrderStatus::Cancelled, 'vendor', $actorId, $reason ?? 'refus vendeur');
 
         $this->restoreStock($order);
 
         return $order->fresh('statusHistory');
     }
 
-    /** Le client annule sa commande en attente de paiement. */
+    /** Le client annule sa commande. */
     public function cancelClientOrder(Order $order, ?string $actorId = null, string $reason = 'Annulation client.'): Order
     {
         $this->assertTransition($order, OrderStatus::Cancelled);
+
+        $from = $order->status;
 
         $order->update([
             'status' => OrderStatus::Cancelled->value,
@@ -244,11 +251,11 @@ class OrderService
             'cancellation_reason' => $reason,
         ]);
 
-        $this->logTransition($order, OrderStatus::AwaitingPayment, OrderStatus::Cancelled, 'client', $actorId, $reason);
+        $this->logTransition($order, $from, OrderStatus::Cancelled, 'client', $actorId, $reason);
 
         $this->restoreStock($order);
 
-        if ($order->payment()->exists() && $order->payment->status === PaymentStatus::Initiated) {
+        if ($order->payment()->exists() && in_array($order->payment->status, [PaymentStatus::Initiated, PaymentStatus::Pending])) {
             $order->payment->update(['status' => PaymentStatus::Cancelled->value]);
         }
 
@@ -270,6 +277,134 @@ class OrderService
         $this->logTransition($order, OrderStatus::AwaitingPayment, OrderStatus::Paid, 'system', null, 'Paiement confirmé');
 
         return $order->fresh(['payment', 'statusHistory']);
+    }
+
+    // ------------------------------------------------------------------ J97-J106
+    /** Le vendeur passe la commande en préparation (accepted → preparing). */
+    public function markPreparing(Order $order, ?string $actorId = null): Order
+    {
+        $this->assertTransition($order, OrderStatus::Preparing);
+
+        $from = $order->status;
+
+        $order->update(['status' => OrderStatus::Preparing->value]);
+
+        $this->logTransition($order, $from, OrderStatus::Preparing, 'vendor', $actorId, null);
+
+        return $order->fresh('statusHistory');
+    }
+
+    /** Le vendeur signale la commande prête (preparing → ready) et ouvre une course. */
+    public function markReady(Order $order, ?string $actorId = null): Order
+    {
+        $this->assertTransition($order, OrderStatus::Ready);
+
+        $from = $order->status;
+
+        DB::transaction(function () use ($order, $from, $actorId): void {
+            $order->update(['status' => OrderStatus::Ready->value]);
+
+            $this->logTransition($order, $from, OrderStatus::Ready, 'vendor', $actorId, null);
+
+            if ($order->delivery()->doesntExist()) {
+                $order->delivery()->create([
+                    'driver_profile_id' => null,
+                    'vendor_id' => $order->vendor_id,
+                    'zone_id' => $order->zone_id,
+                    'status' => DeliveryStatus::Assigned->value,
+                    'fee' => $order->delivery_fee,
+                    'partner_amount' => 0,
+                    'assigned_at' => now(),
+                ]);
+            }
+        });
+
+        return $order->fresh(['statusHistory', 'delivery']);
+    }
+
+    /** Un livreur accepte la course (ready → assigned). */
+    public function assignDriver(Order $order, string $driverProfileId, ?string $actorId = null): Order
+    {
+        $this->assertTransition($order, OrderStatus::Assigned);
+
+        $from = $order->status;
+
+        $order->update(['status' => OrderStatus::Assigned->value]);
+
+        if ($order->delivery->exists()) {
+            $order->delivery->update([
+                'driver_profile_id' => $driverProfileId,
+                'status' => DeliveryStatus::Assigned->value,
+                'assigned_at' => now(),
+            ]);
+        }
+
+        $this->logTransition($order, $from, OrderStatus::Assigned, 'driver', $actorId, null);
+
+        return $order->fresh(['statusHistory', 'delivery']);
+    }
+
+    /** Le livreur récupère le colis (assigned → picked_up). */
+    public function markPickedUp(Order $order, ?string $actorId = null): Order
+    {
+        $this->assertTransition($order, OrderStatus::PickedUp);
+
+        $from = $order->status;
+
+        $order->update(['status' => OrderStatus::PickedUp->value]);
+
+        if ($order->delivery->exists()) {
+            $order->delivery->update([
+                'status' => DeliveryStatus::PickedUp->value,
+                'picked_up_at' => now(),
+            ]);
+        }
+
+        $this->logTransition($order, $from, OrderStatus::PickedUp, 'driver', $actorId, null);
+
+        return $order->fresh(['statusHistory', 'delivery']);
+    }
+
+    /** Le livreur démarre la course vers le client (picked_up → in_delivery). */
+    public function markInDelivery(Order $order, ?string $actorId = null): Order
+    {
+        $this->assertTransition($order, OrderStatus::InDelivery);
+
+        $from = $order->status;
+
+        $order->update(['status' => OrderStatus::InDelivery->value]);
+
+        if ($order->delivery->exists()) {
+            $order->delivery->update(['status' => DeliveryStatus::InDelivery->value]);
+        }
+
+        $this->logTransition($order, $from, OrderStatus::InDelivery, 'driver', $actorId, null);
+
+        return $order->fresh(['statusHistory', 'delivery']);
+    }
+
+    /** Le livreur confirme la livraison (in_delivery → delivered). */
+    public function markDelivered(Order $order, ?string $actorId = null): Order
+    {
+        $this->assertTransition($order, OrderStatus::Delivered);
+
+        $from = $order->status;
+
+        $order->update([
+            'status' => OrderStatus::Delivered->value,
+            'delivered_at' => now(),
+        ]);
+
+        if ($order->delivery->exists()) {
+            $order->delivery->update([
+                'status' => DeliveryStatus::Delivered->value,
+                'delivered_at' => now(),
+            ]);
+        }
+
+        $this->logTransition($order, $from, OrderStatus::Delivered, 'driver', $actorId, null);
+
+        return $order->fresh(['statusHistory', 'delivery']);
     }
 
     /**
@@ -426,6 +561,13 @@ class OrderService
         $allowed = [
             OrderStatus::AwaitingPayment->value => [OrderStatus::Accepted->value, OrderStatus::Cancelled->value],
             OrderStatus::Paid->value => [OrderStatus::Accepted->value, OrderStatus::Cancelled->value],
+            OrderStatus::Accepted->value => [OrderStatus::Preparing->value, OrderStatus::Cancelled->value],
+            OrderStatus::Preparing->value => [OrderStatus::Ready->value, OrderStatus::Cancelled->value],
+            OrderStatus::Ready->value => [OrderStatus::Assigned->value, OrderStatus::Cancelled->value],
+            OrderStatus::Assigned->value => [OrderStatus::PickedUp->value, OrderStatus::Cancelled->value],
+            OrderStatus::PickedUp->value => [OrderStatus::InDelivery->value, OrderStatus::Cancelled->value],
+            OrderStatus::InDelivery->value => [OrderStatus::Delivered->value, OrderStatus::Cancelled->value],
+            OrderStatus::Delivered->value => [OrderStatus::Refunded->value],
         ];
 
         $from = $order->status->value;

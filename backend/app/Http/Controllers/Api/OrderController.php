@@ -146,22 +146,44 @@ class OrderController extends Controller
 
     public function cancel(Request $request, Order $order): JsonResponse
     {
-        if ($order->user_id !== $request->user()->id || ! in_array($order->status, [OrderStatus::AwaitingPayment, OrderStatus::Paid])) {
+        if ($order->user_id !== $request->user()->id || in_array($order->status, [OrderStatus::Cancelled, OrderStatus::Delivered, OrderStatus::Refunded])) {
             return Api::error('Ressource introuvable.', 'not_found', 404);
         }
 
         $order = $this->orders->cancelClientOrder(
             $order,
             $request->user()->id,
-            'Commande annulée avant paiement.',
+            'Commande annulée par le client.',
         );
 
         return Api::ok(new OrderResource($order->load(['statusHistory'])));
     }
 
+    public function markPreparing(Request $request, Order $order): JsonResponse
+    {
+        if (! $this->isOwnVendorOrder($request, $order) || $order->status !== OrderStatus::Accepted) {
+            return Api::error('Ressource introuvable.', 'not_found', 404);
+        }
+
+        $order = $this->orders->markPreparing($order, $request->user()->id);
+
+        return Api::ok(new OrderResource($order->load(['statusHistory'])));
+    }
+
+    public function markReady(Request $request, Order $order): JsonResponse
+    {
+        if (! $this->isOwnVendorOrder($request, $order) || $order->status !== OrderStatus::Preparing) {
+            return Api::error('Ressource introuvable.', 'not_found', 404);
+        }
+
+        $order = $this->orders->markReady($order, $request->user()->id);
+
+        return Api::ok(new OrderResource($order->load(['statusHistory', 'delivery'])));
+    }
+
     public function adminCancel(Request $request, Order $order): JsonResponse
     {
-        if (! in_array($order->status, [OrderStatus::AwaitingPayment, OrderStatus::Paid])) {
+        if (in_array($order->status, [OrderStatus::Cancelled, OrderStatus::Delivered, OrderStatus::Refunded])) {
             return Api::error('Ressource introuvable.', 'not_found', 404);
         }
 

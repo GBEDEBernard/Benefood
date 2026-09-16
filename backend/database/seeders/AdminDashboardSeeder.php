@@ -7,14 +7,13 @@ use App\Models\Role;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Filesystem\Filesystem;
-use Illuminate\Support\Str;
 
 class AdminDashboardSeeder extends Seeder
 {
     public function run(): void
     {
         // copy admin template assets if present at repository root
-        $fs = new Filesystem();
+        $fs = new Filesystem;
         $src = base_path('../Mentor-Bootstrap4-Admin-Dashboard-Template');
         $dest = public_path('admin-assets');
 
@@ -25,7 +24,7 @@ class AdminDashboardSeeder extends Seeder
 
         // create admin user
         $admin = User::firstOrCreate([
-            'email' => 'admin@local'
+            'email' => 'admin@local',
         ], [
             'name' => 'Admin',
             'phone' => '00000000',

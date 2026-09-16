@@ -81,6 +81,11 @@ class Order extends Model
         return $this->hasOne(OrderFinancial::class);
     }
 
+    public function delivery(): HasOne
+    {
+        return $this->hasOne(Delivery::class);
+    }
+
     /** La commande attend-elle encore le paiement ? */
     public function isAwaitingPayment(): bool
     {
@@ -90,6 +95,11 @@ class Order extends Model
     public function isCancelled(): bool
     {
         return $this->status === OrderStatus::Cancelled || $this->status === OrderStatus::Refunded;
+    }
+
+    public function isReady(): bool
+    {
+        return $this->status === OrderStatus::Ready;
     }
 
     public function isPaid(): bool

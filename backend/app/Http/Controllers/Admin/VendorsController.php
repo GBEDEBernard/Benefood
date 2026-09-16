@@ -9,10 +9,10 @@ use App\Models\User;
 use App\Models\Vendor;
 use App\Models\VendorDocument;
 use App\Services\VendorOnboardingService;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
 
 /**

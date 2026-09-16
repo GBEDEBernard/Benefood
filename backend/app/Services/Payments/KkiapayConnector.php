@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Http;
 class KkiapayConnector implements PaymentGateway
 {
     protected string $key;
+
     protected bool $sandbox;
 
     public function __construct()
