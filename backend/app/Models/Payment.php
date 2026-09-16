@@ -12,6 +12,7 @@ class Payment extends Model
     use HasFactory, HasUuids;
 
     public $incrementing = false;
+
     protected $keyType = 'string';
 
     protected $guarded = [];
@@ -19,7 +20,7 @@ class Payment extends Model
     protected $casts = [
         'amount' => 'integer',
         'status' => PaymentStatus::class,
-        'metadata' => 'array',
+        'payload' => 'array',
         'paid_at' => 'datetime',
         'expires_at' => 'datetime',
     ];
@@ -27,5 +28,20 @@ class Payment extends Model
     public function order()
     {
         return $this->belongsTo(Order::class);
+    }
+
+    public function events()
+    {
+        return $this->hasMany(PaymentEvent::class);
+    }
+
+    public function scopeForGateway(string $gateway)
+    {
+        return fn ($query) => $query->where('gateway', $gateway);
+    }
+
+    public function scopePending($query)
+    {
+        return $query->whereIn('status', [PaymentStatus::Initiated, PaymentStatus::Pending]);
     }
 }

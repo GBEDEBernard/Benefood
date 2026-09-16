@@ -136,6 +136,7 @@ class OrderService
                 'cart_id' => $cart->id,
                 'zone_id' => $delivery['zone_id'],
                 'status' => OrderStatus::AwaitingPayment->value,
+                'payment_status' => PaymentStatus::Initiated->value,
                 'subtotal' => $subtotal,
                 'discount' => 0,
                 'delivery_fee' => $deliveryFee,
@@ -254,6 +255,23 @@ class OrderService
         return $order->fresh('statusHistory');
     }
 
+    /** Confirme le paiement et transitionne la commande (awaiting_payment → paid). */
+    public function confirmPayment(Order $order, int $amount): Order
+    {
+        if (! $order->isAwaitingPayment()) {
+            throw new DomainException('order.payment_not_expected', 'Cette commande n\'attend pas de paiement.', 422);
+        }
+
+        $order->update([
+            'payment_status' => PaymentStatus::Confirmed->value,
+            'status' => OrderStatus::Paid->value,
+        ]);
+
+        $this->logTransition($order, OrderStatus::AwaitingPayment, OrderStatus::Paid, 'system', null, 'Paiement confirmé');
+
+        return $order->fresh(['payment', 'statusHistory']);
+    }
+
     /**
      * Expire les commandes non payées au-delà de leur délai.
      *
@@ -269,6 +287,7 @@ class OrderService
         foreach ($orders as $order) {
             $order->update([
                 'status' => OrderStatus::Cancelled->value,
+                'payment_status' => PaymentStatus::Expired->value,
                 'cancelled_at' => now(),
                 'cancellation_reason' => 'Paiement non reçu avant la date limite.',
             ]);
@@ -406,6 +425,7 @@ class OrderService
     {
         $allowed = [
             OrderStatus::AwaitingPayment->value => [OrderStatus::Accepted->value, OrderStatus::Cancelled->value],
+            OrderStatus::Paid->value => [OrderStatus::Accepted->value, OrderStatus::Cancelled->value],
         ];
 
         $from = $order->status->value;

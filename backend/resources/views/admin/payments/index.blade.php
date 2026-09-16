@@ -23,10 +23,10 @@
                 <tbody>
                     @forelse ($payments as $p)
                         <tr>
-                            <td>{{ $p->provider_transaction_id }}</td>
+                            <td>{{ $p->gateway_txn_id }}</td>
                             <td>@if($p->order)<a href="{{ route('admin.orders.index') }}?q={{ $p->order->id }}">{{ $p->order->id }}</a>@else — @endif</td>
-                            <td>{{ $p->provider }}</td>
-                            <td>{{ number_format($p->amount / 100, 2) }} {{ $p->currency }}</td>
+                            <td>{{ $p->gateway }}</td>
+                            <td>{{ number_format($p->amount, 0, ',', ' ') }} {{ $p->currency }}</td>
                             <td>{{ $p->status }}</td>
                             <td>{{ $p->created_at?->format('d/m/Y H:i') }}</td>
                             <td class="text-right"><a href="{{ route('admin.payments.show', $p) }}" class="btn btn-sm">Voir</a></td>

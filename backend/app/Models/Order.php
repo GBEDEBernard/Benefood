@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\OrderStatus;
+use App\Enums\PaymentStatus;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -25,6 +26,7 @@ class Order extends Model
     {
         return [
             'status' => OrderStatus::class,
+            'payment_status' => PaymentStatus::class,
             'subtotal' => 'integer',
             'discount' => 'integer',
             'delivery_fee' => 'integer',
@@ -88,5 +90,10 @@ class Order extends Model
     public function isCancelled(): bool
     {
         return $this->status === OrderStatus::Cancelled || $this->status === OrderStatus::Refunded;
+    }
+
+    public function isPaid(): bool
+    {
+        return $this->payment_status === PaymentStatus::Confirmed;
     }
 }

@@ -106,6 +106,7 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::prefix('payments')->group(function (): void {
         Route::post('/create', [PaymentController::class, 'create'])->name('api.v1.payments.create')->middleware('permission:client.orders.manage');
         Route::post('/verify', [PaymentController::class, 'verify'])->name('api.v1.payments.verify')->middleware('permission:client.orders.manage');
+        Route::post('/orders/{order}/retry', [PaymentController::class, 'retry'])->name('api.v1.payments.retry')->middleware('permission:client.orders.manage');
     });
 });
 
@@ -120,3 +121,4 @@ Route::post('/delivery/quote', [DeliveryQuoteController::class, 'quote'])->name(
 
 // Public webhook for payment providers
 Route::post('/payments/webhook', [PaymentController::class, 'webhook'])->name('api.v1.payments.webhook');
+Route::get('/payments/callback', [PaymentController::class, 'callback'])->name('api.v1.payments.callback');

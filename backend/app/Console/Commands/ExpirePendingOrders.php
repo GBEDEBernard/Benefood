@@ -2,20 +2,26 @@
 
 namespace App\Console\Commands;
 
+use App\Services\OrderService;
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\Log;
 
 class ExpirePendingOrders extends Command
 {
     protected $signature = 'orders:expire-payments';
 
-    protected $description = 'Fait passer les commandes en attente de paiement expirées à annulées (J33, T5).';
+    protected $description = 'Fait passer les commandes en attente de paiement expirées à annulées (J85).';
+
+    public function __construct(private readonly OrderService $orders)
+    {
+        parent::__construct();
+    }
 
     public function handle(): int
     {
-        // Implémenté avec OrderService + PaymentService en Phase 11 (J87-J96).
-        Log::channel('beninfood')->info('[scheduler] orders:expire-payments — en attente de la Phase 11.');
+        $count = $this->orders->expireUnpaidOrders();
 
-        return self::SUCCESS;
+        $this->info("{$count} commande(s) expirée(s) pour paiement manquant.");
+
+        return Command::SUCCESS;
     }
 }

@@ -23,6 +23,7 @@ class OrderResource extends JsonResource
             'id' => $this->id,
             'reference' => $this->reference,
             'status' => $this->status?->value,
+            'payment_status' => $this->payment_status?->value,
             'vendor' => $this->whenLoaded('vendor', fn () => [
                 'id' => $this->vendor->id,
                 'business_name' => $this->vendor->business_name,

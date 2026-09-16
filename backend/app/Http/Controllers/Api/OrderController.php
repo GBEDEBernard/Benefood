@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Enums\OrderStatus;
 use App\Enums\VendorStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\OrderResource;
@@ -119,7 +120,7 @@ class OrderController extends Controller
 
     public function accept(Request $request, Order $order): JsonResponse
     {
-        if (! $this->isOwnVendorOrder($request, $order) || ! $order->isAwaitingPayment()) {
+        if (! $this->isOwnVendorOrder($request, $order) || ! in_array($order->status, [OrderStatus::AwaitingPayment, OrderStatus::Paid])) {
             return Api::error('Ressource introuvable.', 'not_found', 404);
         }
 
@@ -130,7 +131,7 @@ class OrderController extends Controller
 
     public function refuse(Request $request, Order $order): JsonResponse
     {
-        if (! $this->isOwnVendorOrder($request, $order) || ! $order->isAwaitingPayment()) {
+        if (! $this->isOwnVendorOrder($request, $order) || ! in_array($order->status, [OrderStatus::AwaitingPayment, OrderStatus::Paid])) {
             return Api::error('Ressource introuvable.', 'not_found', 404);
         }
 
@@ -145,7 +146,7 @@ class OrderController extends Controller
 
     public function cancel(Request $request, Order $order): JsonResponse
     {
-        if ($order->user_id !== $request->user()->id || ! $order->isAwaitingPayment()) {
+        if ($order->user_id !== $request->user()->id || ! in_array($order->status, [OrderStatus::AwaitingPayment, OrderStatus::Paid])) {
             return Api::error('Ressource introuvable.', 'not_found', 404);
         }
 
@@ -160,7 +161,7 @@ class OrderController extends Controller
 
     public function adminCancel(Request $request, Order $order): JsonResponse
     {
-        if (! $order->isAwaitingPayment()) {
+        if (! in_array($order->status, [OrderStatus::AwaitingPayment, OrderStatus::Paid])) {
             return Api::error('Ressource introuvable.', 'not_found', 404);
         }
 
