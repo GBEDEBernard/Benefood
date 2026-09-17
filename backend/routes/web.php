@@ -1,11 +1,18 @@
 <?php
 
+use App\Http\Controllers\Admin\AdminAuditController;
 use App\Http\Controllers\Admin\AdminCategoriesController;
 use App\Http\Controllers\Admin\AdminClientsController;
+use App\Http\Controllers\Admin\AdminCommissionsController;
+use App\Http\Controllers\Admin\AdminComplaintsController;
 use App\Http\Controllers\Admin\AdminController;
+use App\Http\Controllers\Admin\AdminDriversController;
+use App\Http\Controllers\Admin\AdminOrdersController;
 use App\Http\Controllers\Admin\AdminPaymentsController;
 use App\Http\Controllers\Admin\AdminProductsController;
 use App\Http\Controllers\Admin\AdminRatesController;
+use App\Http\Controllers\Admin\AdminRefundsController;
+use App\Http\Controllers\Admin\AdminReportsController;
 use App\Http\Controllers\Admin\AdminZonesController;
 use App\Http\Controllers\Admin\RolesController;
 use App\Http\Controllers\Admin\UsersController;
@@ -100,22 +107,49 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function (): v
     Route::delete('rates/{rate}', [AdminRatesController::class, 'destroy'])->name('rates.destroy');
     Route::post('rates/{rate}/active', [AdminRatesController::class, 'toggleActive'])->name('rates.active');
 
-    // ---------- Placeholders (sections pas encore développées) ----------
-    Route::get('/clients', function () {
-        // Redirige vers la liste des utilisateurs avec le filtre rôle=client
-        return redirect()->route('admin.users.index', ['role' => 'client']);
-    })->name('clients.index');
+    // ---------- Phase 16 — Paiements / transactions ----------
     Route::resource('payments', AdminPaymentsController::class)->only(['index', 'show']);
-    Route::get('/livreurs', fn () => view('admin.placeholder', ['title' => 'Livreurs', 'section' => 'Gestion des livreurs']))->name('drivers.index');
-    Route::get('/commandes', fn () => view('admin.placeholder', ['title' => 'Commandes', 'section' => 'Gestion des commandes']))->name('orders.index');
-    Route::get('/boutiques', fn () => view('admin.placeholder', ['title' => 'Boutiques', 'section' => 'Gestion des boutiques']))->name('shops.index');
-    Route::get('/commissions', fn () => view('admin.placeholder', ['title' => 'Commissions', 'section' => 'Gestion des commissions']))->name('commissions.index');
-    Route::get('/transactions', fn () => view('admin.placeholder', ['title' => 'Transactions', 'section' => 'Gestion des transactions']))->name('payments.index');
-    Route::get('/remboursements', fn () => view('admin.placeholder', ['title' => 'Remboursements', 'section' => 'Gestion des remboursements']))->name('refunds.index');
-    Route::get('/reclamations', fn () => view('admin.placeholder', ['title' => 'Réclamations', 'section' => 'Gestion des réclamations et litiges']))->name('complaints.index');
+
+    // ---------- Phase 16 — Livreurs (J136) ----------
+    Route::resource('drivers', AdminDriversController::class)->only(['index', 'show', 'create', 'store']);
+    Route::post('drivers/{driver}/activate', [AdminDriversController::class, 'activate'])->name('drivers.activate');
+    Route::post('drivers/{driver}/suspend', [AdminDriversController::class, 'suspend'])->name('drivers.suspend');
+    Route::post('drivers/{driver}/close', [AdminDriversController::class, 'close'])->name('drivers.close');
+    Route::get('drivers/{driver}/documents/{document}/download', [AdminDriversController::class, 'downloadDocument'])->name('drivers.documents.download');
+    Route::post('drivers/{driver}/documents/{document}/review', [AdminDriversController::class, 'reviewDocument'])->name('drivers.documents.review');
+
+    // ---------- Phase 16 — Commandes (J137) ----------
+    Route::resource('orders', AdminOrdersController::class)->only(['index', 'show']);
+    Route::post('orders/{order}/cancel', [AdminOrdersController::class, 'cancel'])->name('orders.cancel');
+
+    // ---------- Phase 16 — Commissions (J138) ----------
+    Route::get('commissions', [AdminCommissionsController::class, 'index'])->name('commissions.index');
+    Route::post('commissions', [AdminCommissionsController::class, 'store'])->name('commissions.store');
+    Route::delete('commissions/{rate}', [AdminCommissionsController::class, 'destroy'])->name('commissions.destroy');
+
+    // ---------- Phase 16 — Remboursements (J140) ----------
+    Route::resource('refunds', AdminRefundsController::class)->only(['index', 'show']);
+    Route::post('refunds/{refund}/execute', [AdminRefundsController::class, 'execute'])->name('refunds.execute');
+
+    // ---------- Phase 16 — Réclamations & litiges (J141) ----------
+    Route::resource('complaints', AdminComplaintsController::class)->only(['index', 'show']);
+    Route::post('complaints/{complaint}/reply', [AdminComplaintsController::class, 'reply'])->name('complaints.reply');
+    Route::post('complaints/{complaint}/mark-in-progress', [AdminComplaintsController::class, 'markInProgress'])->name('complaints.in-progress');
+    Route::post('complaints/{complaint}/close', [AdminComplaintsController::class, 'close'])->name('complaints.close');
+
+    // ---------- Phase 16 — Audit & rapports (J142) ----------
+    Route::get('audit', [AdminAuditController::class, 'index'])->name('audit.index');
+    Route::get('audit/export', [AdminAuditController::class, 'export'])->name('audit.export');
+    Route::get('rapports', [AdminReportsController::class, 'index'])->name('reports.index');
+    Route::get('rapports/export/orders', [AdminReportsController::class, 'exportOrders'])->name('reports.export.orders');
+    Route::get('rapports/export/commissions', [AdminReportsController::class, 'exportCommissions'])->name('reports.export.commissions');
+    Route::get('rapports/export/refunds', [AdminReportsController::class, 'exportRefunds'])->name('reports.export.refunds');
+
+    // ---------- Boutiques (J135) : renvoie vers les vendeurs actifs ----------
+    Route::get('/boutiques', fn () => redirect()->route('admin.vendors.index', ['status' => 'active']))->name('shops.index');
+
+    // ---------- Paramètres (hors périmètre Phase 16) ----------
     Route::get('/parametres', fn () => view('admin.placeholder', ['title' => 'Paramètres', 'section' => 'Configuration des règles métier']))->name('settings.index');
-    Route::get('/audit', fn () => view('admin.placeholder', ['title' => 'Audit', 'section' => "Journal d'audit"]))->name('audit.index');
-    Route::get('/rapports', fn () => view('admin.placeholder', ['title' => 'Rapports', 'section' => 'Rapports et statistiques']))->name('reports.index');
 });
 
 // Legacy / redirect / landing

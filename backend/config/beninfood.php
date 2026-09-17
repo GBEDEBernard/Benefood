@@ -66,6 +66,17 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Notifications push FCM (J126)
+    |--------------------------------------------------------------------------
+    | enabled : active l'envoi des push (désactivé tant que FIREBASE_CREDENTIALS
+    | n'est pas fourni). Le canal « in-app » reste toujours actif.
+    */
+    'push' => [
+        'enabled' => (bool) env('BENINFOOD_PUSH_ENABLED', false),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Pagination par défaut
     |--------------------------------------------------------------------------
     */

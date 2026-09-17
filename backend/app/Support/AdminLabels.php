@@ -2,6 +2,12 @@
 
 namespace App\Support;
 
+use App\Enums\ComplaintStatus;
+use App\Enums\DriverDocumentType;
+use App\Enums\DriverStatus;
+use App\Enums\OrderStatus;
+use App\Enums\PaymentStatus;
+use App\Enums\RefundStatus;
 use App\Enums\UserStatus;
 use App\Enums\VendorDocumentStatus;
 use App\Enums\VendorDocumentType;
@@ -79,6 +85,123 @@ class AdminLabels
             VendorDocumentType::StorePhoto->value => 'Photo de boutique',
             default => ucfirst($type),
         };
+    }
+
+    /** @return array{label: string, bg: string, fg: string} */
+    public static function orderStatus(string $status): array
+    {
+        return match ($status) {
+            OrderStatus::Delivered->value => ['label' => 'Livrée', 'bg' => '#E8F5E9', 'fg' => '#2E7D32'],
+            OrderStatus::Paid->value, OrderStatus::Accepted->value, OrderStatus::Preparing->value,
+            OrderStatus::Ready->value, OrderStatus::Assigned->value, OrderStatus::PickedUp->value,
+            OrderStatus::InDelivery->value => ['label' => 'En cours', 'bg' => '#E1F5FE', 'fg' => '#0277BD'],
+            OrderStatus::AwaitingPayment->value => ['label' => 'En attente de paiement', 'bg' => '#FFF3E0', 'fg' => '#E65100'],
+            OrderStatus::Draft->value => ['label' => 'Brouillon', 'bg' => '#ECEFF1', 'fg' => '#37474F'],
+            OrderStatus::Cancelled->value => ['label' => 'Annulée', 'bg' => '#FFEBEE', 'fg' => '#C62828'],
+            OrderStatus::Refunded->value => ['label' => 'Remboursée', 'bg' => '#F3E5F5', 'fg' => '#6A1B9A'],
+            default => ['label' => ucfirst($status), 'bg' => '#ECEFF1', 'fg' => '#37474F'],
+        };
+    }
+
+    public static function orderStatusBadge(string $status): string
+    {
+        $s = self::orderStatus($status);
+
+        return '<span class="badge badge-pill" style="background-color: '.$s['bg'].'; color: '.$s['fg'].'; font-weight: 600; padding: 6px 12px; border-radius: 20px;">'.$s['label'].'</span>';
+    }
+
+    /** @return array{label: string, bg: string, fg: string} */
+    public static function driverStatus(string $status): array
+    {
+        return match ($status) {
+            DriverStatus::Active->value, DriverStatus::Validated->value => ['label' => 'Actif', 'bg' => '#E8F5E9', 'fg' => '#2E7D32'],
+            DriverStatus::Candidate->value, DriverStatus::PendingValidation->value => ['label' => 'En validation', 'bg' => '#FFF3E0', 'fg' => '#E65100'],
+            DriverStatus::Suspended->value => ['label' => 'Suspendu', 'bg' => '#FFEBEE', 'fg' => '#C62828'],
+            DriverStatus::Closed->value => ['label' => 'Fermé', 'bg' => '#ECEFF1', 'fg' => '#37474F'],
+            default => ['label' => ucfirst($status), 'bg' => '#ECEFF1', 'fg' => '#37474F'],
+        };
+    }
+
+    public static function driverStatusBadge(string $status): string
+    {
+        $s = self::driverStatus($status);
+
+        return '<span class="badge badge-pill" style="background-color: '.$s['bg'].'; color: '.$s['fg'].'; font-weight: 600; padding: 6px 12px; border-radius: 20px;">'.$s['label'].'</span>';
+    }
+
+    /** @return array{label: string, bg: string, fg: string} */
+    public static function refundStatus(string $status): array
+    {
+        return match ($status) {
+            RefundStatus::Pending->value => ['label' => 'En attente', 'bg' => '#FFF3E0', 'fg' => '#E65100'],
+            RefundStatus::Executed->value => ['label' => 'Exécuté', 'bg' => '#E8F5E9', 'fg' => '#2E7D32'],
+            RefundStatus::Failed->value => ['label' => 'Échoué', 'bg' => '#FFEBEE', 'fg' => '#C62828'],
+            default => ['label' => ucfirst($status), 'bg' => '#ECEFF1', 'fg' => '#37474F'],
+        };
+    }
+
+    public static function refundStatusBadge(string $status): string
+    {
+        $s = self::refundStatus($status);
+
+        return '<span class="badge badge-pill" style="background-color: '.$s['bg'].'; color: '.$s['fg'].'; font-weight: 600; padding: 6px 12px; border-radius: 20px;">'.$s['label'].'</span>';
+    }
+
+    /** @return array{label: string, bg: string, fg: string} */
+    public static function complaintStatus(string $status): array
+    {
+        return match ($status) {
+            ComplaintStatus::Open->value => ['label' => 'Ouverte', 'bg' => '#FFEBEE', 'fg' => '#C62828'],
+            ComplaintStatus::InProgress->value => ['label' => 'En cours', 'bg' => '#FFF3E0', 'fg' => '#E65100'],
+            ComplaintStatus::Closed->value => ['label' => 'Clôturée', 'bg' => '#E8F5E9', 'fg' => '#2E7D32'],
+            default => ['label' => ucfirst($status), 'bg' => '#ECEFF1', 'fg' => '#37474F'],
+        };
+    }
+
+    public static function complaintStatusBadge(string $status): string
+    {
+        $s = self::complaintStatus($status);
+
+        return '<span class="badge badge-pill" style="background-color: '.$s['bg'].'; color: '.$s['fg'].'; font-weight: 600; padding: 6px 12px; border-radius: 20px;">'.$s['label'].'</span>';
+    }
+
+    /** @return array{label: string, bg: string, fg: string} */
+    public static function paymentStatus(string $status): array
+    {
+        return match ($status) {
+            PaymentStatus::Confirmed->value => ['label' => 'Payé', 'bg' => '#E8F5E9', 'fg' => '#2E7D32'],
+            PaymentStatus::Initiated->value, PaymentStatus::Pending->value => ['label' => 'En attente', 'bg' => '#FFF3E0', 'fg' => '#E65100'],
+            PaymentStatus::Refunded->value => ['label' => 'Remboursé', 'bg' => '#F3E5F5', 'fg' => '#6A1B9A'],
+            PaymentStatus::Failed->value => ['label' => 'Échoué', 'bg' => '#FFEBEE', 'fg' => '#C62828'],
+            PaymentStatus::Expired->value, PaymentStatus::Cancelled->value => ['label' => 'Annulé', 'bg' => '#ECEFF1', 'fg' => '#37474F'],
+            default => ['label' => ucfirst($status), 'bg' => '#ECEFF1', 'fg' => '#37474F'],
+        };
+    }
+
+    public static function paymentStatusBadge(string $status): string
+    {
+        $s = self::paymentStatus($status);
+
+        return '<span class="badge badge-pill" style="background-color: '.$s['bg'].'; color: '.$s['fg'].'; font-weight: 600; padding: 6px 12px; border-radius: 20px;">'.$s['label'].'</span>';
+    }
+
+    public static function driverDocumentTypeLabel(string $type): string
+    {
+        return match ($type) {
+            DriverDocumentType::IdCard->value => 'Pièce d’identité',
+            DriverDocumentType::DriverLicense->value => 'Permis de conduire',
+            DriverDocumentType::VehicleRegistration->value => 'Carte grise',
+            DriverDocumentType::Insurance->value => 'Assurance',
+            DriverDocumentType::Photo->value => 'Photo',
+            default => ucfirst($type),
+        };
+    }
+
+    public static function availableBadge(bool $available): string
+    {
+        return $available
+            ? '<span class="badge badge-pill" style="background-color: #E0F7FA; color: #00838F; font-weight: 600; padding: 6px 12px; border-radius: 20px;">En ligne</span>'
+            : '<span class="badge badge-pill" style="background-color: #ECEFF1; color: #37474F; font-weight: 600; padding: 6px 12px; border-radius: 20px;">Hors ligne</span>';
     }
 
     public static function dayLabel(int $day): string

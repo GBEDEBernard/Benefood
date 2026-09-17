@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Jobs\SendPushNotifications;
 use App\Models\Notification;
 use App\Models\NotificationTemplate;
 use App\Models\User;
@@ -30,7 +31,9 @@ class NotificationService
             ->where('is_active', true)
             ->first();
 
-        foreach ($this->uniqueRecipients($recipients) as $user) {
+        $recipients = $this->uniqueRecipients($recipients);
+
+        foreach ($recipients as $user) {
             $payload = $data + ['user_id' => $user->id];
 
             Notification::create([
@@ -41,6 +44,18 @@ class NotificationService
                 'data' => $payload,
             ]);
         }
+
+        if ($template === null || $recipients === [] || ! config('beninfood.push.enabled')) {
+            return;
+        }
+
+        SendPushNotifications::dispatch(
+            $event,
+            $this->fill($template->subject ?: $template->event, $data),
+            $this->fill($template->body, $data),
+            $data,
+            array_map(static fn (User $user): string => $user->id, $recipients),
+        )->onQueue('push');
     }
 
     /**

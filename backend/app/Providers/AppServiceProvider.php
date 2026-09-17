@@ -8,11 +8,14 @@ use App\Models\Vendor;
 use App\Policies\AdminPolicy;
 use App\Policies\DriverProfilePolicy;
 use App\Policies\VendorPolicy;
+use App\Services\Push\FirebasePushTransport;
+use App\Services\Push\PushTransport;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
+use Kreait\Firebase\Contract\Messaging;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -21,7 +24,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        $this->app->singleton(PushTransport::class, function (): PushTransport {
+            return new FirebasePushTransport(app(Messaging::class));
+        });
     }
 
     /**

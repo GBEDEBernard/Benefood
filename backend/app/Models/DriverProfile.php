@@ -3,13 +3,14 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class DriverProfile extends Model
 {
-    use HasUuids;
+    use HasFactory, HasUuids;
 
     protected $guarded = [];
 
@@ -41,5 +42,10 @@ class DriverProfile extends Model
     public function statusHistory(): HasMany
     {
         return $this->hasMany(DriverStatusHistory::class, 'driver_profile_id');
+    }
+
+    public function deliveries(): HasMany
+    {
+        return $this->hasMany(Delivery::class, 'driver_profile_id');
     }
 }
