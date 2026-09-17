@@ -11,22 +11,14 @@ final class Phone
     {
         $phone = preg_replace('/[\s\-\.\(\)]+/', '', $phone) ?? $phone;
 
-        if (str_starts_with($phone, '+')) {
-            return $phone;
+        // Strip country code prefix (+229 / 00229) to get the national number.
+        $national = preg_replace('/^(?:\+229|00229)/', '', $phone);
+
+        // Strip the national trunk prefix (0) when present.
+        if (str_starts_with($national, '0')) {
+            $national = substr($national, 1);
         }
 
-        if (str_starts_with($phone, '00229')) {
-            return '+'.substr($phone, 2);
-        }
-
-        if (str_starts_with($phone, '0')) {
-            return '+229'.substr($phone, 1);
-        }
-
-        if (preg_match('/^(\d{8})$/', $phone, $matches)) {
-            return '+229'.$matches[1];
-        }
-
-        return $phone;
+        return '+229'.$national;
     }
 }

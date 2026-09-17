@@ -85,7 +85,7 @@ class DriverController extends Controller
 
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'phone' => ['required', 'string', 'regex:/^(?:\+?229|00229|0)?[0-9]{8}$/'],
+            'phone' => ['required', 'string', 'regex:/^(?:\+?229|00229|0)?0?1?[0-9]{8}$/'],
             'password' => ['sometimes', 'nullable', 'string', 'min:8'],
             'vehicle' => ['sometimes', 'nullable', 'string', 'max:255'],
         ]);

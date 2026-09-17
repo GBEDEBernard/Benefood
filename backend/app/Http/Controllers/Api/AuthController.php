@@ -18,12 +18,12 @@ class AuthController extends Controller
     {
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'phone' => ['required', 'string', 'regex:/^(?:\+?229|00229|0)?[0-9]{8}$/'],
+            'phone' => ['required', 'string', 'regex:/^(?:\+?229|00229|0)?0?1?[0-9]{8}$/'],
             'email' => ['nullable', 'email', 'max:255'],
             'password' => ['required', 'string', 'min:8', 'confirmed'],
             'locale' => ['sometimes', 'string', 'in:fr,en'],
             'roles' => ['sometimes', 'array'],
-            'roles.*' => ['string', 'in:client'],
+            'roles.*' => ['string', 'in:client,vendor,driver-independent'],
         ]);
 
         $data['phone'] = Phone::normalize($data['phone']);

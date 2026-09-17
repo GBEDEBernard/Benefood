@@ -27,7 +27,7 @@ class VendorController extends Controller
             'legal_name' => ['sometimes', 'nullable', 'string', 'max:255'],
             'ifu' => ['sometimes', 'nullable', 'string', 'max:30'],
             'description' => ['sometimes', 'nullable', 'string'],
-            'phone' => ['required', 'string', 'regex:/^(?:\+?229|00229|0)?[0-9]{8}$/'],
+            'phone' => ['required', 'string', 'regex:/^(?:\+?229|00229|0)?0?1?[0-9]{8}$/'],
             'email' => ['sometimes', 'nullable', 'email', 'max:255'],
             'city' => ['sometimes', 'nullable', 'string', 'max:100'],
             'address' => ['sometimes', 'nullable', 'string'],
