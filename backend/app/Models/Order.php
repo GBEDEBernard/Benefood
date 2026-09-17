@@ -86,6 +86,16 @@ class Order extends Model
         return $this->hasOne(Delivery::class);
     }
 
+    public function refunds(): HasMany
+    {
+        return $this->hasMany(Refund::class);
+    }
+
+    public function complaints(): HasMany
+    {
+        return $this->hasMany(Complaint::class);
+    }
+
     /** La commande attend-elle encore le paiement ? */
     public function isAwaitingPayment(): bool
     {

@@ -217,7 +217,7 @@ class OrderFlowTest extends TestCase
         $this->assertSame(8, $product->fresh()->stock_qty);
 
         $this->actAs($client);
-        $this->postJson("/api/v1/orders/{$order->id}/cancel")
+        $this->postJson("/api/v1/orders/{$order->id}/cancel", ['reason' => 'Plus besoin du repas'])
             ->assertOk()
             ->assertJsonPath('data.status', 'cancelled');
 
@@ -295,7 +295,7 @@ class OrderFlowTest extends TestCase
         $order = Order::where('reference', $reference)->first();
 
         $this->actingUser('admin-technique');
-        $this->postJson("/api/v1/admin/orders/{$order->id}/cancel")
+        $this->postJson("/api/v1/admin/orders/{$order->id}/cancel", ['reason' => 'Test administratif'])
             ->assertOk()
             ->assertJsonPath('data.status', 'cancelled');
     }

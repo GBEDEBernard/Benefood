@@ -3,6 +3,7 @@
 namespace App\Services\Payments;
 
 use App\Models\Order;
+use App\Models\Payment;
 use Illuminate\Support\Facades\Http;
 
 /**
@@ -72,6 +73,37 @@ class KkiapayConnector implements PaymentGateway
             'amount' => $transaction['amount'] ?? null,
             'order_id' => $orderId,
             'raw' => $payload,
+        ];
+    }
+
+    public function refund(Payment $payment, int $amount, ?string $reason = null): array
+    {
+        if (! $payment->gateway_txn_id) {
+            return ['ok' => false, 'error' => 'payment_not_referenceable'];
+        }
+
+        $url = config('beninfood.kkiapay.base_url', 'https://api.kkiapay.me').'/api/v1/refunds';
+
+        $res = Http::withHeaders(['Accept' => 'application/json'])
+            ->withToken($this->key)
+            ->post($url, [
+                'transaction_id' => $payment->gateway_txn_id,
+                'amount' => $amount,
+                'reason' => $reason,
+                'metadata' => ['payment_id' => $payment->id],
+            ]);
+
+        if (! $res->successful()) {
+            return ['ok' => false, 'status' => 'error', 'raw' => $res->body()];
+        }
+
+        $data = $res->json();
+
+        return [
+            'ok' => true,
+            'refund_id' => $data['id'] ?? $data['refund_id'] ?? null,
+            'status' => $data['status'] ?? 'pending',
+            'raw' => $data,
         ];
     }
 }

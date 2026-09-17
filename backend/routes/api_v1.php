@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\AddressController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CartController;
 use App\Http\Controllers\Api\CatalogController;
+use App\Http\Controllers\Api\ComplaintController;
 use App\Http\Controllers\Api\DeliveryController;
 use App\Http\Controllers\Api\DeliveryQuoteController;
 use App\Http\Controllers\Api\DriverController;
@@ -13,6 +14,7 @@ use App\Http\Controllers\Api\HomeController;
 use App\Http\Controllers\Api\MeController;
 use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\PaymentController;
+use App\Http\Controllers\Api\RefundController;
 use App\Http\Controllers\Api\VendorController;
 use App\Http\Controllers\Api\VendorProductController;
 use Illuminate\Support\Facades\Route;
@@ -105,11 +107,19 @@ Route::middleware('auth:sanctum')->group(function (): void {
         Route::post('/{order}/cancel', [OrderController::class, 'cancel'])->name('api.v1.orders.cancel')->middleware('permission:client.orders.manage');
     });
 
+    Route::prefix('complaints')->middleware('permission:client.complaints.manage')->group(function (): void {
+        Route::get('/', [ComplaintController::class, 'index'])->name('api.v1.complaints.index');
+        Route::post('/', [ComplaintController::class, 'store'])->name('api.v1.complaints.store');
+        Route::get('/{complaint}', [ComplaintController::class, 'show'])->name('api.v1.complaints.show');
+        Route::post('/{complaint}/messages', [ComplaintController::class, 'reply'])->name('api.v1.complaints.reply');
+    });
+
     Route::prefix('vendors/me/orders')->middleware('permission:vendor.orders.manage')->group(function (): void {
         Route::get('/', [OrderController::class, 'vendorIndex'])->name('api.v1.vendors.orders.index');
         Route::get('/{order}', [OrderController::class, 'show'])->name('api.v1.vendors.orders.show');
         Route::post('/{order}/accept', [OrderController::class, 'accept'])->name('api.v1.vendors.orders.accept')->middleware('permission:vendor.orders.accept');
         Route::post('/{order}/refuse', [OrderController::class, 'refuse'])->name('api.v1.vendors.orders.refuse')->middleware('permission:vendor.orders.accept');
+        Route::post('/{order}/cancel', [OrderController::class, 'vendorCancel'])->name('api.v1.vendors.orders.cancel')->middleware('permission:vendor.orders.accept');
         Route::post('/{order}/preparing', [OrderController::class, 'markPreparing'])->name('api.v1.vendors.orders.preparing')->middleware('permission:vendor.orders.accept');
         Route::post('/{order}/ready', [OrderController::class, 'markReady'])->name('api.v1.vendors.orders.ready')->middleware('permission:vendor.orders.accept');
     });
@@ -119,6 +129,20 @@ Route::middleware('auth:sanctum')->group(function (): void {
         Route::post('/vendors/{vendor}/approve', [AdminVendorController::class, 'approve'])->name('api.v1.admin.vendors.approve');
         Route::post('/vendors/{vendor}/suspend', [AdminVendorController::class, 'suspend'])->name('api.v1.admin.vendors.suspend');
         Route::post('/orders/{order}/cancel', [OrderController::class, 'adminCancel'])->name('api.v1.admin.orders.cancel')->middleware('permission:admin.orders.cancel');
+
+        Route::prefix('complaints')->middleware('permission:admin.support.resolve')->group(function (): void {
+            Route::get('/', [ComplaintController::class, 'adminIndex'])->name('api.v1.admin.complaints.index');
+            Route::get('/{complaint}', [ComplaintController::class, 'show'])->name('api.v1.admin.complaints.show');
+            Route::post('/{complaint}/reply', [ComplaintController::class, 'reply'])->name('api.v1.admin.complaints.reply');
+            Route::post('/{complaint}/mark-in-progress', [ComplaintController::class, 'markInProgress'])->name('api.v1.admin.complaints.mark-in-progress');
+            Route::post('/{complaint}/close', [ComplaintController::class, 'close'])->name('api.v1.admin.complaints.close');
+        });
+
+        Route::prefix('refunds')->middleware('permission:payments.refund')->group(function (): void {
+            Route::get('/', [RefundController::class, 'index'])->name('api.v1.admin.refunds.index');
+            Route::get('/{refund}', [RefundController::class, 'show'])->name('api.v1.admin.refunds.show');
+            Route::post('/{refund}/execute', [RefundController::class, 'execute'])->name('api.v1.admin.refunds.execute');
+        });
     });
 
     // Payments (client)

@@ -43,6 +43,29 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Annulations (J118) : frais appliqués au remboursement selon le statut
+    |--------------------------------------------------------------------------
+    | Montants en centimes XOF retenus sur le remboursement lorsque l'annulation
+    | intervient après le début de la préparation ou après l'affectation d'un livreur.
+    */
+    'cancel' => [
+        'preparation_fee' => (int) env('BENINFOOD_CANCEL_PREPARATION_FEE', 1000),
+        'assignment_fee' => (int) env('BENINFOOD_CANCEL_ASSIGNMENT_FEE', 500),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Remboursements (J120/J121)
+    |--------------------------------------------------------------------------
+    | automatic_execution : exécution directe via la passerelle à l'annulation,
+    | sinon le remboursement reste en attente et la porteuse l'exécute manuellement.
+    */
+    'refunds' => [
+        'automatic_execution' => (bool) env('BENINFOOD_REFUNDS_AUTOMATIC_EXECUTION', false),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Pagination par défaut
     |--------------------------------------------------------------------------
     */

@@ -90,7 +90,7 @@ class OrderController extends Controller
             return Api::error('Ressource introuvable.', 'not_found', 404);
         }
 
-        $order->load(['vendor', 'items', 'payment', 'financials', 'statusHistory']);
+        $order->load(['vendor', 'items', 'payment', 'financials', 'statusHistory', 'refunds']);
 
         return Api::ok(new OrderResource($order));
     }
@@ -136,12 +136,12 @@ class OrderController extends Controller
         }
 
         $data = $request->validate([
-            'reason' => ['sometimes', 'nullable', 'string', 'max:500'],
+            'reason' => ['required', 'string', 'max:500'],
         ]);
 
-        $order = $this->orders->refuseVendorOrder($order, $request->user()->id, $data['reason'] ?? null);
+        $order = $this->orders->refuseVendorOrder($order, $request->user()->id, $data['reason']);
 
-        return Api::ok(new OrderResource($order->load(['statusHistory'])));
+        return Api::ok(new OrderResource($order->load(['statusHistory', 'refunds'])));
     }
 
     public function cancel(Request $request, Order $order): JsonResponse
@@ -150,13 +150,28 @@ class OrderController extends Controller
             return Api::error('Ressource introuvable.', 'not_found', 404);
         }
 
-        $order = $this->orders->cancelClientOrder(
-            $order,
-            $request->user()->id,
-            'Commande annulée par le client.',
-        );
+        $data = $request->validate([
+            'reason' => ['required', 'string', 'max:500'],
+        ]);
 
-        return Api::ok(new OrderResource($order->load(['statusHistory'])));
+        $order = $this->orders->cancelClientOrder($order, $request->user()->id, $data['reason']);
+
+        return Api::ok(new OrderResource($order->load(['statusHistory', 'payment', 'refunds'])));
+    }
+
+    public function vendorCancel(Request $request, Order $order): JsonResponse
+    {
+        if (! $this->isOwnVendorOrder($request, $order) || in_array($order->status, [OrderStatus::Cancelled, OrderStatus::Delivered, OrderStatus::Refunded])) {
+            return Api::error('Ressource introuvable.', 'not_found', 404);
+        }
+
+        $data = $request->validate([
+            'reason' => ['required', 'string', 'max:500'],
+        ]);
+
+        $order = $this->orders->cancelVendorOrder($order, $request->user()->id, $data['reason']);
+
+        return Api::ok(new OrderResource($order->load(['statusHistory', 'payment', 'refunds'])));
     }
 
     public function markPreparing(Request $request, Order $order): JsonResponse
@@ -183,17 +198,23 @@ class OrderController extends Controller
 
     public function adminCancel(Request $request, Order $order): JsonResponse
     {
-        if (in_array($order->status, [OrderStatus::Cancelled, OrderStatus::Delivered, OrderStatus::Refunded])) {
+        if (in_array($order->status, [OrderStatus::Cancelled, OrderStatus::Refunded])) {
             return Api::error('Ressource introuvable.', 'not_found', 404);
         }
 
-        $order = $this->orders->cancelClientOrder(
+        $data = $request->validate([
+            'reason' => ['required', 'string', 'max:500'],
+            'refund_amount' => ['sometimes', 'nullable', 'integer', 'min:0'],
+        ]);
+
+        $order = $this->orders->cancelByPorteuse(
             $order,
             $request->user()->id,
-            'Commande annulée par l\'administrateur.',
+            $data['reason'],
+            $data['refund_amount'] ?? null,
         );
 
-        return Api::ok(new OrderResource($order->load(['statusHistory'])));
+        return Api::ok(new OrderResource($order->load(['statusHistory', 'payment', 'refunds'])));
     }
 
     private function userAddress(Request $request, string $addressId): ?Address

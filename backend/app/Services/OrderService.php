@@ -29,6 +29,8 @@ class OrderService
         private readonly CartService $cartService,
         private readonly DeliveryPricingService $delivery,
         private readonly CatalogService $catalog,
+        private readonly RefundService $refunds,
+        private readonly NotificationService $notifications,
     ) {}
 
     // ------------------------------------------------------------------ J82
@@ -216,48 +218,66 @@ class OrderService
         return $order->fresh('statusHistory');
     }
 
-    /** Le vendeur refuse la commande. */
+    /** Le vendeur refuse la commande (awaiting_payment/paid → cancelled, motif obligatoire). */
     public function refuseVendorOrder(Order $order, ?string $actorId = null, ?string $reason = null): Order
     {
-        $this->assertTransition($order, OrderStatus::Cancelled);
+        $this->assertVendorRefusable($order);
+        $reason = $this->requireCancellationReason($reason);
+        $statusBefore = $order->status;
 
-        $from = $order->status;
-
-        $order->update([
-            'status' => OrderStatus::Cancelled->value,
-            'cancelled_at' => now(),
-            'cancelled_by' => $actorId,
-            'cancellation_reason' => $reason !== null && $reason !== '' ? $reason : 'Commande refusée par le vendeur.',
-        ]);
-
-        $this->logTransition($order, $from, OrderStatus::Cancelled, 'vendor', $actorId, $reason ?? 'refus vendeur');
+        $this->markCancelled($order, $actorId, $reason, 'vendor');
 
         $this->restoreStock($order);
+
+        $this->refunds->handleOrderCancellation($order, 'vendor', $actorId, $reason, $statusBefore);
 
         return $order->fresh('statusHistory');
     }
 
-    /** Le client annule sa commande. */
-    public function cancelClientOrder(Order $order, ?string $actorId = null, string $reason = 'Annulation client.'): Order
+    /** Le client annule sa commande (motif obligatoire). */
+    public function cancelClientOrder(Order $order, ?string $actorId = null, ?string $reason = null): Order
     {
-        $this->assertTransition($order, OrderStatus::Cancelled);
+        $this->assertCancellationAllowed($order, 'client');
+        $reason = $this->requireCancellationReason($reason, 'Annulation par le client.');
+        $statusBefore = $order->status;
 
-        $from = $order->status;
-
-        $order->update([
-            'status' => OrderStatus::Cancelled->value,
-            'cancelled_at' => now(),
-            'cancelled_by' => $actorId,
-            'cancellation_reason' => $reason,
-        ]);
-
-        $this->logTransition($order, $from, OrderStatus::Cancelled, 'client', $actorId, $reason);
+        $this->markCancelled($order, $actorId, $reason, 'client');
 
         $this->restoreStock($order);
 
-        if ($order->payment()->exists() && in_array($order->payment->status, [PaymentStatus::Initiated, PaymentStatus::Pending])) {
-            $order->payment->update(['status' => PaymentStatus::Cancelled->value]);
-        }
+        $this->refunds->handleOrderCancellation($order, 'client', $actorId, $reason, $statusBefore);
+
+        return $order->fresh('statusHistory');
+    }
+
+    /** Le vendeur annule une commande acceptée ou en préparation (motif obligatoire). */
+    public function cancelVendorOrder(Order $order, ?string $actorId = null, ?string $reason = null): Order
+    {
+        $this->assertCancellationAllowed($order, 'vendor');
+        $reason = $this->requireCancellationReason($reason, 'Annulation par le vendeur.');
+        $statusBefore = $order->status;
+
+        $this->markCancelled($order, $actorId, $reason, 'vendor');
+
+        $this->restoreStock($order);
+
+        $this->refunds->handleOrderCancellation($order, 'vendor', $actorId, $reason, $statusBefore);
+
+        return $order->fresh('statusHistory');
+    }
+
+    /** La porteuse annule une commande (tous statuts, motif obligatoire, remboursement décidé). */
+    public function cancelByPorteuse(Order $order, ?string $actorId = null, ?string $reason = null, ?int $refundOverride = null): Order
+    {
+        $this->assertCancellationAllowed($order, 'porteuse');
+        $reason = $this->requireCancellationReason($reason, 'Annulation par la porteuse.');
+        $statusBefore = $order->status;
+
+        $this->markCancelled($order, $actorId, $reason, 'porteuse');
+
+        $this->restoreStock($order);
+
+        $this->refunds->handleOrderCancellation($order, 'porteuse', $actorId, $reason, $statusBefore, $refundOverride);
 
         return $order->fresh('statusHistory');
     }
@@ -420,6 +440,8 @@ class OrderService
             ->get();
 
         foreach ($orders as $order) {
+            $this->assertCancellationAllowed($order, 'system');
+
             $order->update([
                 'status' => OrderStatus::Cancelled->value,
                 'payment_status' => PaymentStatus::Expired->value,
@@ -553,6 +575,59 @@ class OrderService
             if ($item->product->stock_qty !== null && $item->product->stock_qty < $item->quantity) {
                 throw new DomainException('order.insufficient_stock', 'Stock insuffisant pour '.$item->product->name.'.', 422);
             }
+        }
+    }
+
+    /** Matrice des annulations par acteur et par statut (J12 §3). */
+    private const CANCELLATION_MATRIX = [
+        'client' => ['draft', 'awaiting_payment', 'paid', 'accepted', 'preparing', 'ready', 'assigned'],
+        'vendor' => ['paid', 'accepted', 'preparing', 'ready'],
+        'porteuse' => ['draft', 'awaiting_payment', 'paid', 'accepted', 'preparing', 'ready', 'assigned', 'picked_up', 'in_delivery', 'delivered'],
+        'system' => ['awaiting_payment'],
+    ];
+
+    private function assertCancellationAllowed(Order $order, string $actorType): void
+    {
+        $allowed = self::CANCELLATION_MATRIX[$actorType] ?? [];
+
+        if (! in_array($order->status->value, $allowed, true)) {
+            throw new DomainException('order.cannot_cancel', 'Cette commande ne peut pas être annulée à ce stade.', 409);
+        }
+    }
+
+    private function requireCancellationReason(?string $reason): string
+    {
+        $reason = trim((string) $reason);
+
+        if ($reason === '') {
+            throw new DomainException('order.reason_required', 'Le motif de l\'annulation est obligatoire.', 422);
+        }
+
+        return $reason;
+    }
+
+    private function markCancelled(Order $order, ?string $actorId, ?string $reason, string $actorType): void
+    {
+        $from = $order->status;
+
+        $order->update([
+            'status' => OrderStatus::Cancelled->value,
+            'cancelled_at' => now(),
+            'cancelled_by' => $actorId,
+            'cancellation_reason' => $reason,
+        ]);
+
+        $this->logTransition($order, $from, OrderStatus::Cancelled, $actorType, $actorId, $reason);
+
+        if ($order->payment()->exists() && in_array($order->payment->status, [PaymentStatus::Initiated, PaymentStatus::Pending], true)) {
+            $order->payment->update(['status' => PaymentStatus::Cancelled->value]);
+        }
+    }
+
+    private function assertVendorRefusable(Order $order): void
+    {
+        if (! in_array($order->status->value, [OrderStatus::AwaitingPayment->value, OrderStatus::Paid->value], true)) {
+            throw new DomainException('order.cannot_cancel', 'Cette commande ne peut pas être annulée à ce stade.', 409);
         }
     }
 

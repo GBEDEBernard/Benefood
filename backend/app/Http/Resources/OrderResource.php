@@ -63,6 +63,15 @@ class OrderResource extends JsonResource
             'vendor_acceptance_deadline_at' => $this->vendor_acceptance_deadline_at?->toIso8601String(),
             'accepted_at' => $this->accepted_at?->toIso8601String(),
             'cancellation_reason' => $this->cancellation_reason,
+            'cancelled_by' => $this->cancelled_by,
+            'cancelled_at' => $this->cancelled_at?->toIso8601String(),
+            'refunds' => $this->whenLoaded('refunds', fn () => $this->refunds->map(fn ($refund) => [
+                'id' => $refund->id,
+                'amount' => $refund->amount,
+                'reason' => $refund->reason,
+                'status' => $refund->status?->value,
+                'created_at' => $refund->created_at?->toIso8601String(),
+            ])->values()),
             'created_at' => $this->created_at?->toIso8601String(),
             'updated_at' => $this->updated_at?->toIso8601String(),
         ];

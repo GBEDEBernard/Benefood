@@ -38,6 +38,42 @@ class NotificationTemplatesSeeder extends Seeder
                 'subject' => null,
                 'body' => 'Nouvelle course #{reference} disponible.',
             ],
+            [
+                'event' => 'order.cancelled',
+                'channel' => NotificationTemplateChannel::Push->value,
+                'subject' => null,
+                'body' => 'Votre commande #{reference} a été annulée.',
+            ],
+            [
+                'event' => 'order.refund_initiated',
+                'channel' => NotificationTemplateChannel::Push->value,
+                'subject' => null,
+                'body' => 'Un remboursement de {amount} FCFA est en cours pour la commande #{reference}.',
+            ],
+            [
+                'event' => 'order.refunded',
+                'channel' => NotificationTemplateChannel::Push->value,
+                'subject' => null,
+                'body' => 'Votre commande #{reference} a été remboursée ({amount} FCFA).',
+            ],
+            [
+                'event' => 'complaint.opened',
+                'channel' => NotificationTemplateChannel::Push->value,
+                'subject' => null,
+                'body' => 'Nouvelle réclamation : {subject}.',
+            ],
+            [
+                'event' => 'complaint.message',
+                'channel' => NotificationTemplateChannel::Push->value,
+                'subject' => null,
+                'body' => 'Nouveau message sur la réclamation « {subject} ».',
+            ],
+            [
+                'event' => 'complaint.resolved',
+                'channel' => NotificationTemplateChannel::Push->value,
+                'subject' => null,
+                'body' => 'Votre réclamation « {subject} » a été traitée.',
+            ],
         ];
 
         foreach ($templates as $template) {
