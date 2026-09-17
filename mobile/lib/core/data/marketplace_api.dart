@@ -427,6 +427,54 @@ class MarketplaceApi {
       fileNames: {'document': fileName ?? 'document.pdf'},
     );
   }
+
+  /// Ajoute une image à un produit (première image = image principale).
+  Future<void> uploadProductImage(String productId, List<int> bytes, {String? fileName, bool isMain = false}) async {
+    await _api.multipart(
+      '/vendors/me/products/$productId/images',
+      fields: {if (isMain) 'is_main': '1'},
+      files: {'image': bytes},
+      fileNames: {'image': fileName ?? 'image.jpg'},
+    );
+  }
+
+  /// Met à jour le logo / la couverture de la boutique du vendeur.
+  Future<void> updateVendorMedia({List<int>? logo, List<int>? cover}) async {
+    final files = <String, List<int>>{};
+    final names = <String, String>{};
+    if (logo != null) {
+      files['logo'] = logo;
+      names['logo'] = 'logo.${_imageExtension(logo)}';
+    }
+    if (cover != null) {
+      files['cover'] = cover;
+      names['cover'] = 'cover.${_imageExtension(cover)}';
+    }
+    if (files.isEmpty) {
+      return;
+    }
+    await _api.multipart(
+      '/vendors/me',
+      fields: const {},
+      files: files,
+      fileNames: names,
+      method: 'PATCH',
+    );
+  }
+}
+
+/// Détecte l'extension d'une image à partir de ses octets (magic bytes).
+String _imageExtension(List<int> bytes) {
+  if (bytes.length >= 8 && bytes[0] == 0x89 && bytes[1] == 0x50 && bytes[2] == 0x4E && bytes[3] == 0x47) {
+    return 'png';
+  }
+  if (bytes.length >= 4 && bytes[0] == 0x52 && bytes[1] == 0x49 && bytes[2] == 0x46 && bytes[3] == 0x46) {
+    return 'webp';
+  }
+  if (bytes.length >= 3 && bytes[0] == 0xFF && bytes[1] == 0xD8) {
+    return 'jpg';
+  }
+  return 'jpg';
 }
 
 class HomeVendor {

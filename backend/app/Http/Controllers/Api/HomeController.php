@@ -10,6 +10,7 @@ use App\Models\Product;
 use App\Models\Vendor;
 use App\Support\Api;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Storage;
 
 /**
  * Accueil client (M5 — J77) : catégories, produits mis en avant et boutiques.
@@ -51,8 +52,8 @@ class HomeController extends Controller
                 'id' => $vendor->id,
                 'business_name' => $vendor->business_name,
                 'description' => $vendor->description,
-                'logo_url' => $vendor->logo_url,
-                'cover_url' => $vendor->cover_url,
+                'logo_url' => $this->mediaUrl($vendor->logo_url),
+                'cover_url' => $this->mediaUrl($vendor->cover_url),
                 'city' => $vendor->city,
                 'is_open' => $vendor->isOpenNow(),
             ])
@@ -63,5 +64,22 @@ class HomeController extends Controller
             'featured_products' => ProductResource::collection($products)->resolve(),
             'vendors' => $vendors,
         ]);
+    }
+
+    /**
+     * Normalise un chemin de média en URL publique (chemins relatifs legacy
+     * compris, URL absolues renvoyées telles quelles).
+     */
+    private function mediaUrl(?string $path): ?string
+    {
+        if ($path === null || $path === '') {
+            return null;
+        }
+
+        if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
+            return $path;
+        }
+
+        return Storage::disk('public')->url($path);
     }
 }

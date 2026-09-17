@@ -71,11 +71,12 @@ class ApiClient {
     Map<String, List<int>>? files,
     Map<String, String>? fileNames,
     bool auth = true,
+    String method = 'POST',
     void Function(int sent, int total)? onProgress,
   }) async {
     final uri = _uri(path);
 
-    final request = http.MultipartRequest('POST', uri);
+    final request = http.MultipartRequest(method, uri);
     if (auth) {
       final token = await _tokenStore.readToken();
       if (token != null) {

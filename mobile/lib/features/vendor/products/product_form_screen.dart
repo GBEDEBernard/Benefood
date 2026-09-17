@@ -1,10 +1,14 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../../core/data/marketplace_api.dart';
 import '../../../core/errors/api_exception.dart';
 import '../../../shared/models/category.dart';
 import '../../../shared/models/product.dart';
 import '../../../shared/widgets/app_button.dart';
+import '../../../shared/widgets/app_network_image.dart';
 import '../../../shared/widgets/app_text_field.dart';
 import '../../../shared/widgets/feedback_widgets.dart';
 
@@ -35,6 +39,10 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
   bool _loadingCategories = true;
   bool _saving = false;
   bool _deleting = false;
+  bool _pickingImage = false;
+
+  Uint8List? _imageBytes;
+  String? _imageName;
 
   bool get _isEditing => widget.product != null;
 
@@ -106,6 +114,32 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
     return int.tryParse(text);
   }
 
+  Future<void> _pickImage() async {
+    setState(() => _pickingImage = true);
+    try {
+      final file = await ImagePicker().pickImage(source: ImageSource.gallery);
+      if (file == null || !mounted) {
+        return;
+      }
+      final bytes = await file.readAsBytes();
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _imageBytes = bytes;
+        _imageName = file.name;
+      });
+    } catch (_) {
+      if (mounted) {
+        showToast(context, 'Impossible de charger l\'image.', isError: true);
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _pickingImage = false);
+      }
+    }
+  }
+
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) {
       return;
@@ -122,8 +156,9 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
 
     setState(() => _saving = true);
     try {
+      Product saved;
       if (_isEditing) {
-        await widget.marketplace.updateProduct(
+        saved = await widget.marketplace.updateProduct(
           widget.product!.id,
           name: _name.text.trim(),
           price: priceCents,
@@ -134,7 +169,7 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
           isAvailable: _isAvailable,
         );
       } else {
-        await widget.marketplace.createProduct(
+        saved = await widget.marketplace.createProduct(
           name: _name.text.trim(),
           price: priceCents,
           categoryId: category.id,
@@ -144,6 +179,7 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
           isAvailable: _isAvailable,
         );
       }
+      await _uploadImageIfAny(saved.id);
       if (mounted) {
         Navigator.of(context).pop(true);
       }
@@ -160,6 +196,19 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
         setState(() => _saving = false);
       }
     }
+  }
+
+  Future<void> _uploadImageIfAny(String productId) async {
+    final bytes = _imageBytes;
+    if (bytes == null) {
+      return;
+    }
+    await widget.marketplace.uploadProductImage(
+      productId,
+      bytes,
+      fileName: _imageName,
+      isMain: true,
+    );
   }
 
   Future<void> _delete() async {
@@ -201,6 +250,8 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                _buildImagePicker(),
+                const SizedBox(height: 14),
                 AppTextField(
                   controller: _name,
                   label: 'Nom du produit',
@@ -289,6 +340,58 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+Widget _buildImagePicker() {
+    final theme = Theme.of(context);
+    final current = _imageBytes != null
+        ? Image.memory(_imageBytes!, fit: BoxFit.cover)
+        : AppNetworkImage(url: widget.product?.imageUrl, icon: Icons.add_photo_alternate_outlined);
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Photo du produit', style: theme.textTheme.titleSmall),
+            const SizedBox(height: 8),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: SizedBox(
+                height: 140,
+                width: double.infinity,
+                child: current,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    icon: _pickingImage
+                        ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                        : const Icon(Icons.photo_library_outlined),
+                    label: Text(_imageBytes != null ? 'Changer l\'image' : 'Choisir une image'),
+                    onPressed: _pickingImage ? null : _pickImage,
+                  ),
+                ),
+                if (_imageBytes != null) ...[
+                  const SizedBox(width: 8),
+                  IconButton(
+                    tooltip: 'Retirer l\'image',
+                    icon: const Icon(Icons.delete_outline),
+                    onPressed: () => setState(() {
+                      _imageBytes = null;
+                      _imageName = null;
+                    }),
+                  ),
+                ],
+              ],
+            ),
+          ],
         ),
       ),
     );

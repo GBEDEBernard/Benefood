@@ -191,4 +191,31 @@ class VendorOnboardingTest extends TestCase
             ->assertNotFound()
             ->assertJsonPath('errors.0.code', 'vendor.not_onboarded');
     }
+
+    public function test_vendor_can_upload_logo_and_cover(): void
+    {
+        Storage::fake('public');
+
+        $user = User::factory()->create(['phone' => '+22997000010']);
+        Sanctum::actingAs($user);
+
+        $this->postJson('/api/v1/vendors/me/onboarding', [
+            'business_name' => 'Resto Chez Awa',
+            'phone' => '97000011',
+        ])->assertCreated();
+
+        $vendor = $user->fresh()->vendor()->first();
+
+        $this->patch('/api/v1/vendors/me', [
+            'logo' => UploadedFile::fake()->image('logo.jpg', 200, 200),
+            'cover' => UploadedFile::fake()->image('cover.jpg', 800, 400),
+        ])->assertOk();
+
+        $vendor->refresh();
+
+        $this->assertNotNull($vendor->logo_url);
+        $this->assertNotNull($vendor->cover_url);
+        $this->assertStringContainsString("vendor-media/{$vendor->id}", $vendor->logo_url);
+        $this->assertCount(2, Storage::disk('public')->allFiles("vendor-media/{$vendor->id}"));
+    }
 }

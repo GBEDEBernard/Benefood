@@ -1,4 +1,7 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../../core/data/marketplace_api.dart';
 import '../../../core/errors/api_exception.dart';
@@ -6,7 +9,7 @@ import '../../../shared/widgets/app_button.dart';
 import '../../../shared/widgets/app_text_field.dart';
 import '../../../shared/widgets/feedback_widgets.dart';
 
-/// Inscription vendeur (J46) : formulaire boutique + envoi de documents.
+/// Inscription vendeur (J46) : formulaire boutique, photos et documents.
 ///
 /// Démo sandbox : sans bibliothèque de fichiers, les documents sont générés
 /// comme PDF d'exemple (quelques octets) et envoyés via `uploadVendorDocument`.
@@ -24,7 +27,6 @@ class _VendorOnboardingScreenState extends State<VendorOnboardingScreen> {
     ('ifu', 'IFU'),
     ('business_registration', 'Registre de commerce / Patente'),
     ('id_card', 'Pièce d\'identité'),
-    ('store_photo', 'Photo de la boutique'),
   ];
 
   final _formKey = GlobalKey<FormState>();
@@ -39,6 +41,10 @@ class _VendorOnboardingScreenState extends State<VendorOnboardingScreen> {
   final Set<String> _uploadedTypes = {};
   String? _uploadingType;
   bool _submitting = false;
+
+  Uint8List? _logoBytes;
+  Uint8List? _coverBytes;
+  bool _pickingPhoto = false;
 
   @override
   void dispose() {
@@ -83,6 +89,35 @@ class _VendorOnboardingScreenState extends State<VendorOnboardingScreen> {
     }
   }
 
+  Future<void> _pickPhoto({required bool isLogo}) async {
+    setState(() => _pickingPhoto = true);
+    try {
+      final file = await ImagePicker().pickImage(source: ImageSource.gallery, imageQuality: 90);
+      if (file == null || !mounted) {
+        return;
+      }
+      final bytes = await file.readAsBytes();
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        if (isLogo) {
+          _logoBytes = bytes;
+        } else {
+          _coverBytes = bytes;
+        }
+      });
+    } catch (_) {
+      if (mounted) {
+        showToast(context, 'Impossible de charger l\'image.', isError: true);
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _pickingPhoto = false);
+      }
+    }
+  }
+
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) {
       return;
@@ -114,6 +149,13 @@ class _VendorOnboardingScreenState extends State<VendorOnboardingScreen> {
         if (mounted && (type == 'ifu' || type == 'business_registration')) {
           showToast(context, '$label envoyé (démo).');
         }
+      }
+
+      if (_logoBytes != null || _coverBytes != null) {
+        await widget.marketplace.updateVendorMedia(
+          logo: _logoBytes,
+          cover: _coverBytes,
+        );
       }
 
       if (mounted) {
@@ -208,6 +250,27 @@ class _VendorOnboardingScreenState extends State<VendorOnboardingScreen> {
                   icon: Icons.location_on_outlined,
                 ),
                 const SizedBox(height: 24),
+                Text('Photos de la boutique', style: Theme.of(context).textTheme.titleSmall),
+                const SizedBox(height: 4),
+                Text(
+                  'Ajoutez un logo et une photo de couverture pour votre fiche boutique.',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
+                ),
+                const SizedBox(height: 12),
+                _buildPhotoTile(
+                  title: 'Logo',
+                  bytes: _logoBytes,
+                  onPick: () => _pickPhoto(isLogo: true),
+                  onRemove: () => setState(() => _logoBytes = null),
+                ),
+                const SizedBox(height: 12),
+                _buildPhotoTile(
+                  title: 'Couverture',
+                  bytes: _coverBytes,
+                  onPick: () => _pickPhoto(isLogo: false),
+                  onRemove: () => setState(() => _coverBytes = null),
+                ),
+                const SizedBox(height: 24),
                 Text('Documents justificatifs', style: Theme.of(context).textTheme.titleSmall),
                 const SizedBox(height: 4),
                 Text(
@@ -275,6 +338,66 @@ class _VendorOnboardingScreenState extends State<VendorOnboardingScreen> {
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPhotoTile({
+    required String title,
+    required Uint8List? bytes,
+    required VoidCallback onPick,
+    required VoidCallback onRemove,
+  }) {
+    final theme = Theme.of(context);
+    final preview = bytes != null
+        ? Image.memory(bytes, fit: BoxFit.cover)
+        : Container(
+            color: theme.colorScheme.surfaceContainerHighest,
+            child: Center(
+              child: Icon(Icons.storefront, size: 32, color: theme.colorScheme.outline),
+            ),
+          );
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
+            const SizedBox(height: 8),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: SizedBox(
+                height: 120,
+                width: double.infinity,
+                child: preview,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    icon: _pickingPhoto
+                        ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                        : const Icon(Icons.photo_library_outlined),
+                    label: Text(bytes != null ? 'Changer la photo' : 'Ajouter une photo'),
+                    onPressed: _pickingPhoto ? null : onPick,
+                  ),
+                ),
+                if (bytes != null) ...[
+                  const SizedBox(width: 8),
+                  IconButton(
+                    tooltip: 'Retirer la photo',
+                    icon: const Icon(Icons.delete_outline),
+                    onPressed: _pickingPhoto ? null : onRemove,
+                  ),
+                ],
+              ],
+            ),
+          ],
         ),
       ),
     );

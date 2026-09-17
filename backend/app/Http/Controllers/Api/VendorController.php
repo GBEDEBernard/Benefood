@@ -13,6 +13,7 @@ use App\Support\Api;
 use App\Support\Phone;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 
 class VendorController extends Controller
 {
@@ -116,14 +117,16 @@ class VendorController extends Controller
 
         // Handle image uploads
         if ($request->hasFile('logo')) {
-            $path = $request->file('logo')->storeAs("vendor-media/{$vendor->id}", 'logo_'.uniqid().'.'.$request->file('logo')->getClientOriginalExtension(), 'private');
-            $data['logo_url'] = $path;
+            $path = $request->file('logo')->storeAs("vendor-media/{$vendor->id}", 'logo_'.uniqid().'.'.$request->file('logo')->getClientOriginalExtension(), 'public');
+            $data['logo_url'] = Storage::disk('public')->url($path);
         }
 
         if ($request->hasFile('cover')) {
-            $path = $request->file('cover')->storeAs("vendor-media/{$vendor->id}", 'cover_'.uniqid().'.'.$request->file('cover')->getClientOriginalExtension(), 'private');
-            $data['cover_url'] = $path;
+            $path = $request->file('cover')->storeAs("vendor-media/{$vendor->id}", 'cover_'.uniqid().'.'.$request->file('cover')->getClientOriginalExtension(), 'public');
+            $data['cover_url'] = Storage::disk('public')->url($path);
         }
+
+        unset($data['logo'], $data['cover']);
 
         $vendor->update(array_filter($data, fn ($v) => $v !== null && $v !== []));
 
@@ -350,8 +353,8 @@ class VendorController extends Controller
             'id' => $vendor->id,
             'business_name' => $vendor->business_name,
             'description' => $vendor->description,
-            'logo_url' => $vendor->logo_url,
-            'cover_url' => $vendor->cover_url,
+            'logo_url' => $this->mediaUrl($vendor->logo_url),
+            'cover_url' => $this->mediaUrl($vendor->cover_url),
             'phone' => $vendor->phone,
             'city' => $vendor->city,
             'address' => $vendor->address,
@@ -368,6 +371,23 @@ class VendorController extends Controller
             ])->values(),
             'products' => ProductResource::collection($vendor->products)->resolve(),
         ];
+    }
+
+    /**
+     * Normalise un chemin de média en URL publique (chemins relatifs legacy
+     * compris, URL absolues renvoyées telles quelles).
+     */
+    private function mediaUrl(?string $path): ?string
+    {
+        if ($path === null || $path === '') {
+            return null;
+        }
+
+        if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
+            return $path;
+        }
+
+        return Storage::disk('public')->url($path);
     }
 
     public function myProducts(Request $request): JsonResponse

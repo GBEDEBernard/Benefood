@@ -1,10 +1,14 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../../core/auth/session_provider.dart';
 import '../../../core/data/marketplace_api.dart';
 import '../../../core/errors/api_exception.dart';
 import '../../../shared/widgets/app_button.dart';
+import '../../../shared/widgets/app_network_image.dart';
 import '../../../shared/widgets/feedback_widgets.dart';
 import '../../../shared/widgets/status_badge.dart';
 import '../../../shared/widgets/state_widgets.dart';
@@ -26,6 +30,11 @@ class _VendorAccountScreenState extends State<VendorAccountScreen> {
   String? _error;
   bool _switching = false;
   bool _loggingOut = false;
+  bool _uploadingLogo = false;
+  bool _uploadingCover = false;
+
+  Uint8List? _logoBytes;
+  Uint8List? _coverBytes;
 
   @override
   void initState() {
@@ -91,6 +100,63 @@ class _VendorAccountScreenState extends State<VendorAccountScreen> {
     }
   }
 
+  Future<void> _pickImage({required bool isLogo}) async {
+    try {
+      final file = await ImagePicker().pickImage(source: ImageSource.gallery);
+      if (file == null || !mounted) {
+        return;
+      }
+      final bytes = await file.readAsBytes();
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        if (isLogo) {
+          _logoBytes = bytes;
+        } else {
+          _coverBytes = bytes;
+        }
+      });
+      await _uploadMedia(isLogo: isLogo, bytes: bytes);
+    } catch (_) {
+      if (mounted) {
+        showToast(context, 'Impossible de charger l\'image.', isError: true);
+      }
+    }
+  }
+
+  Future<void> _uploadMedia({required bool isLogo, required List<int> bytes}) async {
+    setState(() {
+      if (isLogo) {
+        _uploadingLogo = true;
+      } else {
+        _uploadingCover = true;
+      }
+    });
+    try {
+      if (isLogo) {
+        await widget.marketplace.updateVendorMedia(logo: bytes);
+      } else {
+        await widget.marketplace.updateVendorMedia(cover: bytes);
+      }
+      if (mounted) {
+        showToast(context, isLogo ? 'Logo mis à jour.' : 'Photo de couverture mise à jour.');
+        await _load();
+      }
+    } on ApiException catch (e) {
+      if (mounted) {
+        showToast(context, e.message, isError: true);
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _uploadingLogo = false;
+          _uploadingCover = false;
+        });
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final user = widget.session.user;
@@ -141,6 +207,10 @@ class _VendorAccountScreenState extends State<VendorAccountScreen> {
             ErrorState(message: _error!, onRetry: _load)
           else
             _buildVendorCard(),
+          if (!_loading && _error == null) ...[
+            const SizedBox(height: 16),
+            _buildMediaSection(),
+          ],
           const SizedBox(height: 16),
           AppButton(
             label: 'Rafraîchir',
@@ -223,6 +293,94 @@ class _VendorAccountScreenState extends State<VendorAccountScreen> {
     final first = parts.isNotEmpty && parts.first.isNotEmpty ? parts.first[0] : '';
     final last = parts.length > 1 && parts.last.isNotEmpty ? parts.last[0] : '';
     return (first + last).toUpperCase();
+  }
+
+  Widget _buildMediaSection() {
+    final theme = Theme.of(context);
+    final rawVendor = _status?['vendor'];
+    final vendor = rawVendor is Map<String, dynamic> ? rawVendor : null;
+    final logoUrl = _stringOrNull(vendor?['logo_url']);
+    final coverUrl = _stringOrNull(vendor?['cover_url']);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Photo de la boutique', style: theme.textTheme.titleSmall),
+        const SizedBox(height: 8),
+        _buildMediaTile(
+          title: 'Logo',
+          subtitle: 'Le logo est affiché dans le catalogue',
+          bytes: _logoBytes,
+          remoteUrl: logoUrl,
+          isLoading: _uploadingLogo,
+          onPick: () => _pickImage(isLogo: true),
+        ),
+        const SizedBox(height: 12),
+        _buildMediaTile(
+          title: 'Couverture',
+          subtitle: 'La photo de couverture en haut de la fiche boutique',
+          bytes: _coverBytes,
+          remoteUrl: coverUrl,
+          isLoading: _uploadingCover,
+          onPick: () => _pickImage(isLogo: false),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMediaTile({
+    required String title,
+    required String subtitle,
+    required Uint8List? bytes,
+    required String? remoteUrl,
+    required bool isLoading,
+    required VoidCallback onPick,
+  }) {
+    final theme = Theme.of(context);
+    final preview = bytes != null
+        ? Image.memory(bytes, fit: BoxFit.cover)
+        : AppNetworkImage(url: remoteUrl, icon: Icons.storefront);
+    final hasImage = bytes != null || (remoteUrl != null && remoteUrl.isNotEmpty);
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(child: Text(title, style: const TextStyle(fontWeight: FontWeight.bold))),
+                if (hasImage) const SizedBox(width: 8),
+                if (hasImage)
+                  TextButton(
+                    onPressed: onPick,
+                    child: const Text('Modifier'),
+                  ),
+              ],
+            ),
+            Text(subtitle, style: theme.textTheme.bodySmall),
+            const SizedBox(height: 8),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: SizedBox(
+                height: 96,
+                width: double.infinity,
+                child: preview,
+              ),
+            ),
+            const SizedBox(height: 8),
+            OutlinedButton.icon(
+              icon: isLoading
+                  ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                  : const Icon(Icons.photo_library_outlined),
+              label: Text(hasImage ? 'Changer la photo' : 'Ajouter une photo'),
+              onPressed: isLoading ? null : onPick,
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 

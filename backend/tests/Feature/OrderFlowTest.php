@@ -262,6 +262,25 @@ class OrderFlowTest extends TestCase
         $this->assertSame('Plus de stock', $refused->fresh()->cancellation_reason);
     }
 
+    public function test_vendor_can_list_own_orders(): void
+    {
+        $client = $this->actingUser('client');
+        $vendorUser = $this->actingUser('vendor');
+        $vendor = $this->activeVendor($vendorUser);
+        $product = $this->vendorProduct($vendor);
+        $this->deliverySetup($vendor);
+        $address = $this->clientAddress($client);
+
+        $this->addToCart($client, $product);
+        $reference = $this->placeOrder($client, $address);
+
+        $this->actAs($vendorUser);
+
+        $this->getJson('/api/v1/vendors/me/orders')
+            ->assertOk()
+            ->assertJsonFragment(['reference' => $reference]);
+    }
+
     public function test_vendor_cannot_accept_other_vendor_order(): void
     {
         $client = $this->actingUser('client');
