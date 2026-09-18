@@ -33,6 +33,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
   OrderSummary? _summary;
   bool _summaryLoading = false;
+  String? _summaryError;
 
   Order? _order;
   Map<String, dynamic>? _paymentPayload;
@@ -83,6 +84,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     setState(() {
       _summaryLoading = true;
       _summary = null;
+      _summaryError = null;
     });
     try {
       final summary = await widget.marketplace.orderSummary(address.id);
@@ -91,9 +93,11 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       }
     } on ApiException catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Livraison impossible : ${e.message}'), behavior: SnackBarBehavior.floating),
-        );
+        setState(() {
+          _summaryLoading = false;
+          _summary = null;
+          _summaryError = e.message;
+        });
       }
     } finally {
       if (mounted) {
@@ -323,6 +327,26 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 label: const Text('Ajouter une adresse'),
               ),
               const SizedBox(height: 20),
+              if (_summaryError != null)
+                Card(
+                  color: Theme.of(context).colorScheme.errorContainer,
+                  margin: const EdgeInsets.only(bottom: 16),
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Row(
+                      children: [
+                        Icon(Icons.error_outline, color: Theme.of(context).colorScheme.onErrorContainer),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Livraison impossible : $_summaryError',
+                            style: TextStyle(color: Theme.of(context).colorScheme.onErrorContainer),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
               if (_summaryLoading)
                 const Center(child: CircularProgressIndicator())
               else if (_summary != null) ...[

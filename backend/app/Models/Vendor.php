@@ -97,7 +97,10 @@ class Vendor extends Model
 
         $time = $at->format('H:i:s');
 
-        return ($hour->opens_at === null || $time >= $hour->opens_at)
-            && ($hour->closes_at === null || $time <= $hour->closes_at);
+        $opensAt = $hour->opens_at?->format('H:i:s');
+        $closesAt = $hour->closes_at?->format('H:i:s');
+
+        return ($opensAt === null || $time >= $opensAt)
+            && ($closesAt === null || $time <= $closesAt);
     }
 }

@@ -20,5 +20,11 @@ class DatabaseSeeder extends Seeder
             AdminDashboardSeeder::class,
 
         ]);
+
+        // Données de démonstration marketplace (dev uniquement) : vendeurs avec
+        // boutique + produits, clients, livreurs et commandes réelles.
+        $this->call([
+            ShopDataSeeder::class,
+        ]);
     }
 }
