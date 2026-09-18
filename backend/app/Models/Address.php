@@ -41,7 +41,7 @@ class Address extends Model
     {
         return [
             'city' => $this->city,
-            'area' => ($this->zone?->terms ?: [])[0] ?? null,
+            'area' => $this->area ?: (($this->zone?->terms ?: [])[0] ?? null),
             'address_text' => $this->full_address,
             'latitude' => $this->latitude,
             'longitude' => $this->longitude,

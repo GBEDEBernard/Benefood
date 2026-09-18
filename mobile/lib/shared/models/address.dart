@@ -8,6 +8,7 @@ class Address {
     this.latitude,
     this.longitude,
     this.city,
+    this.area,
     this.isDefault = false,
     this.createdAt,
     this.updatedAt,
@@ -21,6 +22,7 @@ class Address {
   final double? latitude;
   final double? longitude;
   final String? city;
+  final String? area;
   final bool isDefault;
   final String? createdAt;
   final String? updatedAt;
@@ -34,6 +36,7 @@ class Address {
         latitude: _d(json['latitude']),
         longitude: _d(json['longitude']),
         city: json['city'] is String ? json['city'] as String : null,
+        area: json['area'] is String ? json['area'] as String : null,
         isDefault: json['is_default'] == true,
         createdAt: json['created_at'] is String ? json['created_at'] as String : null,
         updatedAt: json['updated_at'] is String ? json['updated_at'] as String : null,

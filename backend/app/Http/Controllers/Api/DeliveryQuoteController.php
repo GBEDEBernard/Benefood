@@ -36,6 +36,7 @@ class DeliveryQuoteController extends Controller
         }
 
         $quote = $this->pricing->quoteForVendor($vendor, $data['address']);
+        $details = $this->pricing->matchDetails($data['address']);
 
         return Api::ok([
             'zone' => [
@@ -51,6 +52,10 @@ class DeliveryQuoteController extends Controller
             ],
             'delivery_fee' => $quote['delivery_fee'],
             'currency' => 'XOF',
+            'matched_by' => $details['matched_by'] ?? null,
+            'distance_km' => isset($details['distance_km'])
+                ? round($details['distance_km'], 2)
+                : null,
         ]);
     }
 }

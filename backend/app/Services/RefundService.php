@@ -51,7 +51,7 @@ class RefundService
             $capped = max(0, min($total, $overrideAmount));
 
             return [
-                'type' => $capped <= 0 ? 'none' : 'partial',
+                'type' => $capped <= 0 ? 'none' : ($capped >= $total ? 'total' : 'partial'),
                 'amount' => $capped,
                 'fees' => $total - $capped,
             ];

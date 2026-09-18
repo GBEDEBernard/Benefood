@@ -9,6 +9,7 @@ class OrderSummary {
     this.vendorName,
     this.commissionRate,
     this.commissionAmount,
+    this.deliveryZoneName,
     this.currency = 'XOF',
   });
 
@@ -20,6 +21,7 @@ class OrderSummary {
   final String? vendorName;
   final int? commissionRate;
   final int? commissionAmount;
+  final String? deliveryZoneName;
   final String currency;
 
   factory OrderSummary.fromJson(Map<String, dynamic> json) {
@@ -45,6 +47,12 @@ class OrderSummary {
       amount = rawCommission['amount'] is int ? rawCommission['amount'] as int : null;
     }
 
+    final rawZone = json['delivery_zone'];
+    String? zoneName;
+    if (rawZone is Map<String, dynamic>) {
+      zoneName = rawZone['name'] is String ? rawZone['name'] as String : null;
+    }
+
     return OrderSummary(
       items: items,
       subtotal: _i(json['subtotal']),
@@ -54,6 +62,7 @@ class OrderSummary {
       vendorName: vendorName,
       commissionRate: rate,
       commissionAmount: amount,
+      deliveryZoneName: zoneName,
       currency: _s(json['currency'], 'XOF'),
     );
   }
@@ -83,13 +92,22 @@ class SummaryItem {
       );
 }
 
-/// Devis de livraison renvoyé par `GET /delivery/quote` (J73).
+/// Devis de livraison renvoyé par `POST /delivery/quote` (J73/J176).
 class DeliveryQuote {
-  const DeliveryQuote({required this.deliveryFee, this.zoneId, this.zoneName, this.currency = 'XOF'});
+  const DeliveryQuote({
+    required this.deliveryFee,
+    this.zoneId,
+    this.zoneName,
+    this.matchedBy,
+    this.distanceKm,
+    this.currency = 'XOF',
+  });
 
   final int deliveryFee;
   final String? zoneId;
   final String? zoneName;
+  final String? matchedBy;
+  final double? distanceKm;
   final String currency;
 
   factory DeliveryQuote.fromJson(Map<String, dynamic> json) {
@@ -98,6 +116,8 @@ class DeliveryQuote {
       deliveryFee: _i(json['delivery_fee']),
       zoneId: rawZone is Map<String, dynamic> && rawZone['id'] is String ? rawZone['id'] as String : null,
       zoneName: rawZone is Map<String, dynamic> && rawZone['name'] is String ? rawZone['name'] as String : null,
+      matchedBy: json['matched_by'] is String ? json['matched_by'] as String : null,
+      distanceKm: json['distance_km'] is num ? (json['distance_km'] as num).toDouble() : null,
       currency: _s(json['currency'], 'XOF'),
     );
   }

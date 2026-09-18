@@ -116,7 +116,8 @@ class OrderFlowTest extends TestCase
             ->assertJsonPath('data.total', 2500)
             ->assertJsonPath('data.commission.rate', 10)
             ->assertJsonPath('data.commission.amount', 100)
-            ->assertJsonPath('data.currency', 'XOF');
+            ->assertJsonPath('data.currency', 'XOF')
+            ->assertJsonPath('data.delivery_zone.name', 'Cotonou Centre');
 
         $reference = $this->placeOrder($client, $address, ['notes' => 'Sonner avant de livrer']);
 

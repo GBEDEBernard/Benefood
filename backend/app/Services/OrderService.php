@@ -78,6 +78,11 @@ class OrderService
             'items' => $entries,
             'subtotal' => $subtotal,
             'delivery_fee' => $delivery['fee'],
+            'delivery_zone' => [
+                'id' => $delivery['zone_id'],
+                'name' => $delivery['rate_snapshot']['zone_name'] ?? null,
+                'city' => $delivery['rate_snapshot']['zone_city'] ?? null,
+            ],
             'currency' => config('beninfood.currency', 'XOF'),
             'commission' => [
                 'rate' => $commissionRate,
@@ -533,6 +538,7 @@ class OrderService
             'full_address' => $address->full_address,
             'landmark' => $address->landmark,
             'city' => $address->city,
+            'area' => $address->area,
             'latitude' => $address->latitude,
             'longitude' => $address->longitude,
             'zone_id' => $address->zone_id,

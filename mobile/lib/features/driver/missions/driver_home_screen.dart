@@ -165,7 +165,11 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
                 color: _available ? Colors.green : Theme.of(context).colorScheme.outline,
               ),
               title: const Text('Disponible pour les livraisons'),
-              subtitle: Text(_available ? 'Vous recevez des offres.' : 'Vous ne recevez pas d\'offres.'),
+              subtitle: Text(
+                _available
+                    ? 'Vous recevez des offres. Votre position est partagée pendant vos missions.'
+                    : 'Vous ne recevez pas d\'offres. En activant, vous consentez au partage de votre position pendant vos missions.',
+              ),
             ),
           ),
           const SizedBox(height: 16),

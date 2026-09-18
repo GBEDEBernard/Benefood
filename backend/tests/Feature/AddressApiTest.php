@@ -127,4 +127,36 @@ class AddressApiTest extends TestCase
             ->assertStatus(422)
             ->assertJsonStructure(['errors' => [['code', 'message', 'field']]]);
     }
+
+    public function test_address_stores_and_returns_area_and_coordinates(): void
+    {
+        $this->clientUser();
+
+        $this->postJson('/api/v1/addresses', $this->validPayload(['area' => 'Akpakpa']))
+            ->assertCreated()
+            ->assertJsonPath('data.area', 'Akpakpa')
+            ->assertJsonPath('data.latitude', 6.357)
+            ->assertJsonPath('data.longitude', 2.402);
+
+        $this->assertDatabaseHas('addresses', [
+            'area' => 'Akpakpa',
+            'latitude' => 6.357,
+            'longitude' => 2.402,
+        ]);
+    }
+
+    public function test_address_update_can_set_area(): void
+    {
+        $user = $this->clientUser();
+        $address = Address::factory()->create(['user_id' => $user->id]);
+
+        $this->patchJson("/api/v1/addresses/{$address->id}", [
+            'full_address' => 'Rue des Fleurs',
+            'area' => 'Cadjèhoun',
+        ])
+            ->assertOk()
+            ->assertJsonPath('data.area', 'Cadjèhoun');
+
+        $this->assertSame('Cadjèhoun', $address->fresh()->area);
+    }
 }

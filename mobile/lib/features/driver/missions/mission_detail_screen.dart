@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../../core/data/marketplace_api.dart';
 import '../../../core/errors/api_exception.dart';
+import '../../../core/services/location_service.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../shared/models/delivery.dart';
 import '../../../shared/widgets/app_button.dart';
@@ -28,10 +31,17 @@ class MissionDetailScreen extends StatefulWidget {
 }
 
 class _MissionDetailScreenState extends State<MissionDetailScreen> {
+  static const _locationInterval = Duration(seconds: 30);
+
   Delivery? _delivery;
   bool _loading = true;
   bool _actionLoading = false;
   String? _error;
+  Timer? _locationTimer;
+  bool _sendingLocation = false;
+  LocationFailure? _reportedFailure;
+
+  static const _activeStatuses = {'assigned', 'picked_up', 'in_delivery'};
 
   @override
   void initState() {
@@ -39,6 +49,56 @@ class _MissionDetailScreenState extends State<MissionDetailScreen> {
     _delivery = widget.initialDelivery;
     _load();
   }
+
+  @override
+  void dispose() {
+    _locationTimer?.cancel();
+    super.dispose();
+  }
+
+  bool get _shouldReportLocation => _delivery != null && _activeStatuses.contains(_delivery!.status);
+
+  void _syncLocationReporting() {
+    _locationTimer?.cancel();
+    _locationTimer = null;
+    if (!_shouldReportLocation) {
+      return;
+    }
+    _sendLocation();
+    _locationTimer = Timer.periodic(_locationInterval, (_) => _sendLocation());
+  }
+
+  Future<void> _sendLocation() async {
+    if (_sendingLocation) {
+      return;
+    }
+    _sendingLocation = true;
+    try {
+      final result = await LocationService.locate();
+      if (result.isSuccess) {
+        final geo = result.geo!;
+        _reportedFailure = null;
+        if (mounted && _shouldReportLocation) {
+          await widget.marketplace.updateDriverLocation(geo.latitude, geo.longitude);
+        }
+        return;
+      }
+      if (mounted && _shouldReportLocation && _reportedFailure != result.failure) {
+        _reportedFailure = result.failure;
+        showToast(context, _locationFailureMessage(result.failure), isError: true);
+      }
+    } catch (_) {
+      // Position indisponible : on réessaiera au prochain tick.
+    } finally {
+      _sendingLocation = false;
+    }
+  }
+
+  static String _locationFailureMessage(LocationFailure? failure) => switch (failure) {
+        LocationFailure.serviceDisabled => 'Suivi interrompu : activez le GPS pour être localisé.',
+        LocationFailure.permissionDenied => 'Suivi interrompu : autorisez la localisation dans les réglages pour le client.',
+        _ => 'Position introuvable : votre position sera retransmise dès que possible.',
+      };
 
   Future<void> _load() async {
     setState(() {
@@ -59,6 +119,7 @@ class _MissionDetailScreenState extends State<MissionDetailScreen> {
           _delivery = match ?? _delivery;
           _loading = false;
         });
+        _syncLocationReporting();
       }
     } on ApiException catch (e) {
       if (mounted) {
@@ -79,6 +140,7 @@ class _MissionDetailScreenState extends State<MissionDetailScreen> {
           _delivery = updated;
           _actionLoading = false;
         });
+        _syncLocationReporting();
         showToast(context, successMessage);
       }
     } on ApiException catch (e) {

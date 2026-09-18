@@ -94,12 +94,25 @@ class MarketplaceApi {
     return _dataList(response).map(Address.fromJson).toList();
   }
 
-  Future<Address> createAddress({String? label, String? fullAddress, String? city, String? landmark}) async {
+  Future<Address> createAddress({
+    String? label,
+    String? fullAddress,
+    String? city,
+    String? area,
+    String? landmark,
+    double? latitude,
+    double? longitude,
+    bool? isDefault,
+  }) async {
     final response = await _api.post('/addresses', body: {
       if (label != null && label.isNotEmpty) 'label': label,
       'full_address': fullAddress ?? '',
       if (city != null && city.isNotEmpty) 'city': city,
+      if (area != null && area.isNotEmpty) 'area': area,
       if (landmark != null && landmark.isNotEmpty) 'landmark': landmark,
+      if (latitude != null) 'latitude': latitude,
+      if (longitude != null) 'longitude': longitude,
+      if (isDefault ?? false) 'is_default': true,
     });
     return Address.fromJson(_dataObject(response) ?? {});
   }

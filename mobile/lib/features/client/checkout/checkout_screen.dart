@@ -333,6 +333,17 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                       children: [
                         _SummaryRow(label: 'Sous-total', amount: _summary!.subtotal),
                         _SummaryRow(label: 'Livraison', amount: _summary!.deliveryFee),
+                        if (_summary!.deliveryZoneName != null)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 2),
+                            child: Align(
+                              alignment: Alignment.centerRight,
+                              child: Text(
+                                'Zone : ${_summary!.deliveryZoneName}',
+                                style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
+                              ),
+                            ),
+                          ),
                         const Divider(height: 24),
                         _SummaryRow(label: 'Total', amount: _summary!.total, emphasized: true),
                       ],

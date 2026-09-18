@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Enums\DeliveryStatus;
 use App\Enums\DriverStatus;
+use App\Enums\OrderStatus;
 use App\Exceptions\DomainException;
 use App\Models\Delivery;
 use App\Models\DriverProfile;
@@ -30,11 +31,21 @@ class DeliveryService
 
         $wasOnline = (bool) $profile->available;
 
-        $profile->update([
-            'available' => $online,
-            'last_latitude' => $location['latitude'] ?? $profile->last_latitude,
-            'last_longitude' => $location['longitude'] ?? $profile->last_longitude,
-        ]);
+        if (! $online) {
+            $profile->update([
+                'available' => false,
+                'last_latitude' => null,
+                'last_longitude' => null,
+                'last_location_at' => null,
+            ]);
+        } else {
+            $profile->update([
+                'available' => true,
+                'last_latitude' => $location['latitude'] ?? $profile->last_latitude,
+                'last_longitude' => $location['longitude'] ?? $profile->last_longitude,
+                'last_location_at' => now(),
+            ]);
+        }
 
         $profile->availabilityLogs()->create([
             'was_online' => $wasOnline,
@@ -46,7 +57,7 @@ class DeliveryService
     }
 
     /**
-     * Met à jour la position GPS du livreur.
+     * Met à jour la position GPS du livreur (J175).
      *
      * @param  array{latitude: float, longitude: float}  $location
      */
@@ -55,6 +66,7 @@ class DeliveryService
         $profile->update([
             'last_latitude' => $location['latitude'],
             'last_longitude' => $location['longitude'],
+            'last_location_at' => now(),
         ]);
 
         return $profile->fresh();

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/data/marketplace_api.dart';
 import '../../../core/errors/api_exception.dart';
+import '../../../core/services/location_service.dart';
 import '../../../shared/models/address.dart';
 import '../../../shared/widgets/app_button.dart';
 import '../../../shared/widgets/app_text_field.dart';
@@ -148,18 +149,63 @@ class _AddAddressSheetState extends State<_AddAddressSheet> {
   final _formKey = GlobalKey<FormState>();
   final _label = TextEditingController();
   final _city = TextEditingController();
+  final _area = TextEditingController();
   final _address = TextEditingController();
   final _landmark = TextEditingController();
   bool _saving = false;
+  bool _locating = false;
+  double? _latitude;
+  double? _longitude;
 
   @override
   void dispose() {
     _label.dispose();
     _city.dispose();
+    _area.dispose();
     _address.dispose();
     _landmark.dispose();
     super.dispose();
   }
+
+  Future<void> _useMyPosition() async {
+    setState(() => _locating = true);
+    final result = await LocationService.locate();
+    if (!mounted) {
+      return;
+    }
+    final geo = result.geo;
+    setState(() {
+      _locating = false;
+      if (geo != null) {
+        _latitude = geo.latitude;
+        _longitude = geo.longitude;
+        if (geo.city != null && _city.text.trim().isEmpty) {
+          _city.text = geo.city!;
+        }
+        if (geo.area != null) {
+          if (_address.text.trim().isEmpty) {
+            _address.text = geo.area!;
+          } else if (_area.text.trim().isEmpty) {
+            _area.text = geo.area!;
+          }
+        }
+      }
+    });
+    if (geo == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(_locationFailureMessage(result.failure)),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
+  static String _locationFailureMessage(LocationFailure? failure) => switch (failure) {
+        LocationFailure.serviceDisabled => 'Localisation indisponible : activez le GPS de votre appareil.',
+        LocationFailure.permissionDenied => 'Localisation refusée : autorisez l\'accès à votre position dans les réglages.',
+        _ => 'Position introuvable pour le moment. Vérifiez le GPS puis réessayez.',
+      };
 
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) {
@@ -171,7 +217,10 @@ class _AddAddressSheetState extends State<_AddAddressSheet> {
         label: _label.text.trim(),
         fullAddress: _address.text.trim(),
         city: _city.text.trim(),
+        area: _area.text.trim(),
         landmark: _landmark.text.trim(),
+        latitude: _latitude,
+        longitude: _longitude,
       );
       if (mounted) {
         Navigator.of(context).pop(address);
@@ -199,6 +248,34 @@ class _AddAddressSheetState extends State<_AddAddressSheet> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text('Nouvelle adresse', style: Theme.of(context).textTheme.titleLarge),
+              const SizedBox(height: 12),
+              OutlinedButton.icon(
+                icon: _locating
+                    ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                    : const Icon(Icons.my_location),
+                label: const Text('Utiliser ma position'),
+                onPressed: _locating ? null : _useMyPosition,
+              ),
+              if (_latitude != null) ...[
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Icon(Icons.location_on, size: 16, color: Theme.of(context).colorScheme.primary),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        'Position capturée (${_latitude!.toStringAsFixed(5)}, ${_longitude!.toStringAsFixed(5)})',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+              const SizedBox(height: 4),
+              Text(
+                'Votre position est utilisée uniquement pour pré-remplir cette adresse.',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
+              ),
               const SizedBox(height: 16),
               AppTextField(
                 controller: _label,
@@ -225,12 +302,18 @@ class _AddAddressSheetState extends State<_AddAddressSheet> {
                   const SizedBox(width: 12),
                   Expanded(
                     child: AppTextField(
-                      controller: _landmark,
-                      label: 'Point de repère',
-                      hint: 'Près de…',
+                      controller: _area,
+                      label: 'Quartier',
+                      hint: 'Akpakpa…',
                     ),
                   ),
                 ],
+              ),
+              const SizedBox(height: 12),
+              AppTextField(
+                controller: _landmark,
+                label: 'Point de repère',
+                hint: 'Près de…',
               ),
               const SizedBox(height: 20),
               AppButton(

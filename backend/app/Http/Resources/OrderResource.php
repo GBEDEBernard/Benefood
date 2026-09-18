@@ -2,6 +2,9 @@
 
 namespace App\Http\Resources;
 
+use App\Enums\DeliveryStatus;
+use App\Models\DriverProfile;
+use App\Services\DeliveryPricingService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -35,6 +38,7 @@ class OrderResource extends JsonResource
             'delivery_fee' => $this->delivery_fee,
             'total' => $this->total,
             'delivery_address' => $this->address_snapshot,
+            'delivery' => $this->whenLoaded('delivery', fn () => $this->deliveryPayload()),
             'payment' => $this->whenLoaded('payment', fn () => [
                 'id' => $this->payment->id,
                 'reference' => $this->payment->reference,
@@ -75,5 +79,71 @@ class OrderResource extends JsonResource
             'created_at' => $this->created_at?->toIso8601String(),
             'updated_at' => $this->updated_at?->toIso8601String(),
         ];
+    }
+
+    /**
+     * Détail de la livraison côté client (J177) : livreur assigné et, pendant
+     * la course active uniquement, sa position approximative (protection des
+     * données de localisation — J178).
+     *
+     * @return array<string, mixed>
+     */
+    private function deliveryPayload(): array
+    {
+        $delivery = $this->delivery;
+        $driver = $delivery->driverProfile;
+
+        $active = in_array(
+            $delivery->status,
+            [DeliveryStatus::Assigned, DeliveryStatus::PickedUp, DeliveryStatus::InDelivery],
+            true,
+        );
+
+        $payload = [
+            'id' => $delivery->id,
+            'status' => $delivery->status?->value,
+            'assigned_at' => $delivery->assigned_at?->toIso8601String(),
+            'picked_up_at' => $delivery->picked_up_at?->toIso8601String(),
+            'delivered_at' => $delivery->delivered_at?->toIso8601String(),
+            'driver' => $driver === null ? null : [
+                'id' => $driver->id,
+                'name' => $driver->user?->name,
+                'vehicle' => $driver->vehicle,
+                'rating' => $driver->rating,
+            ],
+            'position' => null,
+        ];
+
+        if (! $active || $driver === null || $driver->last_latitude === null || $driver->last_longitude === null) {
+            return $payload;
+        }
+
+        $payload['position'] = [
+            'latitude' => round((float) $driver->last_latitude, 3),
+            'longitude' => round((float) $driver->last_longitude, 3),
+            'last_location_at' => $driver->last_location_at?->toIso8601String(),
+            'distance_km' => $this->distanceToClient($driver),
+        ];
+
+        return $payload;
+    }
+
+    /** Distance entre le livreur et l'adresse de livraison (ha versine). */
+    private function distanceToClient(DriverProfile $driver): ?float
+    {
+        $address = $this->address_snapshot;
+        $lat = $address['latitude'] ?? null;
+        $lng = $address['longitude'] ?? null;
+
+        if ($lat === null || $lng === null) {
+            return null;
+        }
+
+        return app(DeliveryPricingService::class)->distanceKm(
+            $driver->last_latitude,
+            $driver->last_longitude,
+            $lat,
+            $lng,
+        );
     }
 }

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -10,7 +12,7 @@ import '../../../shared/widgets/amount_widgets.dart';
 import '../../../shared/widgets/status_badge.dart';
 import '../../../shared/widgets/state_widgets.dart';
 
-/// Écran de suivi / détail d'une commande (J152).
+/// Écran de suivi / détail d'une commande (J152, J177).
 class OrderTrackingScreen extends StatefulWidget {
   const OrderTrackingScreen({super.key, required this.marketplace, required this.orderId});
 
@@ -22,15 +24,57 @@ class OrderTrackingScreen extends StatefulWidget {
 }
 
 class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
+  static const _pollInterval = Duration(seconds: 15);
+
   Order? _order;
   bool _loading = true;
   String? _error;
   bool _actionLoading = false;
+  Timer? _pollTimer;
+  bool _polling = false;
 
   @override
   void initState() {
     super.initState();
     _load();
+  }
+
+  @override
+  void dispose() {
+    _pollTimer?.cancel();
+    super.dispose();
+  }
+
+  bool get _shouldPoll => _order?.delivery?.isTracking ?? false;
+
+  void _schedulePolling() {
+    _pollTimer?.cancel();
+    if (_shouldPoll) {
+      _pollTimer = Timer.periodic(_pollInterval, (_) => _refreshSilently());
+    }
+  }
+
+  Future<void> _refreshSilently() async {
+    if (_polling) {
+      return;
+    }
+    _polling = true;
+    try {
+      final order = await widget.marketplace.order(widget.orderId);
+      if (mounted) {
+        setState(() {
+          _order = order;
+          _error = null;
+        });
+      }
+    } on ApiException {
+      // Silence : on ne coupe pas le suivi si un rafraîchissement échoue.
+    } finally {
+      _polling = false;
+      if (mounted) {
+        _schedulePolling();
+      }
+    }
   }
 
   Future<void> _load() async {
@@ -45,6 +89,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
           _order = order;
           _loading = false;
         });
+        _schedulePolling();
       }
     } on ApiException catch (e) {
       if (mounted) {
@@ -118,6 +163,62 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('Suivi de commande')),
       body: _buildBody(),
+    );
+  }
+
+  Widget? _trackingCard(Order order) {
+    final delivery = order.delivery;
+    final driver = delivery?.driver;
+    final position = delivery?.position;
+    if (delivery == null || driver == null) {
+      return null;
+    }
+
+    final theme = Theme.of(context);
+    final tracking = position != null;
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.delivery_dining, color: theme.colorScheme.primary),
+                const SizedBox(width: 8),
+                const Expanded(
+                  child: Text('Livreur', style: TextStyle(fontWeight: FontWeight.bold)),
+                ),
+                if (tracking)
+                  _LiveDot(color: Colors.green)
+                else
+                  Text('Non affecté', style: theme.textTheme.bodySmall),
+              ],
+            ),
+            const SizedBox(height: 8),
+            if (driver.name != null)
+              Text(driver.name!, style: theme.textTheme.bodyMedium),
+            for (final line
+                in [driver.vehicle ?? '', driver.rating != null ? 'Note : ${driver.rating!.toStringAsFixed(1)}' : '']
+                    .where((e) => e.isNotEmpty))
+              Text(line, style: theme.textTheme.bodySmall),
+            if (tracking) ...[
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Text(
+                    'À ${formatDistance(position.distanceKm)} de vous',
+                    style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.primary),
+                  ),
+                  const Spacer(),
+                  Text('Mise à jour auto', style: theme.textTheme.bodySmall),
+                ],
+              ),
+            ],
+          ],
+        ),
+      ),
     );
   }
 
@@ -212,6 +313,10 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                 subtitle: Text(order.deliveryAddress!),
               ),
             ),
+          ],
+          if (_trackingCard(order) != null) ...[
+            const SizedBox(height: 12),
+            _trackingCard(order)!,
           ],
           if (order.cancellationReason != null) ...[
             const SizedBox(height: 12),
@@ -409,6 +514,28 @@ class _SummaryRow extends StatelessWidget {
             Text('—', style: style),
         ],
       ),
+    );
+  }
+}
+
+class _LiveDot extends StatelessWidget {
+  const _LiveDot({required this.color});
+
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 10,
+          height: 10,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        ),
+        const SizedBox(width: 6),
+        const Text('Suivi en direct'),
+      ],
     );
   }
 }

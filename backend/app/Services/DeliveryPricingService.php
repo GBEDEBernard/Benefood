@@ -52,6 +52,53 @@ class DeliveryPricingService
     }
 
     /**
+     * Résout la zone et détaille comment elle a été trouvée (J174/J176) :
+     * critère gagnant et distance jusqu'au centre de la zone.
+     *
+     * @return array{zone: DeliveryZone, matched_by: string, distance_km: ?float}|null
+     */
+    public function matchDetails(array $address): ?array
+    {
+        $candidateZones = DeliveryZone::query()
+            ->active()
+            ->orderBy('sort_order')
+            ->get();
+
+        $best = null;
+
+        foreach ($candidateZones as $zone) {
+            $breakdown = $this->scoreBreakdown($zone, $address);
+            $total = array_sum($breakdown);
+
+            if ($total > 0 && ($best === null || $total > $best['score'])) {
+                $best = [
+                    'zone' => $zone,
+                    'score' => $total,
+                    'breakdown' => $breakdown,
+                ];
+            }
+        }
+
+        if ($best === null) {
+            return null;
+        }
+
+        arsort($best['breakdown']);
+        $matchedBy = (string) key($best['breakdown']);
+
+        return [
+            'zone' => $best['zone'],
+            'matched_by' => $matchedBy,
+            'distance_km' => $this->distanceKm(
+                $address['latitude'] ?? null,
+                $address['longitude'] ?? null,
+                $best['zone']->center_latitude,
+                $best['zone']->center_longitude,
+            ),
+        ];
+    }
+
+    /**
      * Calcule les frais de livraison pour une zone donnée.
      *
      * @return array{zone: DeliveryZone, rate: DeliveryRate, delivery_fee: int}
@@ -127,9 +174,19 @@ class DeliveryPricingService
     }
 
     /**
-     * Score de correspondance d'une zone avec l'adresse (0 = pas de match).
+     * Score total de correspondance d'une zone avec l'adresse (0 = pas de match).
      */
     private function matchScore(DeliveryZone $zone, array $address): int
+    {
+        return array_sum($this->scoreBreakdown($zone, $address));
+    }
+
+    /**
+     * Décomposition du score d'une zone : par nom, termes ou distance.
+     *
+     * @return array{name: int, terms: int, distance: int}
+     */
+    private function scoreBreakdown(DeliveryZone $zone, array $address): array
     {
         $mode = $zone->identification_mode->value;
 
@@ -184,7 +241,7 @@ class DeliveryPricingService
             }
         }
 
-        return $nameScore + $termsScore + $distanceScore;
+        return ['name' => $nameScore, 'terms' => $termsScore, 'distance' => $distanceScore];
     }
 
     /**

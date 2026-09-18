@@ -10,6 +10,8 @@ class DeliveryStatusHistory extends Model
 {
     use HasUuids;
 
+    protected $table = 'delivery_status_history';
+
     protected $guarded = [];
 
     public $timestamps = false;

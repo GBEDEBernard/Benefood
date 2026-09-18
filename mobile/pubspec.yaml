@@ -46,6 +46,8 @@ dependencies:
   # Gestion d'état
   provider: ^6.1.0
   image_picker: ^1.2.3
+  geolocator: ^14.0.2
+  geocoding: ^5.0.0
 
 dev_dependencies:
   flutter_test:

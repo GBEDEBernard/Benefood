@@ -80,6 +80,7 @@ class AddressController extends Controller
             'full_address' => ['required', 'string', 'max:500'],
             'landmark' => ['sometimes', 'nullable', 'string', 'max:255'],
             'city' => ['sometimes', 'nullable', 'string', 'max:100'],
+            'area' => ['sometimes', 'nullable', 'string', 'max:100'],
             'latitude' => ['sometimes', 'nullable', 'numeric', 'between:-90,90'],
             'longitude' => ['sometimes', 'nullable', 'numeric', 'between:-180,180'],
             'is_default' => ['sometimes', 'boolean'],

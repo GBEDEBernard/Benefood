@@ -146,6 +146,72 @@ class OrderRefund {
       );
 }
 
+class OrderDriver {
+  const OrderDriver({required this.id, this.name, this.vehicle, this.rating});
+
+  final String id;
+  final String? name;
+  final String? vehicle;
+  final double? rating;
+
+  factory OrderDriver.fromJson(Map<String, dynamic> json) => OrderDriver(
+        id: _s(json['id']),
+        name: json['name'] is String ? json['name'] as String : null,
+        vehicle: json['vehicle'] is String ? json['vehicle'] as String : null,
+        rating: _dNull(json['rating']),
+      );
+}
+
+class OrderDeliveryPosition {
+  const OrderDeliveryPosition({
+    required this.latitude,
+    required this.longitude,
+    this.lastLocationAt,
+    this.distanceKm,
+  });
+
+  final double latitude;
+  final double longitude;
+  final String? lastLocationAt;
+  final double? distanceKm;
+
+  factory OrderDeliveryPosition.fromJson(Map<String, dynamic> json) => OrderDeliveryPosition(
+        latitude: _d(json['latitude']),
+        longitude: _d(json['longitude']),
+        lastLocationAt: json['last_location_at'] is String ? json['last_location_at'] as String : null,
+        distanceKm: _dNull(json['distance_km']),
+      );
+}
+
+class OrderDelivery {
+  const OrderDelivery({
+    required this.id,
+    required this.status,
+    this.driver,
+    this.position,
+  });
+
+  final String id;
+  final String status;
+  final OrderDriver? driver;
+  final OrderDeliveryPosition? position;
+
+  bool get hasActiveDriver => driver != null;
+
+  bool get isTracking => position != null;
+
+  factory OrderDelivery.fromJson(Map<String, dynamic> json) {
+    final rawDriver = json['driver'];
+    final rawPosition = json['position'];
+    return OrderDelivery(
+      id: _s(json['id']),
+      status: _s(json['status']),
+      driver: rawDriver is Map<String, dynamic> ? OrderDriver.fromJson(rawDriver) : null,
+      position: rawPosition is Map<String, dynamic> ? OrderDeliveryPosition.fromJson(rawPosition) : null,
+    );
+  }
+}
+
 class Order {
   const Order({
     required this.id,
@@ -160,6 +226,7 @@ class Order {
     this.payment,
     this.financials,
     this.deliveryAddress,
+    this.delivery,
     this.statusHistory = const [],
     this.refunds = const [],
     this.currency = 'XOF',
@@ -186,6 +253,7 @@ class Order {
   final OrderPayment? payment;
   final OrderFinancials? financials;
   final String? deliveryAddress;
+  final OrderDelivery? delivery;
   final List<OrderStatusHistory> statusHistory;
   final List<OrderRefund> refunds;
   final String currency;
@@ -238,6 +306,12 @@ class Order {
       financials = OrderFinancials.fromJson(rawFinancials);
     }
 
+    final rawDelivery = json['delivery'];
+    OrderDelivery? delivery;
+    if (rawDelivery is Map<String, dynamic>) {
+      delivery = OrderDelivery.fromJson(rawDelivery);
+    }
+
     final rawHistory = json['status_history'];
     List<OrderStatusHistory> history = [];
     if (rawHistory is List) {
@@ -263,6 +337,7 @@ class Order {
       payment: payment,
       financials: financials,
       deliveryAddress: json['delivery_address'] is String ? json['delivery_address'] as String : null,
+      delivery: delivery,
       statusHistory: history,
       refunds: refunds,
       currency: _s(json['currency'], 'XOF'),
@@ -298,4 +373,21 @@ int? _iNull(dynamic value) {
     return null;
   }
   return _i(value);
+}
+
+double _d(dynamic value) {
+  if (value is num) {
+    return value.toDouble();
+  }
+  return _dNull(value) ?? 0;
+}
+
+double? _dNull(dynamic value) {
+  if (value is num) {
+    return value.toDouble();
+  }
+  if (value is String) {
+    return double.tryParse(value);
+  }
+  return null;
 }

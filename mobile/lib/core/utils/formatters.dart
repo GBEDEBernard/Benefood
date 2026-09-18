@@ -32,6 +32,17 @@ String formatPhone(String phone) {
   return phone;
 }
 
+/// Formate une distance en km (J177) : "350 m" sous 1 km, sinon "1,2 km".
+String formatDistance(double? km) {
+  if (km == null || !km.isFinite) {
+    return '—';
+  }
+  if (km < 1) {
+    return '${(km * 1000).round()} m';
+  }
+  return '${km.toStringAsFixed(1).replaceAll('.', ',')} km';
+}
+
 String formatDate(String? iso, {String fallback = ''}) {
   if (iso == null || iso.isEmpty) {
     return fallback;

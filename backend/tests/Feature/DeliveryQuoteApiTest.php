@@ -135,6 +135,31 @@ class DeliveryQuoteApiTest extends TestCase
             ->assertJsonPath('data.delivery_fee', 1500);
     }
 
+    public function test_quote_returns_matched_by_and_distance_km_for_distance_match(): void
+    {
+        $vendor = $this->activeVendor();
+        $zone = DeliveryZone::factory()->distance(radiusKm: 10)->create();
+        DeliveryRate::factory()->create(['zone_id' => $zone->id, 'price' => 1500]);
+
+        $this->quote(['latitude' => 6.3702932, 'longitude' => 2.3912362], $vendor)
+            ->assertOk()
+            ->assertJsonPath('data.zone.id', $zone->id)
+            ->assertJsonPath('data.matched_by', 'distance')
+            ->assertJsonPath('data.distance_km', 0);
+    }
+
+    public function test_quote_returns_matched_by_for_name_match_without_coordinates(): void
+    {
+        $vendor = $this->activeVendor();
+        $zone = DeliveryZone::factory()->create(['name' => 'Cotonou Centre', 'city' => 'Cotonou']);
+        DeliveryRate::factory()->create(['zone_id' => $zone->id, 'price' => 1500]);
+
+        $this->quote(['city' => 'Cotonou'], $vendor)
+            ->assertOk()
+            ->assertJsonPath('data.matched_by', 'name')
+            ->assertJsonPath('data.distance_km', null);
+    }
+
     public function test_quote_unknown_zone_returns_422_domain_code(): void
     {
         DeliveryZone::factory()->create(['city' => 'Cotonou']);
