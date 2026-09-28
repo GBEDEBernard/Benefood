@@ -7,9 +7,14 @@ use Illuminate\Http\Request;
 // Usage : php -S 0.0.0.0:8000 server.php
 //
 // Sert les fichiers statiques de public/ (y compris public/storage -> storage/app/public)
-// avec les en-têtes CORS nécessaires pour la web app (Flutter web / navigateur),
 // puis renvoie les autres requêtes vers Laravel.
+//
+// Les en-têtes CORS ne sont posés ici que pour les réponses produites par ce
+// routeur (fichiers statiques et pré-vol). Les requêtes déléguées à Laravel
+// passent par HandleCors + config/cors.php : les poser aussi ici enverrait
+// « Access-Control-Allow-Origin » en double et le navigateur bloquerait l'appel.
 
+/** @var array<string, string> $corsHeaders */
 $corsHeaders = [
     'Access-Control-Allow-Origin' => '*',
     'Access-Control-Allow-Methods' => 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
@@ -17,22 +22,24 @@ $corsHeaders = [
     'Access-Control-Max-Age' => '86400',
 ];
 
-foreach ($corsHeaders as $name => $value) {
-    header($name.': '.$value);
+$uri = urldecode(parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH));
+$file = __DIR__.'/public'.$uri;
+$isStaticFile = $uri !== '/' && is_file($file);
+$isPreflight = $_SERVER['REQUEST_METHOD'] === 'OPTIONS';
+
+if ($isStaticFile || $isPreflight) {
+    foreach ($corsHeaders as $name => $value) {
+        header($name.': '.$value, true);
+    }
 }
 
-$uri = urldecode(parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH));
-
-// CORS pour les requêtes OPTIONS (pré-vol d'un navigateur).
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+if ($isPreflight) {
     http_response_code(204);
 
     return true;
 }
 
-$file = __DIR__.'/public'.$uri;
-
-if ($uri !== '/' && is_file($file)) {
+if ($isStaticFile) {
     $types = [
         'svg' => 'image/svg+xml',
         'webp' => 'image/webp',
