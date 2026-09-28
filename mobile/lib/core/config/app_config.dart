@@ -8,11 +8,23 @@ class AppConfig {
 
   /// URL de base de l'API Laravel.
   ///
-  /// Surchargable au build : `flutter run --dart-define=API_BASE_URL=...`.
-  /// - Appareil physique : `http://IP-de-la-machine:8000` (ex. `192.168.1.110`).
+  /// Priorité : 1) surcharge persistée dans l'app (écran « Serveur »),
+  /// 2) `--dart-define=API_BASE_URL=...` au build,
+  /// 3) défaut selon la plateforme :
+  /// - Appareil physique : régler via l'écran « Serveur » (ex. `192.168.1.110`).
   /// - Émulateur Android : `10.0.2.2` (= loopback de la machine hôte).
   /// - Desktop & iOS Simulator : `127.0.0.1`.
+  static String? apiBaseUrlOverride;
+
   static String get apiBaseUrl {
+    final override = apiBaseUrlOverride;
+    if (override != null && override.isNotEmpty) {
+      return override;
+    }
+    return defaultApiBaseUrl;
+  }
+
+  static String get defaultApiBaseUrl {
     const fromEnv = String.fromEnvironment('API_BASE_URL');
     if (fromEnv.isNotEmpty) return fromEnv;
     // Émulateur Android : 10.0.2.2 pointe vers la machine hôte.

@@ -6,12 +6,14 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/data/marketplace_api.dart';
 import '../../../core/errors/api_exception.dart';
+import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../shared/models/address.dart';
 import '../../../shared/models/checkout.dart';
 import '../../../shared/models/order.dart';
 import '../../../shared/widgets/app_button.dart';
 import '../../../shared/widgets/amount_widgets.dart';
+import '../../../shared/widgets/feedback_widgets.dart';
 import '../../../shared/widgets/state_widgets.dart';
 import '../orders/order_tracking_screen.dart';
 
@@ -125,9 +127,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     } on ApiException catch (e) {
       if (mounted) {
         setState(() => _creating = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.message), behavior: SnackBarBehavior.floating),
-        );
+        showToast(context, e.message, isError: true);
       }
     }
   }
@@ -147,9 +147,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       } on ApiException catch (e) {
         if (mounted) {
           setState(() => _creating = false);
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(e.message), behavior: SnackBarBehavior.floating),
-          );
+          showToast(context, e.message, isError: true);
         }
       }
     }
@@ -174,13 +172,12 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     final amountValue = amount is num ? '${amount.toInt()}' : '${amount ?? 0}';
     final orderId = widgetConfig['order_id'];
     final callback = widgetConfig['callback'];
-    final url = 'https://kkiapay.me/fr/mobilepay/' +
-        Uri(queryParameters: {
+    final url = 'https://kkiapay.me/fr/mobilepay/${Uri(queryParameters: {
           'key': key,
           'amount': amountValue,
           'order_id': orderId?.toString() ?? order.id,
           if (callback is String) 'callback': callback,
-        }).query;
+        }).query}';
 
     showDialog<void>(
       context: context,
@@ -239,9 +236,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     } on ApiException catch (e) {
       if (mounted) {
         setState(() => _verifying = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.message), behavior: SnackBarBehavior.floating),
-        );
+        showToast(context, e.message, isError: true);
       }
     }
   }
@@ -283,36 +278,40 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           child: ListView(
             padding: const EdgeInsets.all(16),
             children: [
-              const Text('Adresse de livraison', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-              const SizedBox(height: 8),
+              _SectionTitle(
+                icon: Icons.location_on_outlined,
+                title: 'Adresse de livraison',
+              ),
+              const SizedBox(height: 12),
               if (_addresses.isEmpty)
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 24),
-                  child: Text('Aucune adresse enregistrée.'),
-                )
-              else
-                RadioGroup<Address>(
-                  groupValue: _selectedAddress,
-                  onChanged: (value) {
-                    if (value != null) {
-                      setState(() => _selectedAddress = value);
-                      _loadSummary();
-                    }
-                  },
-                  child: Column(
-                    children: _addresses.map((a) {
-                      return Card(
-                        margin: const EdgeInsets.only(bottom: 8),
-                        child: RadioListTile<Address>(
-                          value: a,
-                          title: Text(a.label ?? 'Adresse'),
-                          subtitle: Text(_addressSummary(a)),
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      children: [
+                        Icon(Icons.add_location_alt_outlined, size: 36, color: AppColors.textSecondary),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Aucune adresse enregistrée.',
+                          style: TextStyle(color: AppColors.textSecondary),
                         ),
-                      );
-                    }).toList(),
+                      ],
+                    ),
                   ),
-                ),
-              TextButton.icon(
+                )
+              else ...[
+                for (final a in _addresses)
+                  _AddressCard(
+                    address: a,
+                    selected: _selectedAddress?.id == a.id,
+                    onTap: () {
+                      setState(() => _selectedAddress = a);
+                      _loadSummary();
+                    },
+                  ),
+                const SizedBox(height: 4),
+              ],
+              OutlinedButton.icon(
                 onPressed: () async {
                   final created = await context.push<Address>('/client/addresses?select=1');
                   if (created != null && mounted) {
@@ -324,9 +323,14 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   }
                 },
                 icon: const Icon(Icons.add_location_alt_outlined),
-                label: const Text('Ajouter une adresse'),
+                label: const Text('Ajouter une nouvelle adresse'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.green,
+                  side: BorderSide(color: AppColors.green.withValues(alpha: 0.4)),
+                  minimumSize: const Size.fromHeight(48),
+                ),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 24),
               if (_summaryError != null)
                 Card(
                   color: Theme.of(context).colorScheme.errorContainer,
@@ -350,6 +354,11 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               if (_summaryLoading)
                 const Center(child: CircularProgressIndicator())
               else if (_summary != null) ...[
+                _SectionTitle(
+                  icon: Icons.receipt_long_outlined,
+                  title: 'Récapitulatif',
+                ),
+                const SizedBox(height: 8),
                 Card(
                   child: Padding(
                     padding: const EdgeInsets.all(16),
@@ -362,9 +371,20 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                             padding: const EdgeInsets.only(top: 2),
                             child: Align(
                               alignment: Alignment.centerRight,
-                              child: Text(
-                                'Zone : ${_summary!.deliveryZoneName}',
-                                style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: AppColors.greenLight,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  'Zone : ${_summary!.deliveryZoneName}',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.greenDark,
+                                  ),
+                                ),
                               ),
                             ),
                           ),
@@ -374,7 +394,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                     ),
                   ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 20),
                 AppButton(
                   label: 'Commander',
                   icon: Icons.shopping_bag_outlined,
@@ -410,7 +430,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                     child: Row(
                       children: [
                         Expanded(child: Text('${item.quantity} × ${item.name}', maxLines: 1, overflow: TextOverflow.ellipsis)),
-                        AmountText(item.subtotal),
+                        const SizedBox(width: 8),
+                        Flexible(
+                          child: AmountText(item.subtotal, maxLines: 1, overflow: TextOverflow.ellipsis),
+                        ),
                       ],
                     ),
                   ),
@@ -443,6 +466,139 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             loading: _creating,
           ),
       ],
+    );
+  }
+}
+
+class _SectionTitle extends StatelessWidget {
+  const _SectionTitle({required this.icon, required this.title});
+
+  final IconData icon;
+  final String title;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Container(
+          width: 34,
+          height: 34,
+          decoration: BoxDecoration(
+            color: AppColors.greenLight,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Icon(icon, size: 19, color: AppColors.green),
+        ),
+        const SizedBox(width: 10),
+        Text(
+          title,
+          style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
+        ),
+      ],
+    );
+  }
+}
+
+class _AddressCard extends StatelessWidget {
+  const _AddressCard({required this.address, required this.selected, required this.onTap});
+
+  final Address address;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(
+          color: selected ? AppColors.green : Colors.transparent,
+          width: 1.5,
+        ),
+      ),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Row(
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: selected ? AppColors.greenLight : const Color(0xFFF0F2F4),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  selected ? Icons.location_on : Icons.location_on_outlined,
+                  color: selected ? AppColors.green : AppColors.textSecondary,
+                  size: 22,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            address.label ?? 'Adresse',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14.5),
+                          ),
+                        ),
+                        if (address.isDefault) ...[
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFEF2E7),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: const Text(
+                              'Par défaut',
+                              style: TextStyle(fontSize: 10.5, color: AppColors.orange, fontWeight: FontWeight.w700),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      _addressSummary(address),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 150),
+                width: 22,
+                height: 22,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: selected ? AppColors.green : Colors.transparent,
+                  border: Border.all(
+                    color: selected ? AppColors.green : AppColors.textSecondary.withValues(alpha: 0.5),
+                    width: 2,
+                  ),
+                ),
+                child: selected
+                    ? const Icon(Icons.check, size: 14, color: Colors.white)
+                    : null,
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

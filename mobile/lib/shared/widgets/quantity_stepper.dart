@@ -40,7 +40,7 @@ class QuantityStepper extends StatelessWidget {
         children: [
           stepButton(Icons.remove, quantity > min, () => onChanged(quantity - 1)),
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14),
+            padding: const EdgeInsets.symmetric(horizontal: 10),
             child: Text('$quantity', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
           ),
           stepButton(Icons.add, quantity < max, () => onChanged(quantity + 1)),

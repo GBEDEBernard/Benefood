@@ -42,6 +42,8 @@ class User {
   bool get hasRoleDriver => roles.any((r) => r.slug == 'driver');
   bool get hasRoleClient => roles.any((r) => r.slug == 'client');
 
+  bool hasRole(String slug) => roles.any((r) => r.slug == slug);
+
   List<String> get roleSlugs => roles.map((r) => r.slug).toList();
 
   factory User.fromJson(Map<String, dynamic>? json) {

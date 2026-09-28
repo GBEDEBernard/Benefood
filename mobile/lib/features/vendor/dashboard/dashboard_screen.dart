@@ -102,7 +102,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   Row(
                     children: [
                       Expanded(
-                        child: Text(businessName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
+                        child: Text(businessName, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
                       ),
                       if (palette != null) StatusBadge(label: palette.$1, color: palette.$2, small: true),
                     ],

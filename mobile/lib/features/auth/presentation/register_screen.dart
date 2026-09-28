@@ -5,6 +5,7 @@ import '../../../core/auth/session_provider.dart';
 import '../../../core/errors/api_exception.dart';
 import '../../../shared/widgets/app_button.dart';
 import '../../../shared/widgets/app_text_field.dart';
+import '../../../shared/widgets/auth_header.dart';
 import '../../../shared/widgets/feedback_widgets.dart';
 
 /// Inscription (J19 §2.4) : coordonnées sur 1 écran, envoi direct (OTP
@@ -91,7 +92,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const SizedBox(height: 8),
+                AuthHeader(
+                  title: 'Créer un compte',
+                  subtitle: 'Rejoignez Béninfood en quelques secondes.',
+                ),
                 AppTextField(
                   controller: _name,
                   label: 'Nom complet',

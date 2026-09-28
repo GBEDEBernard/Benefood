@@ -5,11 +5,12 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/data/marketplace_api.dart';
 import '../../../core/errors/api_exception.dart';
+import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../shared/models/order.dart';
 import '../../../shared/widgets/app_button.dart';
 import '../../../shared/widgets/amount_widgets.dart';
-import '../../../shared/widgets/status_badge.dart';
+import '../../../shared/widgets/feedback_widgets.dart';
 import '../../../shared/widgets/state_widgets.dart';
 
 /// Écran de suivi / détail d'une commande (J152, J177).
@@ -114,16 +115,12 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
           _order = order;
           _actionLoading = false;
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Commande annulée'), behavior: SnackBarBehavior.floating),
-        );
+        showToast(context, 'Commande annulée');
       }
     } on ApiException catch (e) {
       if (mounted) {
         setState(() => _actionLoading = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.message), behavior: SnackBarBehavior.floating),
-        );
+        showToast(context, e.message, isError: true);
       }
     }
   }
@@ -164,6 +161,38 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
       appBar: AppBar(title: const Text('Suivi de commande')),
       body: _buildBody(),
     );
+  }
+
+  String _statusLabel(String status) {
+    return switch (status) {
+      'awaiting_payment' => 'En attente de paiement',
+      'paid' => 'En préparation',
+      'accepted' => 'Confirmée',
+      'preparing' => 'En préparation',
+      'ready' => 'Prête',
+      'assigned' => 'Livreur assigné',
+      'out_for_delivery' => 'En livraison',
+      'delivered' => 'Livrée',
+      'cancelled' => 'Annulée',
+      'refunded' => 'Remboursée',
+      _ => status.replaceAll('_', ' '),
+    };
+  }
+
+  Color _statusColor(String status) {
+    return switch (status) {
+      'awaiting_payment' => const Color(0xFFE08A00),
+      'paid' => AppColors.green,
+      'accepted' => AppColors.green,
+      'preparing' => const Color(0xFF1976D2),
+      'ready' => const Color(0xFF3949AB),
+      'assigned' => const Color(0xFF7B1FA2),
+      'out_for_delivery' => const Color(0xFF00897B),
+      'delivered' => AppColors.greenDark,
+      'cancelled' => const Color(0xFFE53935),
+      'refunded' => AppColors.textSecondary,
+      _ => AppColors.green,
+    };
   }
 
   Widget? _trackingCard(Order order) {
@@ -230,51 +259,27 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
       return ErrorState(message: _error!, onRetry: _load);
     }
     final order = _order!;
-    final palette = BadgePalette.order(order.status);
+    final accent = _statusColor(order.status);
 
     return RefreshIndicator(
       onRefresh: _load,
       child: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(order.reference, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                    Text(
-                      order.vendor?.businessName ?? 'Commande',
-                      style: Theme.of(context).textTheme.bodyMedium,
-                    ),
-                  ],
-                ),
-              ),
-              if (palette != null) StatusBadge(label: palette.$1, color: palette.$2),
-            ],
+          _StatusHero(
+            order: order,
+            accent: accent,
+            label: _statusLabel(order.status),
+            onCancel: order.canCancel ? _cancel : null,
           ),
-          if (order.paymentStatus.isNotEmpty) ...[
-            const SizedBox(height: 6),
-            Row(
-              children: [
-                Text('Paiement : ', style: Theme.of(context).textTheme.bodySmall),
-                if (order.paymentStatus.isNotEmpty)
-                  Icon(
-                    order.isDelivered || order.status == 'paid' || order.paymentStatus == 'confirmed'
-                        ? Icons.check_circle
-                        : Icons.circle,
-                    size: 14,
-                    color: order.paymentStatus == 'confirmed' || order.paymentStatus == 'paid'
-                        ? Colors.green
-                        : Colors.grey,
-                  ),
-                const SizedBox(width: 4),
-                Text(order.paymentStatus, style: Theme.of(context).textTheme.bodySmall),
-              ],
-            ),
-          ],
           const SizedBox(height: 16),
+          if (order.canCancel || order.isAwaitingPayment || order.isPaid || order.status == 'accepted')
+            _ProgressStepper(order: order, accent: accent),
+          const SizedBox(height: 8),
+          if (order.paymentStatus.isNotEmpty) ...[
+            _PaymentStatusRow(order: order),
+            const SizedBox(height: 12),
+          ],
           if (order.statusHistory.isNotEmpty) _Timeline(history: order.statusHistory),
           const SizedBox(height: 20),
           Card(
@@ -291,7 +296,10 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                       child: Row(
                         children: [
                           Expanded(child: Text('${item.quantity} × ${item.name}', maxLines: 1, overflow: TextOverflow.ellipsis)),
-                          AmountText(item.subtotal),
+                          const SizedBox(width: 8),
+                          Flexible(
+                            child: AmountText(item.subtotal, maxLines: 1, overflow: TextOverflow.ellipsis),
+                          ),
                         ],
                       ),
                     ),
@@ -345,6 +353,299 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _StatusHero extends StatelessWidget {
+  const _StatusHero({
+    required this.order,
+    required this.accent,
+    required this.label,
+    this.onCancel,
+  });
+
+  final Order order;
+  final Color accent;
+  final String label;
+  final VoidCallback? onCancel;
+
+  @override
+  Widget build(BuildContext context) {
+    final date = formatDate(order.createdAt, fallback: '');
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [accent, accent.withValues(alpha: 0.75)],
+        ),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [BoxShadow(color: accent.withValues(alpha: 0.35), blurRadius: 16, offset: const Offset(0, 6))],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  label,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              _RefChip(abbr: order.reference.split('-').last, accent: accent),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Commande',
+                      style: TextStyle(color: Colors.white70, fontSize: 12),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      order.reference,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      '${order.vendor?.businessName ?? 'Béninfood'} · $date',
+                      style: const TextStyle(color: Colors.white70, fontSize: 12.5),
+                    ),
+                  ],
+                ),
+              ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  const Text(
+                    'Total',
+                    style: TextStyle(color: Colors.white70, fontSize: 12),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    formatAmount(order.total),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          if (onCancel != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 14),
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: TextButton.icon(
+                  onPressed: onCancel,
+                  style: TextButton.styleFrom(
+                    foregroundColor: Colors.white,
+                    backgroundColor: Colors.white.withValues(alpha: 0.18),
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  icon: const Icon(Icons.cancel_outlined, size: 18),
+                  label: const Text('Annuler la commande'),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _RefChip extends StatelessWidget {
+  const _RefChip({required this.abbr, required this.accent});
+
+  final String abbr;
+  final Color accent;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.22),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        '#$abbr',
+        style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700),
+      ),
+    );
+  }
+}
+
+class _ProgressStepper extends StatelessWidget {
+  const _ProgressStepper({required this.order, required this.accent});
+
+  final Order order;
+  final Color accent;
+
+  static const _steps = ['Confirmation', 'Préparation', 'Livraison'];
+
+  int get _currentIndex {
+    return switch (order.status) {
+      'awaiting_payment' => 0,
+      'paid' || 'accepted' || 'preparing' => 1,
+      'ready' || 'assigned' || 'out_for_delivery' => 2,
+      'delivered' => _steps.length,
+      _ => 0,
+    };
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final current = _currentIndex;
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
+        child: Row(
+          children: [
+            for (var i = 0; i < _steps.length; i++) ...[
+              _StepItem(
+                label: _steps[i],
+                index: i,
+                current: current,
+                accent: accent,
+              ),
+              if (i < _steps.length - 1)
+                Expanded(
+                  child: Container(
+                    height: 2,
+                    margin: const EdgeInsets.only(top: 24),
+                    decoration: BoxDecoration(
+                      color: i < current ? accent : const Color(0xFFE2E5E9),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _StepItem extends StatelessWidget {
+  const _StepItem({
+    required this.label,
+    required this.index,
+    required this.current,
+    required this.accent,
+  });
+
+  final String label;
+  final int index;
+  final int current;
+  final Color accent;
+
+  @override
+  Widget build(BuildContext context) {
+    final done = index < current;
+    final active = index == current;
+
+    final Color color = done
+        ? accent
+        : active
+            ? accent
+            : const Color(0xFFC7CBD1);
+    final IconData icon = done
+        ? Icons.check_circle
+        : active
+            ? Icons.radio_button_checked
+            : Icons.radio_button_off;
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, color: color, size: 22),
+        const SizedBox(height: 6),
+        SizedBox(
+          width: 68,
+          child: Text(
+            label,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 10.5,
+              fontWeight: done || active ? FontWeight.w700 : FontWeight.w400,
+              color: done || active ? AppColors.text : AppColors.textSecondary,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _PaymentStatusRow extends StatelessWidget {
+  const _PaymentStatusRow({required this.order});
+
+  final Order order;
+
+  @override
+  Widget build(BuildContext context) {
+    final paid = order.paymentStatus == 'confirmed' ||
+        order.paymentStatus == 'paid' ||
+        order.status == 'paid' ||
+        order.isDelivered;
+    final cancelled = order.isCancelled;
+
+    final Color color = cancelled
+        ? const Color(0xFFE53935)
+        : paid
+            ? AppColors.green
+            : const Color(0xFFE08A00);
+    final label = cancelled
+        ? 'Paiement annulé'
+        : paid
+            ? 'Paiement confirmé'
+            : 'En attente de paiement';
+
+    return Row(
+      children: [
+        Container(
+          width: 28,
+          height: 28,
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(
+            paid ? Icons.check_circle : cancelled ? Icons.cancel : Icons.schedule,
+            size: 16,
+            color: color,
+          ),
+        ),
+        const SizedBox(width: 10),
+        Text(
+          label,
+          style: TextStyle(fontSize: 13.5, color: color, fontWeight: FontWeight.w600),
+        ),
+      ],
     );
   }
 }
@@ -485,8 +786,19 @@ class _Timeline extends StatelessWidget {
   }
 
   String _statusLabel(String status) {
-    final palette = BadgePalette.order(status);
-    return palette?.$1 ?? status;
+    return switch (status) {
+      'awaiting_payment' => 'En attente de paiement',
+      'paid' => 'En préparation',
+      'accepted' => 'Confirmée',
+      'preparing' => 'En préparation',
+      'ready' => 'Prête',
+      'assigned' => 'Livreur assigné',
+      'out_for_delivery' => 'En livraison',
+      'delivered' => 'Livrée',
+      'cancelled' => 'Annulée',
+      'refunded' => 'Remboursée',
+      _ => status.replaceAll('_', ' '),
+    };
   }
 }
 

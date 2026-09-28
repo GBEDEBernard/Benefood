@@ -5,10 +5,12 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/data/marketplace_api.dart';
 import '../../../core/errors/api_exception.dart';
-import '../../../core/utils/formatters.dart';
+import '../../../core/theme/app_dimens.dart';
 import '../../../shared/models/product.dart';
 import '../../../shared/models/vendor.dart';
-import '../../../shared/widgets/app_network_image.dart';
+import '../../../shared/widgets/app_search_field.dart';
+import '../../../shared/widgets/feedback_widgets.dart';
+import '../../../shared/widgets/product_cards.dart';
 import '../../../shared/widgets/state_widgets.dart';
 
 /// Recherche & exploration client (J149) : produits + boutiques.
@@ -45,11 +47,13 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   Future<SearchResults> _load() {
-    final results = widget.marketplace.products(q: _query.isEmpty ? null : _query, categoryId: _categoryId.isEmpty ? null : _categoryId);
-    return results.then((products) => SearchResults(products: products, vendors: const []));
+    return widget.marketplace
+        .products(q: _query.isEmpty ? null : _query, categoryId: _categoryId.isEmpty ? null : _categoryId)
+        .then((products) => SearchResults(products: products, vendors: const []));
   }
 
   void _onChanged(String value) {
+    setState(() {}); // Rafraîchit l'affichage du bouton d'effacement.
     _debounce?.cancel();
     _debounce = Timer(const Duration(milliseconds: 350), () {
       if (!mounted) {
@@ -62,54 +66,86 @@ class _SearchScreenState extends State<SearchScreen> {
     });
   }
 
+  Future<void> _addToCart(Product product) async {
+    try {
+      await widget.marketplace.addToCart(product.id);
+      if (!mounted) {
+        return;
+      }
+      showToast(context, 'Ajouté au panier');
+    } on ApiException catch (e) {
+      if (!mounted) {
+        return;
+      }
+      showToast(context, e.message, isError: true);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: TextField(
-          controller: _controller,
-          autofocus: widget.initialCategory == null,
-          decoration: const InputDecoration(hintText: 'Rechercher un produit…', border: InputBorder.none),
-          onChanged: _onChanged,
-        ),
-      ),
-      body: FutureBuilder<SearchResults>(
-        future: _future,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState != ConnectionState.done) {
-            return const ListSkeleton();
-          }
-          if (snapshot.hasError) {
-            return ErrorState(
-              message: snapshot.error is ApiException ? (snapshot.error as ApiException).message : 'Recherche impossible.',
-              onRetry: () => setState(() => _future = _load()),
-            );
-          }
-          final results = snapshot.data!;
-          if (results.products.isEmpty) {
-            return EmptyState(
-              icon: Icons.search_off,
-              title: _query.isEmpty ? 'Recherchez sur Béninfood' : 'Aucun résultat pour “$_query”',
-              subtitle: 'Essayez d’autres mots-clés.',
-            );
-          }
-          return ListView.builder(
-            padding: const EdgeInsets.only(bottom: 24),
-            itemCount: results.products.length,
-            itemBuilder: (context, index) {
-              final p = results.products[index];
-              return ListTile(
-                onTap: () => context.push('/client/product/${p.id}'),
-                leading: ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: SizedBox(width: 52, height: 52, child: AppNetworkImage(url: p.imageUrl)),
-                ),
-                title: Text(p.name, maxLines: 1, overflow: TextOverflow.ellipsis),
-                subtitle: Text('${p.vendorName ?? ''} · ${formatAmount(p.price)}'),
-              );
-            },
-          );
-        },
+      appBar: AppBar(title: const Text('Rechercher')),
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(AppDimens.pagePadding, 4, AppDimens.pagePadding, 12),
+            child: AppSearchField(
+              controller: _controller,
+              autofocus: widget.initialCategory == null,
+              hintText: 'Rechercher un produit…',
+              onChanged: _onChanged,
+              suffix: _controller.text.isEmpty
+                  ? null
+                  : IconButton(
+                      icon: const Icon(Icons.close, size: 20),
+                      onPressed: () {
+                        _controller.clear();
+                        _onChanged('');
+                      },
+                    ),
+            ),
+          ),
+          Expanded(
+            child: FutureBuilder<SearchResults>(
+              future: _future,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState != ConnectionState.done) {
+                  return const ListSkeleton();
+                }
+                if (snapshot.hasError) {
+                  return ErrorState(
+                    message: snapshot.error is ApiException
+                        ? (snapshot.error as ApiException).message
+                        : 'Recherche impossible.',
+                    onRetry: () => setState(() => _future = _load()),
+                  );
+                }
+                final results = snapshot.data!;
+                if (results.products.isEmpty) {
+                  return EmptyState(
+                    icon: Icons.search_off,
+                    title: _query.isEmpty ? 'Recherchez sur Béninfood' : 'Aucun résultat pour “$_query”',
+                    subtitle: 'Essayez d’autres mots-clés.',
+                  );
+                }
+                return ListView.separated(
+                  padding: const EdgeInsets.fromLTRB(
+                      AppDimens.pagePadding, 4, AppDimens.pagePadding, 32),
+                  itemCount: results.products.length,
+                  separatorBuilder: (_, _) => const SizedBox(height: 10),
+                  itemBuilder: (context, index) {
+                    final p = results.products[index];
+                    return ProductListCard(
+                      product: p,
+                      onTap: () => context.push('/client/product/${p.id}'),
+                      onAdd: () => _addToCart(p),
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }

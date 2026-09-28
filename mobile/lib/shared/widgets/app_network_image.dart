@@ -4,11 +4,22 @@ import '../../core/config/app_config.dart';
 
 /// Image distante avec placeholder et fallback d'erreur.
 class AppNetworkImage extends StatelessWidget {
-  const AppNetworkImage({super.key, this.url, this.fit = BoxFit.cover, this.icon = Icons.image});
+  const AppNetworkImage({
+    super.key,
+    this.url,
+    this.fit = BoxFit.cover,
+    this.icon = Icons.image,
+    this.iconColor,
+    this.iconBackground,
+    this.borderRadius,
+  });
 
   final String? url;
   final BoxFit fit;
   final IconData icon;
+  final Color? iconColor;
+  final Color? iconBackground;
+  final BorderRadius? borderRadius;
 
   @override
   Widget build(BuildContext context) {
@@ -17,21 +28,24 @@ class AppNetworkImage extends StatelessWidget {
       return _fallback(context);
     }
 
-    return Image.network(
-      resolved,
-      fit: fit,
-      errorBuilder: (context, _, __) => _fallback(context),
-      loadingBuilder: (context, child, progress) {
-        if (progress == null) {
-          return child;
-        }
-        return Container(
-          color: Theme.of(context).colorScheme.surfaceContainerHighest,
-          child: const Center(
-            child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)),
-          ),
-        );
-      },
+    return ClipRRect(
+      borderRadius: borderRadius ?? BorderRadius.zero,
+      child: Image.network(
+        resolved,
+        fit: fit,
+        errorBuilder: (_, _, _) => _fallback(context),
+        loadingBuilder: (context, child, progress) {
+          if (progress == null) {
+            return child;
+          }
+          return Container(
+            color: Theme.of(context).colorScheme.surfaceContainerHighest,
+            child: const Center(
+              child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)),
+            ),
+          );
+        },
+      ),
     );
   }
 
@@ -71,8 +85,11 @@ class AppNetworkImage extends StatelessWidget {
 
   Widget _fallback(BuildContext context) {
     return Container(
-      color: Theme.of(context).colorScheme.surfaceContainerHighest,
-      child: Icon(icon, size: 28, color: Theme.of(context).colorScheme.outline),
+      decoration: BoxDecoration(
+        color: iconBackground ?? Theme.of(context).colorScheme.surfaceContainerHighest,
+        borderRadius: borderRadius ?? BorderRadius.zero,
+      ),
+      child: Icon(icon, size: 28, color: iconColor ?? Theme.of(context).colorScheme.outline),
     );
   }
 }

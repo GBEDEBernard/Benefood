@@ -262,7 +262,7 @@ class _VendorAccountScreenState extends State<VendorAccountScreen> {
                 Icon(Icons.storefront_outlined, color: theme.colorScheme.primary),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: Text(businessName, style: const TextStyle(fontWeight: FontWeight.bold)),
+                  child: Text(businessName, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.bold)),
                 ),
                 if (palette != null) StatusBadge(label: palette.$1, color: palette.$2, small: true),
               ],

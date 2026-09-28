@@ -5,6 +5,7 @@ import '../../../core/auth/session_provider.dart';
 import '../../../core/errors/api_exception.dart';
 import '../../../shared/widgets/app_button.dart';
 import '../../../shared/widgets/app_text_field.dart';
+import '../../../shared/widgets/auth_header.dart';
 import '../../../shared/widgets/feedback_widgets.dart';
 
 /// Réinitialisation de mot de passe en 2 étapes (J19 §2.5) :
@@ -100,7 +101,10 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const SizedBox(height: 16),
+                AuthHeader(
+                  title: 'Mot de passe oublié',
+                  subtitle: 'Recevez un code et récupérez votre compte.',
+                ),
                 if (!_stepCode) ...[
                   AppTextField(
                     controller: _login,

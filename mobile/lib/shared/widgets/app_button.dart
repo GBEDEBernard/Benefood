@@ -44,15 +44,18 @@ class AppButton extends StatelessWidget {
         ? BorderSide(color: colorScheme.primary, width: 1.5)
         : BorderSide.none;
 
-    return SizedBox(
-      width: fullWidth ? double.infinity : null,
-      height: 52,
+    return ConstrainedBox(
+      constraints: fullWidth
+          ? const BoxConstraints.tightFor(width: double.infinity)
+          : const BoxConstraints(),
       child: FilledButton(
         style: FilledButton.styleFrom(
           backgroundColor: background,
           foregroundColor: foreground,
           disabledBackgroundColor: background.withValues(alpha: 0.4),
           disabledForegroundColor: foreground.withValues(alpha: 0.6),
+          minimumSize: const Size(0, 52),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: border),
         ),
         onPressed: canTap ? onPressed : null,
@@ -62,15 +65,23 @@ class AppButton extends StatelessWidget {
                 height: 22,
                 child: CircularProgressIndicator(strokeWidth: 2.2),
               )
-            : Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (icon != null) ...[
-                    Icon(icon, size: 20),
-                    const SizedBox(width: 8),
+            : FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    if (icon != null) ...[
+                      Icon(icon, size: 20),
+                      const SizedBox(width: 8),
+                    ],
+                    Text(
+                      label,
+                      maxLines: 1,
+                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                    ),
                   ],
-                  Text(label, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-                ],
+                ),
               ),
       ),
     );

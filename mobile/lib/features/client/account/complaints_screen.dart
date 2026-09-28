@@ -3,12 +3,13 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/data/marketplace_api.dart';
 import '../../../core/errors/api_exception.dart';
+import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../shared/models/complaint.dart';
 import '../../../shared/models/order.dart';
 import '../../../shared/widgets/app_button.dart';
 import '../../../shared/widgets/app_text_field.dart';
-import '../../../shared/widgets/status_badge.dart';
+import '../../../shared/widgets/feedback_widgets.dart';
 import '../../../shared/widgets/state_widgets.dart';
 
 /// Centre de réclamations (J158 côté client : création, suivi, messages).
@@ -62,7 +63,9 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
       body: _buildBody(),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => context.push('/client/complaints/new'),
-        icon: const Icon(Icons.add),
+        backgroundColor: AppColors.green,
+        foregroundColor: Colors.white,
+        icon: const Icon(Icons.support_agent),
         label: const Text('Nouvelle'),
       ),
     );
@@ -91,17 +94,64 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
         itemCount: _complaints.length,
         itemBuilder: (context, index) {
           final complaint = _complaints[index];
-          final palette = BadgePalette.complaint(complaint.status);
+          final label = _statusLabel(complaint.status);
+          final color = _statusColor(complaint.status);
           return Card(
             margin: const EdgeInsets.only(bottom: 10),
-            child: ListTile(
-              title: Text(complaint.subject, maxLines: 1, overflow: TextOverflow.ellipsis),
-              subtitle: Text(
-                '${complaint.type} · ${formatDate(complaint.createdAt)}',
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-              trailing: palette != null ? StatusBadge(label: palette.$1, color: palette.$2, small: true) : null,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(14),
               onTap: () => context.push('/client/complaints/${complaint.id}'),
+              child: Padding(
+                padding: const EdgeInsets.all(14),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 42,
+                      height: 42,
+                      decoration: BoxDecoration(
+                        color: color.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(
+                        complaint.isClosed ? Icons.verified_outlined : Icons.support_agent,
+                        color: color,
+                        size: 21,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            complaint.subject,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14.5),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            '${complaint.type} · ${formatDate(complaint.createdAt)}',
+                            style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: color.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        label,
+                        style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: color),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
           );
         },
@@ -179,9 +229,7 @@ class _ComplaintDetailScreenState extends State<ComplaintDetailScreen> {
     } on ApiException catch (e) {
       if (mounted) {
         setState(() => _sending = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.message), behavior: SnackBarBehavior.floating),
-        );
+        showToast(context, e.message, isError: true);
       }
     }
   }
@@ -202,7 +250,7 @@ class _ComplaintDetailScreenState extends State<ComplaintDetailScreen> {
       return ErrorState(message: _error!, onRetry: _load);
     }
     final complaint = _complaint!;
-    final palette = BadgePalette.complaint(complaint.status);
+    final color = _statusColor(complaint.status);
 
     return Column(
       children: [
@@ -215,42 +263,95 @@ class _ComplaintDetailScreenState extends State<ComplaintDetailScreen> {
                 Row(
                   children: [
                     Expanded(
-                      child: Text(complaint.subject, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                      child: Text(
+                        complaint.subject,
+                        style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 17),
+                      ),
                     ),
-                    if (palette != null) StatusBadge(label: palette.$1, color: palette.$2),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: color.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        _statusLabel(complaint.status),
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: color),
+                      ),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '${complaint.type} · ${formatDateTime(complaint.createdAt, fallback: '')}',
-                  style: Theme.of(context).textTheme.bodySmall,
+                  '${_typeLabel(complaint.type)} · ${formatDateTime(complaint.createdAt, fallback: '')}',
+                  style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
                 ),
                 const SizedBox(height: 12),
                 Card(
                   child: Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: Text(complaint.description),
-                  ),
-                ),
-                if (complaint.order != null)
-                  Card(
-                    child: ListTile(
-                      leading: const Icon(Icons.receipt_long_outlined),
-                      title: const Text('Commande concernée'),
-                      subtitle: Text('${complaint.order!.reference ?? ''} · Statut : ${complaint.order!.status ?? '—'}'),
+                    padding: const EdgeInsets.all(14),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Description',
+                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.textSecondary),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(complaint.description),
+                      ],
                     ),
                   ),
-                if (complaint.resolution != null) ...[
-                  const SizedBox(height: 12),
+                ),
+                if (complaint.order != null) ...[
+                  const SizedBox(height: 10),
                   Card(
-                    color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.4),
+                    child: ListTile(
+                      leading: Container(
+                        width: 38,
+                        height: 38,
+                        decoration: BoxDecoration(
+                          color: AppColors.greenLight,
+                          borderRadius: BorderRadius.circular(11),
+                        ),
+                        child: const Icon(Icons.receipt_long_outlined, color: AppColors.green, size: 20),
+                      ),
+                      title: const Text('Commande concernée'),
+                      subtitle: Text(
+                        '${complaint.order!.reference ?? '—'} · Statut : ${complaint.order!.status ?? '—'}',
+                      ),
+                    ),
+                  ),
+                ],
+                if (complaint.resolution != null) ...[
+                  const SizedBox(height: 10),
+                  Card(
+                    color: AppColors.greenLight,
                     child: Padding(
-                      padding: const EdgeInsets.all(12),
+                      padding: const EdgeInsets.all(14),
                       child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Icon(Icons.verified_outlined),
-                          const SizedBox(width: 8),
-                          Expanded(child: Text(complaint.resolution!)),
+                          const Icon(Icons.verified_outlined, color: AppColors.green, size: 20),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Résolution',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.greenDark,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(complaint.resolution!),
+                              ],
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -262,22 +363,26 @@ class _ComplaintDetailScreenState extends State<ComplaintDetailScreen> {
                     alignment: message.isFromSupport ? Alignment.centerLeft : Alignment.centerRight,
                     child: Container(
                       margin: const EdgeInsets.only(bottom: 8),
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                       constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.8),
                       decoration: BoxDecoration(
                         color: message.isFromSupport
-                            ? Theme.of(context).colorScheme.surfaceContainerHighest
-                            : Theme.of(context).colorScheme.primaryContainer,
-                        borderRadius: BorderRadius.circular(12),
+                            ? const Color(0xFFF0F2F4)
+                            : AppColors.greenLight,
+                        borderRadius: BorderRadius.circular(14),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(message.message),
-                          const SizedBox(height: 2),
+                          const SizedBox(height: 3),
                           Text(
-                            formatDateTime(message.createdAt, fallback: ''),
-                            style: Theme.of(context).textTheme.labelSmall,
+                            '${formatDateTime(message.createdAt, fallback: '')}'
+                            '${message.isFromSupport ? ' · Support' : ''}',
+                            style: TextStyle(
+                              fontSize: 10.5,
+                              color: message.isFromSupport ? AppColors.textSecondary : AppColors.greenDark,
+                            ),
                           ),
                         ],
                       ),
@@ -303,13 +408,18 @@ class _ComplaintDetailScreenState extends State<ComplaintDetailScreen> {
                       enabled: !_sending,
                       minLines: 1,
                       maxLines: 3,
+                      textInputAction: TextInputAction.send,
+                      onSubmitted: (_) => _send(),
                       decoration: const InputDecoration(hintText: 'Votre message…'),
                     ),
                   ),
                   const SizedBox(width: 8),
                   IconButton.filled(
                     onPressed: _sending ? null : _send,
-                    icon: const Icon(Icons.send),
+                    style: IconButton.styleFrom(backgroundColor: AppColors.green, foregroundColor: Colors.white),
+                    icon: _sending
+                        ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                        : const Icon(Icons.send),
                   ),
                 ],
               ),
@@ -397,17 +507,13 @@ class _ComplaintCreateScreenState extends State<ComplaintCreateScreen> {
         description: _description.text.trim(),
       );
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Réclamation envoyée'), behavior: SnackBarBehavior.floating),
-        );
+        showToast(context, 'Réclamation envoyée');
         context.pushReplacement('/client/complaints/${complaint.id}');
       }
     } on ApiException catch (e) {
       if (mounted) {
         setState(() => _saving = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.message), behavior: SnackBarBehavior.floating),
-        );
+        showToast(context, e.message, isError: true);
       }
     }
   }
@@ -421,6 +527,25 @@ class _ComplaintCreateScreenState extends State<ComplaintCreateScreen> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
+            Card(
+              color: AppColors.orangeLight,
+              child: Padding(
+                padding: const EdgeInsets.all(14),
+                child: Row(
+                  children: [
+                    const Icon(Icons.info_outline, color: AppColors.orange),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'Décrivez clairement le problème : notre support vous répondra ici même.',
+                        style: const TextStyle(fontSize: 12.5),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
             if (!_loadingOrders && _orders.isNotEmpty) ...[
               DropdownButtonFormField<String>(
                 initialValue: _orderId,
@@ -471,4 +596,34 @@ class _ComplaintCreateScreenState extends State<ComplaintCreateScreen> {
       ),
     );
   }
+}
+
+String _statusLabel(String status) {
+  return switch (status) {
+    'open' => 'Ouverte',
+    'in_review' => 'En cours',
+    'resolved' => 'Résolue',
+    'closed' => 'Clôturée',
+    _ => status.replaceAll('_', ' '),
+  };
+}
+
+Color _statusColor(String status) {
+  return switch (status) {
+    'open' => const Color(0xFFE08A00),
+    'in_review' => const Color(0xFF1976D2),
+    'resolved' => AppColors.green,
+    'closed' => AppColors.textSecondary,
+    _ => AppColors.green,
+  };
+}
+
+String _typeLabel(String type) {
+  return switch (type) {
+    'delivery' => 'Livraison',
+    'quality' => 'Qualité produit',
+    'order' => 'Commande',
+    'payment' => 'Paiement',
+    _ => 'Autre',
+  };
 }

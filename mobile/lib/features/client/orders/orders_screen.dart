@@ -3,10 +3,9 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/data/marketplace_api.dart';
 import '../../../core/errors/api_exception.dart';
+import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../shared/models/order.dart';
-import '../../../shared/widgets/amount_widgets.dart';
-import '../../../shared/widgets/status_badge.dart';
 import '../../../shared/widgets/state_widgets.dart';
 import 'order_tracking_screen.dart';
 
@@ -156,12 +155,12 @@ class _OrderCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final palette = BadgePalette.order(order.status);
+    final palette = _statusColor(order.status);
     return Card(
       margin: const EdgeInsets.only(bottom: 10),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
         child: Padding(
           padding: const EdgeInsets.all(14),
           child: Column(
@@ -169,29 +168,91 @@ class _OrderCard extends StatelessWidget {
             children: [
               Row(
                 children: [
+                  Container(
+                    width: 42,
+                    height: 42,
+                    decoration: BoxDecoration(
+                      color: palette.$2.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(_statusIcon(order.status), color: palette.$2, size: 21),
+                  ),
+                  const SizedBox(width: 12),
                   Expanded(
-                    child: Text(
-                      order.vendor?.businessName ?? 'Commande ${order.reference}',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          order.vendor?.businessName ?? 'Commande ${order.reference}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14.5),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          order.items.isEmpty
+                              ? '0 article'
+                              : '${order.items.length} article${order.items.length > 1 ? 's' : ''}'
+                                  ' · ${order.items.first.name}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
+                        ),
+                      ],
                     ),
                   ),
-                  if (palette != null)
-                    StatusBadge(label: palette.$1, color: palette.$2, small: true),
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: palette.$2.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      _statusLabel(order.status),
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w700,
+                        color: palette.$2,
+                      ),
+                    ),
+                  ),
                 ],
               ),
-              const SizedBox(height: 6),
-              Text(
-                '${order.items.length} article(s) · ${formatDateTime(order.createdAt, fallback: '')}',
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 12),
+              const Divider(height: 1),
+              const SizedBox(height: 10),
               Row(
                 children: [
-                  Text(order.reference, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant)),
-                  const Spacer(),
-                  AmountText(order.total, style: const TextStyle(fontWeight: FontWeight.bold)),
+                  Icon(
+                    Icons.schedule,
+                    size: 16,
+                    color: AppColors.textSecondary,
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      formatDate(order.createdAt, fallback: '—'),
+                      style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
+                    ),
+                  ),
+                  Text.rich(
+                    TextSpan(
+                      children: [
+                        TextSpan(
+                          text: formatAmount(order.total),
+                          style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15),
+                        ),
+                        const TextSpan(
+                          text: '  ',
+                        ),
+                        TextSpan(
+                          text: order.currency,
+                          style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                        ),
+                      ],
+                    ),
+                  ),
                 ],
               ),
             ],
@@ -199,5 +260,53 @@ class _OrderCard extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  String _statusLabel(String status) {
+    return switch (status) {
+      'awaiting_payment' => 'À payer',
+      'paid' => 'En préparation',
+      'accepted' => 'Confirmée',
+      'preparing' => 'En préparation',
+      'ready' => 'Prête',
+      'assigned' => 'Livreur assigné',
+      'out_for_delivery' => 'En livraison',
+      'delivered' => 'Livrée',
+      'cancelled' => 'Annulée',
+      'refunded' => 'Remboursée',
+      _ => status.replaceAll('_', ' ').toUpperCase(),
+    };
+  }
+
+  IconData _statusIcon(String status) {
+    return switch (status) {
+      'awaiting_payment' => Icons.payments_outlined,
+      'paid' => Icons.check_circle_outline,
+      'accepted' => Icons.verified_outlined,
+      'preparing' => Icons.restaurant_menu,
+      'ready' => Icons.shopping_bag_outlined,
+      'assigned' => Icons.delivery_dining_outlined,
+      'out_for_delivery' => Icons.local_shipping_outlined,
+      'delivered' => Icons.house_outlined,
+      'cancelled' => Icons.cancel_outlined,
+      'refunded' => Icons.replay_outlined,
+      _ => Icons.receipt_long_outlined,
+    };
+  }
+
+  (String, Color) _statusColor(String status) {
+    return switch (status) {
+      'awaiting_payment' => ('À payer', const Color(0xFFE08A00)),
+      'paid' => ('Confirmée', AppColors.green),
+      'accepted' => ('Confirmée', AppColors.green),
+      'preparing' => ('Préparation', const Color(0xFF1976D2)),
+      'ready' => ('Prête', const Color(0xFF3949AB)),
+      'assigned' => ('Assignée', const Color(0xFF7B1FA2)),
+      'out_for_delivery' => ('En livraison', const Color(0xFF00897B)),
+      'delivered' => ('Livrée', AppColors.greenDark),
+      'cancelled' => ('Annulée', const Color(0xFFE53935)),
+      'refunded' => ('Remboursée', AppColors.textSecondary),
+      _ => (status, AppColors.green),
+    };
   }
 }

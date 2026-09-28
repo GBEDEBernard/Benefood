@@ -3,12 +3,17 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/data/marketplace_api.dart';
 import '../../../core/errors/api_exception.dart';
+import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_dimens.dart';
+import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../shared/models/product.dart';
 import '../../../shared/widgets/app_button.dart';
 import '../../../shared/widgets/app_network_image.dart';
+import '../../../shared/widgets/feedback_widgets.dart';
 import '../../../shared/widgets/quantity_stepper.dart';
 import '../../../shared/widgets/state_widgets.dart';
+import '../../../shared/widgets/status_badge.dart';
 
 /// Fiche produit client (J148) : description, prix, quantité, ajout panier.
 class ProductDetailScreen extends StatefulWidget {
@@ -37,16 +42,12 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     try {
       await widget.marketplace.addToCart(product.id, quantity: _quantity);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Produit ajouté au panier'), behavior: SnackBarBehavior.floating),
-        );
+        showToast(context, 'Produit ajouté au panier');
         context.go('/client');
       }
     } on ApiException catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.message), behavior: SnackBarBehavior.floating),
-        );
+        showToast(context, e.message, isError: true);
       }
     } finally {
       if (mounted) {
@@ -67,7 +68,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           }
           if (snapshot.hasError) {
             return ErrorState(
-              message: snapshot.error is ApiException ? (snapshot.error as ApiException).message : 'Produit introuvable.',
+              message: snapshot.error is ApiException
+                  ? (snapshot.error as ApiException).message
+                  : 'Produit introuvable.',
               onRetry: () => setState(() => _future = widget.marketplace.product(widget.productId)),
             );
           }
@@ -76,57 +79,125 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
             children: [
               Expanded(
                 child: ListView(
-                  padding: const EdgeInsets.only(bottom: 120),
+                  padding: const EdgeInsets.only(bottom: 140),
                   children: [
-                    SizedBox(
+                    // Visuel produit
+                    Container(
+                      margin: const EdgeInsets.all(AppDimens.pagePadding),
                       height: 260,
+                      clipBehavior: Clip.antiAlias,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(AppDimens.radiusXl),
+                        border: Border.all(color: AppColors.border),
+                        boxShadow: AppTheme.softShadow(),
+                      ),
                       child: Stack(
                         fit: StackFit.expand,
                         children: [
-                          AppNetworkImage(url: product.imageUrl),
-                          if (!product.isOrderable)
+                          AppNetworkImage(url: product.imageUrl, icon: Icons.fastfood_outlined),
+                          if (!product.isOrderable || product.isOutOfStock)
                             Positioned(
-                              top: 12,
-                              right: 12,
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                                decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(20)),
-                                child: const Text('Indisponible', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+                              top: 14,
+                              right: 14,
+                              child: StatusBadge(
+                                label: product.isOutOfStock ? 'Rupture de stock' : 'Indisponible',
+                                color: AppColors.red,
                               ),
                             ),
                         ],
                       ),
                     ),
                     Padding(
-                      padding: const EdgeInsets.all(16),
+                      padding: const EdgeInsets.symmetric(horizontal: AppDimens.pagePadding),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Expanded(
-                                child: Text(product.name, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                                child: Text(
+                                  product.name,
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .headlineSmall
+                                      ?.copyWith(fontWeight: FontWeight.w800),
+                                ),
                               ),
-                              Text('${product.unit}', style: Theme.of(context).textTheme.bodySmall),
+                              const SizedBox(width: 12),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                decoration: BoxDecoration(
+                                  color: AppColors.orangeLight,
+                                  borderRadius: BorderRadius.circular(AppDimens.radiusPill),
+                                ),
+                                child: Text(
+                                  product.unit,
+                                  style: const TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w700,
+                                      color: Color(0xFF7A3D00)),
+                                ),
+                              ),
                             ],
                           ),
-                          const SizedBox(height: 8),
+                          const SizedBox(height: 10),
                           Text(
                             formatAmount(product.price),
-                            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.primary),
+                            style: const TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.w800,
+                              color: AppColors.green,
+                            ),
                           ),
+                          if (product.stockQty != null) ...[
+                            const SizedBox(height: 10),
+                            StatusBadge(
+                              label: product.isOutOfStock
+                                  ? 'Rupture de stock'
+                                  : 'En stock (${product.stockQty})',
+                              color: product.isOutOfStock
+                                  ? AppColors.red
+                                  : AppColors.success,
+                              icon: product.isOutOfStock
+                                  ? Icons.error_outline
+                                  : Icons.check_circle_outline,
+                            ),
+                          ],
                           if (product.vendorName != null) ...[
-                            const SizedBox(height: 12),
-                            TextButton.icon(
-                              onPressed: () => context.push('/client/shop/${product.vendorId}'),
-                              icon: const Icon(Icons.storefront_outlined, size: 18),
-                              label: Text(product.vendorName!),
+                            const SizedBox(height: 14),
+                            InkWell(
+                              onTap: () => context.push('/client/shop/${product.vendorId}'),
+                              borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                                decoration: BoxDecoration(
+                                  color: AppColors.surface,
+                                  borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+                                  border: Border.all(color: AppColors.border),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(Icons.storefront_outlined,
+                                        size: 18, color: AppColors.green),
+                                    const SizedBox(width: 8),
+                                    Flexible(
+                                      child: Text(
+                                        product.vendorName!,
+                                        style: const TextStyle(fontWeight: FontWeight.w600),
+                                      ),
+                                    ),
+                                    const Icon(Icons.chevron_right, size: 20),
+                                  ],
+                                ),
+                              ),
                             ),
                           ],
                           if (product.description != null && product.description!.isNotEmpty) ...[
-                            const SizedBox(height: 16),
+                            const SizedBox(height: 22),
                             Text('Description', style: Theme.of(context).textTheme.titleSmall),
-                            const SizedBox(height: 6),
+                            const SizedBox(height: 8),
                             Text(product.description!, style: Theme.of(context).textTheme.bodyMedium),
                           ],
                         ],
@@ -138,11 +209,11 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
               if (product.isOrderable)
                 SafeArea(
                   child: Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.surface,
-                      borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-                      boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 12)],
+                    padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+                    decoration: const BoxDecoration(
+                      color: AppColors.surface,
+                      border: Border(top: BorderSide(color: AppColors.border)),
+                      borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
                     ),
                     child: Row(
                       children: [
@@ -155,6 +226,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                         Expanded(
                           child: AppButton(
                             label: 'Ajouter au panier',
+                            icon: Icons.add_shopping_cart,
                             onPressed: () => _addToCart(product),
                             loading: _adding,
                           ),

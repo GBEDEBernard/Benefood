@@ -3,9 +3,11 @@ import 'package:flutter/material.dart';
 import '../../../core/data/marketplace_api.dart';
 import '../../../core/errors/api_exception.dart';
 import '../../../core/services/location_service.dart';
+import '../../../core/theme/app_colors.dart';
 import '../../../shared/models/address.dart';
 import '../../../shared/widgets/app_button.dart';
 import '../../../shared/widgets/app_text_field.dart';
+import '../../../shared/widgets/feedback_widgets.dart';
 import '../../../shared/widgets/state_widgets.dart';
 
 /// Mes adresses (J153) : liste, ajout et sélection au checkout.
@@ -62,9 +64,7 @@ class _AddressesScreenState extends State<AddressesScreen> {
     );
     if (created != null && mounted) {
       setState(() => _addresses = [created, ..._addresses]);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Adresse enregistrée'), behavior: SnackBarBehavior.floating),
-      );
+      showToast(context, 'Adresse enregistrée');
       if (widget.selectMode) {
         Navigator.of(context).pop(created);
       }
@@ -111,14 +111,81 @@ class _AddressesScreenState extends State<AddressesScreen> {
           final address = _addresses[index];
           return Card(
             margin: const EdgeInsets.only(bottom: 10),
-            child: ListTile(
-              leading: const Icon(Icons.location_on_outlined),
-              title: Text(address.label ?? 'Adresse'),
-              subtitle: Text(_summary(address)),
-              trailing: widget.selectMode
-                  ? const Icon(Icons.check_circle_outline)
-                  : const Icon(Icons.chevron_right),
-              onTap: widget.selectMode ? () => Navigator.of(context).pop(address) : _openAdd,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+              side: BorderSide(color: address.isDefault ? AppColors.green.withValues(alpha: 0.5) : Colors.transparent, width: 1.2),
+            ),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(16),
+              onTap: widget.selectMode
+                  ? () => Navigator.of(context).pop(address)
+                  : _openAdd,
+              child: Padding(
+                padding: const EdgeInsets.all(14),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 42,
+                      height: 42,
+                      decoration: BoxDecoration(
+                        color: address.isDefault ? AppColors.greenLight : const Color(0xFFF0F2F4),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(
+                        Icons.location_on_outlined,
+                        color: address.isDefault ? AppColors.green : AppColors.textSecondary,
+                        size: 21,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  address.label ?? 'Adresse',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14.5),
+                                ),
+                              ),
+                              if (address.isDefault) ...[
+                                const SizedBox(width: 8),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFFEF2E7),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: const Text(
+                                    'Par défaut',
+                                    style: TextStyle(fontSize: 10.5, color: AppColors.orange, fontWeight: FontWeight.w700),
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            _summary(address),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Icon(
+                      widget.selectMode ? Icons.check_circle_outline : Icons.chevron_right,
+                      color: widget.selectMode ? AppColors.green : AppColors.textSecondary,
+                    ),
+                  ],
+                ),
+              ),
             ),
           );
         },
@@ -192,12 +259,7 @@ class _AddAddressSheetState extends State<_AddAddressSheet> {
       }
     });
     if (geo == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(_locationFailureMessage(result.failure)),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      showToast(context, _locationFailureMessage(result.failure), isError: true);
     }
   }
 
@@ -228,9 +290,7 @@ class _AddAddressSheetState extends State<_AddAddressSheet> {
     } on ApiException catch (e) {
       if (mounted) {
         setState(() => _saving = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.message), behavior: SnackBarBehavior.floating),
-        );
+        showToast(context, e.message, isError: true);
       }
     }
   }
@@ -239,89 +299,96 @@ class _AddAddressSheetState extends State<_AddAddressSheet> {
   Widget build(BuildContext context) {
     return Padding(
       padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Nouvelle adresse', style: Theme.of(context).textTheme.titleLarge),
-              const SizedBox(height: 12),
-              OutlinedButton.icon(
-                icon: _locating
-                    ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                    : const Icon(Icons.my_location),
-                label: const Text('Utiliser ma position'),
-                onPressed: _locating ? null : _useMyPosition,
-              ),
-              if (_latitude != null) ...[
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Icon(Icons.location_on, size: 16, color: Theme.of(context).colorScheme.primary),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: Text(
-                        'Position capturée (${_latitude!.toStringAsFixed(5)}, ${_longitude!.toStringAsFixed(5)})',
-                        style: Theme.of(context).textTheme.bodySmall,
-                      ),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxHeight: MediaQuery.sizeOf(context).height * 0.85),
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Nouvelle adresse', style: Theme.of(context).textTheme.titleLarge),
+                  const SizedBox(height: 12),
+                  OutlinedButton.icon(
+                    icon: _locating
+                        ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                        : const Icon(Icons.my_location),
+                    label: const Text('Utiliser ma position'),
+                    onPressed: _locating ? null : _useMyPosition,
+                  ),
+                  if (_latitude != null) ...[
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Icon(Icons.location_on, size: 16, color: Theme.of(context).colorScheme.primary),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            'Position capturée (${_latitude!.toStringAsFixed(5)}, ${_longitude!.toStringAsFixed(5)})',
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                        ),
+                      ],
                     ),
                   ],
-                ),
-              ],
-              const SizedBox(height: 4),
-              Text(
-                'Votre position est utilisée uniquement pour pré-remplir cette adresse.',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
-              ),
-              const SizedBox(height: 16),
-              AppTextField(
-                controller: _label,
-                label: 'Libellé',
-                required: true,
-                validator: (v) => (v == null || v.trim().isEmpty) ? 'Requis' : null,
-              ),
-              const SizedBox(height: 12),
-              AppTextField(
-                controller: _address,
-                label: 'Adresse complète',
-                hint: 'Rue, quartier, repères…',
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: AppTextField(
-                      controller: _city,
-                      label: 'Ville',
-                      hint: 'Cotonou…',
-                    ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Votre position est utilisée uniquement pour pré-remplir cette adresse.',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: AppTextField(
-                      controller: _area,
-                      label: 'Quartier',
-                      hint: 'Akpakpa…',
-                    ),
+                  const SizedBox(height: 16),
+                  AppTextField(
+                    controller: _label,
+                    label: 'Libellé',
+                    required: true,
+                    validator: (v) => (v == null || v.trim().isEmpty) ? 'Requis' : null,
+                  ),
+                  const SizedBox(height: 12),
+                  AppTextField(
+                    controller: _address,
+                    label: 'Adresse complète',
+                    hint: 'Rue, quartier, repères…',
+                    required: true,
+                    validator: (v) => (v == null || v.trim().isEmpty) ? 'Requis' : null,
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: AppTextField(
+                          controller: _city,
+                          label: 'Ville',
+                          hint: 'Cotonou…',
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: AppTextField(
+                          controller: _area,
+                          label: 'Quartier',
+                          hint: 'Akpakpa…',
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  AppTextField(
+                    controller: _landmark,
+                    label: 'Point de repère',
+                    hint: 'Près de…',
+                  ),
+                  const SizedBox(height: 20),
+                  AppButton(
+                    label: 'Enregistrer',
+                    onPressed: _saving ? null : _save,
+                    loading: _saving,
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
-              AppTextField(
-                controller: _landmark,
-                label: 'Point de repère',
-                hint: 'Près de…',
-              ),
-              const SizedBox(height: 20),
-              AppButton(
-                label: 'Enregistrer',
-                onPressed: _saving ? null : _save,
-                loading: _saving,
-              ),
-            ],
+            ),
           ),
         ),
       ),

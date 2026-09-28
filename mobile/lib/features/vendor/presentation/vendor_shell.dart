@@ -187,7 +187,7 @@ class _OnboardingGate extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(businessName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                        Text(businessName, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                         const SizedBox(height: 6),
                         if (palette != null) StatusBadge(label: palette.$1, color: palette.$2),
                       ],

@@ -15,6 +15,7 @@ import '../features/client/search/search_screen.dart';
 import '../features/client/checkout/checkout_screen.dart';
 import '../features/client/account/addresses_screen.dart';
 import '../features/client/account/complaints_screen.dart';
+import '../features/client/account/server_settings_screen.dart';
 import '../features/client/orders/orders_screen.dart';
 import '../features/vendor/presentation/vendor_shell.dart';
 import '../features/driver/presentation/driver_shell.dart';
@@ -34,7 +35,10 @@ GoRouter buildAppRouter(SessionProvider session, MarketplaceApi marketplace) {
       final isAuthRoute = _isAuthRoute(location);
 
       if (!logged) {
-        return isAuthRoute ? null : '/landing';
+        if (isAuthRoute || location == '/server') {
+          return null;
+        }
+        return '/landing';
       }
 
       if (isAuthRoute) {
@@ -77,6 +81,10 @@ GoRouter buildAppRouter(SessionProvider session, MarketplaceApi marketplace) {
       GoRoute(
         path: '/reset-password',
         builder: (context, state) => ResetPasswordScreen(session: session),
+      ),
+      GoRoute(
+        path: '/server',
+        builder: (context, state) => const ServerSettingsScreen(),
       ),
       GoRoute(
         path: '/context',

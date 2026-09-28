@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/auth/session_provider.dart';
 import '../../../core/errors/api_exception.dart';
+import '../../../core/theme/app_colors.dart';
 import '../../../shared/widgets/feedback_widgets.dart';
 
 /// Sélection du contexte actif pour les utilisateurs multi-rôles (J19 §2.6,
@@ -68,6 +69,7 @@ class _ContextSelectorScreenState extends State<ContextSelectorScreen> {
                     title: 'Client',
                     subtitle: 'Commander chez les vendeurs Béninfood',
                     onTap: _loading ? null : () => _select('client'),
+                    accent: AppColors.green,
                   ),
                 if (slugs.contains('vendor'))
                   _ContextCard(
@@ -75,6 +77,7 @@ class _ContextSelectorScreenState extends State<ContextSelectorScreen> {
                     title: 'Vendeur',
                     subtitle: 'Gérer ma boutique, mes produits et mes commandes',
                     onTap: _loading ? null : () => _select('vendor'),
+                    accent: AppColors.orange,
                   ),
                 if (slugs.contains('driver'))
                   _ContextCard(
@@ -82,6 +85,7 @@ class _ContextSelectorScreenState extends State<ContextSelectorScreen> {
                     title: 'Livreur',
                     subtitle: 'Recevoir des missions et livrer',
                     onTap: _loading ? null : () => _select('driver'),
+                    accent: const Color(0xFF3949AB),
                   ),
                 const SizedBox(height: 40),
                 OutlinedButton.icon(
@@ -111,12 +115,13 @@ class _ContextSelectorScreenState extends State<ContextSelectorScreen> {
 }
 
 class _ContextCard extends StatelessWidget {
-  const _ContextCard({required this.icon, required this.title, required this.subtitle, required this.onTap});
+  const _ContextCard({required this.icon, required this.title, required this.subtitle, required this.onTap, this.accent = AppColors.green});
 
   final IconData icon;
   final String title;
   final String subtitle;
   final VoidCallback? onTap;
+  final Color accent;
 
   @override
   Widget build(BuildContext context) {
@@ -126,7 +131,7 @@ class _ContextCard extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 14),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(20),
         child: Padding(
           padding: const EdgeInsets.all(18),
           child: Row(
@@ -134,21 +139,24 @@ class _ContextCard extends StatelessWidget {
               Container(
                 width: 52,
                 height: 52,
-                decoration: BoxDecoration(color: colorScheme.primary.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(14)),
-                child: Icon(icon, color: colorScheme.primary, size: 28),
+                decoration: BoxDecoration(
+                  color: accent.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Icon(icon, color: accent, size: 28),
               ),
               const SizedBox(width: 16),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                    Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
                     const SizedBox(height: 2),
                     Text(subtitle, style: TextStyle(fontSize: 13, color: colorScheme.onSurfaceVariant)),
                   ],
                 ),
               ),
-              const Icon(Icons.chevron_right),
+              Icon(Icons.chevron_right, color: AppColors.textSecondary),
             ],
           ),
         ),
