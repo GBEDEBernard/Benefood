@@ -34,15 +34,35 @@ class SessionProvider extends ChangeNotifier {
   String? get activeRole => _activeRole;
 
   /// Restaure la session au lancement (Splash, J146 §2.1).
+  ///
+  /// La restauration est bornée dans le temps : le splash ne doit jamais
+  /// rester bloqué si le secure storage ou le réseau ne répondent pas.
   Future<void> restoreSession() async {
     _restoring = true;
+    _initialized = false;
     notifyListeners();
 
-    final session = await _tokenStore.readSession();
-    if (session == null) {
+    try {
+      await _restoreSession().timeout(const Duration(seconds: 12));
+    } catch (e) {
+      debugPrint('restoreSession: restauration interrompue ($e)');
+    } finally {
       _initialized = true;
       _restoring = false;
       notifyListeners();
+    }
+  }
+
+  Future<void> _restoreSession() async {
+    Map<String, dynamic>? session;
+    try {
+      session = await _tokenStore.readSession().timeout(const Duration(seconds: 5));
+    } catch (e) {
+      debugPrint('restoreSession: session illisible ($e)');
+      return;
+    }
+
+    if (session == null) {
       return;
     }
 
@@ -51,23 +71,29 @@ class SessionProvider extends ChangeNotifier {
     try {
       final response = await _api.get('/me');
       _user = User.fromJson(_dataOf(response));
-      _initialized = true;
+      if (_user != null && (_activeRole == null || !_user!.contexts.contains(_activeRole))) {
+        _activeRole = _defaultRoleFor(_user!);
+      }
     } on ApiException catch (e) {
       if (e.isUnauthorized) {
         await _tokenStore.clear();
+        _activeRole = null;
+        return;
       }
-      _initialized = true;
-    } catch (_) {
+      _user = _cachedUserFrom(session);
+    } catch (e) {
       // Réseau : on garde la session locale pour l'expérience offline.
-      final rawUser = session[_sessionUserKey];
-      if (rawUser is Map<String, dynamic>) {
-        _user = User.fromJson(rawUser);
-      }
-      _initialized = true;
+      debugPrint('restoreSession: réseau indisponible ($e)');
+      _user = _cachedUserFrom(session);
     }
+  }
 
-    _restoring = false;
-    notifyListeners();
+  User? _cachedUserFrom(Map<String, dynamic> session) {
+    final rawUser = session[_sessionUserKey];
+    if (rawUser is Map<String, dynamic>) {
+      return User.fromJson(rawUser);
+    }
+    return null;
   }
 
   Future<void> login(String login, String password) async {
@@ -125,9 +151,14 @@ class SessionProvider extends ChangeNotifier {
     });
   }
 
-  Future<void> switchRole(String roleSlug) async {
-    await _api.post('/me/active-role', body: {'role_slug': roleSlug});
-    _activeRole = roleSlug;
+  /// Bascule de contexte (J19 §2.6).
+  ///
+  /// [context] est un contexte canonique (`client`, `vendor`, `driver`) ; le
+  /// slug réel du rôle (`driver-independent`, …) est résolu via le profil.
+  Future<void> switchRole(String context) async {
+    final slug = _user?.slugForContext(context) ?? context;
+    await _api.post('/me/active-role', body: {'role_slug': slug});
+    _activeRole = context;
     await _persist();
     notifyListeners();
   }
@@ -156,7 +187,7 @@ class SessionProvider extends ChangeNotifier {
 
   void _setUser(User user) {
     _user = user;
-    if (_activeRole == null || !user.roleSlugs.contains(_activeRole)) {
+    if (_activeRole == null || !user.contexts.contains(_activeRole)) {
       // Règle J19 §2.6 : premier rôle actif par défaut.
       _activeRole = _defaultRoleFor(user);
     }
@@ -169,15 +200,15 @@ class SessionProvider extends ChangeNotifier {
       return null;
     }
     if (user.hasRoleClient) {
-      return 'client';
+      return AppContext.client;
     }
     if (user.hasRoleVendor) {
-      return 'vendor';
+      return AppContext.vendor;
     }
     if (user.hasRoleDriver) {
-      return 'driver';
+      return AppContext.driver;
     }
-    return user.roleSlugs.first;
+    return AppContext.fromSlug(user.roleSlugs.first);
   }
 
   Future<void> _persist() async {

@@ -13,6 +13,35 @@ class UserRole {
       );
 }
 
+/// Contexte d'utilisation de l'application.
+///
+/// Le backend distingue plusieurs slugs de livreur (`driver-independent`,
+/// `driver-beninfood`) ; l'app les regroupe dans un contexte unique.
+class AppContext {
+  const AppContext._();
+
+  static const String client = 'client';
+  static const String vendor = 'vendor';
+  static const String driver = 'driver';
+
+  static const List<String> driverSlugs = ['driver', 'driver-independent', 'driver-beninfood'];
+
+  /// Slug envoyé à `POST /auth/register` pour demander l'espace livreur.
+  /// L'API n'accepte que `client`, `vendor` et `driver-independent`.
+  static const String driverRegistrationSlug = 'driver-independent';
+
+  /// Contexte correspondant à un slug de rôle backend (null si inconnu).
+  static String? fromSlug(String slug) {
+    if (slug == client || slug == vendor) {
+      return slug;
+    }
+    if (driverSlugs.contains(slug)) {
+      return driver;
+    }
+    return null;
+  }
+}
+
 class User {
   const User({
     required this.id,
@@ -38,13 +67,27 @@ class User {
 
   bool get isActive => status == 'active';
   bool get isSuspended => status == 'suspended';
-  bool get hasRoleVendor => roles.any((r) => r.slug == 'vendor');
-  bool get hasRoleDriver => roles.any((r) => r.slug == 'driver');
-  bool get hasRoleClient => roles.any((r) => r.slug == 'client');
+  bool get hasRoleVendor => roles.any((r) => r.slug == AppContext.vendor);
+  bool get hasRoleDriver => roles.any((r) => AppContext.driverSlugs.contains(r.slug));
+  bool get hasRoleClient => roles.any((r) => r.slug == AppContext.client);
 
-  bool hasRole(String slug) => roles.any((r) => r.slug == slug);
+  /// Contexte `client` / `vendor` / `driver` accessibles par cet utilisateur.
+  Set<String> get contexts => roles
+      .map((r) => AppContext.fromSlug(r.slug))
+      .whereType<String>()
+      .toSet();
 
   List<String> get roleSlugs => roles.map((r) => r.slug).toList();
+
+  /// Slug réel du rôle correspondant à un contexte (pour l'API `/me/active-role`).
+  String? slugForContext(String context) {
+    for (final role in roles) {
+      if (AppContext.fromSlug(role.slug) == context) {
+        return role.slug;
+      }
+    }
+    return null;
+  }
 
   factory User.fromJson(Map<String, dynamic>? json) {
     if (json == null) {
@@ -79,6 +122,9 @@ class User {
         'email': email,
         'status': status,
         'locale': locale,
+        'roles': roles
+            .map((r) => {'slug': r.slug, 'name': r.name, 'is_active': r.isActive})
+            .toList(),
       };
 
   User copyWith({String? email, String? name}) => User(

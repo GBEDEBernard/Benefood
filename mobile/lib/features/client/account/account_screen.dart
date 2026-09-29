@@ -26,16 +26,16 @@ class AccountScreen extends StatelessWidget {
             const _SectionLabel(icon: Icons.swap_horiz, title: 'Espaces accessibles'),
             const SizedBox(height: 8),
             for (final (role, icon, title, subtitle) in _AvailableSpaces.items) ...[
-              if (user!.hasRole(role)) ...[
+              if (user!.contexts.contains(role)) ...[
                 _SettingTile(
                   icon: icon,
                   title: title,
                   subtitle: subtitle,
                   onTap: () {
                     session.switchRole(role);
-                    if (role == 'vendor') {
+                    if (role == AppContext.vendor) {
                       context.go('/vendor');
-                    } else if (role == 'driver') {
+                    } else if (role == AppContext.driver) {
                       context.go('/driver');
                     } else {
                       context.go('/client');
@@ -132,9 +132,9 @@ class AccountScreen extends StatelessWidget {
 
 class _AvailableSpaces {
   static const items = <(String, IconData, String, String)>[
-    ('vendor', Icons.storefront_outlined, 'Espace vendeur', 'Produits, commandes, statistiques'),
-    ('driver', Icons.delivery_dining_outlined, 'Espace livreur', 'Missions, disponibilité, gains'),
-    ('client', Icons.person_outline, 'Espace client', 'Achats, panier, suivi'),
+    (AppContext.vendor, Icons.storefront_outlined, 'Espace vendeur', 'Produits, commandes, statistiques'),
+    (AppContext.driver, Icons.delivery_dining_outlined, 'Espace livreur', 'Missions, disponibilité, gains'),
+    (AppContext.client, Icons.person_outline, 'Espace client', 'Achats, panier, suivi'),
   ];
 }
 

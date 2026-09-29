@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/auth/session_provider.dart';
 import '../../../core/data/marketplace_api.dart';
 import '../../../core/errors/api_exception.dart';
+import '../../../shared/models/user.dart';
 import '../../../shared/widgets/app_button.dart';
 import '../../../shared/widgets/feedback_widgets.dart';
 import '../../../shared/widgets/status_badge.dart';
@@ -86,7 +87,7 @@ class _DriverAccountScreenState extends State<DriverAccountScreen> {
   Future<void> _switchToClient() async {
     setState(() => _switching = true);
     try {
-      await widget.session.switchRole('client');
+      await widget.session.switchRole(AppContext.client);
       if (mounted) {
         context.go('/client');
       }

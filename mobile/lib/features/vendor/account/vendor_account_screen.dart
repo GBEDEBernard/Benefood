@@ -7,6 +7,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../../core/auth/session_provider.dart';
 import '../../../core/data/marketplace_api.dart';
 import '../../../core/errors/api_exception.dart';
+import '../../../shared/models/user.dart';
 import '../../../shared/widgets/app_button.dart';
 import '../../../shared/widgets/app_network_image.dart';
 import '../../../shared/widgets/feedback_widgets.dart';
@@ -68,7 +69,7 @@ class _VendorAccountScreenState extends State<VendorAccountScreen> {
   Future<void> _switchToClient() async {
     setState(() => _switching = true);
     try {
-      await widget.session.switchRole('client');
+      await widget.session.switchRole(AppContext.client);
       if (mounted) {
         context.go('/client');
       }

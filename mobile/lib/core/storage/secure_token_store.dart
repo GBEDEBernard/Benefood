@@ -9,7 +9,11 @@ class SecureTokenStore implements TokenStore {
   SecureTokenStore({FlutterSecureStorage? storage})
       : _storage = storage ??
             const FlutterSecureStorage(
-              aOptions: AndroidOptions(encryptedSharedPreferences: true),
+              // `encryptedSharedPreferences: true` s'appuie sur
+              // androidx.security.crypto, qui se bloque indéfiniment sur
+              // certains appareils (Android 12, certains Samsung). Le mode
+              // direct utilise l'AES-GCM du Keystore Android, plus fiable.
+              aOptions: AndroidOptions(encryptedSharedPreferences: false),
             );
 
   static const _tokenKey = 'auth_token';

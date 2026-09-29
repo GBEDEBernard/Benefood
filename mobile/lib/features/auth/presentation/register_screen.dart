@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/auth/session_provider.dart';
 import '../../../core/errors/api_exception.dart';
+import '../../../shared/models/user.dart';
 import '../../../shared/widgets/app_button.dart';
 import '../../../shared/widgets/app_text_field.dart';
 import '../../../shared/widgets/auth_header.dart';
@@ -46,9 +47,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
 
     final roles = <String>[
-      'client',
-      if (_wantVendor) 'vendor',
-      if (_wantDriver) 'driver-independent',
+      AppContext.client,
+      if (_wantVendor) AppContext.vendor,
+      if (_wantDriver) AppContext.driverRegistrationSlug,
     ];
 
     setState(() => _loading = true);

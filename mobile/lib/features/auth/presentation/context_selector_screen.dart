@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/auth/session_provider.dart';
 import '../../../core/errors/api_exception.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../shared/models/user.dart';
 import '../../../shared/widgets/feedback_widgets.dart';
 
 /// Sélection du contexte actif pour les utilisateurs multi-rôles (J19 §2.6,
@@ -26,8 +27,8 @@ class _ContextSelectorScreenState extends State<ContextSelectorScreen> {
       await widget.session.switchRole(role);
       if (mounted) {
         context.go(switch (role) {
-          'vendor' => '/vendor',
-          'driver' => '/driver',
+          AppContext.vendor => '/vendor',
+          AppContext.driver => '/driver',
           _ => '/client',
         });
       }
@@ -45,7 +46,7 @@ class _ContextSelectorScreenState extends State<ContextSelectorScreen> {
   @override
   Widget build(BuildContext context) {
     final user = widget.session.user;
-    final slugs = user?.roleSlugs ?? const <String>[];
+    final contexts = user?.contexts ?? const <String>{};
 
     return Scaffold(
       appBar: AppBar(title: const Text('Choisir un espace')),
@@ -63,28 +64,28 @@ class _ContextSelectorScreenState extends State<ContextSelectorScreen> {
                   style: Theme.of(context).textTheme.bodyMedium,
                 ),
                 const SizedBox(height: 24),
-                if (slugs.contains('client'))
+                if (contexts.contains(AppContext.client))
                   _ContextCard(
                     icon: Icons.shopping_bag_outlined,
                     title: 'Client',
                     subtitle: 'Commander chez les vendeurs Béninfood',
-                    onTap: _loading ? null : () => _select('client'),
+                    onTap: _loading ? null : () => _select(AppContext.client),
                     accent: AppColors.green,
                   ),
-                if (slugs.contains('vendor'))
+                if (contexts.contains(AppContext.vendor))
                   _ContextCard(
                     icon: Icons.storefront_outlined,
                     title: 'Vendeur',
                     subtitle: 'Gérer ma boutique, mes produits et mes commandes',
-                    onTap: _loading ? null : () => _select('vendor'),
+                    onTap: _loading ? null : () => _select(AppContext.vendor),
                     accent: AppColors.orange,
                   ),
-                if (slugs.contains('driver'))
+                if (contexts.contains(AppContext.driver))
                   _ContextCard(
                     icon: Icons.delivery_dining_outlined,
                     title: 'Livreur',
                     subtitle: 'Recevoir des missions et livrer',
-                    onTap: _loading ? null : () => _select('driver'),
+                    onTap: _loading ? null : () => _select(AppContext.driver),
                     accent: const Color(0xFF3949AB),
                   ),
                 const SizedBox(height: 40),

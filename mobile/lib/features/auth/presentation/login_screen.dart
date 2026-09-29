@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/auth/session_provider.dart';
 import '../../../core/errors/api_exception.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../shared/models/user.dart';
 import '../../../shared/widgets/app_button.dart';
 import '../../../shared/widgets/app_text_field.dart';
 import '../../../shared/widgets/feedback_widgets.dart';
@@ -42,8 +43,8 @@ class _LoginScreenState extends State<LoginScreen> {
       if (mounted) {
         final role = widget.session.activeRole;
         context.go(role == null ? '/context' : switch (role) {
-          'vendor' => '/vendor',
-          'driver' => '/driver',
+          AppContext.vendor => '/vendor',
+          AppContext.driver => '/driver',
           _ => '/client',
         });
       }

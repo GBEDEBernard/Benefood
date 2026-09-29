@@ -16,6 +16,7 @@ class ApiClient {
     http.Client? httpClient,
     required TokenStore tokenStore,
     String? baseUrl,
+    this.timeout = const Duration(seconds: 15),
   })  : _http = httpClient ?? http.Client(),
         _baseUrl = baseUrl ?? AppConfig.apiUrl,
         _tokenStore = tokenStore;
@@ -23,6 +24,11 @@ class ApiClient {
   final http.Client _http;
   final String _baseUrl;
   final TokenStore _tokenStore;
+
+  /// Délai maximal d'une requête réseau avant de lever [ApiException.timeout].
+  /// Sans cela, une IP injoignable (ex. `10.0.2.2` sur appareil physique)
+  /// laisse les écrans en chargement indéfini.
+  final Duration timeout;
 
   bool _refreshing = false;
   final List<Completer<void>> _refreshQueue = [];
@@ -92,8 +98,8 @@ class ApiClient {
       ));
     });
 
-    final streamed = await request.send();
-    final response = await http.Response.fromStream(streamed);
+    final streamed = await request.send().timeout(timeout);
+    final response = await http.Response.fromStream(streamed).timeout(timeout);
     return _decode(response, attemptsLeft: auth ? 1 : 0);
   }
 
@@ -114,7 +120,10 @@ class ApiClient {
 
     final request = http.Request(method, uri);
     if (auth) {
-      final token = await _tokenStore.readToken();
+      final token = await _tokenStore.readToken().timeout(
+            const Duration(seconds: 5),
+            onTimeout: () => null,
+          );
       if (token != null) {
         request.headers['Authorization'] = 'Bearer $token';
       }
@@ -132,8 +141,8 @@ class ApiClient {
 
   Future<http.Response> _send(http.Request request) async {
     try {
-      final streamed = await _http.send(request);
-      return await http.Response.fromStream(streamed);
+      final streamed = await _http.send(request).timeout(timeout);
+      return await http.Response.fromStream(streamed).timeout(timeout);
     } on TimeoutException {
       throw ApiException.timeout();
     } on http.ClientException catch (e) {
@@ -199,13 +208,15 @@ class ApiClient {
       }
 
       // Le backend Sanctu crée un nouveau token pour la session courante.
-      final response = await http.post(
-        _uri('/auth/refresh'),
-        headers: {
-          'Accept': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-      );
+      final response = await http
+          .post(
+            _uri('/auth/refresh'),
+            headers: {
+              'Accept': 'application/json',
+              'Authorization': 'Bearer $token',
+            },
+          )
+          .timeout(timeout);
 
       if (response.statusCode == 200) {
         final body = jsonDecode(response.body) as Map<String, dynamic>;

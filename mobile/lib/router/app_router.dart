@@ -19,6 +19,7 @@ import '../features/client/account/server_settings_screen.dart';
 import '../features/client/orders/orders_screen.dart';
 import '../features/vendor/presentation/vendor_shell.dart';
 import '../features/driver/presentation/driver_shell.dart';
+import '../shared/models/user.dart';
 
 /// Routeur central (J146) : contenu protégé selon session + contexte actif.
 GoRouter buildAppRouter(SessionProvider session, MarketplaceApi marketplace) {
@@ -172,14 +173,14 @@ bool _isAuthRoute(String location) =>
     location == '/landing' || location == '/login' || location == '/register' || location == '/reset-password';
 
 String _homeFor(SessionProvider session) {
-  final role = session.activeRole;
-  if (role == 'vendor') {
-    return '/vendor';
+  switch (session.activeRole) {
+    case AppContext.vendor:
+      return '/vendor';
+    case AppContext.driver:
+      return '/driver';
+    default:
+      return '/client';
   }
-  if (role == 'driver') {
-    return '/driver';
-  }
-  return '/client';
 }
 
 bool _canAccess(BuildContext context, SessionProvider session, String role, String location) {
@@ -187,7 +188,7 @@ bool _canAccess(BuildContext context, SessionProvider session, String role, Stri
   if (user == null) {
     return false;
   }
-  return user.roleSlugs.contains(role);
+  return user.contexts.contains(role);
 }
 
 class _SplashPage extends StatelessWidget {
