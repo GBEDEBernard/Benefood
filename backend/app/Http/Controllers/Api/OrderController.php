@@ -70,7 +70,7 @@ class OrderController extends Controller
     public function index(Request $request): JsonResponse
     {
         $orders = $request->user()->orders()
-            ->with(['vendor', 'items'])
+            ->with(['vendor', 'items.product'])
             ->orderByDesc('created_at')
             ->paginate((int) $request->query('per_page', config('beninfood.pagination.per_page')));
 

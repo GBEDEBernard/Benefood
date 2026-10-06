@@ -149,7 +149,8 @@ class OrderFlowTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.reference', $reference)
             ->assertJsonPath('data.status', 'awaiting_payment')
-            ->assertJsonPath('data.items.0.unit_price', 500);
+            ->assertJsonPath('data.items.0.unit_price', 500)
+            ->assertJsonPath('data.items.0.image_url', null);
     }
 
     public function test_order_rejects_empty_cart(): void
@@ -345,6 +346,7 @@ class OrderFlowTest extends TestCase
         $client = $this->actingUser('client');
         $vendor = $this->activeVendor($client);
         $product = $this->vendorProduct($vendor);
+        $product->update(['image_main' => 'products/piment-frais-01.webp']);
         $this->deliverySetup($vendor);
         $address = $this->clientAddress($client);
 
@@ -355,6 +357,7 @@ class OrderFlowTest extends TestCase
         $this->getJson('/api/v1/orders')
             ->assertOk()
             ->assertJsonCount(1, 'data')
-            ->assertJsonPath('data.0.status', 'awaiting_payment');
+            ->assertJsonPath('data.0.status', 'awaiting_payment')
+            ->assertJsonPath('data.0.items.0.image_url', fn (string $url) => str_ends_with($url, '/storage/products/piment-frais-01.webp'));
     }
 }

@@ -7,6 +7,7 @@ use App\Models\DriverProfile;
 use App\Services\DeliveryPricingService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Support\Facades\Storage;
 
 class OrderResource extends JsonResource
 {
@@ -19,6 +20,7 @@ class OrderResource extends JsonResource
             'quantity' => $item->quantity,
             'unit_price' => $item->unit_price_snapshot,
             'subtotal' => $item->subtotal,
+            'image_url' => $this->mediaUrl($item->product?->image_main),
             'currency' => 'XOF',
         ])->values());
 
@@ -79,6 +81,24 @@ class OrderResource extends JsonResource
             'created_at' => $this->created_at?->toIso8601String(),
             'updated_at' => $this->updated_at?->toIso8601String(),
         ];
+    }
+
+    /**
+     * Normalise un chemin de média en URL publique (même convention que
+     * VendorResource) : les chemins relatifs sont résolus sur le disque
+     * public, les URL absolues sont renvoyées telles quelles.
+     */
+    private function mediaUrl(?string $path): ?string
+    {
+        if ($path === null || $path === '') {
+            return null;
+        }
+
+        if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
+            return $path;
+        }
+
+        return Storage::disk('public')->url($path);
     }
 
     /**
