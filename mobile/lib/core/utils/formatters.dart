@@ -1,11 +1,10 @@
 /// Utilitaires de formatage (montants XOF, dates, numéros).
 library;
 
-/// Les montants sont stockés en **centimes** côté API (J31).
-/// Exemple : 1500 centimes = 15 FCFA.
-String formatAmount(int cents, {bool showSymbol = true}) {
-  final units = cents / 100;
-  final formatted = _formatXof(units);
+/// Montants XOF : entiers sans décimale (précision 0 côté serveur).
+/// Exemple : 1500 = 1 500 FCFA.
+String formatAmount(int amount, {bool showSymbol = true}) {
+  final formatted = _formatXof(amount.toDouble());
   return showSymbol ? '$formatted FCFA' : formatted;
 }
 
