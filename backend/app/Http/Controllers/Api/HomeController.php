@@ -7,9 +7,11 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\ProductResource;
 use App\Models\Category;
 use App\Models\Product;
+use App\Models\Review;
 use App\Models\Vendor;
 use App\Support\Api;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
 /**
@@ -47,16 +49,53 @@ class HomeController extends Controller
             ->whereNull('closed_at')
             ->orderByDesc('approved_at')
             ->limit(6)
-            ->get()
-            ->map(fn (Vendor $vendor) => [
-                'id' => $vendor->id,
-                'business_name' => $vendor->business_name,
-                'description' => $vendor->description,
-                'logo_url' => $this->mediaUrl($vendor->logo_url),
-                'cover_url' => $this->mediaUrl($vendor->cover_url),
-                'city' => $vendor->city,
-                'is_open' => $vendor->isOpenNow(),
+            ->get();
+
+        $vendorIds = $vendors->pluck('id');
+
+        // Note moyenne et nombre d'avis calculés depuis les avis des commandes.
+        $ratings = Review::query()
+            ->join('orders', 'orders.id', '=', 'reviews.order_id')
+            ->whereIn('orders.vendor_id', $vendorIds)
+            ->groupBy('orders.vendor_id')
+            ->select([
+                'orders.vendor_id as vendor_id',
+                DB::raw('AVG(reviews.rating) as average_rating'),
+                DB::raw('COUNT(reviews.id) as reviews_count'),
             ])
+            ->get()
+            ->keyBy('vendor_id');
+
+        // Catégorie du dernier produit publié : sous-titre « Plats locaux • Cotonou ».
+        $categoryNames = Category::query()->pluck('name', 'id');
+        $latestCategories = Product::query()
+            ->orderable()
+            ->whereIn('vendor_id', $vendorIds)
+            ->latest('products.created_at')
+            ->get(['vendor_id', 'category_id'])
+            ->unique('vendor_id')
+            ->mapWithKeys(fn (Product $product) => [
+                $product->vendor_id => $categoryNames->get($product->category_id),
+            ]);
+
+        $vendors = $vendors
+            ->map(function (Vendor $vendor) use ($ratings, $latestCategories) {
+                $stat = $ratings->get($vendor->id);
+
+                return [
+                    'id' => $vendor->id,
+                    'business_name' => $vendor->business_name,
+                    'description' => $vendor->description,
+                    'logo_url' => $this->mediaUrl($vendor->logo_url),
+                    'cover_url' => $this->mediaUrl($vendor->cover_url),
+                    'city' => $vendor->city,
+                    'is_open' => $vendor->isOpenNow(),
+                    'category' => $latestCategories->get($vendor->id),
+                    'rating' => $stat !== null ? round((float) $stat->average_rating, 1) : null,
+                    'reviews_count' => $stat !== null ? (int) $stat->reviews_count : 0,
+                    'prep_minutes' => (int) ($vendor->settings?->max_preparation_minutes ?? 30),
+                ];
+            })
             ->values();
 
         return Api::ok([

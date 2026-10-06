@@ -96,15 +96,25 @@ class ErrorState extends StatelessWidget {
 }
 
 /// Chargement en squelette animé (J24 §2).
+///
+/// `shrinkWrap` permet de l'utiliser à l'intérieur d'un autre scrollable
+/// (viewport imbriqué sans hauteur bornée → erreur « unbounded height »).
 class ListSkeleton extends StatelessWidget {
-  const ListSkeleton({super.key, this.itemHeight = 88, this.itemCount = 6});
+  const ListSkeleton({
+    super.key,
+    this.itemHeight = 88,
+    this.itemCount = 6,
+    this.shrinkWrap = false,
+  });
 
   final double itemHeight;
   final int itemCount;
+  final bool shrinkWrap;
 
   @override
   Widget build(BuildContext context) {
     return ListView.builder(
+      shrinkWrap: shrinkWrap,
       physics: const NeverScrollableScrollPhysics(),
       padding: const EdgeInsets.all(16),
       itemCount: itemCount,

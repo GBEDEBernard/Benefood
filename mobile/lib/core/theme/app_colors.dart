@@ -14,17 +14,17 @@ import 'package:flutter/material.dart';
 class AppColors {
   const AppColors._();
 
-  // --- Marque : orange chaleureux (#F26A2C) ---
-  static const Color orange = Color(0xFFF26A2C);
+  // --- Marque : orange vif (#FF6600) ---
+  static const Color orange = Color(0xFFFF6600);
   static const Color orangeLight = Color(0xFFFFE9DE);
-  static const Color orangeDark = Color(0xFFC24610);
+  static const Color orangeDark = Color(0xFFCC5200);
 
-  // --- Vert profond : local, frais, fiable (#167A52) ---
-  static const Color green = Color(0xFF167A52);
+  // --- Vert profond : local, frais, fiable (#1A5B2E) ---
+  static const Color green = Color(0xFF1A5B2E);
   static const Color greenLight = Color(0xFFE3F1EA);
 
-  // --- Fond ivoire (#FFF8EE) ---
-  static const Color ivory = Color(0xFFFFF8EE);
+  // --- Fond beige clair (#F9F6F0) ---
+  static const Color ivory = Color(0xFFF9F6F0);
 
   // --- Doré : promotions (#F4B83F) ---
   static const Color gold = Color(0xFFF4B83F);

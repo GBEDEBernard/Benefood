@@ -2,9 +2,13 @@
 
 namespace Tests\Feature;
 
+use App\Enums\OrderStatus;
 use App\Enums\VendorStatus;
 use App\Models\Category;
+use App\Models\Order;
 use App\Models\Product;
+use App\Models\Review;
+use App\Models\User;
 use App\Models\Vendor;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -53,6 +57,50 @@ class HomeAndShopApiTest extends TestCase
             ->assertOk()
             ->assertJsonCount(0, 'data.featured_products')
             ->assertJsonCount(0, 'data.vendors');
+    }
+
+    public function test_home_vendors_expose_rating_category_and_prep_time(): void
+    {
+        $vendor = Vendor::factory()->create(['status' => VendorStatus::Active->value]);
+        $category = Category::factory()->create(['name' => 'Plats locaux']);
+        Product::factory()->create([
+            'vendor_id' => $vendor->id,
+            'category_id' => $category->id,
+            'stock_qty' => 5,
+        ]);
+
+        $client = User::factory()->create();
+        foreach ([5, 4] as $index => $rating) {
+            $order = Order::create([
+                'reference' => 'REF-HOME-'.$index,
+                'user_id' => $client->id,
+                'vendor_id' => $vendor->id,
+                'status' => OrderStatus::Delivered->value,
+            ]);
+            Review::create([
+                'order_id' => $order->id,
+                'user_id' => $client->id,
+                'rating' => $rating,
+            ]);
+        }
+
+        $this->getJson('/api/v1/home')
+            ->assertOk()
+            ->assertJsonPath('data.vendors.0.category', 'Plats locaux')
+            ->assertJsonPath('data.vendors.0.rating', 4.5)
+            ->assertJsonPath('data.vendors.0.reviews_count', 2)
+            ->assertJsonPath('data.vendors.0.prep_minutes', 30);
+    }
+
+    public function test_home_vendors_without_reviews_expose_neutral_rating(): void
+    {
+        Vendor::factory()->create(['status' => VendorStatus::Active->value]);
+
+        $this->getJson('/api/v1/home')
+            ->assertOk()
+            ->assertJsonPath('data.vendors.0.rating', null)
+            ->assertJsonPath('data.vendors.0.reviews_count', 0)
+            ->assertJsonPath('data.vendors.0.prep_minutes', 30);
     }
 
     public function test_vendor_shop_returns_products_and_hours(): void

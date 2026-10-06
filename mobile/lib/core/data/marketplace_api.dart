@@ -499,6 +499,10 @@ class HomeVendor {
     this.coverUrl,
     this.city,
     this.isOpen,
+    this.category,
+    this.rating,
+    this.reviewsCount = 0,
+    this.prepMinutes,
   });
 
   final String id;
@@ -509,6 +513,24 @@ class HomeVendor {
   final String? city;
   final bool? isOpen;
 
+  /// Catégorie du dernier produit publié (sous-titre « Plats locaux • Cotonou »).
+  final String? category;
+
+  /// Note moyenne calculée depuis les avis des commandes (null si aucun avis).
+  final double? rating;
+  final int reviewsCount;
+
+  /// Temps de préparation annoncé par la boutique (minutes).
+  final int? prepMinutes;
+
+  /// Fourchette d'estimation affichée, ex. « 30-45 min ».
+  String? get etaLabel {
+    if (prepMinutes == null) {
+      return null;
+    }
+    return '$prepMinutes-${prepMinutes! + 15} min';
+  }
+
   factory HomeVendor.fromJson(Map<String, dynamic> json) => HomeVendor(
         id: _s(json['id']),
         businessName: _s(json['business_name']),
@@ -517,6 +539,10 @@ class HomeVendor {
         coverUrl: json['cover_url'] is String ? json['cover_url'] as String : null,
         city: json['city'] is String ? json['city'] as String : null,
         isOpen: json['is_open'] is bool ? json['is_open'] as bool : null,
+        category: json['category'] is String ? json['category'] as String : null,
+        rating: json['rating'] is num ? (json['rating'] as num).toDouble() : null,
+        reviewsCount: json['reviews_count'] is int ? json['reviews_count'] as int : 0,
+        prepMinutes: json['prep_minutes'] is int ? json['prep_minutes'] as int : null,
       );
 }
 
@@ -528,9 +554,13 @@ class HomeData {
   final List<HomeVendor> vendors;
 
   factory HomeData.fromJson(Map<String, dynamic> json) {
-    final rawCategories = json['categories'];
-    final rawProducts = json['featured_products'];
-    final rawVendors = json['vendors'];
+    // L'API enveloppe le payload dans `{"data": {...}}` : on déballe si présent.
+    final root = json['data'] is Map<String, dynamic>
+        ? json['data'] as Map<String, dynamic>
+        : json;
+    final rawCategories = root['categories'];
+    final rawProducts = root['featured_products'];
+    final rawVendors = root['vendors'];
 
     return HomeData(
       categories: rawCategories is List ? rawCategories.whereType<Map<String, dynamic>>().map(Category.fromJson).toList() : [],
