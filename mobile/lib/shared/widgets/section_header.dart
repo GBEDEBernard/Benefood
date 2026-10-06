@@ -23,7 +23,7 @@ class SectionHeader extends StatelessWidget {
             width: 4,
             height: 18,
             decoration: BoxDecoration(
-              color: AppColors.green,
+              color: AppColors.orange,
               borderRadius: BorderRadius.circular(4),
             ),
           ),
@@ -40,7 +40,7 @@ class SectionHeader extends StatelessWidget {
               style: TextButton.styleFrom(
                 padding: const EdgeInsets.symmetric(horizontal: 8),
                 minimumSize: const Size(0, 32),
-                foregroundColor: AppColors.green,
+                foregroundColor: AppColors.orange,
               ),
               child: Text(actionLabel!, style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600)),
             ),

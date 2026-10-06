@@ -25,7 +25,7 @@ class AuthHeader extends StatelessWidget {
               width: 76,
               height: 76,
               errorBuilder: (_, _, _) =>
-                  const Icon(Icons.storefront, size: 64, color: AppColors.green),
+                  const Icon(Icons.storefront, size: 64, color: AppColors.orange),
             ),
           ),
         ),

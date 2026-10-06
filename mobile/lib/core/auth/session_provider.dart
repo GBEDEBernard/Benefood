@@ -38,48 +38,63 @@ class SessionProvider extends ChangeNotifier {
   /// La restauration est bornée dans le temps : le splash ne doit jamais
   /// rester bloqué si le secure storage ou le réseau ne répondent pas.
   Future<void> restoreSession() async {
+    debugPrint('restoreSession: START');
     _restoring = true;
     _initialized = false;
+    debugPrint('restoreSession: _restoring=true, calling notifyListeners');
     notifyListeners();
 
     try {
+      debugPrint('restoreSession: calling _restoreSession with 12s timeout');
       await _restoreSession().timeout(const Duration(seconds: 12));
+      debugPrint('restoreSession: _restoreSession completed');
     } catch (e) {
       debugPrint('restoreSession: restauration interrompue ($e)');
     } finally {
       _initialized = true;
       _restoring = false;
+      debugPrint('restoreSession: _restoring=false, calling notifyListeners in finally');
       notifyListeners();
+      debugPrint('restoreSession: END (finally completed)');
     }
   }
 
   Future<void> _restoreSession() async {
+    debugPrint('_restoreSession: START');
     Map<String, dynamic>? session;
     try {
+      debugPrint('_restoreSession: reading session from tokenStore (5s timeout)');
       session = await _tokenStore.readSession().timeout(const Duration(seconds: 5));
+      debugPrint('_restoreSession: readSession completed, result is ${session == null ? 'null' : 'non-null'}');
     } catch (e) {
       debugPrint('restoreSession: session illisible ($e)');
       return;
     }
 
     if (session == null) {
+      debugPrint('_restoreSession: session is null, returning early (no cached session)');
       return;
     }
 
+    debugPrint('_restoreSession: session found, checking _me');
     _activeRole = session[_activeRoleKey] is String ? session[_activeRoleKey] as String : null;
 
     try {
+      debugPrint('_restoreSession: calling GET /me');
       final response = await _api.get('/me');
+      debugPrint('_restoreSession: GET /me completed');
       _user = User.fromJson(_dataOf(response));
       if (_user != null && (_activeRole == null || !_user!.contexts.contains(_activeRole))) {
         _activeRole = _defaultRoleFor(_user!);
       }
     } on ApiException catch (e) {
       if (e.isUnauthorized) {
+        debugPrint('_restoreSession: 401 on /me, clearing token');
         await _tokenStore.clear();
         _activeRole = null;
         return;
       }
+      debugPrint('_restoreSession: ApiException on /me, using cached user');
       _user = _cachedUserFrom(session);
     } catch (e) {
       // Réseau : on garde la session locale pour l'expérience offline.

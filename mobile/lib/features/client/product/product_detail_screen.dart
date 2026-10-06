@@ -128,7 +128,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                                 decoration: BoxDecoration(
-                                  color: AppColors.orangeLight,
+                                  color: AppColors.goldLight,
                                   borderRadius: BorderRadius.circular(AppDimens.radiusPill),
                                 ),
                                 child: Text(
@@ -136,7 +136,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                                   style: const TextStyle(
                                       fontSize: 13,
                                       fontWeight: FontWeight.w700,
-                                      color: Color(0xFF7A3D00)),
+                                      color: AppColors.goldDark),
                                 ),
                               ),
                             ],
@@ -147,7 +147,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                             style: const TextStyle(
                               fontSize: 24,
                               fontWeight: FontWeight.w800,
-                              color: AppColors.green,
+                              color: AppColors.orange,
                             ),
                           ),
                           if (product.stockQty != null) ...[

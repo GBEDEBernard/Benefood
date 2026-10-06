@@ -6,12 +6,14 @@ Plateforme de marketplace transactionnelle : commande, paiement mobile money, li
 ## Architecture
 
 ```
-Bénéfood/
-├── backend/          → API Laravel (lumen de toute la logique métier, /api/v1)
+Béninfood/
+├── backend/          → API Laravel (/api/v1) + back-office web admin (Blade + template Mentor)
 ├── mobile/           → Application Flutter unique multi-rôles
-├── back-office/      → Back-office web de la porteuse
-└── docs/             → Documentation (cahier des charges, plan, tâches)
+└── documentation/    → Livrables des phases (cadrage métier, UX, conception technique)
 ```
+
+Le back-office de la porteuse est intégré au backend Laravel : mêmes services métier,
+mêmes permissions, aucun accès direct à la base de données. Accessible sur `/admin`.
 
 ## Démarrage rapide
 
@@ -51,7 +53,18 @@ flutter run
 | Paiement | FedaPay ou Kkiapay via abstraction `PaymentGateway` |
 | Commission | Taux configurable par la porteuse, historisé et figé par commande |
 | Livraison | Livreur indépendant ou Béninfood, zones et tarifs configurables |
-| Administration | Back-office web ; aucun accès direct à la base de données |
+| Administration | Back-office web intégré au backend (Blade + template Mentor) sur `/admin` ; aucun accès direct à la base de données |
+
+## Avancement
+
+| Phase | Périmètre | Statut |
+| --- | --- | --- |
+| 5-15 | Socle Laravel, auth multi-rôles, marketplace, paiements, finance, livraison, notifications | ✅ Terminé |
+| 16 | Back-office porteuse (J133-J143) | ✅ Terminé |
+| 17 | Application Flutter multi-rôles (J144-J172) | 🔄 En cours |
+| 18 | Géolocalisation et adresses (J173-J179) | ✅ Terminé |
+| 19 | Qualité, tests et recette (J180-J189) | 🔄 Partiel (J180) |
+| 20-21 | Déploiement, formation, Go-Live | ⏳ À venir |
 
 ## Conventions Git
 

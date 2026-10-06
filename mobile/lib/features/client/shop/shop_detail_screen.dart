@@ -228,14 +228,14 @@ class _HoursList extends StatelessWidget {
                     _dayName(h.dayOfWeek),
                     style: TextStyle(
                       fontWeight: isToday ? FontWeight.w700 : FontWeight.w500,
-                      color: isToday ? AppColors.greenDark : AppColors.text,
+                      color: isToday ? AppColors.green : AppColors.text,
                     ),
                   ),
                   const Spacer(),
                   Text(
                     h.isClosed ? 'Fermé' : '${h.opensAt ?? ''} – ${h.closesAt ?? ''}',
                     style: TextStyle(
-                      color: h.isClosed ? AppColors.textSecondary : (isToday ? AppColors.greenDark : AppColors.text),
+                      color: h.isClosed ? AppColors.textSecondary : (isToday ? AppColors.green : AppColors.text),
                       fontWeight: isToday ? FontWeight.w700 : FontWeight.w500,
                     ),
                   ),

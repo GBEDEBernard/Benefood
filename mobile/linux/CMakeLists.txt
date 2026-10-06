@@ -42,6 +42,10 @@ endif()
 function(APPLY_STANDARD_SETTINGS TARGET)
   target_compile_features(${TARGET} PUBLIC cxx_std_14)
   target_compile_options(${TARGET} PRIVATE -Wall -Werror)
+  # GCC 15+ : json.hpp embarqué par flutter_secure_storage_linux utilise les
+  # opérateurs littéraux dépréciés (operator"" _json) ; on garde -Werror pour
+  # le reste mais on tolère uniquement ce diagnostic (projet + plugins).
+  target_compile_options(${TARGET} PRIVATE -Wno-error=deprecated-literal-operator)
   target_compile_options(${TARGET} PRIVATE "$<$<NOT:$<CONFIG:Debug>>:-O3>")
   target_compile_definitions(${TARGET} PRIVATE "$<$<NOT:$<CONFIG:Debug>>:NDEBUG>")
 endfunction()
@@ -79,9 +83,12 @@ include(flutter/generated_plugins.cmake)
 # By default, "installing" just makes a relocatable bundle in the build
 # directory.
 set(BUILD_BUNDLE_DIR "${PROJECT_BINARY_DIR}/bundle")
-if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
-  set(CMAKE_INSTALL_PREFIX "${BUILD_BUNDLE_DIR}" CACHE PATH "..." FORCE)
-endif()
+# CMake ≥ 4 : CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT n'est vrai que
+# pendant l'évaluation du premier project(), la condition ci-dessous ne
+# serait donc jamais satisfaite et l'install irait dans /usr/local.
+# On force donc le préfixe vers le bundle du build (comportement attendu
+# par flutter run / flutter build).
+set(CMAKE_INSTALL_PREFIX "${BUILD_BUNDLE_DIR}" CACHE PATH "..." FORCE)
 
 # Start with a clean build bundle directory every time.
 install(CODE "

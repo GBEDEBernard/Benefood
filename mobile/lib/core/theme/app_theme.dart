@@ -3,31 +3,36 @@ import 'package:flutter/material.dart';
 import 'app_colors.dart';
 import 'app_dimens.dart';
 
-/// Thème Material 3 Béninfood — guide de style de la marque.
+/// Thème Material 3 Béninfood — rendu premium : fond ivoire chaud,
+/// actions orange, validations vertes, typographie anthracite.
 class AppTheme {
   const AppTheme._();
 
   static ThemeData light() {
     const scheme = ColorScheme.light(
-      primary: AppColors.green,
+      primary: AppColors.orange,
       onPrimary: Colors.white,
-      primaryContainer: AppColors.greenLight,
-      onPrimaryContainer: AppColors.greenDark,
-      secondary: AppColors.orange,
+      primaryContainer: AppColors.orangeLight,
+      onPrimaryContainer: AppColors.orangeDark,
+      secondary: AppColors.green,
       onSecondary: Colors.white,
-      secondaryContainer: AppColors.orangeLight,
-      onSecondaryContainer: Color(0xFF7A3D00),
+      secondaryContainer: AppColors.greenLight,
+      onSecondaryContainer: AppColors.green,
+      tertiary: AppColors.gold,
+      onTertiary: AppColors.text,
+      tertiaryContainer: AppColors.goldLight,
+      onTertiaryContainer: AppColors.goldDark,
       error: AppColors.red,
       onError: Colors.white,
       errorContainer: AppColors.redLight,
-      onErrorContainer: Color(0xFF8E0000),
+      onErrorContainer: Color(0xFF8A1B13),
       surface: AppColors.surface,
       onSurface: AppColors.text,
-      surfaceContainerHighest: AppColors.background,
+      surfaceContainerHighest: AppColors.surfaceVariant,
       onSurfaceVariant: AppColors.textSecondary,
-      outline: Color(0xFFC7CBD1),
+      outline: AppColors.borderStrong,
       outlineVariant: AppColors.border,
-      shadow: Color(0x14000000),
+      shadow: Color(0x1418231F),
     );
 
     final base = ThemeData(
@@ -63,33 +68,41 @@ class AppTheme {
         titleTextStyle: TextStyle(
           color: AppColors.text,
           fontSize: 20,
-          fontWeight: FontWeight.w700,
-          letterSpacing: -0.2,
+          fontWeight: FontWeight.w800,
+          letterSpacing: -0.3,
         ),
       ),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
-          backgroundColor: AppColors.green,
+          backgroundColor: AppColors.orange,
           foregroundColor: Colors.white,
-          disabledBackgroundColor: AppColors.green.withValues(alpha: 0.4),
+          disabledBackgroundColor: AppColors.orange.withValues(alpha: 0.35),
+          elevation: 0,
+          shadowColor: Colors.transparent,
           minimumSize: const Size(0, AppDimens.buttonHeight),
           padding: const EdgeInsets.symmetric(horizontal: AppDimens.xl),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
           textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+        ).copyWith(
+          overlayColor: WidgetStateProperty.resolveWith(
+            (states) => states.contains(WidgetState.pressed)
+                ? AppColors.orangeDark.withValues(alpha: 0.25)
+                : Colors.white.withValues(alpha: 0.08),
+          ),
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          foregroundColor: AppColors.green,
+          foregroundColor: AppColors.orange,
           minimumSize: const Size(0, AppDimens.buttonHeight),
           padding: const EdgeInsets.symmetric(horizontal: AppDimens.xl),
-          side: BorderSide(color: AppColors.green.withValues(alpha: 0.6), width: 1.5),
+          side: const BorderSide(color: AppColors.orange, width: 1.5),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
           textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
         ),
       ),
       textButtonTheme: TextButtonThemeData(
-        style: TextButton.styleFrom(foregroundColor: AppColors.green),
+        style: TextButton.styleFrom(foregroundColor: AppColors.orange),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
@@ -107,7 +120,7 @@ class AppTheme {
         filled: true,
         fillColor: AppColors.surface,
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-        hintStyle: const TextStyle(color: AppColors.textSecondary, fontSize: 15),
+        hintStyle: const TextStyle(color: AppColors.textFaint, fontSize: 15),
         labelStyle: const TextStyle(color: AppColors.textSecondary, fontSize: 15),
         prefixIconColor: AppColors.textSecondary,
         suffixIconColor: AppColors.textSecondary,
@@ -121,7 +134,7 @@ class AppTheme {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppDimens.radiusMd),
-          borderSide: const BorderSide(color: AppColors.green, width: 1.8),
+          borderSide: const BorderSide(color: AppColors.orange, width: 1.8),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppDimens.radiusMd),
@@ -151,20 +164,20 @@ class AppTheme {
         backgroundColor: AppColors.surface,
         surfaceTintColor: Colors.transparent,
         elevation: 8,
-        shadowColor: const Color(0x1A000000),
+        shadowColor: const Color(0x1418231F),
         height: 68,
-        indicatorColor: AppColors.greenLight,
+        indicatorColor: AppColors.orangeLight,
         labelTextStyle: WidgetStateProperty.resolveWith(
           (states) => TextStyle(
             fontSize: 12,
             fontWeight: states.contains(WidgetState.selected) ? FontWeight.w700 : FontWeight.w500,
-            color: states.contains(WidgetState.selected) ? AppColors.greenDark : AppColors.textSecondary,
+            color: states.contains(WidgetState.selected) ? AppColors.orangeDark : AppColors.textSecondary,
           ),
         ),
         iconTheme: WidgetStateProperty.resolveWith(
           (states) => IconThemeData(
             size: 24,
-            color: states.contains(WidgetState.selected) ? AppColors.green : AppColors.textSecondary,
+            color: states.contains(WidgetState.selected) ? AppColors.orangeDark : AppColors.textSecondary,
           ),
         ),
       ),
@@ -173,7 +186,8 @@ class AppTheme {
         side: const BorderSide(color: AppColors.border),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppDimens.radiusPill)),
         labelStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textSecondary),
-        selectedColor: AppColors.greenLight,
+        selectedColor: AppColors.orangeLight,
+        checkmarkColor: AppColors.orangeDark,
         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
       ),
       dialogTheme: DialogThemeData(
@@ -193,29 +207,58 @@ class AppTheme {
       snackBarTheme: SnackBarThemeData(
         behavior: SnackBarBehavior.floating,
         backgroundColor: AppColors.text,
-        contentTextStyle: const TextStyle(fontSize: 14, color: Colors.white),
+        contentTextStyle: const TextStyle(fontSize: 14, color: AppColors.ivory),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
       progressIndicatorTheme: const ProgressIndicatorThemeData(
-        color: AppColors.green,
+        color: AppColors.orange,
+        linearTrackColor: AppColors.orangeLight,
       ),
       floatingActionButtonTheme: base.floatingActionButtonTheme.copyWith(
-        backgroundColor: AppColors.green,
+        backgroundColor: AppColors.orange,
         foregroundColor: Colors.white,
       ),
       switchTheme: base.switchTheme.copyWith(
-        thumbColor: WidgetStateProperty.resolveWith((states) => states.contains(WidgetState.selected) ? AppColors.green : null),
-        trackColor: WidgetStateProperty.resolveWith((states) => states.contains(WidgetState.selected) ? AppColors.green.withValues(alpha: 0.35) : null),
+        thumbColor: WidgetStateProperty.resolveWith((states) => states.contains(WidgetState.selected) ? AppColors.orange : null),
+        trackColor: WidgetStateProperty.resolveWith((states) => states.contains(WidgetState.selected) ? AppColors.orange.withValues(alpha: 0.35) : null),
+      ),
+      checkboxTheme: base.checkboxTheme.copyWith(
+        fillColor: WidgetStateProperty.resolveWith(
+          (states) => states.contains(WidgetState.selected) ? AppColors.orange : Colors.transparent,
+        ),
+        side: const BorderSide(color: AppColors.borderStrong, width: 1.5),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(5)),
+      ),
+      radioTheme: base.radioTheme.copyWith(
+        fillColor: WidgetStateProperty.resolveWith(
+          (states) => states.contains(WidgetState.selected) ? AppColors.orange : AppColors.textFaint,
+        ),
+      ),
+      sliderTheme: const SliderThemeData(
+        activeTrackColor: AppColors.orange,
+        thumbColor: AppColors.orange,
+        inactiveTrackColor: AppColors.orangeLight,
+      ),
+      badgeTheme: const BadgeThemeData(
+        backgroundColor: AppColors.orange,
+        textColor: Colors.white,
+      ),
+      tooltipTheme: TooltipThemeData(
+        decoration: BoxDecoration(
+          color: AppColors.text,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        textStyle: const TextStyle(fontSize: 12, color: AppColors.ivory),
       ),
     );
   }
 
-  /// Ombre douce standard pour les cartes "levées".
+  /// Ombre douce et chaude pour les cartes « levées ».
   static List<BoxShadow> softShadow() => const [
         BoxShadow(
-          color: Color(0x10000000),
-          blurRadius: 12,
-          offset: Offset(0, 4),
+          color: Color(0x1218231F),
+          blurRadius: 14,
+          offset: Offset(0, 5),
         ),
       ];
 }

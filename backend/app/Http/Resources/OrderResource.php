@@ -108,6 +108,7 @@ class OrderResource extends JsonResource
             'driver' => $driver === null ? null : [
                 'id' => $driver->id,
                 'name' => $driver->user?->name,
+                'phone' => $driver->user?->phone,
                 'vehicle' => $driver->vehicle,
                 'rating' => $driver->rating,
             ],

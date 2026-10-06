@@ -5,11 +5,17 @@ import 'package:flutter/material.dart';
 import '../../../core/data/marketplace_api.dart';
 import '../../../core/errors/api_exception.dart';
 import '../../../core/services/location_service.dart';
-import '../../../core/utils/formatters.dart';
+import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_dimens.dart';
+import '../../../core/utils/geo.dart';
 import '../../../shared/models/delivery.dart';
+import '../../../shared/models/geo_point.dart';
 import '../../../shared/widgets/app_button.dart';
+import '../../../shared/widgets/app_map.dart';
 import '../../../shared/widgets/amount_widgets.dart';
+import '../../../shared/widgets/call_button.dart';
 import '../../../shared/widgets/feedback_widgets.dart';
+import '../../../shared/widgets/package_item_tile.dart';
 import '../../../shared/widgets/status_badge.dart';
 import '../../../shared/widgets/state_widgets.dart';
 
@@ -30,8 +36,9 @@ class MissionDetailScreen extends StatefulWidget {
   State<MissionDetailScreen> createState() => _MissionDetailScreenState();
 }
 
-class _MissionDetailScreenState extends State<MissionDetailScreen> {
-  static const _locationInterval = Duration(seconds: 30);
+class _MissionDetailScreenState extends State<MissionDetailScreen>
+    with SingleTickerProviderStateMixin {
+  static const _locationInterval = Duration(seconds: 15);
 
   Delivery? _delivery;
   bool _loading = true;
@@ -41,6 +48,11 @@ class _MissionDetailScreenState extends State<MissionDetailScreen> {
   bool _sendingLocation = false;
   LocationFailure? _reportedFailure;
 
+  /// Position GPS courante du livreur (carte + guidage).
+  GeoPoint? _position;
+
+  StreamSubscription<GeoResult>? _positionSubscription;
+
   static const _activeStatuses = {'assigned', 'picked_up', 'in_delivery'};
 
   @override
@@ -48,15 +60,35 @@ class _MissionDetailScreenState extends State<MissionDetailScreen> {
     super.initState();
     _delivery = widget.initialDelivery;
     _load();
+    _startPositionStream();
   }
 
   @override
   void dispose() {
     _locationTimer?.cancel();
+    _positionSubscription?.cancel();
     super.dispose();
   }
 
-  bool get _shouldReportLocation => _delivery != null && _activeStatuses.contains(_delivery!.status);
+  /// Suit la position en continu : la carte se recentre automatiquement et le
+  /// bandeau de guidage affiche distance / cap / temps estimé.
+  void _startPositionStream() {
+    _positionSubscription?.cancel();
+    _positionSubscription = LocationService.watch().listen(
+      (geo) {
+        if (!mounted) {
+          return;
+        }
+        setState(() => _position = GeoPoint(geo.latitude, geo.longitude));
+      },
+      onError: (_) {
+        // Permission refusée / GPS coupé : la carte reste sur la destination.
+      },
+    );
+  }
+
+  bool get _shouldReportLocation =>
+      _delivery != null && _activeStatuses.contains(_delivery!.status);
 
   void _syncLocationReporting() {
     _locationTimer?.cancel();
@@ -68,16 +100,62 @@ class _MissionDetailScreenState extends State<MissionDetailScreen> {
     _locationTimer = Timer.periodic(_locationInterval, (_) => _sendLocation());
   }
 
+  /// Phase « collecte » : la cible du guidage est le vendeur.
+  bool get _isPickupPhase {
+    final status = _delivery?.status;
+    return status == 'assigned' || status == 'available' || status == 'proposed';
+  }
+
+  /// Destination affichée sur la carte et dans le bandeau de guidage.
+  GeoPoint? get _target => _isPickupPhase ? _delivery?.pickupPoint : _delivery?.dropoffPoint;
+
+  String get _targetTitle => _isPickupPhase
+      ? 'Rejoindre le point de collecte'
+      : 'Direction l\'adresse de livraison';
+
+  String? get _targetAddress =>
+      _isPickupPhase ? _delivery?.vendor?.address : _delivery?.order?.address;
+
+  double? get _distanceKm {
+    final target = _target;
+    final position = _position;
+    if (target == null || position == null) {
+      return null;
+    }
+    return distanceKm(position.latLng, target.latLng);
+  }
+
+  double? get _bearing {
+    final target = _target;
+    final position = _position;
+    if (target == null || position == null) {
+      return null;
+    }
+    return bearingDegrees(position.latLng, target.latLng);
+  }
+
   Future<void> _sendLocation() async {
     if (_sendingLocation) {
       return;
     }
     _sendingLocation = true;
     try {
+      // Le flux de position alimente la carte : on le réutilise pour éviter une
+      // seconde acquisition GPS, et on retombe sur `locate()` si besoin.
+      final known = _position;
+      if (known != null) {
+        if (mounted && _shouldReportLocation) {
+          await widget.marketplace.updateDriverLocation(known.latitude, known.longitude);
+        }
+        return;
+      }
       final result = await LocationService.locate();
       if (result.isSuccess) {
         final geo = result.geo!;
         _reportedFailure = null;
+        if (mounted) {
+          setState(() => _position = GeoPoint(geo.latitude, geo.longitude));
+        }
         if (mounted && _shouldReportLocation) {
           await widget.marketplace.updateDriverLocation(geo.latitude, geo.longitude);
         }
@@ -95,8 +173,10 @@ class _MissionDetailScreenState extends State<MissionDetailScreen> {
   }
 
   static String _locationFailureMessage(LocationFailure? failure) => switch (failure) {
-        LocationFailure.serviceDisabled => 'Suivi interrompu : activez le GPS pour être localisé.',
-        LocationFailure.permissionDenied => 'Suivi interrompu : autorisez la localisation dans les réglages pour le client.',
+        LocationFailure.serviceDisabled =>
+          'Suivi interrompu : activez le GPS pour être localisé.',
+        LocationFailure.permissionDenied =>
+          'Suivi interrompu : autorisez la localisation dans les réglages pour le client.',
         _ => 'Position introuvable : votre position sera retransmise dès que possible.',
       };
 
@@ -153,7 +233,7 @@ class _MissionDetailScreenState extends State<MissionDetailScreen> {
 
   Future<void> _pickup() => _run(
         () => widget.marketplace.markPickedUp(widget.deliveryId),
-        'Commande récupérée.',
+        'Commande récupérée. Cap sur la livraison.',
       );
 
   Future<void> _start() => _run(
@@ -188,13 +268,17 @@ class _MissionDetailScreenState extends State<MissionDetailScreen> {
     return showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppDimens.radiusMd)),
         title: const Text('Preuve de livraison'),
         content: TextField(
           controller: controller,
           autofocus: true,
-          decoration: const InputDecoration(
+          decoration: InputDecoration(
             labelText: 'Code de confirmation',
             hintText: 'Optionnel',
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(AppDimens.radiusSm),
+            ),
           ),
         ),
         actions: [
@@ -203,6 +287,10 @@ class _MissionDetailScreenState extends State<MissionDetailScreen> {
             child: const Text('Plus tard'),
           ),
           FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.orange,
+              foregroundColor: Colors.white,
+            ),
             onPressed: () => Navigator.of(context).pop(controller.text.trim()),
             child: const Text('Confirmer'),
           ),
@@ -216,12 +304,18 @@ class _MissionDetailScreenState extends State<MissionDetailScreen> {
     return showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppDimens.radiusMd)),
         title: const Text('Signaler un incident'),
         content: TextField(
           controller: controller,
           autofocus: true,
           maxLines: 3,
-          decoration: const InputDecoration(labelText: 'Décrivez l\'incident *'),
+          decoration: InputDecoration(
+            labelText: "Décrivez l'incident *",
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(AppDimens.radiusSm),
+            ),
+          ),
         ),
         actions: [
           TextButton(
@@ -229,6 +323,10 @@ class _MissionDetailScreenState extends State<MissionDetailScreen> {
             child: const Text('Retour'),
           ),
           FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.gold,
+              foregroundColor: Colors.white,
+            ),
             onPressed: () {
               if (controller.text.trim().length >= 3) {
                 Navigator.of(context).pop(controller.text.trim());
@@ -244,7 +342,12 @@ class _MissionDetailScreenState extends State<MissionDetailScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Détail de la mission')),
+      appBar: AppBar(
+        title: const Text('Détail de la mission'),
+        centerTitle: true,
+        foregroundColor: Colors.white,
+        backgroundColor: AppColors.orange,
+      ),
       body: _buildBody(),
     );
   }
@@ -261,121 +364,111 @@ class _MissionDetailScreenState extends State<MissionDetailScreen> {
       return const EmptyState(icon: Icons.search_off, title: 'Mission introuvable');
     }
 
-    final theme = Theme.of(context);
     final palette = BadgePalette.delivery(delivery.status);
     final order = delivery.order;
     final vendor = delivery.vendor;
+    final status = delivery.status;
 
     return RefreshIndicator(
       onRefresh: _load,
       child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(AppDimens.pagePadding),
         children: [
+          // Order reference + status badge
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
                 child: Text(
                   order?.reference ?? 'Mission',
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 20,
+                    color: AppColors.text,
+                  ),
                 ),
               ),
               if (palette != null) StatusBadge(label: palette.$1, color: palette.$2),
             ],
           ),
-          const SizedBox(height: 16),
-          Card(
-            child: Column(
+          const SizedBox(height: AppDimens.lg),
+
+          // Guidage GPS : la cible suit l'avancement de la mission
+          // (collecte chez le vendeur -> adresse du client).
+          MapGuidanceBar(
+            title: _targetTitle,
+            distanceKm: _distanceKm,
+            bearing: _bearing,
+            etaMinutes: estimateMinutes(_distanceKm ?? 0),
+            address: _targetAddress,
+            waitingForPosition: _position == null,
+            accent: _isPickupPhase ? AppColors.gold : AppColors.orange,
+          ),
+          const SizedBox(height: AppDimens.sm),
+          AppMap(
+            origin: _position,
+            target: _target,
+            secondary: _isPickupPhase ? _delivery?.dropoffPoint : _delivery?.pickupPoint,
+            secondaryLabel: _isPickupPhase ? 'Livraison' : 'Collecte',
+            height: 250,
+            followOrigin: true,
+          ),
+          const SizedBox(height: AppDimens.md),
+
+          // Vendor + client info card (avec appels directs)
+          _MissionInfoCard(
+            vendor: vendor,
+            order: order,
+          ),
+          const SizedBox(height: AppDimens.md),
+
+          // Contenu du colis : photos + quantités à collecter/livrer
+          if (order?.items.isNotEmpty ?? false)
+            PackageContentCard(
               children: [
-                ListTile(
-                  leading: const Icon(Icons.storefront_outlined),
-                  title: const Text('Collecte'),
-                  subtitle: Text([
-                    vendor?.businessName ?? 'Vendeur',
-                    vendor?.address ?? '',
-                    vendor?.city ?? '',
-                  ].where((e) => e.isNotEmpty).join('\n')),
-                ),
-                if (vendor != null && (vendor.address != null || vendor.city != null))
-                  const Divider(height: 1),
-                ListTile(
-                  leading: const Icon(Icons.person_outline),
-                  title: Text(order?.client?.name ?? 'Client'),
-                  subtitle: order?.client?.phone != null ? Text(order!.client!.phone!) : null,
-                ),
-                const Divider(height: 1),
-                ListTile(
-                  leading: const Icon(Icons.location_on_outlined),
-                  title: const Text('Adresse de livraison'),
-                  subtitle: Text(order?.address ?? '—'),
-                ),
+                for (final item in order!.items)
+                  PackageItemTile(
+                    name: item.name,
+                    quantity: item.quantity,
+                    imageUrl: item.imageUrl,
+                    dense: true,
+                  ),
               ],
             ),
-          ),
-          const SizedBox(height: 12),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                children: [
-                  Row(
-                    children: [
-                      Text('Frais de livraison', style: theme.textTheme.bodyMedium),
-                      const Spacer(),
-                      AmountText(delivery.fee, style: const TextStyle(fontWeight: FontWeight.bold)),
-                    ],
-                  ),
-                  if (delivery.partnerAmount != null) ...[
-                    const SizedBox(height: 6),
-                    Row(
-                      children: [
-                        Text('Votre part', style: theme.textTheme.bodyMedium),
-                        const Spacer(),
-                        AmountText(delivery.partnerAmount, style: const TextStyle(fontWeight: FontWeight.bold)),
-                      ],
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 12),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('Chronologie', style: TextStyle(fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 12),
-                  ..._timelineRows(delivery),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 24),
-          if (delivery.status == 'assigned')
+          const SizedBox(height: AppDimens.md),
+
+          // Fee summary card
+          _FeeCard(delivery: delivery),
+          const SizedBox(height: AppDimens.md),
+
+          // Animated step timeline
+          _AnimatedTimeline(status: status),
+          const SizedBox(height: AppDimens.xl),
+
+          // Action buttons
+          if (status == 'assigned')
             AppButton(
-              label: 'J\'ai récupéré la commande',
+              label: "J'ai récupéré la commande",
               icon: Icons.inventory_2_outlined,
               onPressed: _actionLoading ? null : _pickup,
               loading: _actionLoading,
             ),
-          if (delivery.status == 'picked_up')
+          if (status == 'picked_up')
             AppButton(
               label: 'Démarrer la livraison',
               icon: Icons.directions_bike,
               onPressed: _actionLoading ? null : _start,
               loading: _actionLoading,
             ),
-          if (delivery.status == 'in_delivery')
+          if (status == 'in_delivery')
             AppButton(
               label: 'Livrer',
               icon: Icons.check_circle_outline,
               onPressed: _actionLoading ? null : _deliver,
               loading: _actionLoading,
             ),
-          const SizedBox(height: 10),
+          const SizedBox(height: AppDimens.sm),
           AppButton(
             label: 'Signaler un incident',
             variant: AppButtonVariant.outline,
@@ -386,42 +479,297 @@ class _MissionDetailScreenState extends State<MissionDetailScreen> {
       ),
     );
   }
+}
 
-  List<Widget> _timelineRows(Delivery delivery) {
-    final entries = <(String, String?)>[
-      ('Créée', delivery.createdAt),
-      ('Affectée', delivery.assignedAt),
-      ('Collectée', delivery.pickedUpAt),
-      ('Livrée', delivery.deliveredAt),
-    ];
+/// Carte d'information : point de collecte (vendeur) + livraison (client).
+class _MissionInfoCard extends StatelessWidget {
+  const _MissionInfoCard({required this.vendor, required this.order});
 
+  final DeliveryVendor? vendor;
+  final DeliveryOrder? order;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      elevation: 0,
+      color: AppColors.surface,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppDimens.radiusMd)),
+      child: Padding(
+        padding: const EdgeInsets.all(AppDimens.md),
+        child: Column(
+          children: [
+            // Collecte
+            ListTile(
+              leading: CircleAvatar(
+                backgroundColor: AppColors.orange.withValues(alpha: 0.1),
+                child: const Icon(Icons.storefront_outlined, color: AppColors.orange),
+              ),
+              title: const Text(
+                'Collecte',
+                style: TextStyle(fontWeight: FontWeight.w600, color: AppColors.text),
+              ),
+              subtitle: Text(
+                [
+                  vendor?.businessName ?? 'Vendeur',
+                  vendor?.address ?? '',
+                  vendor?.city ?? '',
+                ].where((e) => e.isNotEmpty).join('\n'),
+                style: const TextStyle(color: AppColors.textSecondary),
+              ),
+              trailing: (vendor?.phone?.trim().isNotEmpty ?? false)
+                  ? CallButton(
+                      label: 'Appeler',
+                      phone: vendor!.phone,
+                      compact: true,
+                    )
+                  : null,
+            ),
+            const Divider(height: 1, indent: 56),
+            // Client
+            ListTile(
+              leading: CircleAvatar(
+                backgroundColor: AppColors.gold.withValues(alpha: 0.1),
+                child: const Icon(Icons.person_outline, color: AppColors.gold),
+              ),
+              title: Text(
+                order?.client?.name ?? 'Client',
+                style: const TextStyle(fontWeight: FontWeight.w600, color: AppColors.text),
+              ),
+              subtitle: order?.client?.phone != null
+                  ? Text(
+                      order!.client!.phone!,
+                      style: const TextStyle(color: AppColors.textSecondary),
+                    )
+                  : null,
+              trailing: (order?.client?.phone?.trim().isNotEmpty ?? false)
+                  ? CallButton(
+                      label: 'Appeler le client',
+                      phone: order!.client!.phone,
+                      compact: true,
+                    )
+                  : null,
+            ),
+            const Divider(height: 1, indent: 56),
+            // Livraison
+            ListTile(
+              leading: CircleAvatar(
+                backgroundColor: AppColors.green.withValues(alpha: 0.1),
+                child: const Icon(Icons.location_on_outlined, color: AppColors.green),
+              ),
+              title: const Text(
+                'Adresse de livraison',
+                style: TextStyle(fontWeight: FontWeight.w600, color: AppColors.text),
+              ),
+              subtitle: Text(
+                order?.address ?? '—',
+                style: const TextStyle(color: AppColors.textSecondary),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Carte récapitulatif des frais.
+class _FeeCard extends StatelessWidget {
+  const _FeeCard({required this.delivery});
+
+  final Delivery delivery;
+
+  @override
+  Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return entries
-        .where((entry) => entry.$2 != null && entry.$2!.isNotEmpty)
-        .map(
-          (entry) => Padding(
-            padding: const EdgeInsets.only(bottom: 10),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
+
+    return Card(
+      elevation: 0,
+      color: AppColors.surface,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppDimens.radiusMd)),
+      child: Padding(
+        padding: const EdgeInsets.all(AppDimens.md),
+        child: Column(
+          children: [
+            Row(
               children: [
-                Icon(Icons.radio_button_checked, size: 16, color: theme.colorScheme.primary),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(entry.$1, style: const TextStyle(fontWeight: FontWeight.w600)),
-                      Text(
-                        formatDateTime(entry.$2, fallback: ''),
-                        style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-                      ),
-                    ],
-                  ),
+                Text('Frais de livraison', style: theme.textTheme.bodyMedium),
+                const Spacer(),
+                AmountText(
+                  delivery.fee,
+                  style: const TextStyle(fontWeight: FontWeight.w700, color: AppColors.orange),
                 ),
               ],
             ),
-          ),
-        )
-        .toList();
+            if (delivery.partnerAmount != null) ...[
+              const SizedBox(height: AppDimens.xs),
+              Row(
+                children: [
+                  Text('Votre part', style: theme.textTheme.bodyMedium),
+                  const Spacer(),
+                  AmountText(
+                    delivery.partnerAmount,
+                    style: const TextStyle(fontWeight: FontWeight.w700, color: AppColors.gold),
+                  ),
+                ],
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
   }
+}
+
+/// Chronologie animée des étapes de la mission.
+///
+/// Les étapes suivent l'ordre : Créée → Affectée → Collectée → Livrée.
+/// Chaque étape est animée : icône qui passe au bon couleur, pulse pour l'étape courante.
+class _AnimatedTimeline extends StatelessWidget {
+  const _AnimatedTimeline({required this.status});
+
+  final String status;
+
+  static const _steps = [
+    _TimelineStep('Créée', Icons.fiber_manual_record, AppColors.ivory),
+    _TimelineStep('Affectée', Icons.motorcycle, AppColors.orange),
+    _TimelineStep('Collectée', Icons.inventory_2, AppColors.gold),
+    _TimelineStep('Livrée', Icons.check_circle, AppColors.green),
+  ];
+
+  int get _currentStepIndex {
+    return switch (status) {
+      'assigned' => 1,
+      'picked_up' => 2,
+      'in_delivery' || 'delivered' => 3,
+      _ => 0,
+    };
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final completedIndex = _currentStepIndex;
+
+    return Card(
+      elevation: 0,
+      color: AppColors.surface,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppDimens.radiusMd)),
+      child: Padding(
+        padding: const EdgeInsets.all(AppDimens.md),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Chronologie',
+              style: TextStyle(
+                fontWeight: FontWeight.w700,
+                fontSize: 16,
+                color: AppColors.text,
+              ),
+            ),
+            const SizedBox(height: AppDimens.md),
+            ...List.generate(_steps.length, (index) {
+              final step = _steps[index];
+              final isCompleted = index <= completedIndex;
+              final isCurrent = index == completedIndex;
+
+              final color = isCompleted
+                  ? step.color
+                  : AppColors.textSecondary;
+              final backgroundColor = isCompleted
+                  ? step.color.withValues(alpha: 0.15)
+                  : AppColors.textSecondary.withValues(alpha: 0.1);
+
+              return TweenAnimationBuilder<double>(
+                tween: Tween(begin: 0, end: 1),
+                duration: const Duration(milliseconds: 600),
+                curve: Curves.easeOutBack,
+                builder: (context, value, child) {
+                  // `Curves.easeOutBack` dépasse 1.0 : on borne l'opacité
+                  // (l'assertion `0 <= opacity <= 1` planterait sinon).
+                  return Opacity(
+                    opacity: value.clamp(0.0, 1.0),
+                    child: Padding(
+                      padding: EdgeInsets.only(top: isCurrent ? 0 : 0, bottom: AppDimens.sm),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Indicator circle with animation
+                          Transform.scale(
+                            scale: isCurrent ? 1.1 : 1.0,
+                            child: Container(
+                              width: 36,
+                              height: 36,
+                              decoration: BoxDecoration(
+                                color: backgroundColor,
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: color,
+                                  width: isCompleted ? 2 : 1,
+                                ),
+                              ),
+                              child: Icon(
+                                step.icon,
+                                size: 18,
+                                color: color,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: AppDimens.sm),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  step.label,
+                                  style: TextStyle(
+                                    fontWeight: isCompleted
+                                        ? FontWeight.w700
+                                        : FontWeight.w500,
+                                    color: color,
+                                  ),
+                                ),
+                                if (isCurrent && status == 'assigned' ||
+                                    isCurrent && status == 'picked_up' ||
+                                    isCurrent && status == 'in_delivery')
+                                  Padding(
+                                    padding: const EdgeInsets.only(top: 4),
+                                    child: Text(
+                                      _statusMessage(status),
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        fontStyle: FontStyle.italic,
+                                        color: AppColors.textSecondary,
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              );
+            }),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _statusMessage(String status) => switch (status) {
+        'assigned' => "En attente de la collecte chez le vendeur.",
+        'picked_up' => "Direction l'adresse de livraison.",
+        'in_delivery' => "Livraison en cours, position partagée.",
+        _ => '',
+      };
+}
+
+class _TimelineStep {
+  const _TimelineStep(this.label, this.icon, this.color);
+
+  final String label;
+  final IconData icon;
+  final Color color;
 }

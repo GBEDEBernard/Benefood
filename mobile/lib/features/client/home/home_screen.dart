@@ -10,6 +10,7 @@ import '../../../core/theme/app_dimens.dart';
 import '../../../shared/widgets/app_network_image.dart';
 import '../../../shared/widgets/app_search_field.dart';
 import '../../../shared/widgets/feedback_widgets.dart';
+import '../../../shared/widgets/home_header.dart';
 import '../../../shared/widgets/product_cards.dart';
 import '../../../shared/widgets/section_header.dart';
 import '../../../shared/widgets/status_badge.dart';
@@ -35,6 +36,36 @@ class _HomeScreenState extends State<HomeScreen> {
     _future = widget.marketplace.home();
   }
 
+  /// En-tête premium partagé par les états chargé / chargement.
+  Widget _homeHeader(String subtitle) {
+    return HomeHeader(
+      title: 'Béninfood',
+      subtitle: subtitle,
+      leading: Container(
+        width: 48,
+        height: 48,
+        decoration: const BoxDecoration(color: AppColors.surface, shape: BoxShape.circle),
+        child: ClipOval(
+          child: Image.asset(
+            'assets/Logo.jpeg',
+            width: 48,
+            height: 48,
+            fit: BoxFit.cover,
+            errorBuilder: (_, _, _) =>
+                const HomeBadgeIcon(icon: Icons.storefront, size: 48),
+          ),
+        ),
+      ),
+      actions: [
+        HomeHeaderAction(
+          icon: Icons.search,
+          tooltip: 'Rechercher',
+          onPressed: () => context.push('/client/search'),
+        ),
+      ],
+    );
+  }
+
   void _reload() {
     setState(() {
       _future = widget.marketplace.home();
@@ -58,35 +89,14 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final firstName = (widget.session.user?.name ?? '').trim().split(' ').first;
+    final subtitle = firstName.isEmpty || firstName == 'null'
+        ? 'Le goût du Bénin, livré chez vous'
+        : 'Bonjour, $firstName 👋 Que mangerez-vous aujourd’hui ?';
+
     return Scaffold(
-      appBar: AppBar(
-        titleSpacing: 16,
-        title: Row(
-          children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: Image.asset(
-                'assets/Logo.jpeg',
-                width: 30,
-                height: 30,
-                errorBuilder: (_, _, _) =>
-                    const Icon(Icons.storefront, color: AppColors.green),
-              ),
-            ),
-            const SizedBox(width: 10),
-            const Text('Béninfood'),
-          ],
-        ),
-        actions: [
-          IconButton(
-            onPressed: () => context.push('/client/search'),
-            icon: const Icon(Icons.search),
-            tooltip: 'Rechercher',
-          ),
-        ],
-      ),
       body: RefreshIndicator(
-        color: AppColors.green,
+        color: AppColors.orange,
         onRefresh: () async {
           _reload();
           await _future;
@@ -95,7 +105,14 @@ class _HomeScreenState extends State<HomeScreen> {
           future: _future,
           builder: (context, snapshot) {
             if (snapshot.connectionState != ConnectionState.done) {
-              return const ListSkeleton();
+              // Header visible dès le chargement (design premium constant).
+              return ListView(
+                padding: const EdgeInsets.only(bottom: 32),
+                children: [
+                  _homeHeader(subtitle),
+                  const ListSkeleton(),
+                ],
+              );
             }
             if (snapshot.hasError) {
               return ErrorState(
@@ -109,6 +126,8 @@ class _HomeScreenState extends State<HomeScreen> {
             return ListView(
               padding: const EdgeInsets.only(bottom: 32),
               children: [
+                // --- En-tête premium : logo + salut ---
+                _homeHeader(subtitle),
                 Padding(
                   padding: const EdgeInsets.fromLTRB(
                       AppDimens.pagePadding, 4, AppDimens.pagePadding, 4),
@@ -125,7 +144,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     }
                   }),
                 if (data.featuredProducts.isNotEmpty) ...[
-                  const SectionHeader(title: 'Populaires'),
+                  const SectionHeader(title: 'Plats du jour'),
                   ProductGrid(
                     products: data.featuredProducts,
                     shrinkWrap: true,

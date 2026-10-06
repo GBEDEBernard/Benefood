@@ -101,7 +101,7 @@ class ProductCardGrid extends StatelessWidget {
                         child: AmountText(
                           product.price,
                           style: theme.textTheme.titleSmall?.copyWith(
-                            color: AppColors.green,
+                            color: AppColors.text,
                             fontWeight: FontWeight.w800,
                           ),
                         ),
@@ -114,7 +114,7 @@ class ProductCardGrid extends StatelessWidget {
                             width: 34,
                             height: 34,
                             decoration: BoxDecoration(
-                              color: AppColors.green,
+                              color: AppColors.orange,
                               borderRadius: BorderRadius.circular(10),
                             ),
                             child: const Icon(Icons.add, color: Colors.white, size: 20),
@@ -197,7 +197,7 @@ class ProductListCard extends StatelessWidget {
                     AmountText(
                       product.price,
                       style: theme.textTheme.titleSmall?.copyWith(
-                        color: AppColors.green,
+                        color: AppColors.text,
                         fontWeight: FontWeight.w800,
                       ),
                     ),
@@ -224,7 +224,7 @@ class ProductListCard extends StatelessWidget {
         width: 36,
         height: 36,
         decoration: BoxDecoration(
-          color: enabled ? AppColors.green : AppColors.textSecondary.withValues(alpha: 0.25),
+          color: enabled ? AppColors.orange : AppColors.textSecondary.withValues(alpha: 0.25),
           borderRadius: BorderRadius.circular(10),
         ),
         child: const Icon(Icons.add_shopping_cart, color: Colors.white, size: 19),

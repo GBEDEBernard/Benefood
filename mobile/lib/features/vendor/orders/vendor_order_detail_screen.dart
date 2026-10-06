@@ -6,6 +6,7 @@ import '../../../core/utils/formatters.dart';
 import '../../../shared/models/order.dart';
 import '../../../shared/widgets/amount_widgets.dart';
 import '../../../shared/widgets/app_button.dart';
+import '../../../shared/widgets/package_item_tile.dart';
 import '../../../shared/widgets/status_badge.dart';
 import '../../../shared/widgets/state_widgets.dart';
 
@@ -217,18 +218,13 @@ class _VendorOrderDetailScreenState extends State<VendorOrderDetailScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text('Articles', style: TextStyle(fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 4),
                   for (final item in order.items)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: Text('${item.quantity} × ${item.name}', maxLines: 1, overflow: TextOverflow.ellipsis),
-                          ),
-                          AmountText(item.subtotal),
-                        ],
-                      ),
+                    PackageItemTile(
+                      name: item.name,
+                      quantity: item.quantity,
+                      imageUrl: item.imageUrl,
+                      trailing: formatAmount(item.subtotal, showSymbol: false),
                     ),
                   const Divider(height: 24),
                   _SummaryRow(label: 'Sous-total', amount: order.subtotal),

@@ -6,11 +6,16 @@ import 'package:go_router/go_router.dart';
 import '../../../core/data/marketplace_api.dart';
 import '../../../core/errors/api_exception.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/formatters.dart';
+import '../../../core/utils/geo.dart';
 import '../../../shared/models/order.dart';
 import '../../../shared/widgets/app_button.dart';
+import '../../../shared/widgets/app_map.dart';
 import '../../../shared/widgets/amount_widgets.dart';
+import '../../../shared/widgets/call_button.dart';
 import '../../../shared/widgets/feedback_widgets.dart';
+import '../../../shared/widgets/package_item_tile.dart';
 import '../../../shared/widgets/state_widgets.dart';
 
 /// Écran de suivi / détail d'une commande (J152, J177).
@@ -181,20 +186,41 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
 
   Color _statusColor(String status) {
     return switch (status) {
-      'awaiting_payment' => const Color(0xFFE08A00),
+      'awaiting_payment' => AppColors.goldDark,
       'paid' => AppColors.green,
       'accepted' => AppColors.green,
       'preparing' => const Color(0xFF1976D2),
       'ready' => const Color(0xFF3949AB),
       'assigned' => const Color(0xFF7B1FA2),
-      'out_for_delivery' => const Color(0xFF00897B),
-      'delivered' => AppColors.greenDark,
-      'cancelled' => const Color(0xFFE53935),
+      'out_for_delivery' => AppColors.green,
+      'delivered' => AppColors.green,
+      'cancelled' => AppColors.red,
       'refunded' => AppColors.textSecondary,
       _ => AppColors.green,
     };
   }
 
+  /// Carte de suivi : position du livreur (mise à jour toutes les 15 s) et
+  /// adresse de livraison. Masquée tant qu'aucune coordonnée n'est disponible.
+  Widget _liveTrackingMap(Order order) {
+    final position = order.delivery?.position;
+    final dropoff = order.dropoffPoint;
+    final origin = position?.point;
+
+    if (origin == null && dropoff == null) {
+      return const SizedBox.shrink();
+    }
+
+    return AppMap(
+      origin: origin,
+      target: dropoff,
+      height: 230,
+      followOrigin: false,
+      originLabel: order.delivery?.driver?.name ?? 'Livreur',
+    );
+  }
+
+  /// Carte livreur premium : identité, suivi en direct et appel direct.
   Widget? _trackingCard(Order order) {
     final delivery = order.delivery;
     final driver = delivery?.driver;
@@ -206,49 +232,123 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
     final theme = Theme.of(context);
     final tracking = position != null;
 
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.border),
+        boxShadow: AppTheme.softShadow(),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 52,
+                height: 52,
+                decoration: BoxDecoration(
+                  color: AppColors.greenLight,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.delivery_dining, color: AppColors.green, size: 26),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      driver.name ?? 'Votre livreur',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 15,
+                        color: AppColors.text,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Row(
+                      children: [
+                        if (driver.vehicle != null && driver.vehicle!.isNotEmpty) ...[
+                          const Icon(Icons.two_wheeler, size: 14, color: AppColors.textSecondary),
+                          const SizedBox(width: 4),
+                          Text(driver.vehicle!, style: const TextStyle(fontSize: 12.5, color: AppColors.textSecondary)),
+                          const SizedBox(width: 10),
+                        ],
+                        if (driver.rating != null) ...[
+                          const Icon(Icons.star, size: 14, color: AppColors.gold),
+                          const SizedBox(width: 3),
+                          Text(
+                            driver.rating!.toStringAsFixed(1),
+                            style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: AppColors.text),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              if (tracking) const _LiveDot(color: AppColors.green),
+            ],
+          ),
+          if (tracking) ...[
+            const SizedBox(height: 12),
             Row(
               children: [
-                Icon(Icons.delivery_dining, color: theme.colorScheme.primary),
-                const SizedBox(width: 8),
-                const Expanded(
-                  child: Text('Livreur', style: TextStyle(fontWeight: FontWeight.bold)),
+                const Icon(Icons.near_me_outlined, size: 15, color: AppColors.orange),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    _distanceLabel(order),
+                    style: const TextStyle(
+                      color: AppColors.orangeDark,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 13.5,
+                    ),
+                  ),
                 ),
-                if (tracking)
-                  _LiveDot(color: Colors.green)
-                else
-                  Text('Non affecté', style: theme.textTheme.bodySmall),
               ],
             ),
-            const SizedBox(height: 8),
-            if (driver.name != null)
-              Text(driver.name!, style: theme.textTheme.bodyMedium),
-            for (final line
-                in [driver.vehicle ?? '', driver.rating != null ? 'Note : ${driver.rating!.toStringAsFixed(1)}' : '']
-                    .where((e) => e.isNotEmpty))
-              Text(line, style: theme.textTheme.bodySmall),
-            if (tracking) ...[
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Text(
-                    'À ${formatDistance(position.distanceKm)} de vous',
-                    style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.primary),
-                  ),
-                  const Spacer(),
-                  Text('Mise à jour auto', style: theme.textTheme.bodySmall),
-                ],
+            if (position.lastLocationAt != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(
+                  'Position envoyée le ${formatDateTime(position.lastLocationAt, fallback: '')}',
+                  style: theme.textTheme.bodySmall,
+                ),
               ),
-            ],
+          ] else if (order.dropoffPoint != null) ...[
+            const SizedBox(height: 8),
+            Text(
+              'Le livreur n\'a pas encore partagé sa position.',
+              style: theme.textTheme.bodySmall,
+            ),
           ],
-        ),
+          const SizedBox(height: 14),
+          // --- Appel direct du livreur (téléphone exposé par l'API) ---
+          CallButton(
+            label: 'Appeler le livreur',
+            phone: driver.phone,
+            onEmptyPhone: () => showToast(context, 'Numéro du livreur indisponible.', isError: true),
+          ),
+        ],
       ),
     );
+  }
+
+  /// Distance livreur -> adresse : `distance_km` de l'API, sinon calculée ici.
+  String _distanceLabel(Order order) {
+    final position = order.delivery?.position;
+    if (position == null) {
+      return '—';
+    }
+    final dropoff = order.dropoffPoint;
+    final km = position.distanceKm ??
+        (dropoff == null ? null : distanceKm(position.point.latLng, dropoff.latLng));
+    final label = 'À ${formatDistance(km)} de vous';
+    final minutes = estimateMinutes(km ?? 0);
+    return minutes == null ? label : '$label · ~${formatEta(minutes)}';
   }
 
   Widget _buildBody() {
@@ -273,6 +373,8 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
             onCancel: order.canCancel ? _cancel : null,
           ),
           const SizedBox(height: 16),
+          _liveTrackingMap(order),
+          const SizedBox(height: 16),
           if (order.canCancel || order.isAwaitingPayment || order.isPaid || order.status == 'accepted')
             _ProgressStepper(order: order, accent: accent),
           const SizedBox(height: 8),
@@ -289,19 +391,13 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text('Articles', style: TextStyle(fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 4),
                   for (final item in order.items)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
-                      child: Row(
-                        children: [
-                          Expanded(child: Text('${item.quantity} × ${item.name}', maxLines: 1, overflow: TextOverflow.ellipsis)),
-                          const SizedBox(width: 8),
-                          Flexible(
-                            child: AmountText(item.subtotal, maxLines: 1, overflow: TextOverflow.ellipsis),
-                          ),
-                        ],
-                      ),
+                    PackageItemTile(
+                      name: item.name,
+                      quantity: item.quantity,
+                      imageUrl: item.imageUrl,
+                      trailing: formatAmount(item.subtotal, showSymbol: false),
                     ),
                   const Divider(height: 24),
                   _SummaryRow(label: 'Sous-total', amount: order.subtotal),
@@ -536,8 +632,7 @@ class _ProgressStepper extends StatelessWidget {
                   child: Container(
                     height: 2,
                     margin: const EdgeInsets.only(top: 24),
-                    decoration: BoxDecoration(
-                      color: i < current ? accent : const Color(0xFFE2E5E9),
+                    decoration: BoxDecoration(                        color: i < current ? accent : AppColors.border,
                       borderRadius: BorderRadius.circular(2),
                     ),
                   ),
@@ -572,7 +667,7 @@ class _StepItem extends StatelessWidget {
         ? accent
         : active
             ? accent
-            : const Color(0xFFC7CBD1);
+            : AppColors.borderStrong;
     final IconData icon = done
         ? Icons.check_circle
         : active
@@ -615,10 +710,10 @@ class _PaymentStatusRow extends StatelessWidget {
     final cancelled = order.isCancelled;
 
     final Color color = cancelled
-        ? const Color(0xFFE53935)
+        ? AppColors.red
         : paid
             ? AppColors.green
-            : const Color(0xFFE08A00);
+            : AppColors.goldDark;
     final label = cancelled
         ? 'Paiement annulé'
         : paid

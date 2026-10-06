@@ -124,6 +124,7 @@ class _VendorShellState extends State<VendorShell> {
       return DashboardScreen(
         marketplace: widget.marketplace,
         onGoToTab: (i) => setState(() => _index = i),
+        userName: widget.session.user?.name,
       );
     }
 

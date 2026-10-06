@@ -4,6 +4,7 @@ namespace App\Http\Resources;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Support\Facades\Storage;
 
 class DeliveryResource extends JsonResource
 {
@@ -31,12 +32,27 @@ class DeliveryResource extends JsonResource
                     'name' => $order->user->name,
                     'phone' => $order->user->phone,
                 ]),
+                'items' => $order->relationLoaded('items')
+                    ? $order->items->map(fn ($item) => [
+                        'id' => $item->id,
+                        'product_id' => $item->product_id,
+                        'name' => $item->name_snapshot,
+                        'quantity' => $item->quantity,
+                        'unit_price' => $item->unit_price_snapshot,
+                        'subtotal' => $item->subtotal,
+                        'currency' => 'XOF',
+                        'image_url' => $item->product?->image_main !== null
+                            ? Storage::disk('public')->url($item->product->image_main)
+                            : null,
+                    ])->values()
+                    : [],
             ]),
             'vendor' => $this->whenLoaded('vendor', fn () => [
                 'id' => $this->vendor->id,
                 'business_name' => $this->vendor->business_name,
                 'address' => $this->vendor->address,
                 'city' => $this->vendor->city,
+                'phone' => $this->vendor->phone,
                 'latitude' => $this->vendor->latitude,
                 'longitude' => $this->vendor->longitude,
             ]),

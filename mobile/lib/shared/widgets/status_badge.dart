@@ -48,10 +48,10 @@ class StatusBadge extends StatelessWidget {
 /// Palette statuts commande (J24 §3).
 class BadgePalette {
   static const _grey = Color(0xFF757575);
-  static const _amber = Color(0xFFF9A825);
+  static const _amber = Color(0xFF9A6A08);
   static const _indigo = Color(0xFF3949AB);
-  static const _green = Color(0xFF2E7D32);
-  static const _red = Color(0xFFC62828);
+  static const _green = Color(0xFF167A52);
+  static const _red = Color(0xFFD93B30);
 
   static (String, Color)? order(String? status) => switch (status) {
         'draft' || 'awaiting_payment' => ('En attente de paiement', _grey),

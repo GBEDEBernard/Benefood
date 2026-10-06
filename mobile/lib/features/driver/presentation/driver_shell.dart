@@ -31,6 +31,7 @@ class DriverShell extends StatefulWidget {
 
 class _DriverShellState extends State<DriverShell> {
   int _index = 0;
+  final _missionsKey = GlobalKey<DriverHomeScreenState>();
 
   Map<String, dynamic>? _status;
   bool _statusLoading = true;
@@ -74,6 +75,14 @@ class _DriverShellState extends State<DriverShell> {
     }
   }
 
+  void _onDestinationSelected(int index) {
+    setState(() => _index = index);
+    // Rafraîchir les missions quand on revient sur l'onglet.
+    if (index == 0) {
+      _missionsKey.currentState?.refresh();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -81,14 +90,17 @@ class _DriverShellState extends State<DriverShell> {
         index: _index,
         children: [
           _buildFirstTab(),
-          OffersScreen(marketplace: widget.marketplace),
+          OffersScreen(
+            marketplace: widget.marketplace,
+            onOfferAccepted: () => _missionsKey.currentState?.refresh(),
+          ),
           DriverHistoryScreen(marketplace: widget.marketplace),
           DriverAccountScreen(session: widget.session, marketplace: widget.marketplace),
         ],
       ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _index,
-        onDestinationSelected: (i) => setState(() => _index = i),
+        onDestinationSelected: _onDestinationSelected,
         destinations: const [
           NavigationDestination(icon: Icon(Icons.delivery_dining_outlined), selectedIcon: Icon(Icons.delivery_dining), label: 'Missions'),
           NavigationDestination(icon: Icon(Icons.local_offer_outlined), selectedIcon: Icon(Icons.local_offer), label: 'Offres'),
@@ -115,7 +127,12 @@ class _DriverShellState extends State<DriverShell> {
         : <Map<String, dynamic>>[];
 
     if (profile?['status'] == 'active') {
-      return DriverHomeScreen(marketplace: widget.marketplace);
+      return DriverHomeScreen(
+        key: _missionsKey,
+        marketplace: widget.marketplace,
+        visible: _index == 0,
+        userName: widget.session.user?.name,
+      );
     }
 
     return _DriverOnboarding(

@@ -11,6 +11,7 @@ import '../../../shared/widgets/app_button.dart';
 import '../../../shared/widgets/app_text_field.dart';
 import '../../../shared/widgets/feedback_widgets.dart';
 import '../../../shared/widgets/state_widgets.dart';
+import '../../../shared/widgets/status_badge.dart';
 
 /// Centre de réclamations (J158 côté client : création, suivi, messages).
 class ComplaintsScreen extends StatefulWidget {
@@ -344,7 +345,7 @@ class _ComplaintDetailScreenState extends State<ComplaintDetailScreen> {
                                   style: TextStyle(
                                     fontSize: 12,
                                     fontWeight: FontWeight.w700,
-                                    color: AppColors.greenDark,
+                                    color: AppColors.green,
                                   ),
                                 ),
                                 const SizedBox(height: 2),
@@ -367,7 +368,7 @@ class _ComplaintDetailScreenState extends State<ComplaintDetailScreen> {
                       constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.8),
                       decoration: BoxDecoration(
                         color: message.isFromSupport
-                            ? const Color(0xFFF0F2F4)
+                            ? AppColors.surfaceVariant
                             : AppColors.greenLight,
                         borderRadius: BorderRadius.circular(14),
                       ),
@@ -381,7 +382,7 @@ class _ComplaintDetailScreenState extends State<ComplaintDetailScreen> {
                             '${message.isFromSupport ? ' · Support' : ''}',
                             style: TextStyle(
                               fontSize: 10.5,
-                              color: message.isFromSupport ? AppColors.textSecondary : AppColors.greenDark,
+                              color: message.isFromSupport ? AppColors.textSecondary : AppColors.green,
                             ),
                           ),
                         ],
@@ -528,17 +529,21 @@ class _ComplaintCreateScreenState extends State<ComplaintCreateScreen> {
           padding: const EdgeInsets.all(16),
           children: [
             Card(
-              color: AppColors.orangeLight,
-              child: Padding(
-                padding: const EdgeInsets.all(14),
+              color: AppColors.goldLight,
+              elevation: 0,
+              margin: EdgeInsets.zero,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              child: const Padding(
+                padding: EdgeInsets.all(14),
                 child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Icon(Icons.info_outline, color: AppColors.orange),
-                    const SizedBox(width: 10),
+                    Icon(Icons.info_outline, color: AppColors.gold, size: 20),
+                    SizedBox(width: 10),
                     Expanded(
                       child: Text(
                         'Décrivez clairement le problème : notre support vous répondra ici même.',
-                        style: const TextStyle(fontSize: 12.5),
+                        style: TextStyle(fontSize: 12.5, height: 1.35),
                       ),
                     ),
                   ],
@@ -549,13 +554,21 @@ class _ComplaintCreateScreenState extends State<ComplaintCreateScreen> {
             if (!_loadingOrders && _orders.isNotEmpty) ...[
               DropdownButtonFormField<String>(
                 initialValue: _orderId,
-                decoration: const InputDecoration(labelText: 'Commande concernée (optionnel)'),
+                isExpanded: true,
+                decoration: const InputDecoration(
+                  labelText: 'Commande concernée (optionnel)',
+                  prefixIcon: Icon(Icons.receipt_long_outlined),
+                ),
                 items: [
                   const DropdownMenuItem(value: null, child: Text('Aucune')),
                   ..._orders.map(
                     (o) => DropdownMenuItem(
                       value: o.id,
-                      child: Text('${o.reference} · ${o.status}', overflow: TextOverflow.ellipsis),
+                      child: Text(
+                        '${o.reference} · ${BadgePalette.order(o.status)?.$1 ?? o.status}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
                   ),
                 ],
@@ -565,6 +578,7 @@ class _ComplaintCreateScreenState extends State<ComplaintCreateScreen> {
             ],
             DropdownButtonFormField<String>(
               initialValue: _type,
+              isExpanded: true,
               decoration: const InputDecoration(labelText: 'Type *', prefixIcon: Icon(Icons.category_outlined)),
               items: _types.map((t) => DropdownMenuItem(value: t.$1, child: Text(t.$2))).toList(),
               onChanged: (v) => setState(() => _type = v ?? 'other'),
@@ -576,7 +590,7 @@ class _ComplaintCreateScreenState extends State<ComplaintCreateScreen> {
               required: true,
               validator: (v) => (v == null || v.trim().length < 3) ? 'Titre trop court' : null,
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
             AppTextField(
               controller: _description,
               label: 'Description',
@@ -610,7 +624,7 @@ String _statusLabel(String status) {
 
 Color _statusColor(String status) {
   return switch (status) {
-    'open' => const Color(0xFFE08A00),
+    'open' => AppColors.goldDark,
     'in_review' => const Color(0xFF1976D2),
     'resolved' => AppColors.green,
     'closed' => AppColors.textSecondary,

@@ -325,8 +325,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 icon: const Icon(Icons.add_location_alt_outlined),
                 label: const Text('Ajouter une nouvelle adresse'),
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: AppColors.green,
-                  side: BorderSide(color: AppColors.green.withValues(alpha: 0.4)),
+                  foregroundColor: AppColors.orange,
+                  side: BorderSide(color: AppColors.orange.withValues(alpha: 0.5)),
                   minimumSize: const Size.fromHeight(48),
                 ),
               ),
@@ -382,7 +382,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                   style: TextStyle(
                                     fontSize: 12,
                                     fontWeight: FontWeight.w600,
-                                    color: AppColors.greenDark,
+                                    color: AppColors.green,
                                   ),
                                 ),
                               ),
@@ -513,7 +513,7 @@ class _AddressCard extends StatelessWidget {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
         side: BorderSide(
-          color: selected ? AppColors.green : Colors.transparent,
+          color: selected ? AppColors.orange : Colors.transparent,
           width: 1.5,
         ),
       ),
@@ -528,12 +528,12 @@ class _AddressCard extends StatelessWidget {
                 width: 42,
                 height: 42,
                 decoration: BoxDecoration(
-                  color: selected ? AppColors.greenLight : const Color(0xFFF0F2F4),
+                  color: selected ? AppColors.orangeLight : AppColors.surfaceVariant,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(
                   selected ? Icons.location_on : Icons.location_on_outlined,
-                  color: selected ? AppColors.green : AppColors.textSecondary,
+                  color: selected ? AppColors.orangeDark : AppColors.textSecondary,
                   size: 22,
                 ),
               ),
@@ -557,12 +557,12 @@ class _AddressCard extends StatelessWidget {
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                             decoration: BoxDecoration(
-                              color: const Color(0xFFFEF2E7),
+                              color: AppColors.goldLight,
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: const Text(
                               'Par défaut',
-                              style: TextStyle(fontSize: 10.5, color: AppColors.orange, fontWeight: FontWeight.w700),
+                              style: TextStyle(fontSize: 10.5, color: AppColors.gold, fontWeight: FontWeight.w700),
                             ),
                           ),
                         ],
@@ -585,7 +585,7 @@ class _AddressCard extends StatelessWidget {
                 height: 22,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: selected ? AppColors.green : Colors.transparent,
+                  color: selected ? AppColors.orange : Colors.transparent,
                   border: Border.all(
                     color: selected ? AppColors.green : AppColors.textSecondary.withValues(alpha: 0.5),
                     width: 2,

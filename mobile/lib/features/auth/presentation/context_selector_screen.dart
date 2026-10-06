@@ -78,7 +78,7 @@ class _ContextSelectorScreenState extends State<ContextSelectorScreen> {
                     title: 'Vendeur',
                     subtitle: 'Gérer ma boutique, mes produits et mes commandes',
                     onTap: _loading ? null : () => _select(AppContext.vendor),
-                    accent: AppColors.orange,
+                    accent: AppColors.gold,
                   ),
                 if (contexts.contains(AppContext.driver))
                   _ContextCard(

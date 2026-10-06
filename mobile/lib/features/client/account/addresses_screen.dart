@@ -128,7 +128,7 @@ class _AddressesScreenState extends State<AddressesScreen> {
                       width: 42,
                       height: 42,
                       decoration: BoxDecoration(
-                        color: address.isDefault ? AppColors.greenLight : const Color(0xFFF0F2F4),
+                        color: address.isDefault ? AppColors.greenLight : AppColors.surfaceVariant,
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Icon(
@@ -157,12 +157,12 @@ class _AddressesScreenState extends State<AddressesScreen> {
                                 Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                                   decoration: BoxDecoration(
-                                    color: const Color(0xFFFEF2E7),
+                                    color: AppColors.goldLight,
                                     borderRadius: BorderRadius.circular(6),
                                   ),
                                   child: const Text(
                                     'Par défaut',
-                                    style: TextStyle(fontSize: 10.5, color: AppColors.orange, fontWeight: FontWeight.w700),
+                                    style: TextStyle(fontSize: 10.5, color: AppColors.gold, fontWeight: FontWeight.w700),
                                   ),
                                 ),
                               ],

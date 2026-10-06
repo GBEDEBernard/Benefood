@@ -90,7 +90,7 @@ class OrderController extends Controller
             return Api::error('Ressource introuvable.', 'not_found', 404);
         }
 
-        $order->load(['vendor', 'items', 'payment', 'financials', 'statusHistory', 'refunds', 'delivery.driverProfile.user']);
+        $order->load(['vendor', 'items.product', 'payment', 'financials', 'statusHistory', 'refunds', 'delivery.driverProfile.user']);
 
         return Api::ok(new OrderResource($order));
     }
@@ -104,7 +104,7 @@ class OrderController extends Controller
         }
 
         $orders = $vendor->orders()
-            ->with(['user', 'items'])
+            ->with(['user', 'items.product'])
             ->orderByDesc('created_at')
             ->paginate((int) $request->query('per_page', config('beninfood.pagination.per_page')));
 

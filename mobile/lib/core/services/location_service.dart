@@ -135,6 +135,24 @@ class LocationService {
     );
   }
 
+  /// Suit la position en continu (carte de mission, guidage GPS).
+  ///
+  /// Émet un [GeoResult] à chaque déplacement significatif ([distanceFilter]
+  /// mètres). Contrairement à [locate], aucun géocodage inverse n'est fait :
+  /// le flux est rafraîchi plusieurs fois par seconde côté UI.
+  static Stream<GeoResult> watch({int distanceFilter = 5}) {
+    final settings = LocationSettings(
+      accuracy: LocationAccuracy.high,
+      distanceFilter: distanceFilter,
+    );
+    return Geolocator.getPositionStream(locationSettings: settings).map(
+      (position) => GeoResult(
+        latitude: position.latitude,
+        longitude: position.longitude,
+      ),
+    );
+  }
+
   /// Quartier / zone approximative via géocodage inverse (optionnel).
   static String? _firstNonEmpty(List<String?> values) {
     for (final v in values) {

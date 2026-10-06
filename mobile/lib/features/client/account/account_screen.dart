@@ -91,8 +91,8 @@ class AccountScreen extends StatelessWidget {
           OutlinedButton.icon(
             onPressed: () => _confirmLogout(context),
             style: OutlinedButton.styleFrom(
-              foregroundColor: const Color(0xFFE53935),
-              side: BorderSide(color: const Color(0xFFE53935).withValues(alpha: 0.4)),
+              foregroundColor: AppColors.red,
+              side: BorderSide(color: AppColors.red.withValues(alpha: 0.4)),
               minimumSize: const Size.fromHeight(48),
             ),
             icon: const Icon(Icons.logout),
@@ -155,10 +155,10 @@ class _ProfileHeader extends StatelessWidget {
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Color(0xFF2E7D32), Color(0xFF3A9B34)],
+          colors: [AppColors.orange, AppColors.orangeDark],
         ),
         borderRadius: BorderRadius.circular(20),
-        boxShadow: [BoxShadow(color: AppColors.green.withValues(alpha: 0.3), blurRadius: 14, offset: const Offset(0, 6))],
+        boxShadow: [BoxShadow(color: AppColors.orange.withValues(alpha: 0.3), blurRadius: 14, offset: const Offset(0, 6))],
       ),
       child: Row(
         children: [

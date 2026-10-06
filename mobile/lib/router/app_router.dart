@@ -35,6 +35,16 @@ GoRouter buildAppRouter(SessionProvider session, MarketplaceApi marketplace) {
       final location = state.matchedLocation;
       final isAuthRoute = _isAuthRoute(location);
 
+      // Le splash n'est jamais une destination : dès que la restauration est
+      // terminée on bascule vers la landing, le sélecteur de contexte ou la
+      // home du rôle actif (sinon le spinner tourne indéfiniment).
+      if (location == '/') {
+        if (!logged) {
+          return '/landing';
+        }
+        return session.activeRole == null ? '/context' : _homeFor(session);
+      }
+
       if (!logged) {
         if (isAuthRoute || location == '/server') {
           return null;

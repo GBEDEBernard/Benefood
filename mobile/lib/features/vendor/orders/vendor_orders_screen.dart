@@ -4,6 +4,7 @@ import '../../../core/data/marketplace_api.dart';
 import '../../../core/errors/api_exception.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../shared/models/order.dart';
+import '../../../shared/widgets/app_network_image.dart';
 import '../../../shared/widgets/amount_widgets.dart';
 import '../../../shared/widgets/status_badge.dart';
 import '../../../shared/widgets/state_widgets.dart';
@@ -253,6 +254,39 @@ class _OrderCard extends StatelessWidget {
                 '${order.items.length} article(s) · ${formatDateTime(order.createdAt, fallback: '')}',
                 style: theme.textTheme.bodySmall,
               ),
+              // Aperçu photo des articles de la commande
+              if (order.items.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                SizedBox(
+                  height: 32,
+                  child: Row(
+                    children: [
+                      for (final item in order.items.take(4))
+                        Padding(
+                          padding: const EdgeInsets.only(right: 6),
+                          child: Container(
+                            width: 32,
+                            height: 32,
+                            decoration: BoxDecoration(
+                              color: theme.colorScheme.surfaceContainerHighest,
+                              borderRadius: BorderRadius.circular(9),
+                              border: Border.all(color: theme.colorScheme.outlineVariant),
+                            ),
+                            clipBehavior: Clip.antiAlias,
+                            child: item.imageUrl != null
+                                ? AppNetworkImage(url: item.imageUrl, icon: Icons.fastfood_outlined)
+                                : const Icon(Icons.fastfood_outlined, size: 14, color: Colors.grey),
+                          ),
+                        ),
+                      if (order.items.length > 4)
+                        Text(
+                          '+${order.items.length - 4}',
+                          style: theme.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w700),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
               const SizedBox(height: 8),
               Row(
                 children: [

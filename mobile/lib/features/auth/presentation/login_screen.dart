@@ -82,7 +82,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   width: 84,
                   height: 84,
                   errorBuilder: (_, __, ___) =>
-                      const Icon(Icons.storefront, size: 72, color: AppColors.green),
+                      const Icon(Icons.storefront, size: 72, color: AppColors.orange),
                 ),
               ),
             ),

@@ -23,7 +23,7 @@ class LandingScreen extends StatelessWidget {
                 gradient: LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
-                  colors: [AppColors.green, AppColors.greenDark],
+                  colors: [AppColors.orange, AppColors.gold],
                 ),
               ),
             ),
@@ -62,7 +62,7 @@ class LandingScreen extends StatelessWidget {
                       width: 112,
                       height: 112,
                       errorBuilder: (_, __, ___) =>
-                          const Icon(Icons.storefront, size: 80, color: AppColors.green),
+                          const Icon(Icons.storefront, size: 80, color: AppColors.orange),
                     ),
                   ),
                 ),

@@ -1,3 +1,5 @@
+import 'geo_point.dart';
+
 class OrderVendor {
   const OrderVendor({required this.id, required this.businessName, this.logoUrl});
 
@@ -77,6 +79,7 @@ class OrderItem {
     required this.unitPrice,
     required this.subtotal,
     this.currency = 'XOF',
+    this.imageUrl,
   });
 
   final String id;
@@ -87,6 +90,9 @@ class OrderItem {
   final int subtotal;
   final String currency;
 
+  /// Photo du produit (pour le récapitulatif visuel du colis).
+  final String? imageUrl;
+
   factory OrderItem.fromJson(Map<String, dynamic> json) => OrderItem(
         id: _s(json['id']),
         productId: _s(json['product_id']),
@@ -95,6 +101,7 @@ class OrderItem {
         unitPrice: _i(json['unit_price']),
         subtotal: _i(json['subtotal']),
         currency: _s(json['currency'], 'XOF'),
+        imageUrl: json['image_url'] is String ? json['image_url'] as String : null,
       );
 }
 
@@ -147,18 +154,23 @@ class OrderRefund {
 }
 
 class OrderDriver {
-  const OrderDriver({required this.id, this.name, this.vehicle, this.rating});
+  const OrderDriver({required this.id, this.name, this.vehicle, this.rating, this.phone});
 
   final String id;
   final String? name;
   final String? vehicle;
   final double? rating;
 
+  /// Téléphone du livreur : visible par le client dès qu'il est assigné à la
+  /// commande (bouton « Appeler » du suivi).
+  final String? phone;
+
   factory OrderDriver.fromJson(Map<String, dynamic> json) => OrderDriver(
         id: _s(json['id']),
         name: json['name'] is String ? json['name'] as String : null,
         vehicle: json['vehicle'] is String ? json['vehicle'] as String : null,
         rating: _dNull(json['rating']),
+        phone: json['phone'] is String ? json['phone'] as String : null,
       );
 }
 
@@ -168,6 +180,7 @@ class OrderDeliveryPosition {
     required this.longitude,
     this.lastLocationAt,
     this.distanceKm,
+    this.heading,
   });
 
   final double latitude;
@@ -175,11 +188,17 @@ class OrderDeliveryPosition {
   final String? lastLocationAt;
   final double? distanceKm;
 
+  /// Cap du véhicule en degrés (0 = Nord) si l'API le fournit.
+  final double? heading;
+
+  GeoPoint get point => GeoPoint(latitude, longitude);
+
   factory OrderDeliveryPosition.fromJson(Map<String, dynamic> json) => OrderDeliveryPosition(
         latitude: _d(json['latitude']),
         longitude: _d(json['longitude']),
         lastLocationAt: json['last_location_at'] is String ? json['last_location_at'] as String : null,
         distanceKm: _dNull(json['distance_km']),
+        heading: _dNull(json['heading']),
       );
 }
 
@@ -226,6 +245,7 @@ class Order {
     this.payment,
     this.financials,
     this.deliveryAddress,
+    this.deliveryAddressSnapshot,
     this.delivery,
     this.statusHistory = const [],
     this.refunds = const [],
@@ -253,6 +273,11 @@ class Order {
   final OrderPayment? payment;
   final OrderFinancials? financials;
   final String? deliveryAddress;
+
+  /// Adresse de livraison complète (coordonnées + libellé) pour la carte de
+  /// suivi : l'API renvoie l'objet `address_snapshot`, pas une chaîne.
+  final AddressSnapshot? deliveryAddressSnapshot;
+
   final OrderDelivery? delivery;
   final List<OrderStatusHistory> statusHistory;
   final List<OrderRefund> refunds;
@@ -272,6 +297,9 @@ class Order {
   bool get isCancelled => status == 'cancelled';
   bool get isDelivered => status == 'delivered';
   bool get isRefunded => status == 'refunded';
+
+  /// Point GPS de la destination (suivi client).
+  GeoPoint? get dropoffPoint => deliveryAddressSnapshot?.point;
 
   bool get canCancel =>
       status == 'awaiting_payment' || status == 'paid' || status == 'accepted' || status == 'preparing';
@@ -336,7 +364,10 @@ class Order {
       vendor: vendor,
       payment: payment,
       financials: financials,
-      deliveryAddress: json['delivery_address'] is String ? json['delivery_address'] as String : null,
+      deliveryAddress: _deliveryAddressLabel(json['delivery_address']),
+      deliveryAddressSnapshot: json['delivery_address'] == null
+          ? null
+          : AddressSnapshot.fromJson(json['delivery_address']),
       delivery: delivery,
       statusHistory: history,
       refunds: refunds,
@@ -355,6 +386,16 @@ class Order {
 }
 
 String _s(dynamic value, [String fallback = '']) => value is String ? value : fallback;
+
+/// Libellé de l'adresse de livraison, compatible objet `address_snapshot` et
+/// ancienne chaîne.
+String? _deliveryAddressLabel(dynamic value) {
+  if (value is String && value.trim().isNotEmpty) {
+    return value;
+  }
+  final snapshot = AddressSnapshot.fromJson(value);
+  return snapshot.display.isEmpty ? null : snapshot.display;
+}
 
 String? _nullable(dynamic value) => value is String ? value : null;
 

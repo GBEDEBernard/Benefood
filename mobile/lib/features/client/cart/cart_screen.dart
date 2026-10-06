@@ -173,8 +173,8 @@ class _VendorHeader extends StatelessWidget {
             child: AppNetworkImage(
               url: vendor.logoUrl,
               icon: Icons.storefront_outlined,
-              iconColor: AppColors.green,
-              iconBackground: AppColors.greenLight,
+              iconColor: AppColors.orange,
+              iconBackground: AppColors.orangeLight,
               borderRadius: BorderRadius.circular(12),
             ),
           ),
