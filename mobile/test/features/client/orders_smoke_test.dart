@@ -32,6 +32,7 @@ Map<String, dynamic> _order({
   required int total,
   String? updatedAt,
   String? cancellationReason,
+  String? imageUrl,
   Map<String, dynamic>? delivery,
 }) {
   return {
@@ -54,7 +55,7 @@ Map<String, dynamic> _order({
         'quantity': 1,
         'unit_price': total - 500,
         'subtotal': total - 500,
-        'image_url': null,
+        'image_url': imageUrl,
       },
     ],
     'delivery': delivery,
@@ -69,6 +70,7 @@ MockClient _mockBackend() {
       status: 'in_delivery',
       vendor: 'Chez Awalou',
       total: 5500,
+      imageUrl: 'http://api.test/storage/products/poulet-dg.webp',
       delivery: {
         'id': 'd1',
         'status': 'in_delivery',
@@ -126,6 +128,14 @@ Future<void> _pumpOrders(WidgetTester tester) async {
   await tester.pump(const Duration(milliseconds: 300));
 }
 
+/// Compte les photos distantes affichées (image_url du premier item).
+int _networkImageCount(WidgetTester tester) => find
+    .byWidgetPredicate(
+      (widget) => widget is Image && widget.image is NetworkImage,
+    )
+    .evaluate()
+    .length;
+
 void main() {
   testWidgets('commandes : en-tête, onglets et carte en cours avec progression',
       (tester) async {
@@ -153,6 +163,9 @@ void main() {
     expect(find.text('Livrée'), findsOneWidget);
     expect(find.text('Voir détails'), findsOneWidget);
     expect(find.text('Contacter le livreur'), findsOneWidget);
+
+    // La carte en cours a une image de plat (image_url du backend).
+    expect(_networkImageCount(tester), 1);
 
     await tester.scrollUntilVisible(
       find.text('Le Grill Royal'),
@@ -188,6 +201,8 @@ void main() {
     expect(find.text('La Boulangerie du Centre'), findsNothing);
     expect(find.text('Annulée'), findsOneWidget);
     expect(find.text('Restaurant indisponible'), findsOneWidget);
+    // Aucune image sur cette commande (repli icône, pas de photo).
+    expect(_networkImageCount(tester), 0);
     expect(tester.takeException(), isNull);
 
     await tester.tap(find.text('En cours'));

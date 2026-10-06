@@ -524,10 +524,9 @@ class _OrderCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final (statusLabel, statusColor, statusSubtitle) = _statusInfo();
 
-    // Photo : plat d'abord, sinon logo de la boutique.
-    final photoUrl = order.items.isNotEmpty
-        ? order.items.first.imageUrl
-        : order.vendor?.logoUrl;
+    // Photo : plat d'abord, sinon logo de la boutique, sinon icône.
+    final photoUrl = (order.items.isNotEmpty ? order.items.first.imageUrl : null) ??
+        order.vendor?.logoUrl;
     final photoFallback = order.items.isNotEmpty ? Icons.fastfood_outlined : Icons.storefront;
 
     return Material(

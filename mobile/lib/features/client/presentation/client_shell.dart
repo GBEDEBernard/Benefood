@@ -8,9 +8,9 @@ import '../../../core/theme/app_dimens.dart';
 import '../../../shared/widgets/brand_logo.dart';
 import '../account/account_screen.dart';
 import '../cart/cart_screen.dart';
+import '../categories/categories_screen.dart';
 import '../home/home_screen.dart';
 import '../orders/orders_screen.dart';
-import '../search/search_screen.dart';
 
 /// Espace Client (J148+) : accueil, catégories, panier, commandes, profil.
 ///
@@ -76,7 +76,7 @@ class _ClientShellState extends State<ClientShell> {
             onOpenMenu: () => _scaffoldKey.currentState?.openDrawer(),
             onCartChanged: _refreshCartCount,
           ),
-          SearchScreen(marketplace: widget.marketplace),
+          CategoriesScreen(marketplace: widget.marketplace),
           CartScreen(marketplace: widget.marketplace),
           OrdersScreen(marketplace: widget.marketplace),
           AccountScreen(session: widget.session),
