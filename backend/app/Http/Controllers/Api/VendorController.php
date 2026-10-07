@@ -32,6 +32,7 @@ class VendorController extends Controller
             'email' => ['sometimes', 'nullable', 'email', 'max:255'],
             'city' => ['sometimes', 'nullable', 'string', 'max:100'],
             'address' => ['sometimes', 'nullable', 'string'],
+            'category_id' => ['sometimes', 'nullable', 'uuid', 'exists:categories,id'],
         ]);
 
         $data['phone'] = Phone::normalize($data['phone']);
@@ -100,10 +101,11 @@ class VendorController extends Controller
             'legal_name' => ['sometimes', 'nullable', 'string', 'max:255'],
             'ifu' => ['sometimes', 'nullable', 'string', 'max:30'],
             'description' => ['sometimes', 'nullable', 'string'],
-            'phone' => ['sometimes', 'string', 'max:20'],
+            'phone' => ['sometimes', 'string', 'regex:/^(?:\+?229|00229|0)?0?1?[0-9]{8}$/'],
             'email' => ['sometimes', 'nullable', 'email', 'max:255'],
             'city' => ['sometimes', 'nullable', 'string', 'max:100'],
             'address' => ['sometimes', 'nullable', 'string'],
+            'category_id' => ['sometimes', 'nullable', 'uuid', 'exists:categories,id'],
             'logo_url' => ['sometimes', 'nullable', 'string'],
             'cover_url' => ['sometimes', 'nullable', 'string'],
             'logo' => ['sometimes', 'file', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
@@ -127,6 +129,10 @@ class VendorController extends Controller
         }
 
         unset($data['logo'], $data['cover']);
+
+        if (isset($data['phone'])) {
+            $data['phone'] = Phone::normalize($data['phone']);
+        }
 
         $vendor->update(array_filter($data, fn ($v) => $v !== null && $v !== []));
 

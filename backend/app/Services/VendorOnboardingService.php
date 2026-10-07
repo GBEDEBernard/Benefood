@@ -35,6 +35,7 @@ class VendorOnboardingService
             'email' => $data['email'] ?? null,
             'city' => $data['city'] ?? null,
             'address' => $data['address'] ?? null,
+            'category_id' => $data['category_id'] ?? null,
             'status' => VendorStatus::Registered->value,
         ]);
 

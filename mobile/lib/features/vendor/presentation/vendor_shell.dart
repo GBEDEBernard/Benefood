@@ -69,15 +69,19 @@ class _VendorShellState extends State<VendorShell> {
   }
 
   Future<void> _openOnboarding() async {
-    final changed = await Navigator.of(context).push<bool>(
+    await Navigator.of(context).push<bool>(
       MaterialPageRoute<bool>(
         builder: (context) => VendorOnboardingScreen(marketplace: widget.marketplace),
       ),
     );
-    if (changed == true) {
+    // L'état a pu changer même si l'utilisateur est sorti avant la fin
+    // (le dossier enregistré reste reprise au prochain passage).
+    if (mounted) {
       await _loadStatus();
     }
   }
+
+  void _selectTab(int index) => setState(() => _index = index);
 
   @override
   Widget build(BuildContext context) {
@@ -88,12 +92,16 @@ class _VendorShellState extends State<VendorShell> {
           _buildFirstTab(),
           ProductsScreen(marketplace: widget.marketplace),
           VendorOrdersScreen(marketplace: widget.marketplace),
-          VendorAccountScreen(session: widget.session, marketplace: widget.marketplace),
+          VendorAccountScreen(
+            session: widget.session,
+            marketplace: widget.marketplace,
+            onSelectTab: _selectTab,
+          ),
         ],
       ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _index,
-        onDestinationSelected: (i) => setState(() => _index = i),
+        onDestinationSelected: _selectTab,
         destinations: const [
           NavigationDestination(icon: Icon(Icons.space_dashboard_outlined), selectedIcon: Icon(Icons.space_dashboard), label: 'Tableau de bord'),
           NavigationDestination(icon: Icon(Icons.shopping_bag_outlined), selectedIcon: Icon(Icons.shopping_bag), label: 'Produits'),

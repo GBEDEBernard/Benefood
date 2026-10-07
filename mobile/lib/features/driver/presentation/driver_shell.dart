@@ -95,7 +95,11 @@ class _DriverShellState extends State<DriverShell> {
             onOfferAccepted: () => _missionsKey.currentState?.refresh(),
           ),
           DriverHistoryScreen(marketplace: widget.marketplace),
-          DriverAccountScreen(session: widget.session, marketplace: widget.marketplace),
+          DriverAccountScreen(
+            session: widget.session,
+            marketplace: widget.marketplace,
+            onSelectTab: _onDestinationSelected,
+          ),
         ],
       ),
       bottomNavigationBar: NavigationBar(

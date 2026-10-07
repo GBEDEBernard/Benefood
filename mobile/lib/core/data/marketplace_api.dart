@@ -285,6 +285,7 @@ class MarketplaceApi {
     String? email,
     String? city,
     String? address,
+    String? categoryId,
   }) async {
     await _api.post('/vendors/me/onboarding', body: {
       'business_name': businessName,
@@ -295,6 +296,34 @@ class MarketplaceApi {
       if (email != null && email.isNotEmpty) 'email': email,
       if (city != null && city.isNotEmpty) 'city': city,
       if (address != null && address.isNotEmpty) 'address': address,
+      if (categoryId != null && categoryId.isNotEmpty) 'category_id': categoryId,
+    });
+  }
+
+  /// Met à jour les informations de la boutique (`PATCH /vendors/me`) :
+  /// utilisé par le parcours d'inscription pour la configuration (étape 3)
+  /// et pour les retours en arrière du formulaire légal.
+  Future<void> updateVendorProfile({
+    String? businessName,
+    String? legalName,
+    String? ifu,
+    String? description,
+    String? phone,
+    String? email,
+    String? city,
+    String? address,
+    String? categoryId,
+  }) async {
+    await _api.patch('/vendors/me', body: {
+      if (businessName != null && businessName.isNotEmpty) 'business_name': businessName,
+      'legal_name': ?legalName,
+      'ifu': ?ifu,
+      'description': ?description,
+      if (phone != null && phone.isNotEmpty) 'phone': phone,
+      'email': ?email,
+      'city': ?city,
+      'address': ?address,
+      if (categoryId != null && categoryId.isNotEmpty) 'category_id': categoryId,
     });
   }
 
@@ -523,7 +552,7 @@ class MarketplaceApi {
       '/vendors/me/documents',
       fields: {'type': type},
       files: {'document': bytes},
-      fileNames: {'document': fileName ?? 'document.pdf'},
+      fileNames: {'document': fileName ?? 'document.${_imageExtension(bytes)}'},
     );
   }
 

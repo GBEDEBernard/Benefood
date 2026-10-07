@@ -98,7 +98,9 @@ class ApiClient {
       ));
     });
 
-    final streamed = await request.send().timeout(timeout);
+    // Via `_http` (et non `request.send()`) : même client injecté,
+    // mêmes timeouts et mêmes tests que le reste des requêtes.
+    final streamed = await _http.send(request).timeout(timeout);
     final response = await http.Response.fromStream(streamed).timeout(timeout);
     return _decode(response, attemptsLeft: auth ? 1 : 0);
   }

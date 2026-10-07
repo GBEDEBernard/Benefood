@@ -205,8 +205,40 @@ GoRouter buildAppRouter(SessionProvider session, MarketplaceApi marketplace) {
         builder: (context, state) => VendorShell(session: session, marketplace: marketplace),
       ),
       GoRoute(
+        path: '/vendor/profile/edit',
+        builder: (context, state) => ProfileEditScreen(marketplace: marketplace, session: session),
+      ),
+      GoRoute(
+        path: '/vendor/notifications',
+        builder: (context, state) => NotificationsScreen(marketplace: marketplace),
+      ),
+      GoRoute(
+        path: '/vendor/security',
+        builder: (context, state) => SecurityScreen(marketplace: marketplace),
+      ),
+      GoRoute(
+        path: '/vendor/complaints',
+        builder: (context, state) => ComplaintsScreen(marketplace: marketplace),
+      ),
+      GoRoute(
         path: '/driver',
         builder: (context, state) => DriverShell(session: session, marketplace: marketplace),
+      ),
+      GoRoute(
+        path: '/driver/profile/edit',
+        builder: (context, state) => ProfileEditScreen(marketplace: marketplace, session: session),
+      ),
+      GoRoute(
+        path: '/driver/notifications',
+        builder: (context, state) => NotificationsScreen(marketplace: marketplace),
+      ),
+      GoRoute(
+        path: '/driver/security',
+        builder: (context, state) => SecurityScreen(marketplace: marketplace),
+      ),
+      GoRoute(
+        path: '/driver/complaints',
+        builder: (context, state) => ComplaintsScreen(marketplace: marketplace),
       ),
     ],
   );

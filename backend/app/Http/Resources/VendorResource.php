@@ -21,6 +21,7 @@ class VendorResource extends JsonResource
             'email' => $this->email,
             'city' => $this->city,
             'address' => $this->address,
+            'category_id' => $this->category_id,
             'logo_url' => $this->mediaUrl($this->logo_url),
             'cover_url' => $this->mediaUrl($this->cover_url),
             'status' => $this->status,

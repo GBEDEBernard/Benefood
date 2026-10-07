@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Category;
 use App\Models\Role;
 use App\Models\User;
 use App\Models\VendorDocument;
@@ -217,5 +218,63 @@ class VendorOnboardingTest extends TestCase
         $this->assertNotNull($vendor->cover_url);
         $this->assertStringContainsString("vendor-media/{$vendor->id}", $vendor->logo_url);
         $this->assertCount(2, Storage::disk('public')->allFiles("vendor-media/{$vendor->id}"));
+    }
+
+    public function test_onboarding_accepts_category_id(): void
+    {
+        $category = Category::factory()->create();
+        $user = User::factory()->create(['phone' => '+22997000010']);
+        Sanctum::actingAs($user);
+
+        $this->postJson('/api/v1/vendors/me/onboarding', [
+            'business_name' => 'Resto Chez Awa',
+            'phone' => '97000011',
+            'category_id' => $category->id,
+        ])->assertCreated()
+            ->assertJsonPath('data.category_id', $category->id);
+
+        $this->assertDatabaseHas('vendors', [
+            'user_id' => $user->id,
+            'category_id' => $category->id,
+        ]);
+    }
+
+    public function test_onboarding_rejects_unknown_category(): void
+    {
+        $user = User::factory()->create(['phone' => '+22997000010']);
+        Sanctum::actingAs($user);
+
+        $this->postJson('/api/v1/vendors/me/onboarding', [
+            'business_name' => 'Resto Chez Awa',
+            'phone' => '97000011',
+            'category_id' => '11111111-1111-1111-1111-111111111111',
+        ])->assertUnprocessable()
+            ->assertJsonPath('errors.0.field', 'category_id');
+    }
+
+    public function test_update_profile_sets_category_id(): void
+    {
+        $category = Category::factory()->create();
+        $user = User::factory()->create(['phone' => '+22997000010']);
+        Sanctum::actingAs($user);
+
+        $this->postJson('/api/v1/vendors/me/onboarding', [
+            'business_name' => 'Resto Chez Awa',
+            'phone' => '97000011',
+        ])->assertCreated();
+
+        $this->patchJson('/api/v1/vendors/me', [
+            'business_name' => 'Chez Awa',
+            'description' => 'Cuisine béninoise.',
+            'category_id' => $category->id,
+        ])->assertOk()
+            ->assertJsonPath('data.business_name', 'Chez Awa')
+            ->assertJsonPath('data.category_id', $category->id);
+
+        $this->assertDatabaseHas('vendors', [
+            'user_id' => $user->id,
+            'business_name' => 'Chez Awa',
+            'category_id' => $category->id,
+        ]);
     }
 }

@@ -5,171 +5,333 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../../core/data/marketplace_api.dart';
 import '../../../core/errors/api_exception.dart';
-import '../../../shared/widgets/app_button.dart';
-import '../../../shared/widgets/app_text_field.dart';
+import '../../../core/theme/app_colors.dart';
+import '../../../shared/models/category.dart';
 import '../../../shared/widgets/feedback_widgets.dart';
+import 'steps/documents_step.dart';
+import 'steps/legal_info_step.dart';
+import 'steps/shop_config_step.dart';
+import 'steps/submitted_step.dart';
+import 'steps/welcome_step.dart';
+import 'widgets/onboarding_scaffold.dart';
 
-/// Inscription vendeur (J46) : formulaire boutique, photos et documents.
+/// Sélecteur d'images injectable : les tests remplacent le plugin natif.
+typedef OnboardingImagePicker = Future<Uint8List?> Function(ImageSource source);
+
+/// Parcours d'inscription vendeur en 5 écrans (spec UX) :
+/// accueil → informations légales → documents → configuration → confirmation.
 ///
-/// Démo sandbox : sans bibliothèque de fichiers, les documents sont générés
-/// comme PDF d'exemple (quelques octets) et envoyés via `uploadVendorDocument`.
+/// Toute l'état (formulaires, documents, médias) vit dans ce contrôleur pour
+/// survivre aux allers-retours entre les étapes de la [PageView].
 class VendorOnboardingScreen extends StatefulWidget {
-  const VendorOnboardingScreen({super.key, required this.marketplace});
+  const VendorOnboardingScreen({
+    super.key,
+    required this.marketplace,
+    this.imagePicker,
+  });
 
   final MarketplaceApi marketplace;
+
+  /// Remplace le sélecteur d'images natif (tests uniquement).
+  final OnboardingImagePicker? imagePicker;
 
   @override
   State<VendorOnboardingScreen> createState() => _VendorOnboardingScreenState();
 }
 
 class _VendorOnboardingScreenState extends State<VendorOnboardingScreen> {
-  static const _docTypes = <(String, String)>[
-    ('ifu', 'IFU'),
-    ('business_registration', 'Registre de commerce / Patente'),
-    ('id_card', 'Pièce d\'identité'),
-  ];
+  /// Étapes : 0 accueil, 1 infos légales, 2 documents, 3 configuration, 4 fin.
+  int _step = 0;
 
-  final _formKey = GlobalKey<FormState>();
-  final _businessName = TextEditingController();
-  final _legalName = TextEditingController();
+  final PageController _pageController = PageController();
+
+  // --- Étape 1 : informations légales ---
+  final _legalFormKey = GlobalKey<FormState>();
+  final _raisonSociale = TextEditingController();
   final _ifu = TextEditingController();
-  final _description = TextEditingController();
   final _phone = TextEditingController();
   final _email = TextEditingController();
-  final _city = TextEditingController();
-  final _address = TextEditingController();
-  final Set<String> _uploadedTypes = {};
-  String? _uploadingType;
-  bool _submitting = false;
+  final _adresse = TextEditingController();
 
+  // --- Étape 2 : documents ---
+  final Set<String> _uploadedTypes = {};
+  final Map<String, Uint8List?> _docPreviews = {};
+  String? _uploadingType;
+
+  // --- Étape 3 : configuration boutique ---
+  final _shopFormKey = GlobalKey<FormState>();
+  final _shopName = TextEditingController();
+  final _description = TextEditingController();
+  List<Category> _categories = [];
+  String? _categoryId;
   Uint8List? _logoBytes;
   Uint8List? _coverBytes;
-  bool _pickingPhoto = false;
+  String? _logoUrl;
+  String? _coverUrl;
+
+  /// Un profil vendeur existe déjà côté serveur (reprise du dossier).
+  bool _vendorCreated = false;
+
+  bool _submitting = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _restore();
+    _loadCategories();
+  }
 
   @override
   void dispose() {
-    _businessName.dispose();
-    _legalName.dispose();
+    _pageController.dispose();
+    _raisonSociale.dispose();
     _ifu.dispose();
-    _description.dispose();
     _phone.dispose();
     _email.dispose();
-    _city.dispose();
-    _address.dispose();
+    _adresse.dispose();
+    _shopName.dispose();
+    _description.dispose();
     super.dispose();
   }
 
-  List<int> _placeholderPdf() {
-    const header = <int>[
-      0x25, 0x50, 0x44, 0x46, 0x2D, 0x31, 0x2E, 0x34, 0x0A, 0x25,
-      0xE2, 0xE3, 0xCF, 0xD3, 0x0A,
-    ];
-    return [...header, ...List<int>.filled(100 - header.length, 0x20)];
-  }
+  // ------------------------------------------------------------------
+  // Reprise du dossier et catégories
+  // ------------------------------------------------------------------
 
-  Future<void> _uploadDocument(String type, String label) async {
-    if (_uploadedTypes.contains(type) || _uploadingType != null) {
-      return;
-    }
-    setState(() => _uploadingType = type);
+  /// Reprend un dossier déjà commencé : pré-remplit les champs légaux,
+  /// la configuration et coche les documents déjà transmis.
+  Future<void> _restore() async {
     try {
-      await widget.marketplace.uploadVendorDocument(type, _placeholderPdf(), fileName: '$type.pdf');
-      if (mounted) {
-        setState(() => _uploadedTypes.add(type));
-        showToast(context, '$label envoyé (démo).');
-      }
-    } on ApiException catch (e) {
-      if (mounted) {
-        showToast(context, e.message, isError: true);
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _uploadingType = null);
-      }
-    }
-  }
-
-  Future<void> _pickPhoto({required bool isLogo}) async {
-    setState(() => _pickingPhoto = true);
-    try {
-      final file = await ImagePicker().pickImage(source: ImageSource.gallery, imageQuality: 90);
-      if (file == null || !mounted) {
+      final status = await widget.marketplace.vendorStatus();
+      if (!mounted) {
         return;
       }
-      final bytes = await file.readAsBytes();
+      final vendor = status['vendor'];
+      if (vendor is! Map<String, dynamic>) {
+        return;
+      }
+
+      _vendorCreated = true;
+      _raisonSociale.text =
+          (vendor['legal_name'] as String?) ?? (vendor['business_name'] as String?) ?? '';
+      _ifu.text = vendor['ifu'] as String? ?? '';
+      _phone.text = vendor['phone'] as String? ?? '';
+      _email.text = vendor['email'] as String? ?? '';
+      _adresse.text = vendor['address'] as String? ?? '';
+      _shopName.text = vendor['business_name'] as String? ?? '';
+      _description.text = vendor['description'] as String? ?? '';
+      _categoryId = vendor['category_id'] as String?;
+      _logoUrl = vendor['logo_url'] as String?;
+      _coverUrl = vendor['cover_url'] as String?;
+
+      final documents = status['documents'];
+      if (documents is List) {
+        for (final raw in documents) {
+          if (raw is Map<String, dynamic>) {
+            final type = raw['type'];
+            if (type is String &&
+                kOnboardingDocumentTypes.any((doc) => doc.$1 == type)) {
+              _uploadedTypes.add(type);
+            }
+          }
+        }
+      }
+      setState(() {});
+    } on ApiException {
+      // Aucun profil vendeur : premier passage du parcours.
+    }
+  }
+
+  Future<void> _loadCategories() async {
+    try {
+      final categories = await widget.marketplace.categories();
       if (!mounted) {
         return;
       }
       setState(() {
-        if (isLogo) {
-          _logoBytes = bytes;
-        } else {
-          _coverBytes = bytes;
-        }
+        _categories = [for (final c in categories) if (c.isActive) c];
       });
-    } catch (_) {
-      if (mounted) {
-        showToast(context, 'Impossible de charger l\'image.', isError: true);
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _pickingPhoto = false);
-      }
+    } on ApiException {
+      // Le dropdown reste vide : la saisie reste possible au prochain essai.
     }
   }
 
-  Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) {
+  // ------------------------------------------------------------------
+  // Navigation entre les étapes
+  // ------------------------------------------------------------------
+
+  void _goTo(int step) {
+    setState(() => _step = step);
+    _pageController.animateToPage(
+      step,
+      duration: const Duration(milliseconds: 280),
+      curve: Curves.easeOutCubic,
+    );
+  }
+
+  void _showError(Object error) {
+    if (!mounted) {
+      return;
+    }
+    if (error is ApiException && error.fieldErrors.isNotEmpty) {
+      showToast(context, error.fieldErrors.values.first.first, isError: true);
+    } else if (error is ApiException) {
+      showToast(context, error.message, isError: true);
+    } else {
+      showToast(context, 'Une erreur est survenue. Réessayez.', isError: true);
+    }
+  }
+
+  // ------------------------------------------------------------------
+  // Images : choix de la source puis lecture des octets
+  // ------------------------------------------------------------------
+
+  Future<ImageSource?> _askImageSource() {
+    return showModalBottomSheet<ImageSource>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Padding(
+              padding: EdgeInsets.fromLTRB(24, 18, 24, 6),
+              child: Text(
+                'Ajouter une image',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+              ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_camera_outlined,
+                  color: AppColors.orange),
+              title: const Text('Prendre une photo'),
+              onTap: () => Navigator.pop(sheetContext, ImageSource.camera),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library_outlined,
+                  color: AppColors.orange),
+              title: const Text('Choisir dans la galerie'),
+              onTap: () => Navigator.pop(sheetContext, ImageSource.gallery),
+            ),
+            ListTile(
+              title: const Text('Annuler', textAlign: TextAlign.center),
+              onTap: () => Navigator.pop(sheetContext),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<Uint8List?> _readImage(ImageSource source) async {
+    final custom = widget.imagePicker;
+    if (custom != null) {
+      return custom(source);
+    }
+    try {
+      final file = await ImagePicker().pickImage(source: source, imageQuality: 85);
+      return file?.readAsBytes();
+    } catch (_) {
+      if (mounted) {
+        showToast(context, 'Impossible de charger l\u2019image.', isError: true);
+      }
+      return null;
+    }
+  }
+
+  // ------------------------------------------------------------------
+  // Étape 2 : envoi immédiat des documents
+  // ------------------------------------------------------------------
+
+  Future<void> _pickDocument(String type) async {
+    if (_uploadingType != null) {
+      return;
+    }
+    final source = await _askImageSource();
+    if (source == null || !mounted) {
+      return;
+    }
+    final bytes = await _readImage(source);
+    if (bytes == null || !mounted) {
+      return;
+    }
+
+    setState(() => _uploadingType = type);
+    try {
+      await widget.marketplace.uploadVendorDocument(type, bytes);
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _uploadedTypes.add(type);
+        _docPreviews[type] = bytes;
+        _uploadingType = null;
+      });
+      showToast(context, 'Document envoyé.');
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      setState(() => _uploadingType = null);
+      _showError(error);
+    }
+  }
+
+  // ------------------------------------------------------------------
+  // Étape 3 : logo et couverture
+  // ------------------------------------------------------------------
+
+  Future<void> _pickMedia({required bool isLogo}) async {
+    final source = await _askImageSource();
+    if (source == null || !mounted) {
+      return;
+    }
+    final bytes = await _readImage(source);
+    if (bytes == null || !mounted) {
+      return;
+    }
+    setState(() {
+      if (isLogo) {
+        _logoBytes = bytes;
+        _logoUrl = null;
+      } else {
+        _coverBytes = bytes;
+        _coverUrl = null;
+      }
+    });
+  }
+
+  // ------------------------------------------------------------------
+  // Passages entre les étapes (validations + appels API)
+  // ------------------------------------------------------------------
+
+  Future<void> _continueFromLegal() async {
+    final form = _legalFormKey.currentState;
+    if (form == null || !form.validate()) {
       return;
     }
     setState(() => _submitting = true);
     try {
-      try {
-        await widget.marketplace.vendorOnboarding(
-          businessName: _businessName.text.trim(),
-          legalName: _legalName.text.trim().isEmpty ? null : _legalName.text.trim(),
-          ifu: _ifu.text.trim().isEmpty ? null : _ifu.text.trim(),
-          description: _description.text.trim().isEmpty ? null : _description.text.trim(),
-          phone: _phone.text.trim(),
-          email: _email.text.trim().isEmpty ? null : _email.text.trim(),
-          city: _city.text.trim().isEmpty ? null : _city.text.trim(),
-          address: _address.text.trim().isEmpty ? null : _address.text.trim(),
-        );
-      } on ApiException catch (e) {
-        if (!e.isConflict) {
-          rethrow;
+      if (_vendorCreated) {
+        await _updateLegalInfo();
+      } else {
+        try {
+          await _sendLegalInfo();
+          _vendorCreated = true;
+        } on ApiException catch (e) {
+          if (!e.isConflict) {
+            rethrow;
+          }
+          // Le dossier existe déjà côté serveur : on le met à jour.
+          await _updateLegalInfo();
+          _vendorCreated = true;
         }
       }
-
-      for (final (type, label) in _docTypes) {
-        if (!_uploadedTypes.contains(type)) {
-          await widget.marketplace.uploadVendorDocument(type, _placeholderPdf(), fileName: '$type.pdf');
-          _uploadedTypes.add(type);
-        }
-        if (mounted && (type == 'ifu' || type == 'business_registration')) {
-          showToast(context, '$label envoyé (démo).');
-        }
-      }
-
-      if (_logoBytes != null || _coverBytes != null) {
-        await widget.marketplace.updateVendorMedia(
-          logo: _logoBytes,
-          cover: _coverBytes,
-        );
-      }
-
-      if (mounted) {
-        showToast(context, 'Dossier soumis. Merci !');
-        Navigator.of(context).pop(true);
-      }
-    } on ApiException catch (e) {
-      if (mounted) {
-        if (e.fieldErrors.isNotEmpty) {
-          showToast(context, e.fieldErrors.values.first.first, isError: true);
-        } else {
-          showToast(context, e.message, isError: true);
-        }
-      }
+      _goTo(2);
+    } catch (error) {
+      _showError(error);
     } finally {
       if (mounted) {
         setState(() => _submitting = false);
@@ -177,227 +339,166 @@ class _VendorOnboardingScreenState extends State<VendorOnboardingScreen> {
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Inscription vendeur')),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const SizedBox(height: 8),
-                AppTextField(
-                  controller: _businessName,
-                  label: 'Nom de la boutique',
-                  icon: Icons.storefront_outlined,
-                  validator: (v) => (v == null || v.trim().isEmpty) ? 'Requis' : null,
-                ),
-                const SizedBox(height: 14),
-                AppTextField(
-                  controller: _phone,
-                  label: 'Téléphone',
-                  icon: Icons.phone_outlined,
-                  keyboardType: TextInputType.phone,
-                  hint: '+229 XX XX XX XX',
-                  validator: (v) {
-                    if (v == null || v.trim().isEmpty) {
-                      return 'Requis';
-                    }
-                    final digits = v.replaceAll(RegExp(r'\D'), '');
-                    return digits.length >= 8 ? null : 'Numéro invalide';
-                  },
-                ),
-                const SizedBox(height: 14),
-                AppTextField(
-                  controller: _legalName,
-                  label: 'Raison sociale',
-                  icon: Icons.business_outlined,
-                ),
-                const SizedBox(height: 14),
-                AppTextField(
-                  controller: _ifu,
-                  label: 'IFU',
-                  icon: Icons.numbers_outlined,
-                ),
-                const SizedBox(height: 14),
-                AppTextField(
-                  controller: _description,
-                  label: 'Description',
-                  icon: Icons.notes_outlined,
-                  maxLines: 3,
-                ),
-                const SizedBox(height: 14),
-                AppTextField(
-                  controller: _email,
-                  label: 'Email',
-                  icon: Icons.mail_outline,
-                  keyboardType: TextInputType.emailAddress,
-                ),
-                const SizedBox(height: 14),
-                AppTextField(
-                  controller: _city,
-                  label: 'Ville',
-                  icon: Icons.location_city_outlined,
-                ),
-                const SizedBox(height: 14),
-                AppTextField(
-                  controller: _address,
-                  label: 'Adresse',
-                  icon: Icons.location_on_outlined,
-                ),
-                const SizedBox(height: 24),
-                Text('Photos de la boutique', style: Theme.of(context).textTheme.titleSmall),
-                const SizedBox(height: 4),
-                Text(
-                  'Ajoutez un logo et une photo de couverture pour votre fiche boutique.',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
-                ),
-                const SizedBox(height: 12),
-                _buildPhotoTile(
-                  title: 'Logo',
-                  bytes: _logoBytes,
-                  onPick: () => _pickPhoto(isLogo: true),
-                  onRemove: () => setState(() => _logoBytes = null),
-                ),
-                const SizedBox(height: 12),
-                _buildPhotoTile(
-                  title: 'Couverture',
-                  bytes: _coverBytes,
-                  onPick: () => _pickPhoto(isLogo: false),
-                  onRemove: () => setState(() => _coverBytes = null),
-                ),
-                const SizedBox(height: 24),
-                Text('Documents justificatifs', style: Theme.of(context).textTheme.titleSmall),
-                const SizedBox(height: 4),
-                Text(
-                  'Démo : un document PDF d\'exemple est généré automatiquement.',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
-                ),
-                const SizedBox(height: 12),
-                for (final (type, label) in _docTypes) ...[
-                  Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(12),
-                      child: Row(
-                        children: [
-                          Icon(
-                            _uploadedTypes.contains(type) ? Icons.check_circle : Icons.description_outlined,
-                            color: _uploadedTypes.contains(type) ? Colors.green : Theme.of(context).colorScheme.onSurfaceVariant,
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
-                                Text(
-                                  _uploadedTypes.contains(type) ? 'Document transmis' : 'À fournir',
-                                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                        color: _uploadedTypes.contains(type)
-                                            ? Colors.green
-                                            : Theme.of(context).colorScheme.onSurfaceVariant,
-                                      ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          if (_uploadingType == type)
-                            const SizedBox(
-                              width: 22,
-                              height: 22,
-                              child: CircularProgressIndicator(strokeWidth: 2.2),
-                            )
-                          else if (!_uploadedTypes.contains(type))
-                            TextButton(
-                              onPressed: () => _uploadDocument(type, label),
-                              child: const Text('Ajouter'),
-                            )
-                          else
-                            IconButton(
-                              tooltip: 'Supprimer',
-                              icon: const Icon(Icons.close),
-                              onPressed: () => setState(() => _uploadedTypes.remove(type)),
-                            ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                ],
-                const SizedBox(height: 16),
-                AppButton(
-                  label: 'Soumettre le dossier',
-                  icon: Icons.send_outlined,
-                  onPressed: _submitting ? null : _submit,
-                  loading: _submitting,
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
+  Future<void> _sendLegalInfo() {
+    return widget.marketplace.vendorOnboarding(
+      businessName: _raisonSociale.text.trim(),
+      legalName: _raisonSociale.text.trim(),
+      ifu: _ifu.text.trim(),
+      phone: _phone.text.trim(),
+      email: _email.text.trim(),
+      address: _adresse.text.trim(),
     );
   }
 
-  Widget _buildPhotoTile({
-    required String title,
-    required Uint8List? bytes,
-    required VoidCallback onPick,
-    required VoidCallback onRemove,
-  }) {
-    final theme = Theme.of(context);
-    final preview = bytes != null
-        ? Image.memory(bytes, fit: BoxFit.cover)
-        : Container(
-            color: theme.colorScheme.surfaceContainerHighest,
-            child: Center(
-              child: Icon(Icons.storefront, size: 32, color: theme.colorScheme.outline),
-            ),
-          );
+  Future<void> _updateLegalInfo() {
+    return widget.marketplace.updateVendorProfile(
+      businessName: _raisonSociale.text.trim(),
+      legalName: _raisonSociale.text.trim(),
+      ifu: _ifu.text.trim(),
+      phone: _phone.text.trim(),
+      email: _email.text.trim(),
+      address: _adresse.text.trim(),
+    );
+  }
 
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
-            const SizedBox(height: 8),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: SizedBox(
-                height: 120,
-                width: double.infinity,
-                child: preview,
+  void _continueFromDocuments() {
+    final missing = kOnboardingDocumentTypes
+        .where((doc) => !_uploadedTypes.contains(doc.$1))
+        .length;
+    if (missing > 0) {
+      showToast(
+        context,
+        missing == 1
+            ? 'Envoyez le document restant.'
+            : 'Envoyez les $missing documents restants.',
+        isError: true,
+      );
+      return;
+    }
+    _goTo(3);
+  }
+
+  Future<void> _continueFromShop() async {
+    final form = _shopFormKey.currentState;
+    if (form == null || !form.validate()) {
+      return;
+    }
+    if (_logoBytes == null && _logoUrl == null) {
+      showToast(context, 'Ajoutez le logo de la boutique.', isError: true);
+      return;
+    }
+    if (_coverBytes == null && _coverUrl == null) {
+      showToast(context, 'Ajoutez l\u2019image de couverture.', isError: true);
+      return;
+    }
+
+    setState(() => _submitting = true);
+    try {
+      await widget.marketplace.updateVendorProfile(
+        businessName: _shopName.text.trim(),
+        description: _description.text.trim(),
+        categoryId: _categoryId,
+      );
+      if (_logoBytes != null || _coverBytes != null) {
+        await widget.marketplace.updateVendorMedia(
+          logo: _logoBytes,
+          cover: _coverBytes,
+        );
+      }
+      _goTo(4);
+    } catch (error) {
+      _showError(error);
+    } finally {
+      if (mounted) {
+        setState(() => _submitting = false);
+      }
+    }
+  }
+
+  // ------------------------------------------------------------------
+  // Affichage
+  // ------------------------------------------------------------------
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: SafeArea(
+        child: PopScope(
+          // Retour système : une étape en arrière, sauf aux extrémités.
+          canPop: _step == 0 || _step == 4,
+          onPopInvokedWithResult: (didPop, result) {
+            if (!didPop && _step > 0 && _step < 4) {
+              _goTo(_step - 1);
+            }
+          },
+          child: PageView(
+            controller: _pageController,
+            physics: const NeverScrollableScrollPhysics(),
+            onPageChanged: (index) => setState(() => _step = index),
+            children: [
+              WelcomeStep(
+                onStart: () => _goTo(1),
+                onSkip: () => Navigator.of(context).pop(_vendorCreated),
               ),
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    icon: _pickingPhoto
-                        ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                        : const Icon(Icons.photo_library_outlined),
-                    label: Text(bytes != null ? 'Changer la photo' : 'Ajouter une photo'),
-                    onPressed: _pickingPhoto ? null : onPick,
-                  ),
+              OnboardingScaffold(
+                stepIndex: 1,
+                title: 'Informations légales',
+                subtitle: 'Renseignez les informations légales de votre entreprise.',
+                nextLabel: 'Suivant',
+                loading: _submitting,
+                onBack: () => _goTo(0),
+                onNext: _continueFromLegal,
+                child: LegalInfoStep(
+                  formKey: _legalFormKey,
+                  raisonSociale: _raisonSociale,
+                  ifu: _ifu,
+                  phone: _phone,
+                  email: _email,
+                  adresse: _adresse,
                 ),
-                if (bytes != null) ...[
-                  const SizedBox(width: 8),
-                  IconButton(
-                    tooltip: 'Retirer la photo',
-                    icon: const Icon(Icons.delete_outline),
-                    onPressed: _pickingPhoto ? null : onRemove,
-                  ),
-                ],
-              ],
-            ),
-          ],
+              ),
+              OnboardingScaffold(
+                stepIndex: 2,
+                title: 'Documents requis',
+                subtitle: 'Envoyez les justificatifs demandés pour la vérification.',
+                nextLabel: 'Suivant',
+                onBack: () => _goTo(1),
+                onNext: _continueFromDocuments,
+                child: DocumentsStep(
+                  previews: _docPreviews,
+                  uploadedTypes: _uploadedTypes,
+                  uploadingType: _uploadingType,
+                  onPick: _pickDocument,
+                ),
+              ),
+              OnboardingScaffold(
+                stepIndex: 3,
+                title: 'Configuration de la boutique',
+                subtitle: 'Personnalisez la vitrine de votre boutique.',
+                nextLabel: 'Suivant',
+                loading: _submitting,
+                onBack: () => _goTo(2),
+                onNext: _continueFromShop,
+                child: ShopConfigStep(
+                  formKey: _shopFormKey,
+                  shopName: _shopName,
+                  description: _description,
+                  categories: _categories,
+                  selectedCategoryId: _categoryId,
+                  onCategoryChanged: (value) => setState(() => _categoryId = value),
+                  logoBytes: _logoBytes,
+                  logoUrl: _logoUrl,
+                  onPickLogo: () => _pickMedia(isLogo: true),
+                  coverBytes: _coverBytes,
+                  coverUrl: _coverUrl,
+                  onPickCover: () => _pickMedia(isLogo: false),
+                ),
+              ),
+              SubmittedStep(
+                onGoToDashboard: () => Navigator.of(context).pop(true),
+              ),
+            ],
+          ),
         ),
       ),
     );
