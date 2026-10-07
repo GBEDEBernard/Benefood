@@ -17,7 +17,11 @@ import '../../../shared/widgets/status_badge.dart';
 
 /// Fiche produit client (J148) : description, prix, quantité, ajout panier.
 class ProductDetailScreen extends StatefulWidget {
-  const ProductDetailScreen({super.key, required this.marketplace, required this.productId});
+  const ProductDetailScreen({
+    super.key,
+    required this.marketplace,
+    required this.productId,
+  });
 
   final MarketplaceApi marketplace;
   final String productId;
@@ -30,11 +34,47 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   late Future<Product> _future;
   int _quantity = 1;
   bool _adding = false;
+  bool _isFavorite = false;
 
   @override
   void initState() {
     super.initState();
     _future = widget.marketplace.product(widget.productId);
+    _loadFavorite();
+  }
+
+  Future<void> _loadFavorite() async {
+    try {
+      final favorites = await widget.marketplace.myFavorites();
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _isFavorite = favorites.any((f) => f['product_id'] == widget.productId);
+      });
+    } catch (_) {
+      // Dégradation silencieuse : le cœur reste inactif.
+    }
+  }
+
+  Future<void> _toggleFavorite() async {
+    final wasFavorite = _isFavorite;
+    setState(() => _isFavorite = !wasFavorite);
+    try {
+      if (wasFavorite) {
+        await widget.marketplace.removeFavorite(widget.productId);
+      } else {
+        await widget.marketplace.addFavorite(widget.productId);
+      }
+      if (mounted && !wasFavorite) {
+        showToast(context, 'Ajouté aux favoris');
+      }
+    } on ApiException catch (e) {
+      if (mounted) {
+        setState(() => _isFavorite = wasFavorite);
+        showToast(context, e.message, isError: true);
+      }
+    }
   }
 
   Future<void> _addToCart(Product product) async {
@@ -59,7 +99,21 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Produit')),
+      appBar: AppBar(
+        title: const Text('Produit'),
+        actions: [
+          IconButton(
+            onPressed: _toggleFavorite,
+            tooltip: _isFavorite
+                ? 'Retirer des favoris'
+                : 'Ajouter aux favoris',
+            icon: Icon(
+              _isFavorite ? Icons.favorite : Icons.favorite_border,
+              color: _isFavorite ? AppColors.red : AppColors.text,
+            ),
+          ),
+        ],
+      ),
       body: FutureBuilder<Product>(
         future: _future,
         builder: (context, snapshot) {
@@ -71,7 +125,12 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
               message: snapshot.error is ApiException
                   ? (snapshot.error as ApiException).message
                   : 'Produit introuvable.',
-              onRetry: () => setState(() => _future = widget.marketplace.product(widget.productId)),
+              onRetry: () {
+                final next = widget.marketplace.product(widget.productId);
+                setState(() {
+                  _future = next;
+                });
+              },
             );
           }
           final product = snapshot.data!;
@@ -94,13 +153,18 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                       child: Stack(
                         fit: StackFit.expand,
                         children: [
-                          AppNetworkImage(url: product.imageUrl, icon: Icons.fastfood_outlined),
+                          AppNetworkImage(
+                            url: product.imageUrl,
+                            icon: Icons.fastfood_outlined,
+                          ),
                           if (!product.isOrderable || product.isOutOfStock)
                             Positioned(
                               top: 14,
                               right: 14,
                               child: StatusBadge(
-                                label: product.isOutOfStock ? 'Rupture de stock' : 'Indisponible',
+                                label: product.isOutOfStock
+                                    ? 'Rupture de stock'
+                                    : 'Indisponible',
                                 color: AppColors.red,
                               ),
                             ),
@@ -108,7 +172,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                       ),
                     ),
                     Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: AppDimens.pagePadding),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppDimens.pagePadding,
+                      ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -126,17 +192,23 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                               ),
                               const SizedBox(width: 12),
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 6,
+                                ),
                                 decoration: BoxDecoration(
                                   color: AppColors.goldLight,
-                                  borderRadius: BorderRadius.circular(AppDimens.radiusPill),
+                                  borderRadius: BorderRadius.circular(
+                                    AppDimens.radiusPill,
+                                  ),
                                 ),
                                 child: Text(
                                   product.unit,
                                   style: const TextStyle(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w700,
-                                      color: AppColors.goldDark),
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.goldDark,
+                                  ),
                                 ),
                               ),
                             ],
@@ -167,25 +239,39 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                           if (product.vendorName != null) ...[
                             const SizedBox(height: 14),
                             InkWell(
-                              onTap: () => context.push('/client/shop/${product.vendorId}'),
-                              borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+                              onTap: () => context.push(
+                                '/client/shop/${product.vendorId}',
+                              ),
+                              borderRadius: BorderRadius.circular(
+                                AppDimens.radiusMd,
+                              ),
                               child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 10,
+                                ),
                                 decoration: BoxDecoration(
                                   color: AppColors.surface,
-                                  borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+                                  borderRadius: BorderRadius.circular(
+                                    AppDimens.radiusMd,
+                                  ),
                                   border: Border.all(color: AppColors.border),
                                 ),
                                 child: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    const Icon(Icons.storefront_outlined,
-                                        size: 18, color: AppColors.green),
+                                    const Icon(
+                                      Icons.storefront_outlined,
+                                      size: 18,
+                                      color: AppColors.green,
+                                    ),
                                     const SizedBox(width: 8),
                                     Flexible(
                                       child: Text(
                                         product.vendorName!,
-                                        style: const TextStyle(fontWeight: FontWeight.w600),
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.w600,
+                                        ),
                                       ),
                                     ),
                                     const Icon(Icons.chevron_right, size: 20),
@@ -194,11 +280,18 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                               ),
                             ),
                           ],
-                          if (product.description != null && product.description!.isNotEmpty) ...[
+                          if (product.description != null &&
+                              product.description!.isNotEmpty) ...[
                             const SizedBox(height: 22),
-                            Text('Description', style: Theme.of(context).textTheme.titleSmall),
+                            Text(
+                              'Description',
+                              style: Theme.of(context).textTheme.titleSmall,
+                            ),
                             const SizedBox(height: 8),
-                            Text(product.description!, style: Theme.of(context).textTheme.bodyMedium),
+                            Text(
+                              product.description!,
+                              style: Theme.of(context).textTheme.bodyMedium,
+                            ),
                           ],
                         ],
                       ),
@@ -213,7 +306,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                     decoration: const BoxDecoration(
                       color: AppColors.surface,
                       border: Border(top: BorderSide(color: AppColors.border)),
-                      borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+                      borderRadius: BorderRadius.vertical(
+                        top: Radius.circular(24),
+                      ),
                     ),
                     child: Row(
                       children: [

@@ -53,6 +53,7 @@ dependencies:
   geocoding: ^5.0.0
   flutter_map: ^8.3.2
   latlong2: ^0.10.1
+  qr_flutter: ^4.1.0
 
 dev_dependencies:
   flutter_test:

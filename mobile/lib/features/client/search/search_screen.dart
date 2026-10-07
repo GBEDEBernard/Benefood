@@ -15,7 +15,11 @@ import '../../../shared/widgets/state_widgets.dart';
 
 /// Recherche & exploration client (J149) : produits + boutiques.
 class SearchScreen extends StatefulWidget {
-  const SearchScreen({super.key, required this.marketplace, this.initialCategory});
+  const SearchScreen({
+    super.key,
+    required this.marketplace,
+    this.initialCategory,
+  });
 
   final MarketplaceApi marketplace;
   final String? initialCategory;
@@ -48,8 +52,13 @@ class _SearchScreenState extends State<SearchScreen> {
 
   Future<SearchResults> _load() {
     return widget.marketplace
-        .products(q: _query.isEmpty ? null : _query, categoryId: _categoryId.isEmpty ? null : _categoryId)
-        .then((products) => SearchResults(products: products, vendors: const []));
+        .products(
+          q: _query.isEmpty ? null : _query,
+          categoryId: _categoryId.isEmpty ? null : _categoryId,
+        )
+        .then(
+          (products) => SearchResults(products: products, vendors: const []),
+        );
   }
 
   void _onChanged(String value) {
@@ -88,7 +97,12 @@ class _SearchScreenState extends State<SearchScreen> {
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(AppDimens.pagePadding, 4, AppDimens.pagePadding, 12),
+            padding: const EdgeInsets.fromLTRB(
+              AppDimens.pagePadding,
+              4,
+              AppDimens.pagePadding,
+              12,
+            ),
             child: AppSearchField(
               controller: _controller,
               autofocus: widget.initialCategory == null,
@@ -117,20 +131,31 @@ class _SearchScreenState extends State<SearchScreen> {
                     message: snapshot.error is ApiException
                         ? (snapshot.error as ApiException).message
                         : 'Recherche impossible.',
-                    onRetry: () => setState(() => _future = _load()),
+                    onRetry: () {
+                      final next = _load();
+                      setState(() {
+                        _future = next;
+                      });
+                    },
                   );
                 }
                 final results = snapshot.data!;
                 if (results.products.isEmpty) {
                   return EmptyState(
                     icon: Icons.search_off,
-                    title: _query.isEmpty ? 'Recherchez sur Béninfood' : 'Aucun résultat pour “$_query”',
+                    title: _query.isEmpty
+                        ? 'Recherchez sur Béninfood'
+                        : 'Aucun résultat pour “$_query”',
                     subtitle: 'Essayez d’autres mots-clés.',
                   );
                 }
                 return ListView.separated(
                   padding: const EdgeInsets.fromLTRB(
-                      AppDimens.pagePadding, 4, AppDimens.pagePadding, 32),
+                    AppDimens.pagePadding,
+                    4,
+                    AppDimens.pagePadding,
+                    32,
+                  ),
                   itemCount: results.products.length,
                   separatorBuilder: (_, _) => const SizedBox(height: 10),
                   itemBuilder: (context, index) {

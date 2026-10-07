@@ -10,6 +10,7 @@ import '../../../shared/models/product.dart';
 import '../../../shared/widgets/app_network_image.dart';
 import '../../../shared/widgets/app_search_field.dart';
 import '../../../shared/widgets/brand_logo.dart';
+import '../../../shared/widgets/notification_bell.dart';
 
 /// Catégories (J151) : grille 2 colonnes d'exploration visuelle.
 ///
@@ -73,8 +74,8 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
 
       final visuals = <String, String>{};
       for (final entry in idBySlug.entries) {
-        final image = productImageByCategoryId[entry.value] ??
-            iconPathById[entry.value];
+        final image =
+            productImageByCategoryId[entry.value] ?? iconPathById[entry.value];
         if (image != null) {
           visuals[entry.key] = image;
         }
@@ -130,7 +131,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
                       ),
                     ),
                   ),
-                  _NotificationBell(onPressed: () => _showNotifications(context)),
+                  NotificationBell(api: widget.marketplace),
                 ],
               ),
             ),
@@ -153,62 +154,13 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
               padding: EdgeInsets.zero,
               children: [
                 _SectionHeader(onSeeAll: () => _openSearch(context)),
-                _CategoryGrid(visuals: visuals, onOpen: () => _openSearch(context)),
+                _CategoryGrid(
+                  visuals: visuals,
+                  onOpen: () => _openSearch(context),
+                ),
                 _PromoBanner(onExplore: () => _openSearch(context)),
                 const SizedBox(height: AppDimens.xl),
               ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Cloche noire avec pastille rouge « 3 » (identique aux autres écrans).
-class _NotificationBell extends StatelessWidget {
-  const _NotificationBell({required this.onPressed});
-
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: 44,
-      height: 44,
-      child: Stack(
-        alignment: Alignment.center,
-        clipBehavior: Clip.none,
-        children: [
-          IconButton(
-            onPressed: onPressed,
-            tooltip: 'Notifications',
-            icon: const Icon(
-              Icons.notifications_none,
-              size: 26,
-              color: AppColors.text,
-            ),
-          ),
-          Positioned(
-            top: 4,
-            right: 4,
-            child: Container(
-              width: 18,
-              height: 18,
-              alignment: Alignment.center,
-              decoration: const BoxDecoration(
-                color: AppColors.red,
-                shape: BoxShape.circle,
-              ),
-              child: const Text(
-                '3',
-                style: TextStyle(
-                  color: AppColors.surface,
-                  fontSize: 10,
-                  fontWeight: FontWeight.w800,
-                  height: 1,
-                ),
-              ),
             ),
           ),
         ],
@@ -450,7 +402,11 @@ class _CategoryCard extends StatelessWidget {
                       color: category.tint,
                       shape: BoxShape.circle,
                     ),
-                    child: Icon(category.icon, size: 21, color: category.accent),
+                    child: Icon(
+                      category.icon,
+                      size: 21,
+                      color: category.accent,
+                    ),
                   ),
                   const Spacer(),
                   // Visuel (haut droit) : photo dynamique ou emoji.
@@ -561,7 +517,9 @@ class _PromoBanner extends StatelessWidget {
                       minimumSize: const Size(0, 38),
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(AppDimens.radiusPill),
+                        borderRadius: BorderRadius.circular(
+                          AppDimens.radiusPill,
+                        ),
                       ),
                     ),
                     child: const Row(
@@ -603,9 +561,7 @@ class _PromoIllustration extends StatelessWidget {
       child: Stack(
         children: [
           // Tracé pointillé orange (itinéraire).
-          Positioned.fill(
-            child: CustomPaint(painter: _DashedCurvePainter()),
-          ),
+          Positioned.fill(child: CustomPaint(painter: _DashedCurvePainter())),
           // Repère de localisation vert.
           const Positioned(
             left: 0,
@@ -632,7 +588,10 @@ class _PromoIllustration extends StatelessWidget {
                   ),
                 ],
               ),
-              child: const Text('🍛', style: TextStyle(fontSize: 32, height: 1)),
+              child: const Text(
+                '🍛',
+                style: TextStyle(fontSize: 32, height: 1),
+              ),
             ),
           ),
         ],
@@ -673,82 +632,4 @@ class _DashedCurvePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _DashedCurvePainter oldDelegate) => false;
-}
-
-/// Overlay notifications (3 éléments, cohérent avec la pastille).
-void _showNotifications(BuildContext context) {
-  showModalBottomSheet<void>(
-    context: context,
-    backgroundColor: AppColors.surface,
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(AppDimens.radiusXl)),
-    ),
-    builder: (context) {
-      const notifications = [
-        (
-          icon: Icons.restaurant,
-          title: 'Votre commande est en préparation',
-          subtitle: 'Le restaurant prépare votre repas',
-        ),
-        (
-          icon: Icons.delivery_dining,
-          title: 'Livraison en cours',
-          subtitle: 'Votre livreur est en route',
-        ),
-        (
-          icon: Icons.local_offer,
-          title: 'Offre du jour',
-          subtitle: '10 % sur les plats locaux jusqu’à 18 h',
-        ),
-      ];
-
-      return SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Padding(
-              padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
-              child: Text(
-                'Notifications',
-                style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800),
-              ),
-            ),
-            const Divider(height: 1),
-            for (final notification in notifications)
-              ListTile(
-                leading: Container(
-                  width: 44,
-                  height: 44,
-                  decoration: const BoxDecoration(
-                    color: AppColors.orangeLight,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(notification.icon, size: 20, color: AppColors.orange),
-                ),
-                title: Text(
-                  notification.title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                subtitle: Text(
-                  notification.subtitle,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 12.5,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-                onTap: () => Navigator.of(context).pop(),
-              ),
-            const SizedBox(height: 8),
-          ],
-        ),
-      );
-    },
-  );
 }

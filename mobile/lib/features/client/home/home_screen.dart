@@ -13,6 +13,7 @@ import '../../../shared/widgets/app_network_image.dart';
 import '../../../shared/widgets/app_search_field.dart';
 import '../../../shared/widgets/brand_logo.dart';
 import '../../../shared/widgets/feedback_widgets.dart';
+import '../../../shared/widgets/notification_bell.dart';
 import '../../../shared/widgets/product_cards.dart';
 import '../../../shared/widgets/section_header.dart';
 import '../../../shared/widgets/state_widgets.dart';
@@ -108,111 +109,6 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   // ----------------------------------------------------------------- surcouches
-
-  void _showNotifications() {
-    showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: AppColors.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(AppDimens.radiusXl),
-        ),
-      ),
-      builder: (context) {
-        const notifications = [
-          (
-            icon: Icons.restaurant,
-            title: 'Votre commande est en préparation',
-            subtitle: 'Le restaurant prépare votre repas',
-            time: 'Il y a 5 min',
-          ),
-          (
-            icon: Icons.delivery_dining,
-            title: 'Livraison en cours',
-            subtitle: 'Votre livreur est en route',
-            time: 'Il y a 20 min',
-          ),
-          (
-            icon: Icons.local_offer,
-            title: 'Offre du jour',
-            subtitle: '10 % sur les plats locaux jusqu’à 18 h',
-            time: 'Il y a 1 h',
-          ),
-        ];
-
-        return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 16, 8, 8),
-                child: Row(
-                  children: [
-                    const Expanded(
-                      child: Text(
-                        'Notifications',
-                        style: TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                    ),
-                    TextButton(
-                      onPressed: () => Navigator.of(context).pop(),
-                      child: const Text(
-                        'Tout lire',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const Divider(height: 1),
-              for (final notification in notifications)
-                ListTile(
-                  leading: Container(
-                    width: 44,
-                    height: 44,
-                    decoration: const BoxDecoration(
-                      color: AppColors.orangeLight,
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      notification.icon,
-                      size: 20,
-                      color: AppColors.orange,
-                    ),
-                  ),
-                  title: Text(
-                    notification.title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  subtitle: Text(
-                    '${notification.subtitle} • ${notification.time}',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 12.5,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                  onTap: () => Navigator.of(context).pop(),
-                ),
-              const SizedBox(height: 8),
-            ],
-          ),
-        );
-      },
-    );
-  }
 
   void _showFilters(List<Category> categories) {
     if (categories.isEmpty) {
@@ -358,7 +254,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ),
                   ),
-                  _NotificationBell(onPressed: _showNotifications),
+                  NotificationBell(api: widget.marketplace),
                 ],
               ),
             ),
@@ -1100,58 +996,6 @@ class _RestaurantCard extends StatelessWidget {
 }
 
 // --------------------------------------------------------------------- divers
-
-/// Cloche de notifications avec pastille rouge (menu de l'accueil).
-class _NotificationBell extends StatelessWidget {
-  const _NotificationBell({required this.onPressed});
-
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: 44,
-      height: 44,
-      child: Stack(
-        alignment: Alignment.center,
-        clipBehavior: Clip.none,
-        children: [
-          IconButton(
-            onPressed: onPressed,
-            tooltip: 'Notifications',
-            icon: const Icon(
-              Icons.notifications_none,
-              size: 26,
-              color: AppColors.text,
-            ),
-          ),
-          Positioned(
-            top: 4,
-            right: 4,
-            child: Container(
-              width: 18,
-              height: 18,
-              alignment: Alignment.center,
-              decoration: const BoxDecoration(
-                color: AppColors.red,
-                shape: BoxShape.circle,
-              ),
-              child: const Text(
-                '3',
-                style: TextStyle(
-                  color: AppColors.surface,
-                  fontSize: 10,
-                  fontWeight: FontWeight.w800,
-                  height: 1,
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
 
 /// Bouton de filtres : carré arrondi beige avec icône de réglages orange.
 class _FilterButton extends StatelessWidget {

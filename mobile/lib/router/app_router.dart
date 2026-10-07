@@ -15,6 +15,12 @@ import '../features/client/search/search_screen.dart';
 import '../features/client/checkout/checkout_screen.dart';
 import '../features/client/account/addresses_screen.dart';
 import '../features/client/account/complaints_screen.dart';
+import '../features/client/account/coupons_screen.dart';
+import '../features/client/account/favorites_screen.dart';
+import '../features/client/account/notifications_screen.dart';
+import '../features/client/account/payment_methods_screen.dart';
+import '../features/client/account/profile_edit_screen.dart';
+import '../features/client/account/security_screen.dart';
 import '../features/client/account/server_settings_screen.dart';
 import '../features/client/orders/orders_screen.dart';
 import '../features/vendor/presentation/vendor_shell.dart';
@@ -166,6 +172,33 @@ GoRouter buildAppRouter(SessionProvider session, MarketplaceApi marketplace) {
           marketplace: marketplace,
           complaintId: state.pathParameters['id']!,
         ),
+      ),
+      GoRoute(
+        path: '/client/profile/edit',
+        builder: (context, state) => ProfileEditScreen(
+          marketplace: marketplace,
+          session: session,
+        ),
+      ),
+      GoRoute(
+        path: '/client/payment-methods',
+        builder: (context, state) => PaymentMethodsScreen(marketplace: marketplace),
+      ),
+      GoRoute(
+        path: '/client/security',
+        builder: (context, state) => SecurityScreen(marketplace: marketplace),
+      ),
+      GoRoute(
+        path: '/client/notifications',
+        builder: (context, state) => NotificationsScreen(marketplace: marketplace),
+      ),
+      GoRoute(
+        path: '/client/favorites',
+        builder: (context, state) => FavoritesScreen(marketplace: marketplace),
+      ),
+      GoRoute(
+        path: '/client/coupons',
+        builder: (context, state) => CouponsScreen(marketplace: marketplace),
       ),
       GoRoute(
         path: '/vendor',

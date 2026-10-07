@@ -28,9 +28,17 @@ class _NoopTokenStore implements TokenStore {
 /// catégories non (repli emoji attendu).
 MockClient _mockBackend() {
   const categories = [
-    {'id': 'c-snack', 'name': 'Snacks et restauration', 'slug': 'snacks-et-restauration'},
+    {
+      'id': 'c-snack',
+      'name': 'Snacks et restauration',
+      'slug': 'snacks-et-restauration',
+    },
     {'id': 'c-bakery', 'name': 'Boulangerie', 'slug': 'boulangerie'},
-    {'id': 'c-meat', 'name': 'Viandes et poissons', 'slug': 'viandes-et-poissons'},
+    {
+      'id': 'c-meat',
+      'name': 'Viandes et poissons',
+      'slug': 'viandes-et-poissons',
+    },
   ];
   const products = [
     {
@@ -56,12 +64,67 @@ MockClient _mockBackend() {
   return MockClient((request) async {
     final headers = {'content-type': 'application/json'};
     if (request.url.path.endsWith('/categories')) {
-      return http.Response(jsonEncode({'data': categories}), 200, headers: headers);
+      return http.Response(
+        jsonEncode({'data': categories}),
+        200,
+        headers: headers,
+      );
     }
     if (request.url.path.endsWith('/products')) {
-      return http.Response(jsonEncode({'data': products}), 200, headers: headers);
+      return http.Response(
+        jsonEncode({'data': products}),
+        200,
+        headers: headers,
+      );
     }
-    return http.Response(jsonEncode({'message': 'Not found'}), 404, headers: headers);
+    if (request.url.path.endsWith('/me/stats')) {
+      return http.Response(
+        jsonEncode({
+          'data': {'unread_notifications': 3},
+        }),
+        200,
+        headers: headers,
+      );
+    }
+    if (request.url.path.endsWith('/me/notifications')) {
+      return http.Response(
+        jsonEncode({
+          'data': [
+            {
+              'id': 'n1',
+              'type': 'delivery.assigned',
+              'title': 'Livraison en cours',
+              'body': 'Votre livreur est en route.',
+              'read_at': null,
+              'created_at': '2026-10-06T10:00:00Z',
+            },
+            {
+              'id': 'n2',
+              'type': 'order.accepted',
+              'title': 'Votre commande est en préparation',
+              'body': 'Le restaurant prépare votre repas.',
+              'read_at': null,
+              'created_at': '2026-10-06T09:00:00Z',
+            },
+            {
+              'id': 'n3',
+              'type': 'promo.new',
+              'title': 'Offre du jour',
+              'body': '10 % sur les plats locaux jusqu’à 18 h.',
+              'read_at': null,
+              'created_at': '2026-10-06T08:00:00Z',
+            },
+          ],
+        }),
+        200,
+        headers: headers,
+      );
+    }
+    return http.Response(
+      jsonEncode({'message': 'Not found'}),
+      404,
+      headers: headers,
+    );
   });
 }
 
@@ -87,8 +150,9 @@ int _networkImageCount(WidgetTester tester) => find
     .length;
 
 void main() {
-  testWidgets('catégories : en-tête, recherche, grille et bannière',
-      (tester) async {
+  testWidgets('catégories : en-tête, recherche, grille et bannière', (
+    tester,
+  ) async {
     await _pumpScreen(tester);
     final exception = tester.takeException();
     expect(exception, isNull, reason: 'exception pendant le build: $exception');
@@ -116,19 +180,18 @@ void main() {
     expect(find.text('29 restaurants'), findsOneWidget);
 
     // Bannière promotionnelle (plus bas que le premier écran).
-    final verticalScrollable = find.byWidgetPredicate(
-      (widget) => widget is Scrollable && widget.axis == Axis.vertical,
-      skipOffstage: false,
-    ).first;
+    final verticalScrollable = find
+        .byWidgetPredicate(
+          (widget) => widget is Scrollable && widget.axis == Axis.vertical,
+          skipOffstage: false,
+        )
+        .first;
     await tester.scrollUntilVisible(
       find.text('Explorer'),
       300,
       scrollable: verticalScrollable,
     );
-    expect(
-      find.text('Envie de découvrir de nouveaux plats ?'),
-      findsOneWidget,
-    );
+    expect(find.text('Envie de découvrir de nouveaux plats ?'), findsOneWidget);
     expect(
       find.text('Explorez nos meilleures adresses à Cotonou.'),
       findsOneWidget,
@@ -137,8 +200,9 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('catégories : visuels dynamiques (photo si dispo, sinon emoji)',
-      (tester) async {
+  testWidgets('catégories : visuels dynamiques (photo si dispo, sinon emoji)', (
+    tester,
+  ) async {
     await _pumpScreen(tester);
     await tester.pump(const Duration(milliseconds: 300));
 
@@ -154,8 +218,9 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('catégories : échec réseau silencieux (repli emoji)',
-      (tester) async {
+  testWidgets('catégories : échec réseau silencieux (repli emoji)', (
+    tester,
+  ) async {
     final api = ApiClient(
       tokenStore: _NoopTokenStore(),
       httpClient: MockClient(
@@ -179,8 +244,9 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('catégories : cloche avec pastille 3 ouvre les notifications',
-      (tester) async {
+  testWidgets('catégories : cloche avec pastille 3 ouvre les notifications', (
+    tester,
+  ) async {
     await _pumpScreen(tester);
 
     expect(find.byIcon(Icons.notifications_none), findsOneWidget);

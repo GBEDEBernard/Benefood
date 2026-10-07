@@ -50,6 +50,8 @@ class User {
     this.email,
     this.status = 'active',
     this.locale = 'fr',
+    this.avatarUrl,
+    this.walletBalance = 0,
     this.phoneVerifiedAt,
     this.createdAt,
     this.roles = const [],
@@ -61,6 +63,8 @@ class User {
   final String? email;
   final String status;
   final String locale;
+  final String? avatarUrl;
+  final int walletBalance;
   final String? phoneVerifiedAt;
   final String? createdAt;
   final List<UserRole> roles;
@@ -109,6 +113,8 @@ class User {
       email: _nullableString(json['email']),
       status: _string(json['status'], 'active'),
       locale: _string(json['locale'], 'fr'),
+      avatarUrl: _nullableString(json['avatar_url']),
+      walletBalance: _int(json['wallet_balance']),
       phoneVerifiedAt: _nullableString(json['phone_verified_at']),
       createdAt: _nullableString(json['created_at']),
       roles: roles,
@@ -122,18 +128,28 @@ class User {
         'email': email,
         'status': status,
         'locale': locale,
+        'avatar_url': avatarUrl,
+        'wallet_balance': walletBalance,
         'roles': roles
             .map((r) => {'slug': r.slug, 'name': r.name, 'is_active': r.isActive})
             .toList(),
       };
 
-  User copyWith({String? email, String? name}) => User(
+  User copyWith({
+    String? email,
+    String? name,
+    String? avatarUrl,
+    int? walletBalance,
+  }) =>
+      User(
         id: id,
         name: name ?? this.name,
         phone: phone,
-        email: email,
+        email: email ?? this.email,
         status: status,
         locale: locale,
+        avatarUrl: avatarUrl ?? this.avatarUrl,
+        walletBalance: walletBalance ?? this.walletBalance,
         phoneVerifiedAt: phoneVerifiedAt,
         createdAt: createdAt,
         roles: roles,
@@ -144,5 +160,7 @@ String _string(dynamic value, [String fallback = '']) =>
     value is String ? value : fallback;
 
 String? _nullableString(dynamic value) => value is String ? value : null;
+
+int _int(dynamic value) => value is int ? value : 0;
 
 bool _bool(dynamic value) => value == true || value == 1 || value == '1';

@@ -79,7 +79,11 @@ class _ClientShellState extends State<ClientShell> {
           CategoriesScreen(marketplace: widget.marketplace),
           CartScreen(marketplace: widget.marketplace),
           OrdersScreen(marketplace: widget.marketplace),
-          AccountScreen(session: widget.session),
+          AccountScreen(
+            session: widget.session,
+            marketplace: widget.marketplace,
+            onSelectTab: _selectTab,
+          ),
         ],
       ),
       bottomNavigationBar: _buildBottomBar(),

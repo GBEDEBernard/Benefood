@@ -323,6 +323,101 @@ class MarketplaceApi {
     });
   }
 
+  Future<Map<String, dynamic>> meStats() async {
+    final response = await _api.get('/me/stats');
+    return _dataObject(response) ?? {};
+  }
+
+  Future<User> uploadAvatar(List<int> bytes, {String? fileName}) async {
+    final response = await _api.multipart(
+      '/me/avatar',
+      fields: const {},
+      files: {'avatar': bytes},
+      fileNames: {'avatar': fileName ?? 'avatar.jpg'},
+    );
+    return User.fromJson(_dataObject(response) ?? {});
+  }
+
+  Future<void> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    await _api.post('/me/password', body: {
+      'current_password': currentPassword,
+      'password': newPassword,
+      'password_confirmation': newPassword,
+    });
+  }
+
+  Future<List<Map<String, dynamic>>> myNotifications() async {
+    final response = await _api.get('/me/notifications');
+    return _dataList(response);
+  }
+
+  Future<void> markNotificationRead(String id) async {
+    await _api.post('/me/notifications/$id/read');
+  }
+
+  Future<void> markAllNotificationsRead() async {
+    await _api.post('/me/notifications/read-all');
+  }
+
+  Future<List<Map<String, dynamic>>> myFavorites() async {
+    final response = await _api.get('/me/favorites');
+    return _dataList(response);
+  }
+
+  Future<void> addFavorite(String productId) async {
+    await _api.post('/me/favorites', body: {'product_id': productId});
+  }
+
+  Future<void> removeFavorite(String productId) async {
+    await _api.delete('/me/favorites/$productId');
+  }
+
+  Future<List<Map<String, dynamic>>> myPaymentMethods() async {
+    final response = await _api.get('/me/payment-methods');
+    return _dataList(response);
+  }
+
+  Future<Map<String, dynamic>> addPaymentMethod({
+    required String type,
+    required String provider,
+    required String label,
+    String? last4,
+    bool isDefault = false,
+  }) async {
+    final response = await _api.post('/me/payment-methods', body: {
+      'type': type,
+      'provider': provider,
+      'label': label,
+      if (last4 != null && last4.isNotEmpty) 'last4': last4,
+      if (isDefault) 'is_default': true,
+    });
+    return _dataObject(response) ?? {};
+  }
+
+  Future<Map<String, dynamic>> setDefaultPaymentMethod(String id) async {
+    final response = await _api.patch('/me/payment-methods/$id', body: {
+      'is_default': true,
+    });
+    return _dataObject(response) ?? {};
+  }
+
+  Future<void> deletePaymentMethod(String id) async {
+    await _api.delete('/me/payment-methods/$id');
+  }
+
+  Future<List<Map<String, dynamic>>> myCoupons() async {
+    final response = await _api.get('/me/coupons');
+    return _dataList(response);
+  }
+
+  Future<List<Map<String, dynamic>>> myDevices() async {
+    final response = await _api.get('/me/devices');
+    return _dataList(response);
+  }
+
   // ------------------------------------------------------------------
   // Vendeur : produits
   // ------------------------------------------------------------------

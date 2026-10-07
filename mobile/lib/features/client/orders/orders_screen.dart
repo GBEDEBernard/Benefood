@@ -11,6 +11,7 @@ import '../../../shared/models/order.dart';
 import '../../../shared/widgets/app_network_image.dart';
 import '../../../shared/widgets/call_button.dart';
 import '../../../shared/widgets/feedback_widgets.dart';
+import '../../../shared/widgets/notification_bell.dart';
 import '../../../shared/widgets/state_widgets.dart';
 import 'order_tracking_screen.dart';
 
@@ -86,7 +87,9 @@ class _OrdersScreenState extends State<OrdersScreen> {
   List<Order> get _visible {
     switch (_tab) {
       case 1:
-        return _orders.where((o) => _activeStatuses.contains(o.status)).toList();
+        return _orders
+            .where((o) => _activeStatuses.contains(o.status))
+            .toList();
       case 2:
         return _orders.where((o) => o.status == 'delivered').toList();
       case 3:
@@ -101,78 +104,15 @@ class _OrdersScreenState extends State<OrdersScreen> {
   void _openDetails(Order order) {
     Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (context) =>
-            OrderTrackingScreen(marketplace: widget.marketplace, orderId: order.id),
+        builder: (context) => OrderTrackingScreen(
+          marketplace: widget.marketplace,
+          orderId: order.id,
+        ),
       ),
     );
   }
 
   // ------------------------------------------------------------------- divers
-
-  void _showNotifications() {
-    showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: AppColors.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(AppDimens.radiusXl)),
-      ),
-      builder: (context) {
-        const notifications = [
-          (
-            icon: Icons.delivery_dining,
-            title: 'Votre commande arrive',
-            subtitle: 'Le livreur est à 5 minutes de chez vous',
-          ),
-          (
-            icon: Icons.check_circle_outline,
-            title: 'Commande confirmée',
-            subtitle: 'Le restaurant prépare votre repas',
-          ),
-        ];
-        return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Padding(
-                padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
-                child: Text(
-                  'Notifications',
-                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800),
-                ),
-              ),
-              const Divider(height: 1),
-              for (final notification in notifications)
-                ListTile(
-                  leading: Container(
-                    width: 44,
-                    height: 44,
-                    decoration: const BoxDecoration(
-                      color: AppColors.orangeLight,
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(notification.icon, size: 20, color: AppColors.orange),
-                  ),
-                  title: Text(
-                    notification.title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
-                  ),
-                  subtitle: Text(
-                    notification.subtitle,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
-                  ),
-                  onTap: () => Navigator.of(context).pop(),
-                ),
-              const SizedBox(height: 8),
-            ],
-          ),
-        );
-      },
-    );
-  }
 
   void _showRatingSheet(Order order) {
     var stars = 5;
@@ -180,7 +120,9 @@ class _OrdersScreenState extends State<OrdersScreen> {
       context: context,
       backgroundColor: AppColors.surface,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(AppDimens.radiusXl)),
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(AppDimens.radiusXl),
+        ),
       ),
       builder: (context) {
         return StatefulBuilder(
@@ -193,12 +135,19 @@ class _OrdersScreenState extends State<OrdersScreen> {
                   children: [
                     const Text(
                       'Noter votre commande',
-                      style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800),
+                      style: TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      order.vendor?.businessName ?? 'Commande #${order.reference}',
-                      style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                      order.vendor?.businessName ??
+                          'Commande #${order.reference}',
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: AppColors.textSecondary,
+                      ),
                     ),
                     const SizedBox(height: 18),
                     Row(
@@ -208,9 +157,13 @@ class _OrdersScreenState extends State<OrdersScreen> {
                           GestureDetector(
                             onTap: () => setSheetState(() => stars = i),
                             child: Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 4),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 4,
+                              ),
                               child: Icon(
-                                i <= stars ? Icons.star_rounded : Icons.star_border_rounded,
+                                i <= stars
+                                    ? Icons.star_rounded
+                                    : Icons.star_border_rounded,
                                 size: 38,
                                 color: AppColors.gold,
                               ),
@@ -238,7 +191,10 @@ class _OrdersScreenState extends State<OrdersScreen> {
                         },
                         child: const Text(
                           'Envoyer mon avis',
-                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
                       ),
                     ),
@@ -291,43 +247,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
               ),
             ),
           ),
-          SizedBox(
-            width: 44,
-            height: 44,
-            child: Stack(
-              alignment: Alignment.center,
-              clipBehavior: Clip.none,
-              children: [
-                IconButton(
-                  onPressed: _showNotifications,
-                  tooltip: 'Notifications',
-                  icon: const Icon(Icons.notifications_none, size: 26, color: AppColors.text),
-                ),
-                Positioned(
-                  top: 4,
-                  right: 4,
-                  child: Container(
-                    width: 18,
-                    height: 18,
-                    alignment: Alignment.center,
-                    decoration: const BoxDecoration(
-                      color: AppColors.red,
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Text(
-                      '2',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 10,
-                        fontWeight: FontWeight.w800,
-                        height: 1,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
+          NotificationBell(api: widget.marketplace),
         ],
       ),
     );
@@ -335,7 +255,12 @@ class _OrdersScreenState extends State<OrdersScreen> {
 
   Widget _buildTitle() {
     return const Padding(
-      padding: EdgeInsets.fromLTRB(AppDimens.pagePadding, 20, AppDimens.pagePadding, 16),
+      padding: EdgeInsets.fromLTRB(
+        AppDimens.pagePadding,
+        20,
+        AppDimens.pagePadding,
+        16,
+      ),
       child: Align(
         alignment: Alignment.centerLeft,
         child: Text(
@@ -420,7 +345,10 @@ class _OrdersScreenState extends State<OrdersScreen> {
               child: Center(
                 child: Text(
                   'Aucune commande dans cet onglet.',
-                  style: TextStyle(fontSize: 13.5, color: AppColors.textSecondary),
+                  style: TextStyle(
+                    fontSize: 13.5,
+                    color: AppColors.textSecondary,
+                  ),
                 ),
               ),
             )
@@ -430,9 +358,15 @@ class _OrdersScreenState extends State<OrdersScreen> {
                 order: order,
                 onTap: () => _openDetails(order),
                 onContact: () async {
-                  final ok = await launchPhoneCall(order.delivery?.driver?.phone);
+                  final ok = await launchPhoneCall(
+                    order.delivery?.driver?.phone,
+                  );
                   if (!ok && mounted) {
-                    showToast(context, 'Numéro de téléphone indisponible.', isError: true);
+                    showToast(
+                      context,
+                      'Numéro de téléphone indisponible.',
+                      isError: true,
+                    );
                   }
                 },
                 onRate: () => _showRatingSheet(order),
@@ -515,7 +449,8 @@ class _OrderCard extends StatelessWidget {
   final VoidCallback onContact;
   final VoidCallback onRate;
 
-  bool get _isActive => _OrdersScreenState._activeStatuses.contains(order.status);
+  bool get _isActive =>
+      _OrdersScreenState._activeStatuses.contains(order.status);
   bool get _isDelivered => order.status == 'delivered';
   bool get _isCancelled =>
       order.status == 'cancelled' || order.status == 'refunded';
@@ -525,9 +460,12 @@ class _OrderCard extends StatelessWidget {
     final (statusLabel, statusColor, statusSubtitle) = _statusInfo();
 
     // Photo : plat d'abord, sinon logo de la boutique, sinon icône.
-    final photoUrl = (order.items.isNotEmpty ? order.items.first.imageUrl : null) ??
+    final photoUrl =
+        (order.items.isNotEmpty ? order.items.first.imageUrl : null) ??
         order.vendor?.logoUrl;
-    final photoFallback = order.items.isNotEmpty ? Icons.fastfood_outlined : Icons.storefront;
+    final photoFallback = order.items.isNotEmpty
+        ? Icons.fastfood_outlined
+        : Icons.storefront;
 
     return Material(
       color: AppColors.surface,
@@ -553,7 +491,10 @@ class _OrderCard extends StatelessWidget {
                     child: SizedBox(
                       width: 56,
                       height: 56,
-                      child: AppNetworkImage(url: photoUrl, icon: photoFallback),
+                      child: AppNetworkImage(
+                        url: photoUrl,
+                        icon: photoFallback,
+                      ),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -563,7 +504,8 @@ class _OrderCard extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          order.vendor?.businessName ?? 'Commande #${order.reference}',
+                          order.vendor?.businessName ??
+                              'Commande #${order.reference}',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
@@ -643,7 +585,10 @@ class _OrderCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 3,
+                        ),
                         decoration: BoxDecoration(
                           color: _badgeBg,
                           borderRadius: BorderRadius.circular(8),
@@ -700,7 +645,10 @@ class _OrderCard extends StatelessWidget {
                           'Contacter le livreur',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700),
+                          style: TextStyle(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
                       ),
                     ),
@@ -725,7 +673,10 @@ class _OrderCard extends StatelessWidget {
                         const SizedBox(width: 8),
                         const Text(
                           'Noter votre commande',
-                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
                         const Spacer(),
                         const Icon(Icons.arrow_forward_rounded, size: 18),
@@ -845,8 +796,12 @@ class _OrderProgress extends StatelessWidget {
       case 0:
         return order.status != 'awaiting_payment' && order.status != 'draft';
       case 1:
-        return const {'picked_up', 'in_delivery', 'out_for_delivery', 'delivered'}
-            .contains(order.status);
+        return const {
+          'picked_up',
+          'in_delivery',
+          'out_for_delivery',
+          'delivered',
+        }.contains(order.status);
       default:
         return order.status == 'delivered';
     }
@@ -908,8 +863,8 @@ class _ProgressStep extends StatelessWidget {
     final color = done
         ? AppColors.green
         : active
-            ? AppColors.orange
-            : AppColors.textFaint;
+        ? AppColors.orange
+        : AppColors.textFaint;
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -976,7 +931,9 @@ class _OutlineAction extends StatelessWidget {
           foregroundColor: color,
           side: BorderSide(color: color, width: 1.4),
           minimumSize: Size(0, height),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
         ),
         child: Text(
           label,

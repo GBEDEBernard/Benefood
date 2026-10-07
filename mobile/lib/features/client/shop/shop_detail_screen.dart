@@ -16,7 +16,11 @@ import '../../../shared/widgets/status_badge.dart';
 
 /// Fiche boutique (J149) : couverture, infos, horaires, produits.
 class ShopDetailScreen extends StatefulWidget {
-  const ShopDetailScreen({super.key, required this.marketplace, required this.vendorId});
+  const ShopDetailScreen({
+    super.key,
+    required this.marketplace,
+    required this.vendorId,
+  });
 
   final MarketplaceApi marketplace;
   final String vendorId;
@@ -64,7 +68,12 @@ class _ShopDetailScreenState extends State<ShopDetailScreen> {
               message: snapshot.error is ApiException
                   ? (snapshot.error as ApiException).message
                   : 'Boutique introuvable.',
-              onRetry: () => setState(() => _future = widget.marketplace.vendor(widget.vendorId)),
+              onRetry: () {
+                final next = widget.marketplace.vendor(widget.vendorId);
+                setState(() {
+                  _future = next;
+                });
+              },
             );
           }
           final detail = snapshot.data!;
@@ -78,7 +87,10 @@ class _ShopDetailScreenState extends State<ShopDetailScreen> {
               if (vendor.description != null && vendor.description!.isNotEmpty)
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-                  child: Text(vendor.description!, style: Theme.of(context).textTheme.bodyMedium),
+                  child: Text(
+                    vendor.description!,
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
                 ),
               if (detail.hours.isNotEmpty) ...[
                 const SectionHeader(title: 'Horaires'),
@@ -124,7 +136,10 @@ class _ShopHeader extends StatelessWidget {
           SizedBox(
             height: 170,
             width: double.infinity,
-            child: AppNetworkImage(url: vendor.coverUrl, icon: Icons.storefront),
+            child: AppNetworkImage(
+              url: vendor.coverUrl,
+              icon: Icons.storefront,
+            ),
           ),
           Positioned.fill(
             child: DecoratedBox(
@@ -160,7 +175,10 @@ class _ShopHeader extends StatelessWidget {
                       child: SizedBox(
                         width: 60,
                         height: 60,
-                        child: AppNetworkImage(url: vendor.logoUrl, icon: Icons.storefront),
+                        child: AppNetworkImage(
+                          url: vendor.logoUrl,
+                          icon: Icons.storefront,
+                        ),
                       ),
                     ),
                   ),
@@ -183,8 +201,12 @@ class _ShopHeader extends StatelessWidget {
                         if (vendor.isOpen != null) ...[
                           const SizedBox(height: 4),
                           StatusBadge(
-                            label: vendor.isOpenResolved ? 'Ouvert maintenant' : 'Fermé actuellement',
-                            color: vendor.isOpenResolved ? AppColors.green : Colors.grey,
+                            label: vendor.isOpenResolved
+                                ? 'Ouvert maintenant'
+                                : 'Fermé actuellement',
+                            color: vendor.isOpenResolved
+                                ? AppColors.green
+                                : Colors.grey,
                             small: true,
                           ),
                         ],
@@ -233,9 +255,13 @@ class _HoursList extends StatelessWidget {
                   ),
                   const Spacer(),
                   Text(
-                    h.isClosed ? 'Fermé' : '${h.opensAt ?? ''} – ${h.closesAt ?? ''}',
+                    h.isClosed
+                        ? 'Fermé'
+                        : '${h.opensAt ?? ''} – ${h.closesAt ?? ''}',
                     style: TextStyle(
-                      color: h.isClosed ? AppColors.textSecondary : (isToday ? AppColors.green : AppColors.text),
+                      color: h.isClosed
+                          ? AppColors.textSecondary
+                          : (isToday ? AppColors.green : AppColors.text),
                       fontWeight: isToday ? FontWeight.w700 : FontWeight.w500,
                     ),
                   ),
@@ -255,7 +281,15 @@ class _HoursList extends StatelessWidget {
   }
 
   String _dayName(int day) {
-    const days = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
+    const days = [
+      'Lundi',
+      'Mardi',
+      'Mercredi',
+      'Jeudi',
+      'Vendredi',
+      'Samedi',
+      'Dimanche',
+    ];
     return days[day.clamp(0, 6)];
   }
 }
