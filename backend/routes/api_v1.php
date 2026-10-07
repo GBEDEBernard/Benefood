@@ -42,6 +42,20 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::patch('/me', [MeController::class, 'update'])->name('api.v1.me.update');
     Route::get('/me/devices', [MeController::class, 'devices'])->name('api.v1.me.devices.index');
     Route::post('/me/devices', [MeController::class, 'registerDevice'])->name('api.v1.me.devices.store');
+    Route::post('/me/avatar', [MeController::class, 'uploadAvatar'])->name('api.v1.me.avatar.store');
+    Route::post('/me/password', [MeController::class, 'changePassword'])->name('api.v1.me.password.update');
+    Route::get('/me/stats', [MeController::class, 'stats'])->name('api.v1.me.stats');
+    Route::get('/me/notifications', [MeController::class, 'notifications'])->name('api.v1.me.notifications.index');
+    Route::post('/me/notifications/read-all', [MeController::class, 'markAllNotificationsRead'])->name('api.v1.me.notifications.read-all');
+    Route::post('/me/notifications/{notification}/read', [MeController::class, 'markNotificationRead'])->name('api.v1.me.notifications.read');
+    Route::get('/me/favorites', [MeController::class, 'favorites'])->name('api.v1.me.favorites.index');
+    Route::post('/me/favorites', [MeController::class, 'addFavorite'])->name('api.v1.me.favorites.store');
+    Route::delete('/me/favorites/{product}', [MeController::class, 'removeFavorite'])->name('api.v1.me.favorites.destroy');
+    Route::get('/me/payment-methods', [MeController::class, 'paymentMethods'])->name('api.v1.me.payment-methods.index');
+    Route::post('/me/payment-methods', [MeController::class, 'storePaymentMethod'])->name('api.v1.me.payment-methods.store');
+    Route::patch('/me/payment-methods/{paymentMethod}', [MeController::class, 'updatePaymentMethod'])->name('api.v1.me.payment-methods.update');
+    Route::delete('/me/payment-methods/{paymentMethod}', [MeController::class, 'destroyPaymentMethod'])->name('api.v1.me.payment-methods.destroy');
+    Route::get('/me/coupons', [MeController::class, 'coupons'])->name('api.v1.me.coupons.index');
 
     Route::prefix('vendors/me')->group(function (): void {
         Route::post('/onboarding', [VendorController::class, 'onboarding'])->name('api.v1.vendors.me.onboarding');

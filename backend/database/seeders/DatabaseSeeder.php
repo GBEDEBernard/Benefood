@@ -25,6 +25,7 @@ class DatabaseSeeder extends Seeder
         // boutique + produits, clients, livreurs et commandes réelles.
         $this->call([
             ShopDataSeeder::class,
+            ProfileDemoSeeder::class,
         ]);
     }
 }

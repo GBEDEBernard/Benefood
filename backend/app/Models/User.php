@@ -22,6 +22,8 @@ use Laravel\Sanctum\HasApiTokens;
     'status',
     'locale',
     'phone_verified_at',
+    'avatar_path',
+    'wallet_balance',
 ])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
@@ -88,6 +90,21 @@ class User extends Authenticatable
     public function appNotifications(): HasMany
     {
         return $this->hasMany(Notification::class);
+    }
+
+    public function favorites(): HasMany
+    {
+        return $this->hasMany(Favorite::class);
+    }
+
+    public function paymentMethods(): HasMany
+    {
+        return $this->hasMany(PaymentMethod::class);
+    }
+
+    public function userCoupons(): HasMany
+    {
+        return $this->hasMany(UserCoupon::class);
     }
 
     public function hasRole(string $slug): bool

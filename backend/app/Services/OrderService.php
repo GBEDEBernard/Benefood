@@ -220,6 +220,10 @@ class OrderService
 
         $this->logTransition($order, $from, OrderStatus::Accepted, 'vendor', $actorId, null);
 
+        $this->notifications->notifyEvent('order.accepted', [$order->user], [
+            'reference' => $order->reference,
+        ]);
+
         return $order->fresh('statusHistory');
     }
 
@@ -300,6 +304,10 @@ class OrderService
         ]);
 
         $this->logTransition($order, OrderStatus::AwaitingPayment, OrderStatus::Paid, 'system', null, 'Paiement confirmé');
+
+        $this->notifications->notifyEvent('order.paid', [$order->vendor?->user], [
+            'reference' => $order->reference,
+        ]);
 
         return $order->fresh(['payment', 'statusHistory']);
     }
@@ -428,6 +436,10 @@ class OrderService
         }
 
         $this->logTransition($order, $from, OrderStatus::Delivered, 'driver', $actorId, null);
+
+        $this->notifications->notifyEvent('order.delivered', [$order->user], [
+            'reference' => $order->reference,
+        ]);
 
         return $order->fresh(['statusHistory', 'delivery']);
     }

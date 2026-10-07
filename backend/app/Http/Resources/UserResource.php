@@ -4,6 +4,7 @@ namespace App\Http\Resources;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Support\Facades\Storage;
 
 class UserResource extends JsonResource
 {
@@ -16,6 +17,8 @@ class UserResource extends JsonResource
             'email' => $this->email,
             'status' => $this->status,
             'locale' => $this->locale,
+            'avatar_url' => $this->mediaUrl($this->avatar_path),
+            'wallet_balance' => (int) $this->wallet_balance,
             'phone_verified_at' => $this->phone_verified_at?->toIso8601String(),
             'created_at' => $this->created_at?->toIso8601String(),
             'roles' => $this->whenLoaded('roles', fn () => $this->roles->map(fn ($role) => [
@@ -24,5 +27,18 @@ class UserResource extends JsonResource
                 'is_active' => (bool) $role->pivot->is_active,
             ])->values()),
         ];
+    }
+
+    private function mediaUrl(?string $path): ?string
+    {
+        if ($path === null || $path === '') {
+            return null;
+        }
+
+        if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
+            return $path;
+        }
+
+        return Storage::disk('public')->url($path);
     }
 }
