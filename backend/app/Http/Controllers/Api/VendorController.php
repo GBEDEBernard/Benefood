@@ -110,6 +110,7 @@ class VendorController extends Controller
             'cover_url' => ['sometimes', 'nullable', 'string'],
             'logo' => ['sometimes', 'file', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
             'cover' => ['sometimes', 'file', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
+            'closed_at' => ['sometimes', 'nullable', 'date'],
             'hours' => ['sometimes', 'array'],
             'hours.*.day_of_week' => ['required_with:hours', 'integer', 'between:0,6'],
             'hours.*.opens_at' => ['nullable', 'date_format:H:i'],
@@ -134,7 +135,17 @@ class VendorController extends Controller
             $data['phone'] = Phone::normalize($data['phone']);
         }
 
+        // `closed_at` peut être null (réouverture) : traité hors de
+        // array_filter qui écarte les valeurs nulles ci-dessous.
+        $closedAtProvided = array_key_exists('closed_at', $data);
+        $closedAt = $data['closed_at'] ?? null;
+        unset($data['closed_at']);
+
         $vendor->update(array_filter($data, fn ($v) => $v !== null && $v !== []));
+
+        if ($closedAtProvided) {
+            $vendor->update(['closed_at' => $closedAt]);
+        }
 
         if (isset($data['hours']) && is_array($data['hours'])) {
             // replace existing hours with provided set

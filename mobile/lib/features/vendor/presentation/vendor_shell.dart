@@ -8,7 +8,7 @@ import '../../../shared/widgets/app_button.dart';
 import '../../../shared/widgets/status_badge.dart';
 import '../../../shared/widgets/state_widgets.dart';
 import '../account/vendor_account_screen.dart';
-import '../dashboard/dashboard_screen.dart';
+import '../dashboard/vendor_dashboard_screen.dart';
 import '../onboarding/vendor_onboarding_screen.dart';
 import '../orders/vendor_orders_screen.dart';
 import '../products/products_screen.dart';
@@ -129,10 +129,9 @@ class _VendorShellState extends State<VendorShell> {
 
     final status = vendor?['status'];
     if (status == 'active') {
-      return DashboardScreen(
+      return VendorDashboardScreen(
         marketplace: widget.marketplace,
         onGoToTab: (i) => setState(() => _index = i),
-        userName: widget.session.user?.name,
       );
     }
 

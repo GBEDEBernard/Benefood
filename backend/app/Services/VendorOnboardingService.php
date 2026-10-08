@@ -81,7 +81,9 @@ class VendorOnboardingService
         $vendor->load('documents');
 
         return [
-            'vendor' => $vendor->toArray(),
+            'vendor' => array_merge($vendor->toArray(), [
+                'is_open' => $vendor->isOpenNow(),
+            ]),
             'documents' => $vendor->documents->map(fn (VendorDocument $document) => [
                 'id' => $document->id,
                 'type' => $document->type,

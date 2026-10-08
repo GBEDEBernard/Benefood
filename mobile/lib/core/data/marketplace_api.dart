@@ -327,6 +327,15 @@ class MarketplaceApi {
     });
   }
 
+  /// Ouvre ou ferme la boutique (interrupteur « Statut de la boutique ») :
+  /// `closed_at` horodaté pour fermer, null pour rouvrir.
+  Future<void> setVendorOpen({required bool open}) async {
+    await _api.patch(
+      '/vendors/me',
+      body: {'closed_at': open ? null : DateTime.now().toUtc().toIso8601String()},
+    );
+  }
+
   Future<void> driverOnboarding({
     required String vehicle,
   }) async {

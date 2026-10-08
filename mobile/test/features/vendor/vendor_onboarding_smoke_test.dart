@@ -33,14 +33,16 @@ final Uint8List _pngBytes = base64Decode(
 );
 
 /// Backend de test : aucun dossier existant (404), catégories réelles,
-/// enregistrements des documents et PATCH de configuration acceptés.
+/// enregistrement des documents et PATCH de configuration acceptés.
 MockClient _mockBackend(List<String> log) {
+  // `cat-snacks` sans `is_active` : c'est la forme réelle de GET /categories,
+  // la catégorie doit malgré tout rester sélectionnable (régression du
+  // dropdown vide en étape 3).
   const categories = [
     {
       'id': 'cat-snacks',
       'name': 'Snacks et restauration',
       'slug': 'snacks-et-restauration',
-      'is_active': true,
     },
     {'id': 'cat-epicerie', 'name': 'Épicerie', 'slug': 'epicerie', 'is_active': true},
   ];

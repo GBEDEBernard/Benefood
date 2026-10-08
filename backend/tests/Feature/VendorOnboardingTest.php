@@ -277,4 +277,57 @@ class VendorOnboardingTest extends TestCase
             'category_id' => $category->id,
         ]);
     }
+
+    public function test_update_profile_closes_and_reopens_shop(): void
+    {
+        $user = User::factory()->create(['phone' => '+22997000010']);
+        Sanctum::actingAs($user);
+
+        $this->postJson('/api/v1/vendors/me/onboarding', [
+            'business_name' => 'Resto Chez Awa',
+            'phone' => '97000011',
+        ])->assertCreated();
+
+        $closedAt = '2026-10-07T12:00:00.000000Z';
+
+        $this->patchJson('/api/v1/vendors/me', [
+            'closed_at' => $closedAt,
+        ])->assertOk()
+            ->assertJsonPath('data.closed_at', '2026-10-07T12:00:00+00:00');
+
+        $this->assertNotNull($user->vendor()->first()->closed_at);
+
+        $this->patchJson('/api/v1/vendors/me', [
+            'closed_at' => null,
+        ])->assertOk()
+            ->assertJsonPath('data.closed_at', null);
+
+        $this->assertNull($user->vendor()->first()->closed_at);
+    }
+
+    public function test_status_exposes_is_open(): void
+    {
+        $user = User::factory()->create(['phone' => '+22997000011']);
+        Sanctum::actingAs($user);
+
+        $this->postJson('/api/v1/vendors/me/onboarding', [
+            'business_name' => 'Resto Chez Awa',
+            'phone' => '97000011',
+        ])->assertCreated();
+
+        // Boutique active sans horaire : ouverte tant que closed_at est vide.
+        $user->vendor()->first()->update(['status' => 'active']);
+
+        $this->getJson('/api/v1/vendors/me/status')
+            ->assertOk()
+            ->assertJsonPath('data.vendor.is_open', true);
+
+        $this->patchJson('/api/v1/vendors/me', [
+            'closed_at' => '2026-10-07T12:00:00.000000Z',
+        ])->assertOk();
+
+        $this->getJson('/api/v1/vendors/me/status')
+            ->assertOk()
+            ->assertJsonPath('data.vendor.is_open', false);
+    }
 }

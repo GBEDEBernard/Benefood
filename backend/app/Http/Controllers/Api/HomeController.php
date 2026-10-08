@@ -32,6 +32,7 @@ class HomeController extends Controller
                 'name' => $category->name,
                 'slug' => $category->slug,
                 'icon_path' => $category->icon_path,
+                'is_active' => $category->is_active,
             ])
             ->values();
 

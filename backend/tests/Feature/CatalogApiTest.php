@@ -35,6 +35,7 @@ class CatalogApiTest extends TestCase
         $this->getJson(route('api.v1.categories.index'))
             ->assertOk()
             ->assertJsonPath('data.0.name', 'Fruits et légumes')
+            ->assertJsonPath('data.0.is_active', true)
             ->assertJsonPath('data.0.children.0.name', 'Légumes frais')
             ->assertJsonMissing(['name' => 'Cachée']);
     }

@@ -35,7 +35,9 @@ class Category {
       name: _s(json['name']),
       slug: _s(json['slug']),
       iconPath: json['icon_path'] is String ? json['icon_path'] as String : null,
-      isActive: json['is_active'] == true,
+      // Champ absent de certains payloads (GET /categories) : une catégorie
+      // reçue est active par défaut, comme pour Product.fromJson.
+      isActive: json['is_active'] != false,
       productsCount: json['products_count'] is int ? json['products_count'] as int : null,
       children: children,
     );
