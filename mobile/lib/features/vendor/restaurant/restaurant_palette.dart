@@ -11,8 +11,9 @@ abstract final class RestaurantPalette {
   static const Color ready = Color(0xFF3B82F6);
   static const Color darkText = Color(0xFF111827);
   static const Color grayText = Color(0xFF6B7280);
+  static const Color borderColor = Color(0xFFE5E7EB);
 
-  static const double radius = 12;
+  static const double radius = 16;
   static const double cardSpacing = 12;
 
   static final BoxDecoration cardDecoration = BoxDecoration(

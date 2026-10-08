@@ -7,9 +7,9 @@ import 'package:http/testing.dart';
 
 import 'package:beninfood/core/data/marketplace_api.dart';
 import 'package:beninfood/core/http/api_client.dart';
-import 'package:beninfood/features/vendor/orders/vendor_orders_screen.dart';
 import 'package:beninfood/features/vendor/products/products_screen.dart';
 import 'package:beninfood/features/vendor/restaurant/restaurant_shell_screen.dart';
+import 'package:beninfood/features/vendor/restaurant/screens/orders_screen.dart';
 
 class _NoopTokenStore implements TokenStore {
   @override
@@ -245,7 +245,7 @@ void main() {
     // Commandes
     await tester.tap(find.text('Commandes'));
     await tester.pumpAndSettle();
-    expect(find.byType(VendorOrdersScreen), findsOneWidget);
+    expect(find.byType(OrdersScreen), findsOneWidget);
 
     // Produits
     await tester.tap(find.text('Produits'));
@@ -395,6 +395,69 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Tableau de bord'), findsWidgets);
     expect(find.text('Commandes du jour'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('commandes (démo) : onglets dynamiques, actions et détail', (tester) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(const MaterialApp(home: RestaurantShellScreen()));
+    await tester.pumpAndSettle();
+
+    // Onglet Commandes de la barre inférieure : liste D. COMMANDES.
+    await tester.tap(find.text('Commandes'));
+    await tester.pumpAndSettle();
+    expect(find.byType(OrdersScreen), findsOneWidget);
+    expect(find.text('D. COMMANDES'), findsOneWidget);
+    expect(find.text('Commandes'), findsWidgets); // en-tête carte + barre
+
+    // Compteurs dynamiques : 3 nouvelles, 2 en préparation, 1 prête, 2 terminées.
+    expect(find.text('Nouvelles (3)'), findsOneWidget);
+    expect(find.text('Préparation (2)'), findsOneWidget);
+    expect(find.text('Prêtes (1)'), findsOneWidget);
+    expect(find.text('Terminées (2)'), findsOneWidget);
+
+    // Première carte : client, montant et étiquette de statut.
+    expect(find.text('#BF1256'), findsOneWidget);
+    expect(find.text('Ulrich Hounkpe'), findsOneWidget);
+    expect(find.text('14 000 FCFA'), findsWidgets);
+    expect(find.text('4 articles'), findsWidgets);
+
+    // Accepter : la commande passe dans l'onglet Préparation.
+    await tester.tap(find.text('Accepter').first);
+    await tester.pumpAndSettle();
+    expect(find.text('#BF1256 acceptée.'), findsOneWidget);
+    expect(find.text('Nouvelles (2)'), findsOneWidget);
+    expect(find.text('Préparation (3)'), findsOneWidget);
+
+    // Détail de la commande acceptée : client, notes, total, action suivante.
+    await tester.tap(find.text('Préparation (3)'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Voir détails').first);
+    await tester.pumpAndSettle();
+    expect(find.text('Commande #BF1256'), findsOneWidget);
+    expect(find.text('+229 97 00 00 00'), findsOneWidget);
+    expect(find.text('Bien cuire les frites, pas de sauce piquante.'), findsOneWidget);
+    expect(find.text('Sous-total'), findsOneWidget);
+    expect(find.text('13 500 FCFA'), findsOneWidget);
+    expect(find.text('Paiement à la livraison (Espèces)'), findsOneWidget);
+    // L'écran de détail est empilé sur la liste : les textes communs peuvent
+    // être trouvés deux fois.
+    expect(find.text('Ulrich Hounkpe'), findsWidgets);
+    expect(find.text('14 000 FCFA'), findsWidgets);
+    expect(find.text('Commencer la préparation'), findsWidgets);
+
+    // Retour à la liste, puis onglet Terminées : historique livré/annulé.
+    await tester.tap(find.byType(BackButton));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Terminées (2)'));
+    await tester.pumpAndSettle();
+    expect(find.text('#BF1250'), findsOneWidget);
+    expect(find.text('Livrée'), findsOneWidget);
+    expect(find.text('Annulée'), findsOneWidget);
+
     expect(tester.takeException(), isNull);
   });
 }

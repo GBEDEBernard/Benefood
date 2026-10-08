@@ -150,7 +150,10 @@ class OrderFlowTest extends TestCase
             ->assertJsonPath('data.reference', $reference)
             ->assertJsonPath('data.status', 'awaiting_payment')
             ->assertJsonPath('data.items.0.unit_price', 500)
-            ->assertJsonPath('data.items.0.image_url', null);
+            ->assertJsonPath('data.items.0.image_url', null)
+            ->assertJsonPath('data.customer.name', $client->name)
+            ->assertJsonPath('data.customer.phone', $client->phone)
+            ->assertJsonPath('data.notes', 'Sonner avant de livrer');
     }
 
     public function test_order_rejects_empty_cart(): void

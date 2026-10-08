@@ -8,10 +8,10 @@ import '../../../shared/models/order.dart';
 import '../../../shared/models/vendor.dart';
 import '../../../shared/widgets/feedback_widgets.dart';
 import '../account/vendor_account_screen.dart';
-import '../orders/vendor_orders_screen.dart';
 import '../products/products_screen.dart';
 import 'restaurant_palette.dart';
 import 'screens/dashboard_screen.dart';
+import 'screens/orders_screen.dart';
 import 'screens/shop_screen.dart';
 import 'widgets/restaurant_drawer.dart';
 import 'widgets/vendor_bottom_bar.dart';
@@ -112,39 +112,85 @@ class _RestaurantShellScreenState extends State<RestaurantShellScreen> {
 
   static List<Order> _demoOrders() {
     final now = DateTime.now();
-    Order demo(String ref, String status, int total, int minutesAgo, {int items = 3}) {
-      final itemList = List.generate(
-        items,
-        (i) => OrderItem(
-          id: '$ref-item-$i',
-          productId: 'p-$i',
-          name: 'Plat n°$i',
-          quantity: 1,
-          unitPrice: total ~/ items,
-          subtotal: total ~/ items,
-        ),
-      );
+
+    Order demo(
+      String ref,
+      String status,
+      int subtotal,
+      int minutesAgo, {
+      int deliveryFee = 500,
+      int lines = 3,
+      String customer = 'Client démo',
+      String phone = '+229 90 12 34 56',
+      String address = 'Cadjèhoun, Cotonou',
+      String? notes,
+      List<OrderItem>? items,
+    }) {
+      final lineItems = items ??
+          List.generate(lines, (i) {
+            final unit = subtotal ~/ lines;
+            final amount = i == lines - 1 ? subtotal - unit * (lines - 1) : unit;
+            return OrderItem(
+              id: '$ref-item-$i',
+              productId: 'p-$i',
+              name: 'Plat n°${i + 1}',
+              quantity: 1,
+              unitPrice: amount,
+              subtotal: amount,
+            );
+          });
       return Order(
         id: ref,
         reference: ref,
         status: status,
         paymentStatus: status == 'awaiting_payment' ? 'pending' : 'confirmed',
-        items: itemList,
-        subtotal: total,
-        deliveryFee: 0,
-        total: total,
+        items: lineItems,
+        subtotal: subtotal,
+        deliveryFee: deliveryFee,
+        total: subtotal + deliveryFee,
+        customerName: customer,
+        customerPhone: phone,
+        deliveryAddress: address,
+        notes: notes,
         createdAt: now.subtract(Duration(minutes: minutesAgo)).toIso8601String(),
       );
     }
 
     return [
-      demo('#BF1256', 'paid', 12000, 5),
-      demo('#BF1255', 'paid', 8500, 12, items: 2),
-      demo('#BF1254', 'awaiting_payment', 15200, 18, items: 4),
-      demo('#BF1253', 'preparing', 9800, 32, items: 3),
-      demo('#BF1252', 'ready', 14500, 48, items: 4),
-      demo('#BF1251', 'delivered', 6200, 65, items: 2),
-      demo('#BF1250', 'cancelled', 21000, 130, items: 5),
+      demo(
+        '#BF1256',
+        'paid',
+        13500,
+        5,
+        customer: 'Ulrich Hounkpe',
+        phone: '+229 97 00 00 00',
+        notes: 'Bien cuire les frites, pas de sauce piquante.',
+        items: const [
+          OrderItem(
+            id: 'bf1256-0',
+            productId: 'p-burger',
+            name: 'Burger Délice',
+            quantity: 3,
+            unitPrice: 4000,
+            subtotal: 12000,
+          ),
+          OrderItem(
+            id: 'bf1256-1',
+            productId: 'p-frites',
+            name: 'Frites (M)',
+            quantity: 1,
+            unitPrice: 1500,
+            subtotal: 1500,
+          ),
+        ],
+      ),
+      demo('#BF1255', 'paid', 8000, 12, lines: 2, customer: 'Aïcha Sossou'),
+      demo('#BF1254', 'awaiting_payment', 14700, 18, lines: 4, customer: 'Koffi Adjovi'),
+      demo('#BF1253', 'accepted', 9300, 32, lines: 3, customer: 'Mariam Touré'),
+      demo('#BF1252', 'preparing', 11000, 40, lines: 3, customer: 'Serge Dossou'),
+      demo('#BF1251', 'ready', 14000, 48, lines: 4, customer: 'Nadia Kpadonou'),
+      demo('#BF1250', 'delivered', 5700, 65, lines: 2, customer: 'Yao Amoussou'),
+      demo('#BF1249', 'cancelled', 20500, 130, lines: 5, customer: 'Estelle Hounkpatin'),
     ];
   }
 
@@ -308,42 +354,76 @@ class _RestaurantShellScreenState extends State<RestaurantShellScreen> {
     }
   }
 
-  Future<void> _accept(Order order) async {
-    if (_busyOrders.contains(order.id) || !_live) {
-      if (!_live) showToast(context, '${order.reference} acceptée (démo).');
-      return;
+  /// Exécute une action de statut sur une commande et renvoie `true` si elle
+  /// a bien été effectuée : les écrans (liste, détail) s'en servent pour
+  /// mettre à jour leur état local.
+  Future<bool> _runOrderAction(
+    Order order,
+    String nextStatus, {
+    required Future<void> Function(Order order) call,
+    required String doneMessage,
+  }) async {
+    if (_busyOrders.contains(order.id)) return false;
+    if (!_live) {
+      if (!mounted) return false;
+      setState(() {
+        _orders = [for (final o in _orders) o.id == order.id ? o.withStatus(nextStatus) : o];
+      });
+      showToast(context, doneMessage);
+      return true;
     }
     setState(() => _busyOrders.add(order.id));
     try {
-      await widget.marketplace!.vendorAccept(order.id);
-      if (!mounted) return;
-      showToast(context, '${order.reference} acceptée.');
+      await call(order);
+      if (!mounted) return false;
+      showToast(context, doneMessage);
       await _loadOrders();
+      return true;
     } on ApiException catch (e) {
-      if (!mounted) return;
-      showToast(context, e.message, isError: true);
+      if (mounted) showToast(context, e.message, isError: true);
+      return false;
     } finally {
       if (mounted) setState(() => _busyOrders.remove(order.id));
     }
   }
 
-  Future<void> _refuse(Order order) async {
-    if (_busyOrders.contains(order.id) || !_live) {
-      if (!_live) showToast(context, '${order.reference} refusée (démo).');
-      return;
-    }
-    setState(() => _busyOrders.add(order.id));
-    try {
-      await widget.marketplace!.vendorRefuse(order.id, reason: 'Refusé par le vendeur');
-      if (!mounted) return;
-      showToast(context, '${order.reference} refusée.');
-      await _loadOrders();
-    } on ApiException catch (e) {
-      if (!mounted) return;
-      showToast(context, e.message, isError: true);
-    } finally {
-      if (mounted) setState(() => _busyOrders.remove(order.id));
-    }
+  Future<bool> _accept(Order order) => _runOrderAction(
+        order,
+        'accepted',
+        call: (o) => widget.marketplace!.vendorAccept(o.id),
+        doneMessage: '${order.reference} acceptée.',
+      );
+
+  Future<bool> _refuse(Order order) => _runOrderAction(
+        order,
+        'cancelled',
+        call: (o) => widget.marketplace!.vendorRefuse(o.id, reason: 'Refusé par le vendeur'),
+        doneMessage: '${order.reference} refusée.',
+      );
+
+  Future<bool> _prepare(Order order) => _runOrderAction(
+        order,
+        'preparing',
+        call: (o) => widget.marketplace!.vendorPreparing(o.id),
+        doneMessage: '${order.reference} : préparation démarrée.',
+      );
+
+  Future<bool> _ready(Order order) => _runOrderAction(
+        order,
+        'ready',
+        call: (o) => widget.marketplace!.vendorReady(o.id),
+        doneMessage: '${order.reference} prête à être livrée.',
+      );
+
+  /// Confirmation « Livrée » : proposée en démonstration uniquement — en
+  /// production la livraison est confirmée par le livreur.
+  Future<bool> _confirmDelivered(Order order) async {
+    if (_live || !mounted) return false;
+    setState(() {
+      _orders = [for (final o in _orders) o.id == order.id ? o.withStatus('delivered') : o];
+    });
+    showToast(context, '${order.reference} livrée.');
+    return true;
   }
 
   Future<void> _loadOrders() async {
@@ -433,13 +513,17 @@ class _RestaurantShellScreenState extends State<RestaurantShellScreen> {
                 onBack: () => _select(0),
               );
       case 3:
-        return widget.marketplace != null
-            ? VendorOrdersScreen(marketplace: widget.marketplace!)
-            : _PlaceholderScreen(
-                title: _titles[3],
-                onOpenDrawer: _openDrawer,
-                onBack: () => _select(0),
-              );
+        return OrdersScreen(
+          orders: _orders,
+          onAccept: _accept,
+          onRefuse: _refuse,
+          onPrepare: _prepare,
+          onReady: _ready,
+          onConfirmDelivery: _live ? null : _confirmDelivered,
+          busyOrderIds: _busyOrders,
+          onOpenDrawer: _openDrawer,
+          onRefresh: _reloadData,
+        );
       case 4:
         return _RevenueView(
           orders: _orders,

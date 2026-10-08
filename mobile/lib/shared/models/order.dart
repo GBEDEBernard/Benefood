@@ -259,6 +259,9 @@ class Order {
     this.cancelledAt,
     this.createdAt,
     this.updatedAt,
+    this.customerName,
+    this.customerPhone,
+    this.notes,
   });
 
   final String id;
@@ -292,6 +295,14 @@ class Order {
   final String? createdAt;
   final String? updatedAt;
 
+  /// Client de la commande (fiche détail vendeur) : exposé par l'API quand
+  /// le serveur renvoie l'objet `customer`.
+  final String? customerName;
+  final String? customerPhone;
+
+  /// Note de livraison laissée par le client (« Bien cuire les frites… »).
+  final String? notes;
+
   bool get isAwaitingPayment => status == 'awaiting_payment';
   bool get isPaid => status == 'paid';
   bool get isCancelled => status == 'cancelled';
@@ -308,6 +319,41 @@ class Order {
   bool get canVendorPrepare => status == 'accepted';
   bool get canVendorReady => status == 'preparing';
   bool get canVendorRefuse => status == 'awaiting_payment' || status == 'paid';
+
+  /// Copie de la commande avec un nouveau statut : utilisé par les actions
+  /// du vendeur pour mettre à jour l'état local (mode démo et mise à jour
+  /// optimiste) sans reconstruire toute la liste.
+  Order withStatus(String status) => Order(
+        id: id,
+        reference: reference,
+        status: status,
+        paymentStatus: paymentStatus,
+        items: items,
+        subtotal: subtotal,
+        deliveryFee: deliveryFee,
+        total: total,
+        vendor: vendor,
+        payment: payment,
+        financials: financials,
+        deliveryAddress: deliveryAddress,
+        deliveryAddressSnapshot: deliveryAddressSnapshot,
+        delivery: delivery,
+        statusHistory: statusHistory,
+        refunds: refunds,
+        currency: currency,
+        discount: discount,
+        paymentDeadlineAt: paymentDeadlineAt,
+        vendorAcceptanceDeadlineAt: vendorAcceptanceDeadlineAt,
+        acceptedAt: acceptedAt,
+        cancellationReason: cancellationReason,
+        cancelledBy: cancelledBy,
+        cancelledAt: cancelledAt,
+        createdAt: createdAt,
+        updatedAt: updatedAt,
+        customerName: customerName,
+        customerPhone: customerPhone,
+        notes: notes,
+      );
 
   factory Order.fromJson(Map<String, dynamic> json) {
     final rawItems = json['items'];
@@ -381,8 +427,27 @@ class Order {
       cancelledAt: _nullable(json['cancelled_at']),
       createdAt: _nullable(json['created_at']),
       updatedAt: _nullable(json['updated_at']),
+      customerName: _customerField(json['customer'], 'name') ?? _stringOrNull(json['customer_name']),
+      customerPhone: _customerField(json['customer'], 'phone') ?? _stringOrNull(json['customer_phone']),
+      notes: _stringOrNull(json['notes']),
     );
   }
+}
+
+/// Champ d'un objet client `{"name": …, "phone": …}` renvoyé par l'API.
+String? _customerField(dynamic customer, String key) {
+  if (customer is Map<String, dynamic> && customer[key] is String) {
+    final value = (customer[key] as String).trim();
+    return value.isEmpty ? null : value;
+  }
+  return null;
+}
+
+String? _stringOrNull(dynamic value) {
+  if (value is String && value.trim().isNotEmpty) {
+    return value.trim();
+  }
+  return null;
 }
 
 String _s(dynamic value, [String fallback = '']) => value is String ? value : fallback;
