@@ -395,7 +395,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('produits : bouton retour vers le tableau de bord', (tester) async {
+  testWidgets('produits : hamburger → tiroir, recherche et onglets', (tester) async {
     final log = <String>[];
     await _pumpShell(tester, log, size: const Size(390, 844));
 
@@ -405,11 +405,14 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Mes produits'), findsOneWidget);
-    expect(find.byType(BackButton), findsOneWidget);
+    expect(find.byType(ProductsScreen), findsOneWidget);
 
-    await tester.tap(find.byType(BackButton));
+    // Le hamburger de l'écran réouvre le tiroir latéral (plus de bouton retour).
+    await tester.tap(find.byIcon(Icons.menu));
     await tester.pumpAndSettle();
-    expect(find.text('Tableau de bord'), findsWidgets);
+    expect(find.byType(Drawer), findsOneWidget);
+    await tester.tap(find.descendant(of: find.byType(Drawer), matching: find.text('Tableau de bord')));
+    await tester.pumpAndSettle();
     expect(find.text('Commandes du jour'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
@@ -522,6 +525,81 @@ void main() {
     await tester.pump(const Duration(seconds: 5));
     await tester.pumpAndSettle();
     expect(find.text('Historique complet bientôt disponible.'), findsNothing);
+
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('produits (démo) : recherche, onglets, bascule, archivage et FAB', (tester) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(const MaterialApp(home: RestaurantShellScreen()));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Produits'));
+    await tester.pumpAndSettle();
+    expect(find.byType(ProductsScreen), findsOneWidget);
+    expect(find.text('Mes produits'), findsOneWidget);
+    expect(find.text('3'), findsOneWidget); // badge de la cloche (démo)
+    expect(find.text('Rechercher un produit...'), findsOneWidget);
+
+    // Onglets dynamiques : 9 produits dont 2 archivés.
+    expect(find.text('Tous (9)'), findsOneWidget);
+    expect(find.text('Archives (2)'), findsOneWidget);
+
+    // Première carte : nom, prix orange, unité, stock et statistiques.
+    expect(find.text('Akassa sauce arachide'), findsOneWidget);
+    expect(find.text('1 200 FCFA'), findsOneWidget);
+    expect(find.text('portion'), findsWidgets);
+    expect(find.text('Stock : 35'), findsOneWidget);
+    expect(find.text('4,6'), findsOneWidget);
+    expect(find.text('(18 avis)'), findsOneWidget);
+    expect(find.text('32'), findsOneWidget);
+
+    // Bascule Actif → inactif : toast « Produit masqué ».
+    await tester.tap(find.byType(Switch).first);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.text('Produit masqué'), findsOneWidget);
+
+    // Recherche : seule la fiche correspondante reste visible.
+    await tester.enterText(find.byType(TextField), 'att');
+    await tester.pumpAndSettle();
+    expect(find.text('Attiéké poisson'), findsOneWidget);
+    expect(find.text('Akassa sauce arachide'), findsNothing);
+    await tester.enterText(find.byType(TextField), '');
+    await tester.pumpAndSettle();
+    expect(find.text('Akassa sauce arachide'), findsOneWidget);
+
+    // Onglet Archives : uniquement les produits archivés.
+    await tester.tap(find.text('Archives (2)'));
+    await tester.pumpAndSettle();
+    expect(find.text('Salade complète'), findsOneWidget);
+    expect(find.text('Glace artisanale'), findsOneWidget);
+    expect(find.text('Akassa sauce arachide'), findsNothing);
+
+    // Retour sur Tous, puis menu contextuel → Archiver.
+    await tester.tap(find.text('Tous (9)'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byIcon(Icons.more_vert).first);
+    await tester.pumpAndSettle();
+    expect(find.text('Modifier'), findsOneWidget);
+    expect(find.text('Archiver'), findsOneWidget);
+    expect(find.text('Supprimer'), findsOneWidget);
+    await tester.tap(find.text('Archiver'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.text('Produit archivé'), findsOneWidget);
+    expect(find.text('Archives (3)'), findsOneWidget);
+
+    // FAB « Ajouter un produit » et cloche : simples toasts pour l'instant.
+    await tester.tap(find.text('Ajouter un produit'));
+    await tester.pump();
+    expect(find.text('Formulaire produit bientôt disponible.'), findsOneWidget);
+    await tester.tap(find.byIcon(Icons.notifications_outlined));
+    await tester.pump();
+    expect(find.text('Aucune notification pour le moment.'), findsOneWidget);
 
     expect(tester.takeException(), isNull);
   });

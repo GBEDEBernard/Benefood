@@ -38,6 +38,9 @@ class Product {
     this.isOrderable = true,
     this.status = 'active',
     this.vendorName,
+    this.rating,
+    this.reviewsCount,
+    this.likesCount,
   });
 
   final String id;
@@ -58,7 +61,45 @@ class Product {
   final String status;
   final String? vendorName;
 
+  /// Statistiques optionnelles exposées par le backend (souvent absentes en
+  /// développement) : remplacées par des valeurs de démonstration sinon.
+  final double? rating;
+  final int? reviewsCount;
+  final int? likesCount;
+
   bool get isOutOfStock => stockQty != null && stockQty == 0;
+
+  /// Produit rangé dans l'archivage (désactivé — plus proposé à la vente).
+  bool get archived => !isActive || status == 'archived';
+
+  Product copyWith({
+    bool? isAvailable,
+    bool? isActive,
+    String? status,
+  }) {
+    return Product(
+      id: id,
+      vendorId: vendorId,
+      categoryId: categoryId,
+      name: name,
+      description: description,
+      price: price,
+      currency: currency,
+      unit: unit,
+      stockQty: stockQty,
+      imageUrl: imageUrl,
+      imageMain: imageMain,
+      images: images,
+      isActive: isActive ?? this.isActive,
+      isAvailable: isAvailable ?? this.isAvailable,
+      isOrderable: isOrderable,
+      status: status ?? this.status,
+      vendorName: vendorName,
+      rating: rating,
+      reviewsCount: reviewsCount,
+      likesCount: likesCount,
+    );
+  }
 
   String get displayPrice => price.toString();
 
@@ -90,11 +131,21 @@ class Product {
       isOrderable: json['is_orderable'] != false,
       status: _s(json['status'], 'active'),
       vendorName: json['vendor_name'] is String ? json['vendor_name'] as String : null,
+      rating: _d(json['rating']),
+      reviewsCount: _i(json['reviews_count']),
+      likesCount: _i(json['likes_count']),
     );
   }
 }
 
 String _s(dynamic value, [String fallback = '']) => value is String ? value : fallback;
+
+double? _d(dynamic value) {
+  if (value is num) {
+    return value.toDouble();
+  }
+  return null;
+}
 
 int _i(dynamic value) {
   if (value is int) {

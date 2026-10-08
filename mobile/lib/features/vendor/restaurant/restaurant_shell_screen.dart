@@ -505,13 +505,10 @@ class _RestaurantShellScreenState extends State<RestaurantShellScreen> {
           onDataChanged: _reloadData,
         );
       case 2:
-        return widget.marketplace != null
-            ? ProductsScreen(marketplace: widget.marketplace!, onBack: () => _select(0))
-            : _PlaceholderScreen(
-                title: _titles[2],
-                onOpenDrawer: _openDrawer,
-                onBack: () => _select(0),
-              );
+        return ProductsScreen(
+          marketplace: widget.marketplace,
+          onOpenDrawer: _openDrawer,
+        );
       case 3:
         return OrdersScreen(
           orders: _orders,
