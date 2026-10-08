@@ -4,6 +4,7 @@ import '../../../../core/data/marketplace_api.dart';
 import '../../../../core/errors/api_exception.dart';
 import '../../../../shared/widgets/feedback_widgets.dart';
 import '../restaurant_palette.dart';
+import '../widgets/time_picker_sheet.dart';
 import 'shop_edit_shell.dart';
 
 const List<String> _dayNames = [
@@ -65,22 +66,44 @@ class _ShopHoursEditScreenState extends State<ShopHoursEditScreen> {
   Future<void> _pickTime(int day, {required bool isOpen}) async {
     final slot = _slots[day];
     final current = (isOpen ? slot.opensAt : slot.closesAt) ?? (isOpen ? '08:00' : '22:00');
-    final initial = TimeOfDay(hour: int.parse(current.split(':').first), minute: int.parse(current.split(':').last));
-    final picked = await showTimePicker(
+    final picked = await showTimePickerSheet(
       context: context,
-      initialTime: initial,
-      helpText: _dayNames[day],
-      builder: (context, child) => child!,
+      title: '${isOpen ? 'Heure d’ouverture' : 'Heure de fermeture'} · ${_dayNames[day]}',
+      initial: current,
     );
     if (picked == null || !mounted) {
       return;
     }
     setState(() {
-      final value = '${picked.hour.toString().padLeft(2, '0')}:${picked.minute.toString().padLeft(2, '0')}';
       if (isOpen) {
-        slot.opensAt = value;
+        slot.opensAt = picked;
       } else {
-        slot.closesAt = value;
+        slot.closesAt = picked;
+      }
+    });
+  }
+
+  void _openAll() => setState(() {
+        for (final slot in _slots) {
+          slot.isClosed = false;
+        }
+      });
+
+  void _closeAll() => setState(() {
+        for (final slot in _slots) {
+          slot.isClosed = true;
+        }
+      });
+
+  void _copyMonday() {
+    final monday = _slots.first;
+    setState(() {
+      for (var i = 1; i < _slots.length; i++) {
+        final slot = _slots[i];
+        if (!slot.isClosed) {
+          slot.opensAt = monday.opensAt;
+          slot.closesAt = monday.closesAt;
+        }
       }
     });
   }
@@ -139,6 +162,16 @@ class _ShopHoursEditScreenState extends State<ShopHoursEditScreen> {
                   const ShopEditLabel(
                     'Horaires d’ouverture',
                     helper: 'Heure locale — les clients voient vos horaires sur la fiche boutique.',
+                  ),
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      _ShortcutChip(label: 'Tout ouvrir', onTap: _openAll),
+                      _ShortcutChip(label: 'Tout fermer', onTap: _closeAll),
+                      _ShortcutChip(label: 'Copier le lundi', onTap: _copyMonday),
+                    ],
                   ),
                   const SizedBox(height: 12),
                   Container(
@@ -258,6 +291,37 @@ class _TimeOption extends StatelessWidget {
           style: const TextStyle(
             color: RestaurantPalette.orange,
             fontSize: 13,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ShortcutChip extends StatelessWidget {
+  const _ShortcutChip({required this.label, required this.onTap});
+
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(999),
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: RestaurantPalette.orange.withValues(alpha: 0.07),
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: RestaurantPalette.orange.withValues(alpha: 0.25)),
+        ),
+        child: Text(
+          label,
+          style: const TextStyle(
+            color: RestaurantPalette.orange,
+            fontSize: 12.5,
             fontWeight: FontWeight.w700,
           ),
         ),

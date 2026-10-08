@@ -271,7 +271,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('ma boutique : carte horaires → éditeur horaires', (tester) async {
+  testWidgets('ma boutique : carte horaires → éditeur → sélecteur d’heure', (tester) async {
     final log = <String>[];
     await _pumpShell(tester, log, size: const Size(390, 844));
 
@@ -286,6 +286,46 @@ void main() {
     await tester.tap(find.text('Lundi'));
     await tester.pumpAndSettle();
     expect(find.text('Enregistrer'), findsOneWidget);
+
+    // Jours ouverts dans le statut de départ (samedi/dimanche fermés).
+    expect(find.text('08:00'), findsNWidgets(5));
+    expect(find.text('Tout ouvrir'), findsOneWidget);
+    expect(find.text('Tout fermer'), findsOneWidget);
+    expect(find.text('Copier le lundi'), findsOneWidget);
+
+    // Raccourcis : ouvrir et refermer toute la semaine d'un seul geste.
+    await tester.tap(find.text('Tout ouvrir'));
+    await tester.pumpAndSettle();
+    expect(find.text('08:00'), findsNWidgets(7));
+    await tester.tap(find.text('Tout fermer'));
+    await tester.pumpAndSettle();
+    expect(find.text('08:00'), findsNothing);
+    await tester.tap(find.text('Tout ouvrir'));
+    await tester.pumpAndSettle();
+    expect(find.text('08:00'), findsNWidgets(7));
+
+    // Sélecteur d'heure maison : molettes 24 h, raccourcis, Annuler/Valider.
+    await tester.ensureVisible(find.text('08:00').first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('08:00').first);
+    await tester.pumpAndSettle();
+    expect(find.text('Valider'), findsOneWidget);
+    expect(find.text('Annuler'), findsOneWidget);
+    expect(find.text('Heure d’ouverture · Lundi'), findsOneWidget);
+
+    await tester.tap(find.text('14:00'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Valider'));
+    await tester.pumpAndSettle();
+    expect(find.text('Valider'), findsNothing);
+    expect(find.text('14:00'), findsOneWidget);
+
+    // Enregistrement : la planification complète part en PATCH.
+    await tester.tap(find.text('Enregistrer'));
+    await tester.pump();
+    await tester.pumpAndSettle();
+    expect(log, contains('PATCH /vendors/me'));
+    expect(find.text('Horaires enregistrés.'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
