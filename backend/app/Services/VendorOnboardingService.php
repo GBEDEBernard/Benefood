@@ -11,6 +11,7 @@ use App\Models\Vendor;
 use App\Models\VendorDocument;
 use App\Support\Phone;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 
 /**
  * Onboarding vendeur, soumission de documents et récupération du statut (J46).
@@ -78,12 +79,33 @@ class VendorOnboardingService
 
     public function getStatus(Vendor $vendor): array
     {
-        $vendor->load('documents');
+        $vendor->load(['documents', 'hours']);
 
         return [
-            'vendor' => array_merge($vendor->toArray(), [
+            'vendor' => [
+                'id' => $vendor->id,
+                'business_name' => $vendor->business_name,
+                'legal_name' => $vendor->legal_name,
+                'ifu' => $vendor->ifu,
+                'description' => $vendor->description,
+                'phone' => $vendor->phone,
+                'email' => $vendor->email,
+                'city' => $vendor->city,
+                'address' => $vendor->address,
+                'category_id' => $vendor->category_id,
+                'logo_url' => $this->mediaUrl($vendor->logo_url),
+                'cover_url' => $this->mediaUrl($vendor->cover_url),
+                'status' => $vendor->status,
+                'approved_at' => $vendor->approved_at?->toIso8601String(),
+                'closed_at' => $vendor->closed_at?->toIso8601String(),
                 'is_open' => $vendor->isOpenNow(),
-            ]),
+                'hours' => $vendor->hours->sortBy('day_of_week')->map(fn ($hour) => [
+                    'day_of_week' => $hour->day_of_week,
+                    'opens_at' => $hour->opens_at ? substr($hour->opens_at, 0, 5) : null,
+                    'closes_at' => $hour->closes_at ? substr($hour->closes_at, 0, 5) : null,
+                    'is_closed' => (bool) $hour->is_closed,
+                ])->values(),
+            ],
             'documents' => $vendor->documents->map(fn (VendorDocument $document) => [
                 'id' => $document->id,
                 'type' => $document->type,
@@ -92,6 +114,23 @@ class VendorOnboardingService
                 'created_at' => $document->created_at?->toIso8601String(),
             ])->values(),
         ];
+    }
+
+    /**
+     * Normalise un chemin de média en URL publique (chemins relatifs legacy
+     * compris, URL absolues renvoyées telles quelles).
+     */
+    private function mediaUrl(?string $path): ?string
+    {
+        if ($path === null || $path === '') {
+            return null;
+        }
+
+        if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
+            return $path;
+        }
+
+        return Storage::disk('public')->url($path);
     }
 
     public function recordHistory(

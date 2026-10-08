@@ -7,16 +7,14 @@ import '../../../core/utils/formatters.dart';
 import '../../../shared/widgets/app_button.dart';
 import '../../../shared/widgets/status_badge.dart';
 import '../../../shared/widgets/state_widgets.dart';
-import '../account/vendor_account_screen.dart';
-import '../dashboard/vendor_dashboard_screen.dart';
 import '../onboarding/vendor_onboarding_screen.dart';
-import '../orders/vendor_orders_screen.dart';
-import '../products/products_screen.dart';
+import '../restaurant/restaurant_shell_screen.dart';
 
-/// Espace Vendeur (J154) : tableau de bord, produits, commandes, compte.
+/// Espace Vendeur (J154) : tableau de bord mobile à menu latéral,
+/// produits, commandes, revenus et compte.
 ///
-/// Le premier onglet vérifie le statut d'onboarding vendeur : si le compte n'est
-/// pas `active`, un écran de soumission du dossier est affiché à la place.
+/// Le premier affichage vérifie le statut d'onboarding vendeur : si le compte
+/// n'est pas `active`, un écran de soumission du dossier est affiché à la place.
 class VendorShell extends StatefulWidget {
   const VendorShell({super.key, required this.session, required this.marketplace});
 
@@ -28,8 +26,6 @@ class VendorShell extends StatefulWidget {
 }
 
 class _VendorShellState extends State<VendorShell> {
-  int _index = 0;
-
   Map<String, dynamic>? _status;
   bool _statusLoading = true;
   String? _statusError;
@@ -81,43 +77,13 @@ class _VendorShellState extends State<VendorShell> {
     }
   }
 
-  void _selectTab(int index) => setState(() => _index = index);
-
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: IndexedStack(
-        index: _index,
-        children: [
-          _buildFirstTab(),
-          ProductsScreen(marketplace: widget.marketplace),
-          VendorOrdersScreen(marketplace: widget.marketplace),
-          VendorAccountScreen(
-            session: widget.session,
-            marketplace: widget.marketplace,
-            onSelectTab: _selectTab,
-          ),
-        ],
-      ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _index,
-        onDestinationSelected: _selectTab,
-        destinations: const [
-          NavigationDestination(icon: Icon(Icons.space_dashboard_outlined), selectedIcon: Icon(Icons.space_dashboard), label: 'Tableau de bord'),
-          NavigationDestination(icon: Icon(Icons.shopping_bag_outlined), selectedIcon: Icon(Icons.shopping_bag), label: 'Produits'),
-          NavigationDestination(icon: Icon(Icons.receipt_long_outlined), selectedIcon: Icon(Icons.receipt_long), label: 'Commandes'),
-          NavigationDestination(icon: Icon(Icons.person_outline), selectedIcon: Icon(Icons.person), label: 'Compte'),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildFirstTab() {
     if (_statusLoading) {
-      return const Center(child: CircularProgressIndicator());
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
     if (_statusError != null) {
-      return ErrorState(message: _statusError!, onRetry: _loadStatus);
+      return Scaffold(body: ErrorState(message: _statusError!, onRetry: _loadStatus));
     }
 
     final rawVendor = _status?['vendor'];
@@ -129,17 +95,19 @@ class _VendorShellState extends State<VendorShell> {
 
     final status = vendor?['status'];
     if (status == 'active') {
-      return VendorDashboardScreen(
+      return RestaurantShellScreen(
+        session: widget.session,
         marketplace: widget.marketplace,
-        onGoToTab: (i) => setState(() => _index = i),
       );
     }
 
-    return _OnboardingGate(
-      vendor: vendor,
-      documents: documents,
-      onRefresh: _loadStatus,
-      onStartOnboarding: _openOnboarding,
+    return Scaffold(
+      body: _OnboardingGate(
+        vendor: vendor,
+        documents: documents,
+        onRefresh: _loadStatus,
+        onStartOnboarding: _openOnboarding,
+      ),
     );
   }
 }

@@ -11,9 +11,12 @@ import 'product_form_screen.dart';
 
 /// Mes produits (J155) : liste, disponibilité, création et édition.
 class ProductsScreen extends StatefulWidget {
-  const ProductsScreen({super.key, required this.marketplace});
+  const ProductsScreen({super.key, required this.marketplace, this.onBack});
 
   final MarketplaceApi marketplace;
+
+  /// Retour vers l'écran parent si la page est ouverte dans le shell vendeur.
+  final VoidCallback? onBack;
 
   @override
   State<ProductsScreen> createState() => _ProductsScreenState();
@@ -102,7 +105,12 @@ class _ProductsScreenState extends State<ProductsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Mes produits')),
+      appBar: AppBar(
+        title: const Text('Mes produits'),
+        leading: widget.onBack == null
+            ? null
+            : BackButton(onPressed: widget.onBack),
+      ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _openForm(),
         icon: const Icon(Icons.add),

@@ -327,6 +327,30 @@ class MarketplaceApi {
     });
   }
 
+  /// Met à jour la boutique du vendeur connecté (`PATCH /vendors/me`) :
+  /// informations, description, coordonnées, adresse et/ou horaires.
+  ///
+  /// Les heures remplacent intégralement la planification existante.
+  Future<void> updateVendorShop({
+    String? businessName,
+    String? description,
+    String? phone,
+    String? email,
+    String? city,
+    String? address,
+    List<OpeningHour>? hours,
+  }) async {
+    await _api.patch('/vendors/me', body: {
+      if (businessName != null && businessName.trim().isNotEmpty) 'business_name': businessName.trim(),
+      if (description != null) 'description': description.trim().isEmpty ? null : description.trim(),
+      if (phone != null && phone.trim().isNotEmpty) 'phone': phone.trim(),
+      if (email != null) 'email': email.trim().isEmpty ? null : email.trim(),
+      if (city != null) 'city': city.trim().isEmpty ? null : city.trim(),
+      if (address != null) 'address': address.trim().isEmpty ? null : address.trim(),
+      if (hours != null) 'hours': hours.map((h) => h.toJson()).toList(),
+    });
+  }
+
   /// Ouvre ou ferme la boutique (interrupteur « Statut de la boutique ») :
   /// `closed_at` horodaté pour fermer, null pour rouvrir.
   Future<void> setVendorOpen({required bool open}) async {
@@ -737,6 +761,13 @@ class OpeningHour {
         closesAt: json['closes_at'] is String ? json['closes_at'] as String : null,
         isClosed: json['is_closed'] == true,
       );
+
+  Map<String, dynamic> toJson() => {
+        'day_of_week': dayOfWeek,
+        'opens_at': opensAt,
+        'closes_at': closesAt,
+        'is_closed': isClosed,
+      };
 }
 
 int _i(dynamic value, [int fallback = 0]) {
