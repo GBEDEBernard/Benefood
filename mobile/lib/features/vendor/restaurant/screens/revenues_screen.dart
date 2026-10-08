@@ -1,29 +1,36 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/utils/formatters.dart';
+import '../../../../shared/models/order.dart';
 import '../restaurant_palette.dart';
 
 /// Écran « E. REVENUS » : résumé du mois (solde wallet, ventes validées,
-/// commission, attente de reversement) et dernières transactions dans une
-/// carte blanche unique, avec un sélecteur de mois cliquable.
+/// commission, attente de reversement) et dernières transactions, calculés
+/// dynamiquement à partir des commandes du vendeur (mois courant), avec
+/// tirer-pour-recharger et état vide.
 class RevenusScreen extends StatelessWidget {
   const RevenusScreen({
     super.key,
-    required this.summary,
-    required this.transactions,
+    required this.orders,
     this.onOpenDrawer,
     this.onMonthTap,
     this.onSeeAllTap,
+    this.onRefresh,
   });
 
-  final RevenuSummary summary;
-  final List<RevenuTransaction> transactions;
+  /// Commandes du vendeur (source de vérité gérée par le shell).
+  final List<Order> orders;
+
   final VoidCallback? onOpenDrawer;
   final VoidCallback? onMonthTap;
   final VoidCallback? onSeeAllTap;
+  final Future<void> Function()? onRefresh;
 
   @override
   Widget build(BuildContext context) {
+    final monthOrders = _monthOrders();
+    final (summary, transactions, orderCount) = _compute(monthOrders);
+
     return Material(
       color: RestaurantPalette.background,
       child: SafeArea(
@@ -32,17 +39,97 @@ class RevenusScreen extends StatelessWidget {
           children: [
             _buildHeader(),
             Expanded(
-              child: ListView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
-                children: [
-                  _buildMainCard(),
-                ],
+              child: RefreshIndicator(
+                onRefresh: () async => onRefresh?.call(),
+                child: ListView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
+                  children: [
+                    _buildMainCard(summary, transactions, orderCount),
+                  ],
+                ),
               ),
             ),
           ],
         ),
       ),
+    );
+  }
+
+  /// Commandes du mois courant ; les commandes de moins de 24 h comptent
+  /// aussi (ordre de début de mois qui bascule sur le mois écoulé).
+  List<Order> _monthOrders() {
+    final now = DateTime.now();
+    final recent = now.subtract(const Duration(hours: 24));
+    return orders.where((o) {
+      final created = DateTime.tryParse(o.createdAt ?? '');
+      if (created == null) return true;
+      return (created.year == now.year && created.month == now.month) ||
+          created.isAfter(recent);
+    }).toList();
+  }
+
+  /// Résumé du mois + dernières transactions dérivés des commandes :
+  /// commission de 10 %, solde correspondant aux livraisons encaissées.
+  (RevenuSummary, List<RevenuTransaction>, int) _compute(
+      List<Order> monthOrders) {
+    var validated = 0;
+    var pending = 0;
+    var delivered = 0;
+    var completed = 0;
+    final transactions = <RevenuTransaction>[];
+    final sorted = [...monthOrders];
+    sorted.sort((a, b) => _compareDates(a.createdAt, b.createdAt));
+
+    for (final o in sorted) {
+      final status = o.status;
+      if (status == 'cancelled' || status == 'refunded') {
+        continue;
+      }
+      if (status == 'awaiting_payment') {
+        pending += o.total;
+        continue;
+      }
+      validated += o.total;
+      completed++;
+      if (status == 'delivered') {
+        delivered += o.total;
+      }
+      if (status == 'paid' ||
+          status == 'accepted' ||
+          status == 'preparing' ||
+          status == 'ready' ||
+          status == 'assigned' ||
+          status == 'picked_up' ||
+          status == 'in_delivery') {
+        pending += o.total;
+      }
+      final time = _txLabel(o.createdAt);
+      transactions.add(RevenuTransaction(
+        label: 'Vente ${o.reference}',
+        dateLabel: time,
+        amount: o.total,
+        type: RevenuTransactionType.sale,
+      ));
+      transactions.add(RevenuTransaction(
+        label: 'Commission',
+        dateLabel: time,
+        amount: -(o.total * 0.10).round(),
+        type: RevenuTransactionType.commission,
+      ));
+    }
+
+    final commission = (validated * 0.10).round();
+    final wallet = delivered - (delivered * 0.10).round();
+    return (
+      RevenuSummary(
+        walletBalance: wallet,
+        validatedSales: validated,
+        commission: commission,
+        pendingPayout: pending,
+      ),
+      transactions.take(6).toList(),
+      completed,
     );
   }
 
@@ -78,7 +165,15 @@ class RevenusScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildMainCard() {
+  Widget _buildMainCard(
+    RevenuSummary summary,
+    List<RevenuTransaction> transactions,
+    int orderCount,
+  ) {
+    final subtitle = orderCount > 0
+        ? '$orderCount commande${orderCount > 1 ? 's' : ''} ce mois-ci'
+        : null;
+
     return Container(
       clipBehavior: Clip.antiAlias,
       decoration: RestaurantPalette.cardDecoration,
@@ -103,6 +198,17 @@ class RevenusScreen extends StatelessWidget {
                 _MonthSelector(onTap: onMonthTap),
               ],
             ),
+            if (subtitle != null) ...[
+              const SizedBox(height: 4),
+              Text(
+                subtitle,
+                style: const TextStyle(
+                  color: RestaurantPalette.grayText,
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
             const SizedBox(height: 18),
             _SummaryRow(
               icon: Icons.account_balance_wallet_outlined,
@@ -110,28 +216,28 @@ class RevenusScreen extends StatelessWidget {
               label: 'Solde wallet',
               value: formatAmount(summary.walletBalance),
             ),
-            const Divider(height: 20, color: RestaurantPalette.borderColor),
+            const Divider(height: 22, indent: 56, color: RestaurantPalette.borderColor),
             _SummaryRow(
               icon: Icons.south_west,
               iconColor: RestaurantPalette.success,
               label: 'Ventes validées',
               value: formatAmount(summary.validatedSales),
             ),
-            const Divider(height: 20, color: RestaurantPalette.borderColor),
+            const Divider(height: 22, indent: 56, color: RestaurantPalette.borderColor),
             _SummaryRow(
               icon: Icons.percent,
               iconColor: RestaurantPalette.grayText,
               label: 'Commission prélevée',
               value: formatAmount(summary.commission),
             ),
-            const Divider(height: 20, color: RestaurantPalette.borderColor),
+            const Divider(height: 22, indent: 56, color: RestaurantPalette.borderColor),
             _SummaryRow(
               icon: Icons.access_time,
               iconColor: RestaurantPalette.grayText,
               label: 'En attente de reversement',
               value: formatAmount(summary.pendingPayout),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 14),
             const Divider(height: 1, thickness: 1.5, color: RestaurantPalette.borderColor),
             const SizedBox(height: 16),
             Row(
@@ -165,20 +271,62 @@ class RevenusScreen extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             if (transactions.isEmpty)
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 18),
-                child: Text(
-                  'Aucune transaction ce mois-ci.',
-                  style: TextStyle(color: RestaurantPalette.grayText, fontSize: 13),
-                ),
-              )
+              const _EmptyTransactions()
             else
               for (final tx in transactions) ...[
                 _TransactionRow(tx),
-                const SizedBox(height: 4),
+                if (tx != transactions.last)
+                  const Divider(height: 1, indent: 56, color: RestaurantPalette.borderColor),
               ],
           ],
         ),
+      ),
+    );
+  }
+
+  static int _compareDates(String? a, String? b) {
+    final da = DateTime.tryParse(a ?? '');
+    final db = DateTime.tryParse(b ?? '');
+    if (da == null || db == null) return 0;
+    return db.compareTo(da);
+  }
+}
+
+/// État vide des transactions : aucun encaissement ce mois-ci.
+class _EmptyTransactions extends StatelessWidget {
+  const _EmptyTransactions();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 20),
+      child: Column(
+        children: [
+          const Icon(
+            Icons.receipt_long_outlined,
+            size: 36,
+            color: RestaurantPalette.orange,
+          ),
+          const SizedBox(height: 10),
+          const Text(
+            'Aucune transaction ce mois-ci.',
+            style: TextStyle(
+              color: RestaurantPalette.darkText,
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Les ventes validées apparaîtront ici dès leur encaissement.',
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: RestaurantPalette.grayText,
+              fontSize: 12.5,
+              height: 1.4,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -420,4 +568,16 @@ class RevenuTransaction {
     final sign = amount >= 0 ? '+' : '-';
     return '$sign${formatAmount(amount.abs())}';
   }
+}
+
+/// Libellé de date d'une transaction : « Aujourd'hui, 11:30 » ou « 08/10 09:15 ».
+String _txLabel(String? iso) {
+  final date = DateTime.tryParse(iso ?? '')?.toLocal();
+  if (date == null) return '';
+  final now = DateTime.now();
+  final time =
+      '${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+  final sameDay =
+      date.year == now.year && date.month == now.month && date.day == now.day;
+  return sameDay ? "Aujourd'hui, $time" : '${date.day}/${date.month} $time';
 }

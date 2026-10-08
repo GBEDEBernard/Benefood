@@ -48,7 +48,9 @@ MockClient _mockBackend(List<String> log) {
     ],
   };
 
-  const orders = [
+  final now = DateTime.now();
+  String ago(Duration d) => now.subtract(d).toUtc().toIso8601String();
+  final orders = [
     {
       'id': 'ord_1',
       'reference': '#BF1256',
@@ -66,7 +68,7 @@ MockClient _mockBackend(List<String> log) {
           'subtotal': 12000,
         },
       ],
-      'created_at': '2026-10-07T10:30:00Z',
+      'created_at': ago(const Duration(minutes: 5)),
     },
     {
       'id': 'ord_2',
@@ -79,7 +81,7 @@ MockClient _mockBackend(List<String> log) {
       'items': [
         {'id': 'it_2', 'name': 'Frites', 'quantity': 1, 'unit_price': 4500, 'subtotal': 4500},
       ],
-      'created_at': '2026-10-07T10:15:00Z',
+      'created_at': ago(const Duration(minutes: 20)),
     },
     {
       'id': 'ord_3',
@@ -92,7 +94,7 @@ MockClient _mockBackend(List<String> log) {
       'items': [
         {'id': 'it_3', 'name': 'Pizza', 'quantity': 1, 'unit_price': 9000, 'subtotal': 9000},
       ],
-      'created_at': '2026-10-07T09:50:00Z',
+      'created_at': ago(const Duration(minutes: 50)),
     },
     {
       'id': 'ord_4',
@@ -105,7 +107,7 @@ MockClient _mockBackend(List<String> log) {
       'items': [
         {'id': 'it_4', 'name': 'Wrap', 'quantity': 1, 'unit_price': 7500, 'subtotal': 7500},
       ],
-      'created_at': '2026-10-07T09:00:00Z',
+      'created_at': ago(const Duration(hours: 2)),
     },
   ];
 
@@ -488,25 +490,26 @@ void main() {
     expect(find.byType(RevenusScreen), findsOneWidget);
     expect(find.text('E. REVENUS'), findsOneWidget);
     expect(find.text('Revenus'), findsWidgets); // titre de carte + barre
+    expect(find.text('6 commandes ce mois-ci'), findsOneWidget);
 
-    // Résumé mensuel (jeu de démonstration du spec).
+    // Résumé calculé dynamiquement depuis les commandes de démonstration.
     expect(find.text('Solde wallet'), findsOneWidget);
-    expect(find.text('245 500 FCFA'), findsOneWidget);
+    expect(find.text('5 580 FCFA'), findsOneWidget); // 6 200 livrées − 10 %
     expect(find.text('Ventes validées'), findsOneWidget);
-    expect(find.text('1 245 000 FCFA'), findsOneWidget);
+    expect(find.text('64 500 FCFA'), findsOneWidget);
     expect(find.text('Commission prélevée'), findsOneWidget);
-    expect(find.text('124 500 FCFA'), findsOneWidget);
+    expect(find.text('6 450 FCFA'), findsOneWidget); // 10 % des ventes
     expect(find.text('En attente de reversement'), findsOneWidget);
-    expect(find.text('320 000 FCFA'), findsOneWidget);
+    expect(find.text('73 500 FCFA'), findsOneWidget);
 
     // Dernières transactions : ventes vertes (+), commission rouge (−).
     expect(find.text('Dernières transactions'), findsOneWidget);
-    expect(find.text('Vente #BF1253'), findsOneWidget);
-    expect(find.text('+9 000 FCFA'), findsOneWidget);
-    expect(find.text('Commission'), findsOneWidget);
-    expect(find.text('-900 FCFA'), findsOneWidget);
-    expect(find.text('Vente #BF1252'), findsOneWidget);
-    expect(find.text('+11 500 FCFA'), findsOneWidget);
+    expect(find.text('Vente #BF1256'), findsOneWidget);
+    expect(find.text('+14 000 FCFA'), findsOneWidget);
+    expect(find.text('Commission'), findsWidgets);
+    expect(find.text('-1 400 FCFA'), findsOneWidget);
+    expect(find.text('Vente #BF1255'), findsOneWidget);
+    expect(find.text('+9 800 FCFA'), findsOneWidget);
 
     // Sélecteur de mois et « Voir tout » : cliquables (simple toast pour le moment).
     await tester.tap(find.byIcon(Icons.chevron_right));

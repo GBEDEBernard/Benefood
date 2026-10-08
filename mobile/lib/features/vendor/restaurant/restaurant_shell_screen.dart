@@ -329,104 +329,6 @@ class _RestaurantShellScreenState extends State<RestaurantShellScreen> {
     return sum;
   }
 
-  /// Résumé mensuel des revenus. En démonstration, un relevé fictif du mois ;
-  /// en production, calcul à partir des commandes du vendeur.
-  RevenuSummary get _revenuSummary {
-    if (!_live) {
-      return const RevenuSummary(
-        walletBalance: 245500,
-        validatedSales: 1245000,
-        commission: 124500,
-        pendingPayout: 320000,
-      );
-    }
-    var validated = 0;
-    var pending = 0;
-    var delivered = 0;
-    for (final o in _orders) {
-      final status = o.status;
-      if (status == 'cancelled' || status == 'refunded' || status == 'awaiting_payment') {
-        if (status == 'awaiting_payment') pending += o.total;
-        continue;
-      }
-      validated += o.total;
-      if (status == 'delivered') delivered += o.total;
-      if (status == 'paid' || status == 'accepted' || status == 'preparing' ||
-          status == 'ready' || status == 'assigned' || status == 'picked_up' ||
-          status == 'in_delivery') {
-        pending += o.total;
-      }
-    }
-    final commission = (validated * 0.10).round();
-    final wallet = delivered - (delivered * 0.10).round();
-    return RevenuSummary(
-      walletBalance: wallet,
-      validatedSales: validated,
-      commission: commission,
-      pendingPayout: pending,
-    );
-  }
-
-  /// Dernières transactions du relevé (vente + commission par commande,
-  /// de la plus récente à la plus ancienne ; jeu fictif en démonstration).
-  List<RevenuTransaction> get _revenuTransactions {
-    if (!_live) {
-      return const [
-        RevenuTransaction(
-          label: 'Vente #BF1253',
-          dateLabel: "Aujourd'hui, 11:30",
-          amount: 9000,
-          type: RevenuTransactionType.sale,
-        ),
-        RevenuTransaction(
-          label: 'Commission',
-          dateLabel: "Aujourd'hui, 11:30",
-          amount: -900,
-          type: RevenuTransactionType.commission,
-        ),
-        RevenuTransaction(
-          label: 'Vente #BF1252',
-          dateLabel: "Aujourd'hui, 10:45",
-          amount: 11500,
-          type: RevenuTransactionType.sale,
-        ),
-      ];
-    }
-    final list = <RevenuTransaction>[];
-    final sorted = [..._orders];
-    sorted.sort((a, b) => _compareDates(a.createdAt, b.createdAt));
-    for (final o in sorted) {
-      if (o.status == 'cancelled' || o.status == 'refunded' ||
-          o.status == 'awaiting_payment') {
-        continue;
-      }
-      final time = _txLabel(o.createdAt);
-      list.add(RevenuTransaction(
-        label: 'Vente ${o.reference}',
-        dateLabel: time,
-        amount: o.total,
-        type: RevenuTransactionType.sale,
-      ));
-      list.add(RevenuTransaction(
-        label: 'Commission',
-        dateLabel: time,
-        amount: -(o.total * 0.10).round(),
-        type: RevenuTransactionType.commission,
-      ));
-    }
-    return list.take(6).toList();
-  }
-
-  static String _txLabel(String? iso) {
-    final date = DateTime.tryParse(iso ?? '')?.toLocal();
-    if (date == null) return '';
-    final now = DateTime.now();
-    final time =
-        '${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
-    final sameDay = date.year == now.year && date.month == now.month && date.day == now.day;
-    return sameDay ? "Aujourd'hui, $time" : '${date.day}/${date.month} $time';
-  }
-
   void _openDrawer() => _scaffoldKey.currentState?.openDrawer();
 
   void _select(int index) {
@@ -624,13 +526,13 @@ class _RestaurantShellScreenState extends State<RestaurantShellScreen> {
         );
       case 4:
         return RevenusScreen(
-          summary: _revenuSummary,
-          transactions: _revenuTransactions,
+          orders: _orders,
           onOpenDrawer: _openDrawer,
           onMonthTap: () =>
               showToast(context, 'Sélection du mois bientôt disponible.'),
           onSeeAllTap: () =>
               showToast(context, 'Historique complet bientôt disponible.'),
+          onRefresh: _reloadData,
         );
       case 5:
         if (widget.marketplace != null && widget.session != null) {
