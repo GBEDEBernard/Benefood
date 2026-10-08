@@ -71,8 +71,8 @@ class VendorBottomBar extends StatelessWidget {
               ),
               Expanded(
                 child: _BarItem(
-                  icon: Icons.payments_outlined,
-                  activeIcon: Icons.payments,
+                  icon: Icons.paid_outlined,
+                  activeIcon: Icons.paid,
                   label: 'Revenus',
                   active: currentIndex == 4,
                   onTap: () => onSelect(4),

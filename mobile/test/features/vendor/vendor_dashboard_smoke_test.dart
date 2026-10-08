@@ -10,6 +10,7 @@ import 'package:beninfood/core/http/api_client.dart';
 import 'package:beninfood/features/vendor/products/products_screen.dart';
 import 'package:beninfood/features/vendor/restaurant/restaurant_shell_screen.dart';
 import 'package:beninfood/features/vendor/restaurant/screens/orders_screen.dart';
+import 'package:beninfood/features/vendor/restaurant/screens/revenues_screen.dart';
 
 class _NoopTokenStore implements TokenStore {
   @override
@@ -240,7 +241,20 @@ void main() {
     // Revenus
     await tester.tap(find.text('Revenus'));
     await tester.pumpAndSettle();
-    expect(find.text('CA total (validé)'), findsOneWidget);
+    expect(find.byType(RevenusScreen), findsOneWidget);
+    expect(find.text('E. REVENUS'), findsOneWidget);
+    expect(find.text('Solde wallet'), findsOneWidget);
+    expect(find.text('Ventes validées'), findsOneWidget);
+    expect(find.text('Commission prélevée'), findsOneWidget);
+    expect(find.text('En attente de reversement'), findsOneWidget);
+    expect(find.text('Dernières transactions'), findsOneWidget);
+    expect(find.text('Voir tout'), findsWidgets);
+    // Montants calculés depuis les commandes du backend de test.
+    expect(find.text('6 750 FCFA'), findsOneWidget); // 7 500 livrées − 10 %
+    expect(find.text('28 500 FCFA'), findsOneWidget); // ventes validées
+    expect(find.text('2 850 FCFA'), findsOneWidget); // commission 10 %
+    expect(find.text('25 500 FCFA'), findsOneWidget); // en attente
+    expect(find.text('Vente #BF1256'), findsOneWidget);
 
     // Commandes
     await tester.tap(find.text('Commandes'));
@@ -457,6 +471,54 @@ void main() {
     expect(find.text('#BF1250'), findsOneWidget);
     expect(find.text('Livrée'), findsOneWidget);
     expect(find.text('Annulée'), findsOneWidget);
+
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('revenus (démo) : relevé du mois et sélecteur cliquable', (tester) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(const MaterialApp(home: RestaurantShellScreen()));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Revenus'));
+    await tester.pumpAndSettle();
+    expect(find.byType(RevenusScreen), findsOneWidget);
+    expect(find.text('E. REVENUS'), findsOneWidget);
+    expect(find.text('Revenus'), findsWidgets); // titre de carte + barre
+
+    // Résumé mensuel (jeu de démonstration du spec).
+    expect(find.text('Solde wallet'), findsOneWidget);
+    expect(find.text('245 500 FCFA'), findsOneWidget);
+    expect(find.text('Ventes validées'), findsOneWidget);
+    expect(find.text('1 245 000 FCFA'), findsOneWidget);
+    expect(find.text('Commission prélevée'), findsOneWidget);
+    expect(find.text('124 500 FCFA'), findsOneWidget);
+    expect(find.text('En attente de reversement'), findsOneWidget);
+    expect(find.text('320 000 FCFA'), findsOneWidget);
+
+    // Dernières transactions : ventes vertes (+), commission rouge (−).
+    expect(find.text('Dernières transactions'), findsOneWidget);
+    expect(find.text('Vente #BF1253'), findsOneWidget);
+    expect(find.text('+9 000 FCFA'), findsOneWidget);
+    expect(find.text('Commission'), findsOneWidget);
+    expect(find.text('-900 FCFA'), findsOneWidget);
+    expect(find.text('Vente #BF1252'), findsOneWidget);
+    expect(find.text('+11 500 FCFA'), findsOneWidget);
+
+    // Sélecteur de mois et « Voir tout » : cliquables (simple toast pour le moment).
+    await tester.tap(find.byIcon(Icons.chevron_right));
+    await tester.pumpAndSettle();
+    expect(find.text('Sélection du mois bientôt disponible.'), findsOneWidget);
+    await tester.tap(find.text('Voir tout'));
+    await tester.pumpAndSettle();
+    expect(find.text('Historique complet bientôt disponible.'), findsOneWidget);
+
+    await tester.pump(const Duration(seconds: 5));
+    await tester.pumpAndSettle();
+    expect(find.text('Historique complet bientôt disponible.'), findsNothing);
 
     expect(tester.takeException(), isNull);
   });

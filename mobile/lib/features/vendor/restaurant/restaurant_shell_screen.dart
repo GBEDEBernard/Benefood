@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import '../../../core/auth/session_provider.dart';
 import '../../../core/errors/api_exception.dart';
 import '../../../core/data/marketplace_api.dart';
-import '../../../core/utils/formatters.dart';
 import '../../../shared/models/order.dart';
 import '../../../shared/models/vendor.dart';
 import '../../../shared/widgets/feedback_widgets.dart';
@@ -12,6 +11,7 @@ import '../products/products_screen.dart';
 import 'restaurant_palette.dart';
 import 'screens/dashboard_screen.dart';
 import 'screens/orders_screen.dart';
+import 'screens/revenues_screen.dart';
 import 'screens/shop_screen.dart';
 import 'widgets/restaurant_drawer.dart';
 import 'widgets/vendor_bottom_bar.dart';
@@ -329,6 +329,104 @@ class _RestaurantShellScreenState extends State<RestaurantShellScreen> {
     return sum;
   }
 
+  /// Résumé mensuel des revenus. En démonstration, un relevé fictif du mois ;
+  /// en production, calcul à partir des commandes du vendeur.
+  RevenuSummary get _revenuSummary {
+    if (!_live) {
+      return const RevenuSummary(
+        walletBalance: 245500,
+        validatedSales: 1245000,
+        commission: 124500,
+        pendingPayout: 320000,
+      );
+    }
+    var validated = 0;
+    var pending = 0;
+    var delivered = 0;
+    for (final o in _orders) {
+      final status = o.status;
+      if (status == 'cancelled' || status == 'refunded' || status == 'awaiting_payment') {
+        if (status == 'awaiting_payment') pending += o.total;
+        continue;
+      }
+      validated += o.total;
+      if (status == 'delivered') delivered += o.total;
+      if (status == 'paid' || status == 'accepted' || status == 'preparing' ||
+          status == 'ready' || status == 'assigned' || status == 'picked_up' ||
+          status == 'in_delivery') {
+        pending += o.total;
+      }
+    }
+    final commission = (validated * 0.10).round();
+    final wallet = delivered - (delivered * 0.10).round();
+    return RevenuSummary(
+      walletBalance: wallet,
+      validatedSales: validated,
+      commission: commission,
+      pendingPayout: pending,
+    );
+  }
+
+  /// Dernières transactions du relevé (vente + commission par commande,
+  /// de la plus récente à la plus ancienne ; jeu fictif en démonstration).
+  List<RevenuTransaction> get _revenuTransactions {
+    if (!_live) {
+      return const [
+        RevenuTransaction(
+          label: 'Vente #BF1253',
+          dateLabel: "Aujourd'hui, 11:30",
+          amount: 9000,
+          type: RevenuTransactionType.sale,
+        ),
+        RevenuTransaction(
+          label: 'Commission',
+          dateLabel: "Aujourd'hui, 11:30",
+          amount: -900,
+          type: RevenuTransactionType.commission,
+        ),
+        RevenuTransaction(
+          label: 'Vente #BF1252',
+          dateLabel: "Aujourd'hui, 10:45",
+          amount: 11500,
+          type: RevenuTransactionType.sale,
+        ),
+      ];
+    }
+    final list = <RevenuTransaction>[];
+    final sorted = [..._orders];
+    sorted.sort((a, b) => _compareDates(a.createdAt, b.createdAt));
+    for (final o in sorted) {
+      if (o.status == 'cancelled' || o.status == 'refunded' ||
+          o.status == 'awaiting_payment') {
+        continue;
+      }
+      final time = _txLabel(o.createdAt);
+      list.add(RevenuTransaction(
+        label: 'Vente ${o.reference}',
+        dateLabel: time,
+        amount: o.total,
+        type: RevenuTransactionType.sale,
+      ));
+      list.add(RevenuTransaction(
+        label: 'Commission',
+        dateLabel: time,
+        amount: -(o.total * 0.10).round(),
+        type: RevenuTransactionType.commission,
+      ));
+    }
+    return list.take(6).toList();
+  }
+
+  static String _txLabel(String? iso) {
+    final date = DateTime.tryParse(iso ?? '')?.toLocal();
+    if (date == null) return '';
+    final now = DateTime.now();
+    final time =
+        '${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+    final sameDay = date.year == now.year && date.month == now.month && date.day == now.day;
+    return sameDay ? "Aujourd'hui, $time" : '${date.day}/${date.month} $time';
+  }
+
   void _openDrawer() => _scaffoldKey.currentState?.openDrawer();
 
   void _select(int index) {
@@ -525,11 +623,14 @@ class _RestaurantShellScreenState extends State<RestaurantShellScreen> {
           onRefresh: _reloadData,
         );
       case 4:
-        return _RevenueView(
-          orders: _orders,
-          revenueToday: _revenueToday,
+        return RevenusScreen(
+          summary: _revenuSummary,
+          transactions: _revenuTransactions,
           onOpenDrawer: _openDrawer,
-          onBack: () => _select(0),
+          onMonthTap: () =>
+              showToast(context, 'Sélection du mois bientôt disponible.'),
+          onSeeAllTap: () =>
+              showToast(context, 'Historique complet bientôt disponible.'),
         );
       case 5:
         if (widget.marketplace != null && widget.session != null) {
@@ -559,172 +660,6 @@ class _RestaurantShellScreenState extends State<RestaurantShellScreen> {
         2 => 3,
         _ => 0,
       };
-}
-
-/// Vue Revenus : indicateurs calculés à partir des commandes réelles.
-class _RevenueView extends StatelessWidget {
-  const _RevenueView({
-    required this.orders,
-    required this.revenueToday,
-    required this.onOpenDrawer,
-    required this.onBack,
-  });
-
-  final List<Order> orders;
-  final int revenueToday;
-  final VoidCallback onOpenDrawer;
-  final VoidCallback onBack;
-
-  @override
-  Widget build(BuildContext context) {
-    var revenue = 0;
-    var delivered = 0;
-    var cancelled = 0;
-    var accepted = 0;
-    for (final o in orders) {
-      switch (o.status) {
-        case 'delivered' || 'refunded':
-          revenue += o.total;
-          delivered++;
-        case 'paid' || 'accepted' || 'preparing' || 'ready' || 'picked_up' || 'in_delivery' || 'assigned':
-          revenue += o.total;
-          accepted++;
-        case 'cancelled':
-          cancelled++;
-        default:
-          break;
-      }
-    }
-
-    return Material(
-      color: RestaurantPalette.background,
-      child: SafeArea(
-        child: Column(
-          children: [
-            _header(context, 'Revenus'),
-            Expanded(
-              child: ListView(
-                padding: const EdgeInsets.all(16),
-                children: [
-                  _RevenueCard(
-                    icon: Icons.payments_outlined,
-                    title: 'CA total (validé)',
-                    value: formatAmount(revenue),
-                    color: RestaurantPalette.success,
-                  ),
-                  const SizedBox(height: 12),
-                  _RevenueCard(
-                    icon: Icons.today_outlined,
-                    title: "CA d'aujourd'hui",
-                    value: formatAmount(revenueToday),
-                    color: RestaurantPalette.orange,
-                  ),
-                  const SizedBox(height: 12),
-                  _RevenueCard(
-                    icon: Icons.check_circle_outline,
-                    title: 'Commandes livrées',
-                    value: '$delivered',
-                    color: RestaurantPalette.success,
-                  ),
-                  const SizedBox(height: 12),
-                  _RevenueCard(
-                    icon: Icons.receipt_long_outlined,
-                    title: 'Commandes encaissées / en cours',
-                    value: '$accepted',
-                    color: RestaurantPalette.ready,
-                  ),
-                  const SizedBox(height: 12),
-                  _RevenueCard(
-                    icon: Icons.cancel_outlined,
-                    title: 'Commandes annulées',
-                    value: '$cancelled',
-                    color: RestaurantPalette.danger,
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _header(BuildContext context, String title) {
-    return Material(
-      color: RestaurantPalette.white,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 10),
-        child: Row(
-          children: [
-            IconButton(onPressed: onBack, icon: const Icon(Icons.arrow_back, color: RestaurantPalette.darkText)),
-            Expanded(
-              child: Text(
-                title,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: RestaurantPalette.darkText,
-                  fontSize: 17,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ),
-            IconButton(
-              onPressed: onOpenDrawer,
-              icon: const Icon(Icons.menu, color: RestaurantPalette.darkText),
-              tooltip: 'Ouvrir le menu',
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _RevenueCard extends StatelessWidget {
-  const _RevenueCard({required this.icon, required this.title, required this.value, required this.color});
-
-  final IconData icon;
-  final String title;
-  final String value;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: RestaurantPalette.cardDecoration,
-      child: Row(
-        children: [
-          Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(color: color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(12)),
-            child: Icon(icon, color: color),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Text(
-              title,
-              style: const TextStyle(
-                color: RestaurantPalette.darkText,
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
-          Text(
-            value,
-            style: const TextStyle(
-              color: RestaurantPalette.darkText,
-              fontSize: 15,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 }
 
 class _PlaceholderScreen extends StatelessWidget {
