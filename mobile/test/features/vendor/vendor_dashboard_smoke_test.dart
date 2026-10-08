@@ -7,6 +7,8 @@ import 'package:http/testing.dart';
 
 import 'package:beninfood/core/data/marketplace_api.dart';
 import 'package:beninfood/core/http/api_client.dart';
+import 'package:beninfood/features/vendor/orders/vendor_orders_screen.dart';
+import 'package:beninfood/features/vendor/products/products_screen.dart';
 import 'package:beninfood/features/vendor/restaurant/restaurant_shell_screen.dart';
 
 class _NoopTokenStore implements TokenStore {
@@ -182,13 +184,19 @@ void main() {
     expect(find.image(const AssetImage('assets/Logo.jpeg')), findsOneWidget);
     expect(find.byIcon(Icons.notifications_none), findsOneWidget);
     // Titre vert du tableau de bord + badge d'état, stats, commandes.
-    expect(find.text('Tableau de bord'), findsOneWidget);
+    expect(find.text('Tableau de bord'), findsNWidgets(2)); // titre + barre inférieure
     expect(find.text('Ouvert'), findsOneWidget);
     expect(find.text('Commandes du jour'), findsOneWidget);
     expect(find.text('CA du jour'), findsOneWidget);
     expect(find.text('Nouvelles commandes'), findsOneWidget);
     expect(find.text('#BF1256'), findsOneWidget);
     expect(find.text('Accepter'), findsWidgets);
+
+    // Barre d'actions rapides en bas de l'écran.
+    expect(find.text('Produits'), findsOneWidget);
+    expect(find.text('Commandes'), findsOneWidget);
+    expect(find.text('Revenus'), findsOneWidget);
+    expect(find.text('Profil'), findsOneWidget);
 
     // Le drawer est fermé au départ.
     expect(find.text('Boutique'), findsNothing);
@@ -200,21 +208,59 @@ void main() {
     expect(find.text('LE DÉLICE FAST-FOOD'), findsOneWidget);
     expect(find.text('Ouvert'), findsWidgets);
     expect(find.text('Boutique'), findsOneWidget);
-    expect(find.text('Produits'), findsOneWidget);
-    expect(find.text('Commandes'), findsOneWidget);
-    expect(find.text('Revenus'), findsOneWidget);
+    expect(find.text('Produits'), findsNWidgets(2)); // tiroir + barre
+    expect(find.text('Commandes'), findsNWidgets(2)); // tiroir + barre
+    expect(find.text('Revenus'), findsNWidgets(2)); // tiroir + barre
     expect(find.text('Profil & Paramètres'), findsOneWidget);
     expect(find.text('Déconnexion'), findsOneWidget);
 
     // Cliquer « Boutique » : l'écran principale bascule sur Ma boutique.
-    await tester.tap(find.text('Boutique'));
+    await tester.tap(find.descendant(of: find.byType(Drawer), matching: find.text('Boutique')));
     await tester.pumpAndSettle();
     expect(find.text('Ma boutique'), findsWidgets);
+    // La section Statut est plus bas avec la barre d'actions en pied d'écran.
+    await tester.scrollUntilVisible(
+      find.text('Statut de la boutique'),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
     expect(find.text('Statut de la boutique'), findsOneWidget);
     expect(find.text('Statut du compte'), findsOneWidget);
     expect(find.text('Actif'), findsOneWidget);
     expect(find.byType(Switch), findsOneWidget);
 
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('barre inférieure : navigation dynamique entre les écrans', (tester) async {
+    final log = <String>[];
+    await _pumpShell(tester, log, size: const Size(390, 844));
+
+    // Revenus
+    await tester.tap(find.text('Revenus'));
+    await tester.pumpAndSettle();
+    expect(find.text('CA total (validé)'), findsOneWidget);
+
+    // Commandes
+    await tester.tap(find.text('Commandes'));
+    await tester.pumpAndSettle();
+    expect(find.byType(VendorOrdersScreen), findsOneWidget);
+
+    // Produits
+    await tester.tap(find.text('Produits'));
+    await tester.pumpAndSettle();
+    expect(find.byType(ProductsScreen), findsOneWidget);
+
+    // Profil (session absente ici : écran d'attente du compte)
+    await tester.tap(find.text('Profil'));
+    await tester.pumpAndSettle();
+    expect(find.text('Profil & Paramètres — bientôt disponible'), findsOneWidget);
+
+    // Retour au tableau de bord depuis la barre.
+    await tester.tap(find.text('Tableau de bord'));
+    await tester.pumpAndSettle();
+    expect(find.text('Commandes du jour'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -227,7 +273,11 @@ void main() {
     await tester.tap(find.text('Boutique'));
     await tester.pumpAndSettle();
 
-    await tester.ensureVisible(find.byType(Switch));
+    await tester.scrollUntilVisible(
+      find.byType(Switch),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
     await tester.pumpAndSettle();
     await tester.tap(find.byType(Switch));
     await tester.pump();
@@ -335,7 +385,7 @@ void main() {
 
     await tester.tap(find.byIcon(Icons.menu));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Produits'));
+    await tester.tap(find.descendant(of: find.byType(Drawer), matching: find.text('Produits')));
     await tester.pumpAndSettle();
 
     expect(find.text('Mes produits'), findsOneWidget);

@@ -14,6 +14,7 @@ import 'restaurant_palette.dart';
 import 'screens/dashboard_screen.dart';
 import 'screens/shop_screen.dart';
 import 'widgets/restaurant_drawer.dart';
+import 'widgets/vendor_bottom_bar.dart';
 
 /// Écran racine vendeur « Le Délice Fast-Food » (mobile).
 ///
@@ -363,6 +364,11 @@ class _RestaurantShellScreenState extends State<RestaurantShellScreen> {
         onSelect: _select,
       ),
       body: _buildBody(),
+      bottomNavigationBar: VendorBottomBar(
+        currentIndex: _selectedIndex,
+        onSelect: _select,
+        pendingOrders: _pendingCount,
+      ),
     );
   }
 
