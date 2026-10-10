@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use App\Enums\DriverStatus;
 use App\Enums\DriverType;
+use App\Enums\OrderStatus;
 use App\Enums\UserStatus;
 use App\Enums\VendorDocumentStatus;
 use App\Enums\VendorDocumentType;
@@ -12,7 +13,10 @@ use App\Models\Address;
 use App\Models\Category;
 use App\Models\DeliveryRate;
 use App\Models\DeliveryZone;
+use App\Models\Favorite;
 use App\Models\Order;
+use App\Models\Review;
+use App\Models\ReviewItem;
 use App\Models\Role;
 use App\Models\User;
 use App\Models\Vendor;
@@ -117,6 +121,10 @@ class ShopDataSeeder extends Seeder
         }
 
         $this->seedOrders($clients, $vendors, $drivers);
+
+        // Avis des clients sur les commandes livrées + favoris des produits :
+        // alimentent les notes/statistiques des produits et des boutiques.
+        $this->seedReviewsAndFavorites($clients, $vendors);
 
         $this->printCredentials();
     }
@@ -356,16 +364,26 @@ class ShopDataSeeder extends Seeder
         $cartService = app(CartService::class);
         $orderService = app(OrderService::class);
 
-        // Références de scénarios : le même client peut commander chez plusieurs boutiques.
+        // Références de scénarios : le même client peut commander chez
+        // plusieurs boutiques. La boutique d'Edna (index 0) concentre des
+        // commandes des trois clients — dont plusieurs livrées (avis possibles).
         $scenarios = [
             // client, vendeur, étapes
-            [0, 0, ['delivered']],           // 1. livrée intégralement
-            [1, 1, ['in_delivery']],         // 2. en cours de livraison
-            [2, 2, ['ready']],               // 3. prête, course assignée
-            [0, 1, ['preparing']],           // 4. en préparation
-            [1, 2, ['paid']],                // 5. payée
-            [2, 0, ['awaiting_payment']],    // 6. en attente de paiement
-            [0, 2, ['cancelled']],           // 7. annulée par le client
+            [0, 0, ['delivered']],           // 1. marion → Délices d'Edna : livrée
+            [0, 0, ['delivered']],           // 2. marion → Edna : livrée (réassort)
+            [0, 0, ['in_delivery']],         // 3. marion → Edna : en cours de livraison
+            [0, 0, ['preparing']],           // 4. marion → Edna : en préparation
+            [0, 0, ['awaiting_payment']],    // 5. marion → Edna : en attente de paiement
+            [1, 0, ['delivered']],           // 6. jean → Edna : livrée
+            [1, 0, ['ready']],               // 7. jean → Edna : prête, course assignée
+            [2, 0, ['delivered']],           // 8. fatou → Edna : livrée
+            [2, 0, ['paid']],                // 9. fatou → Edna : payée
+            [0, 1, ['in_delivery']],         // 10. marion → Primeur : en cours de livraison
+            [1, 1, ['preparing']],           // 11. jean → Primeur : en préparation
+            [2, 2, ['ready']],               // 12. fatou → Boulangerie : prête
+            [1, 2, ['paid']],                // 13. jean → Boulangerie : payée
+            [2, 1, ['delivered']],           // 14. fatou → Primeur : livrée
+            [0, 2, ['cancelled']],           // 15. marion → Boulangerie : annulée
         ];
 
         $driverProfiles = collect($drivers)->map->driverProfile->values();
@@ -377,7 +395,14 @@ class ShopDataSeeder extends Seeder
 
             $cart = $cartService->getOrCreateOpenCart($client['user'], $vendor);
 
-            $products = $vendor->products()->orderable()->orderBy('id')->limit(3)->get();
+            // Fenêtre tournante de 3 produits pour varier les commandes.
+            $catalogIds = $vendor->products()->orderable()->orderBy('id')->pluck('id')->values();
+            $count = max($catalogIds->count(), 1);
+            $offset = $index % $count;
+            $pickedIds = collect()
+                ->times(3, fn (int $n) => $catalogIds[($offset + $n - 1) % $count])
+                ->unique();
+            $products = $vendor->products()->whereIn('id', $pickedIds)->orderBy('id')->get();
 
             foreach ($products as $product) {
                 $cartService->addItem($cart, $product, random_int(1, 2));
@@ -435,6 +460,102 @@ class ShopDataSeeder extends Seeder
         $orderService->cancelClientOrder($order, $order->user_id, 'Commande annulée par le client (démonstration).');
     }
 
+    // ------------------------------------------------------------------ avis
+
+    /**
+     * Avis (note + commentaire) des clients sur chaque commande livrée, avec
+     * liaison aux produits commandés, puis favoris des produits d'Edna.
+     */
+    private function seedReviewsAndFavorites(array $clients, array $vendors): void
+    {
+        $vendorIds = collect($vendors)->pluck('id');
+        $clientIds = collect($clients)->pluck('user')->pluck('id');
+
+        $templates = [
+            ['rating' => 5, 'comment' => 'Excellente qualité, plats bien préparés et livraison rapide. Je recommande !'],
+            ['rating' => 4, 'comment' => 'Très bon repas dans l’ensemble. Service fiable, je repasserai sans hésiter.'],
+            ['rating' => 5, 'comment' => 'Repas délicieux et livré à l’heure. Le poulet braisé est un régal.'],
+            ['rating' => 4, 'comment' => 'Bon rapport qualité/prix, portions généreuses. Mention spéciale pour la sauce arachide !'],
+        ];
+
+        $delivered = Order::query()
+            ->whereIn('vendor_id', $vendorIds)
+            ->whereIn('user_id', $clientIds)
+            ->where('status', OrderStatus::Delivered->value)
+            ->with(['items'])
+            ->orderBy('created_at')
+            ->get();
+
+        foreach ($delivered as $i => $order) {
+            $template = $templates[$i % count($templates)];
+
+            $review = Review::create([
+                'order_id' => $order->id,
+                'user_id' => $order->user_id,
+                'rating' => $template['rating'],
+                'comment' => $template['comment'],
+                'status' => 'approved',
+            ]);
+
+            foreach ($order->items as $item) {
+                if ($item->product_id === null) {
+                    continue;
+                }
+
+                ReviewItem::create([
+                    'review_id' => $review->id,
+                    'product_id' => $item->product_id,
+                ]);
+            }
+
+            $this->command->info(
+                "Avis {$review->rating}/5 de {$order->user?->name} sur #{$order->reference}"
+                    ." ({$order->vendor?->business_name})",
+            );
+        }
+
+        $this->seedFavorites($vendors[0] ?? null, $clients);
+    }
+
+    /**
+     * Favoris (« j'aime ») sur les produits de la boutique d'Edna
+     * (statistique `likes_count` de chaque produit).
+     */
+    private function seedFavorites(?Vendor $vendor, array $clients): void
+    {
+        if ($vendor === null) {
+            return;
+        }
+
+        $products = $vendor->products()->orderable()->orderBy('id')->get();
+
+        if ($products->isEmpty()) {
+            return;
+        }
+
+        $sets = [
+            0 => [0, 2, 4], // marion
+            1 => [1, 3, 5], // jean
+            2 => [0, 1, 6], // fatou
+        ];
+
+        foreach ($clients as $index => $client) {
+            foreach ($sets[$index] ?? [] as $offset) {
+                $product = $products->get($offset);
+                if ($product === null) {
+                    continue;
+                }
+
+                Favorite::firstOrCreate([
+                    'user_id' => $client['user']->id,
+                    'product_id' => $product->id,
+                ]);
+            }
+        }
+
+        $this->command->info('Favoris des produits d’Edna générés.');
+    }
+
     // ------------------------------------------------------------------ purges
 
     private function resetShopDemo(): void
@@ -466,6 +587,11 @@ class ShopDataSeeder extends Seeder
         DB::table('payments')->whereIn('id', $paymentIds)->delete();
         DB::table('notifications')->whereIn('user_id', $userIds)->delete();
         DB::table('orders')->whereIn('id', $orderIds)->delete();
+
+        // Avis et favoris liés aux produits/vendeurs de la démo.
+        DB::table('review_items')->whereIn('product_id', $productIds)->delete();
+        DB::table('reviews')->whereIn('user_id', $userIds)->delete();
+        DB::table('favorites')->whereIn('user_id', $userIds)->orWhereIn('product_id', $productIds)->delete();
 
         DB::table('cart_items')->whereIn('cart_id', $cartIds)->delete();
         DB::table('carts')->whereIn('id', $cartIds)->delete();

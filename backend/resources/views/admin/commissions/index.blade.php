@@ -103,6 +103,41 @@
             </div>
         </div>
 
+        <!-- Barème plateforme (cahier v1.0) -->
+        <div class="card mb-4" style="border: none; box-shadow: 0 2px 10px rgba(0,0,0,0.05); border-radius: 12px;">
+            <div class="card-body">
+                <h6 class="font-weight-bold mb-1" style="color: var(--text-dark);">Barème plateforme</h6>
+                <p class="mb-3" style="color: var(--text-muted); font-size: 12.5px;">Répartition appliquée à chaque commande (figée par commande).</p>
+                @php
+                    $serviceFee = (int) config('beninfood.service_fee.rate', 5);
+                    $deliveryCommission = (int) config('beninfood.delivery_commission.rate', 20);
+                    $gatewayFee = ((int) config('beninfood.payment_gateway.fee_rate_basis_points', 120)) / 100;
+                    $minPayout = (int) config('beninfood.wallet.min_payout', 1000);
+                @endphp
+                <ul class="list-unstyled mb-0" style="font-size: 14px;">
+                    <li class="d-flex justify-content-between py-2" style="border-bottom: 1px solid var(--border-color);">
+                        <span style="color: var(--text-muted);">Frais de service client</span>
+                        <strong style="color: var(--text-dark);">{{ $serviceFee }} %</strong>
+                    </li>
+                    <li class="d-flex justify-content-between py-2" style="border-bottom: 1px solid var(--border-color);">
+                        <span style="color: var(--text-muted);">Commission livreur</span>
+                        <strong style="color: var(--text-dark);">{{ $deliveryCommission }} %</strong>
+                    </li>
+                    <li class="d-flex justify-content-between py-2" style="border-bottom: 1px solid var(--border-color);">
+                        <span style="color: var(--text-muted);">Frais passerelle (absorbés)</span>
+                        <strong style="color: var(--text-dark);">{{ rtrim(rtrim(number_format($gatewayFee, 2, ',', ''), '0'), ',') }} %</strong>
+                    </li>
+                    <li class="d-flex justify-content-between py-2">
+                        <span style="color: var(--text-muted);">Retrait minimum</span>
+                        <strong style="color: var(--text-dark);">{{ \App\Support\AdminLabels::priceLabel($minPayout) }}</strong>
+                    </li>
+                </ul>
+                <p class="mt-3 mb-0" style="color: var(--text-muted); font-size: 12px;">
+                    <i class="ti ti-info-circle"></i> Modifiable via la configuration serveur (variables <code>BENINFOOD_SERVICE_FEE_RATE</code>, <code>BENINFOOD_DELIVERY_COMMISSION_RATE</code>, <code>BENINFOOD_GATEWAY_FEE_BASIS_POINTS</code>).
+                </p>
+            </div>
+        </div>
+
         <!-- Revenu mensuel -->
         <div class="card" style="border: none; box-shadow: 0 2px 10px rgba(0,0,0,0.05); border-radius: 12px;">
             <div class="card-body p-0">

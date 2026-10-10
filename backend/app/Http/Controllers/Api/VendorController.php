@@ -5,9 +5,14 @@ namespace App\Http\Controllers\Api;
 use App\Enums\VendorDocumentType;
 use App\Enums\VendorStatus;
 use App\Http\Controllers\Controller;
+use App\Http\Resources\ComplaintResource;
 use App\Http\Resources\ProductResource;
 use App\Http\Resources\VendorResource;
+use App\Models\Order;
 use App\Models\Vendor;
+use App\Models\VendorDocument;
+use App\Services\ComplaintService;
+use App\Services\VendorActivityService;
 use App\Services\VendorOnboardingService;
 use App\Support\Api;
 use App\Support\Phone;
@@ -17,7 +22,11 @@ use Illuminate\Support\Facades\Storage;
 
 class VendorController extends Controller
 {
-    public function __construct(private readonly VendorOnboardingService $vendorService) {}
+    public function __construct(
+        private readonly VendorOnboardingService $vendorService,
+        private readonly VendorActivityService $activityService,
+        private readonly ComplaintService $complaints,
+    ) {}
 
     public function onboarding(Request $request): JsonResponse
     {
@@ -83,6 +92,60 @@ class VendorController extends Controller
         return Api::ok($this->vendorService->getStatus($vendor));
     }
 
+    /**
+     * Liste des documents du dossier vendeur (J21 §4.2/4.3) avec métadonnées
+     * de vérification et URL signée de consultation.
+     */
+    public function documents(Request $request): JsonResponse
+    {
+        $vendor = $request->user()->vendor()->with('documents')->first();
+
+        if ($vendor === null) {
+            return Api::error('Aucun profil vendeur associé à ce compte.', 'vendor.not_onboarded', 404);
+        }
+
+        $this->authorize('view', $vendor);
+
+        return Api::ok(
+            $vendor->documents
+                ->sortBy('created_at')
+                ->map(fn (VendorDocument $document) => $this->vendorService->documentPayload($document))
+                ->values(),
+        );
+    }
+
+    /**
+     * Téléchargement/consultation d'un document via URL temporaire signée.
+     * Le fichier reste sur le disque privé, jamais exposé publiquement.
+     */
+    public function downloadDocument(VendorDocument $document)
+    {
+        if (! Storage::disk('private')->exists($document->file_path)) {
+            return Api::error('Document introuvable.', 'not_found', 404);
+        }
+
+        return Storage::disk('private')->response($document->file_path);
+    }
+
+    /**
+     * Historique des activités du vendeur (J21 §10).
+     */
+    public function activity(Request $request): JsonResponse
+    {
+        $vendor = $request->user()->vendor()->first();
+
+        if ($vendor === null) {
+            return Api::error('Aucun profil vendeur associé à ce compte.', 'vendor.not_onboarded', 404);
+        }
+
+        $this->authorize('view', $vendor);
+
+        $limit = (int) $request->query('limit', 100);
+        $limit = min(max($limit, 1), 200);
+
+        return Api::ok($this->activityService->forVendor($vendor, $limit));
+    }
+
     public function updateProfile(Request $request): JsonResponse
     {
         $user = $request->user();
@@ -111,6 +174,7 @@ class VendorController extends Controller
             'logo' => ['sometimes', 'file', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
             'cover' => ['sometimes', 'file', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
             'closed_at' => ['sometimes', 'nullable', 'date'],
+            'closed_reason' => ['sometimes', 'nullable', 'string', 'max:255'],
             'hours' => ['sometimes', 'array'],
             'hours.*.day_of_week' => ['required_with:hours', 'integer', 'between:0,6'],
             'hours.*.opens_at' => ['nullable', 'date_format:H:i'],
@@ -139,12 +203,20 @@ class VendorController extends Controller
         // array_filter qui écarte les valeurs nulles ci-dessous.
         $closedAtProvided = array_key_exists('closed_at', $data);
         $closedAt = $data['closed_at'] ?? null;
-        unset($data['closed_at']);
+        $closedReasonProvided = array_key_exists('closed_reason', $data);
+        $closedReason = $data['closed_reason'] ?? null;
+        unset($data['closed_at'], $data['closed_reason']);
 
         $vendor->update(array_filter($data, fn ($v) => $v !== null && $v !== []));
 
         if ($closedAtProvided) {
-            $vendor->update(['closed_at' => $closedAt]);
+            // Réouverture : le motif de fermeture n'a plus lieu d'être.
+            $vendor->update([
+                'closed_at' => $closedAt,
+                'closed_reason' => $closedAt === null ? null : ($closedReasonProvided ? $closedReason : $vendor->closed_reason),
+            ]);
+        } elseif ($closedReasonProvided && $vendor->closed_at !== null) {
+            $vendor->update(['closed_reason' => $closedReason]);
         }
 
         if (isset($data['hours']) && is_array($data['hours'])) {
@@ -305,6 +377,109 @@ class VendorController extends Controller
         return Api::noContent();
     }
 
+    /**
+     * Préférences de la boutique : reversement, notifications, langue (J21 §3.6).
+     */
+    public function settings(Request $request): JsonResponse
+    {
+        $vendor = $this->vendorForSettings($request);
+
+        if ($vendor instanceof JsonResponse) {
+            return $vendor;
+        }
+
+        return Api::ok($this->settingsPayload($vendor));
+    }
+
+    /**
+     * Met à jour les préférences de la boutique.
+     */
+    public function updateSettings(Request $request): JsonResponse
+    {
+        $vendor = $this->vendorForSettings($request);
+
+        if ($vendor instanceof JsonResponse) {
+            return $vendor;
+        }
+
+        $data = $request->validate([
+            'auto_accept' => ['sometimes', 'boolean'],
+            'payout_method' => ['sometimes', 'nullable', 'string', 'in:bank,mobile_money,cash'],
+            'payout_details' => ['sometimes', 'nullable', 'string', 'max:191'],
+            'notify_new_orders' => ['sometimes', 'boolean'],
+            'notify_cancellations' => ['sometimes', 'boolean'],
+            'notify_payments' => ['sometimes', 'boolean'],
+            'locale' => ['sometimes', 'string', 'in:fr,en'],
+        ]);
+
+        $settings = $vendor->settings()->firstOrCreate([]);
+        $settings->update($data);
+
+        return Api::ok($this->settingsPayload($vendor->fresh('settings')));
+    }
+
+    /**
+     * Le vendeur signale un problème sur une de ses commandes (J21 §3.4).
+     */
+    public function reportIncident(Request $request, Order $order): JsonResponse
+    {
+        $user = $request->user();
+        $vendor = $user->vendor()->first();
+
+        if ($vendor === null) {
+            return Api::error('Aucun profil vendeur associé à ce compte.', 'vendor.not_onboarded', 404);
+        }
+
+        if ($order->vendor_id !== $vendor->id) {
+            return Api::error('Commande introuvable.', 'not_found', 404);
+        }
+
+        $data = $request->validate([
+            'subject' => ['required', 'string', 'max:120'],
+            'description' => ['required', 'string', 'max:2000'],
+            'type' => ['sometimes', 'string', 'in:product,delivery,payment,other'],
+        ]);
+
+        $complaint = $this->complaints->openForVendor($user, $order, $data);
+
+        return Api::created(new ComplaintResource($complaint));
+    }
+
+    private function vendorForSettings(Request $request): Vendor|JsonResponse
+    {
+        $user = $request->user();
+        $vendor = $user->vendor()->first();
+
+        if ($vendor === null) {
+            return Api::error('Aucun profil vendeur associé à ce compte.', 'vendor.not_onboarded', 404);
+        }
+
+        if ($user->id !== $vendor->user_id || ! $user->hasPermission('vendor.profile.manage')) {
+            return Api::error('Accès refusé.', 'forbidden', 403);
+        }
+
+        return $vendor;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function settingsPayload(Vendor $vendor): array
+    {
+        $settings = $vendor->settings()->firstOrCreate([]);
+        $settings->refresh();
+
+        return [
+            'auto_accept' => (bool) $settings->auto_accept,
+            'payout_method' => $settings->payout_method,
+            'payout_details' => $settings->payout_details,
+            'notify_new_orders' => (bool) $settings->notify_new_orders,
+            'notify_cancellations' => (bool) $settings->notify_cancellations,
+            'notify_payments' => (bool) $settings->notify_payments,
+            'locale' => $settings->locale ?? 'fr',
+        ];
+    }
+
     public function index(Request $request): JsonResponse
     {
         $query = Vendor::query()
@@ -420,7 +595,12 @@ class VendorController extends Controller
             return Api::error('Accès refusé.', 'forbidden', 403);
         }
 
-        $products = $vendor->products()->where('is_active', true)->orderBy('name')->get();
+        $products = $vendor->products()
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->withAvg('reviews as reviews_avg_rating', 'rating')
+            ->withCount(['reviews', 'favorites'])
+            ->get();
 
         return Api::ok(ProductResource::collection($products)->values());
     }

@@ -38,6 +38,8 @@ class HomeController extends Controller
 
         $products = Product::query()
             ->with(['vendor', 'category'])
+            ->withAvg('reviews as reviews_avg_rating', 'rating')
+            ->withCount(['reviews', 'favorites'])
             ->orderable()
             ->whereHas('vendor', fn ($vendor) => $vendor->where('status', VendorStatus::Active->value)->whereNull('closed_at'))
             ->latest('products.created_at')

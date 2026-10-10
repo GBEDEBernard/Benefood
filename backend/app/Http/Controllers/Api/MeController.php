@@ -184,6 +184,10 @@ class MeController extends Controller
             'title' => $notification->title,
             'body' => $notification->body,
             'data' => $notification->data,
+            'order_id' => data_get($notification->data, 'order_id'),
+            'screen' => data_get($notification->data, 'screen'),
+            'deeplink' => data_get($notification->data, 'deeplink'),
+            'image_url' => data_get($notification->data, 'image_url'),
             'read_at' => $notification->read_at?->toIso8601String(),
             'created_at' => $notification->created_at?->toIso8601String(),
         ])->values());

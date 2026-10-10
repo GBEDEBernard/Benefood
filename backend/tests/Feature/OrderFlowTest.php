@@ -113,7 +113,9 @@ class OrderFlowTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.subtotal', 1000)
             ->assertJsonPath('data.delivery_fee', 1500)
-            ->assertJsonPath('data.total', 2500)
+            // Cahier v1.0 : frais de service client 5 % de (nourriture + livraison).
+            ->assertJsonPath('data.service_fee', 125)
+            ->assertJsonPath('data.total', 2625)
             ->assertJsonPath('data.commission.rate', 10)
             ->assertJsonPath('data.commission.amount', 100)
             ->assertJsonPath('data.currency', 'XOF')
@@ -125,7 +127,7 @@ class OrderFlowTest extends TestCase
 
         $this->assertNotNull($order->reference);
         $this->assertSame(1000, $order->subtotal);
-        $this->assertSame(2500, $order->total);
+        $this->assertSame(2625, $order->total);
         $this->assertNotNull($order->address_snapshot);
         $this->assertSame('Sonner avant de livrer', $order->address_snapshot['notes']);
         $this->assertSame(1500, $order->delivery_rate_snapshot['price']);
@@ -140,8 +142,17 @@ class OrderFlowTest extends TestCase
             'subtotal' => 1000,
         ]);
 
-        $this->assertDatabaseHas('order_financials', ['order_id' => $order->id, 'commission_amount' => 100]);
-        $this->assertDatabaseHas('payments', ['order_id' => $order->id, 'status' => 'initiated', 'amount' => 2500]);
+        $this->assertDatabaseHas('order_financials', [
+            'order_id' => $order->id,
+            'commission_amount' => 100,
+            'service_fee' => 125,
+            'vendor_amount' => 900,
+            'delivery_commission_amount' => 300,
+            'delivery_partner_amount' => 1200,
+            'platform_amount' => 525,
+            'total_client' => 2625,
+        ]);
+        $this->assertDatabaseHas('payments', ['order_id' => $order->id, 'status' => 'initiated', 'amount' => 2625]);
         $this->assertSame(8, $product->fresh()->stock_qty);
         $this->assertSame(CartStatus::Converted->value, $order->cart->fresh()->status->value);
 

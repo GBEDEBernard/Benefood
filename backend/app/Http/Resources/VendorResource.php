@@ -27,6 +27,7 @@ class VendorResource extends JsonResource
             'status' => $this->status,
             'approved_at' => $this->approved_at?->toIso8601String(),
             'closed_at' => $this->closed_at?->toIso8601String(),
+            'closed_reason' => $this->closed_reason,
             'created_at' => $this->created_at?->toIso8601String(),
         ];
     }

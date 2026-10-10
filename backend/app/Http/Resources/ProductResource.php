@@ -39,6 +39,11 @@ class ProductResource extends JsonResource
             'is_available' => (bool) $this->is_available,
             'is_orderable' => $this->isOrderable(),
             'status' => $this->status,
+            'rating' => $this->reviews_avg_rating !== null
+                ? round((float) $this->reviews_avg_rating, 1)
+                : null,
+            'reviews_count' => $this->reviews_count ?? 0,
+            'likes_count' => $this->favorites_count ?? 0,
             'created_at' => $this->created_at?->toIso8601String(),
             'updated_at' => $this->updated_at?->toIso8601String(),
         ];

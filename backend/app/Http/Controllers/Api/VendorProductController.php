@@ -34,7 +34,11 @@ class VendorProductController extends Controller
 
         $q = trim((string) $request->query('q', ''));
 
-        $query = $vendor->products()->where('is_active', true)->with(['category', 'images']);
+        $query = $vendor->products()
+            ->where('is_active', true)
+            ->with(['category', 'images'])
+            ->withAvg('reviews as reviews_avg_rating', 'rating')
+            ->withCount(['reviews', 'favorites']);
 
         if ($q !== '') {
             $query->where('name', 'like', "%{$q}%");

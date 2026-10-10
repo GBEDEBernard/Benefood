@@ -37,6 +37,8 @@ class CatalogController extends Controller
 
         $query = Product::query()
             ->with(['vendor', 'category', 'images'])
+            ->withAvg('reviews as reviews_avg_rating', 'rating')
+            ->withCount(['reviews', 'favorites'])
             ->orderable()
             ->whereHas('vendor', fn ($vendor) => $vendor->where('status', VendorStatus::Active->value));
 

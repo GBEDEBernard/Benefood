@@ -16,6 +16,9 @@ class VendorSetting extends Model
     {
         return [
             'auto_accept' => 'boolean',
+            'notify_new_orders' => 'boolean',
+            'notify_cancellations' => 'boolean',
+            'notify_payments' => 'boolean',
         ];
     }
 

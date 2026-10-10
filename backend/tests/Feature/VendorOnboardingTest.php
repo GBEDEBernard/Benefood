@@ -10,6 +10,7 @@ use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\URL;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
@@ -329,5 +330,86 @@ class VendorOnboardingTest extends TestCase
         $this->getJson('/api/v1/vendors/me/status')
             ->assertOk()
             ->assertJsonPath('data.vendor.is_open', false);
+    }
+
+    public function test_documents_endpoint_returns_metadata_and_signed_url(): void
+    {
+        $user = User::factory()->create(['phone' => '+22997000010']);
+        Sanctum::actingAs($user);
+
+        $this->postJson('/api/v1/vendors/me/onboarding', [
+            'business_name' => 'Resto Chez Awa',
+            'phone' => '97000011',
+        ])->assertCreated();
+
+        $this->postJson('/api/v1/vendors/me/documents', [
+            'type' => 'ifu',
+            'document' => UploadedFile::fake()->create('ifu.pdf', 100),
+        ])->assertCreated();
+
+        $this->getJson('/api/v1/vendors/me/documents')
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.type', 'ifu')
+            ->assertJsonPath('data.0.status', 'submitted')
+            ->assertJsonStructure(['data' => [['id', 'type', 'status', 'reason', 'file_name', 'created_at', 'reviewed_at', 'url']]]);
+
+        $this->getJson('/api/v1/vendors/me/status')
+            ->assertOk()
+            ->assertJsonStructure(['data' => ['progress' => [['key', 'label', 'done']]]]);
+    }
+
+    public function test_vendor_document_download_requires_signature(): void
+    {
+        $user = User::factory()->create(['phone' => '+22997000010']);
+        Sanctum::actingAs($user);
+
+        $this->postJson('/api/v1/vendors/me/onboarding', [
+            'business_name' => 'Resto Chez Awa',
+            'phone' => '97000011',
+        ])->assertCreated();
+
+        $this->postJson('/api/v1/vendors/me/documents', [
+            'type' => 'ifu',
+            'document' => UploadedFile::fake()->create('ifu.pdf', 100),
+        ])->assertCreated();
+
+        $document = VendorDocument::first();
+
+        $this->get('/api/v1/vendors/me/documents/'.$document->id.'/download')
+            ->assertForbidden();
+
+        $signed = URL::temporarySignedRoute(
+            'api.v1.vendors.me.documents.download',
+            now()->addMinutes(5),
+            ['document' => $document->id],
+        );
+
+        $this->get($signed)->assertOk();
+    }
+
+    public function test_activity_endpoint_returns_timeline(): void
+    {
+        $user = User::factory()->create(['phone' => '+22997000010']);
+        Sanctum::actingAs($user);
+
+        $this->postJson('/api/v1/vendors/me/onboarding', [
+            'business_name' => 'Resto Chez Awa',
+            'phone' => '97000011',
+        ])->assertCreated();
+
+        $this->postJson('/api/v1/vendors/me/documents', [
+            'type' => 'ifu',
+            'document' => UploadedFile::fake()->create('ifu.pdf', 100),
+        ])->assertCreated();
+
+        $response = $this->getJson('/api/v1/vendors/me/activity')
+            ->assertOk()
+            ->assertJsonStructure(['data' => [['id', 'type', 'action', 'label', 'description', 'status', 'created_at']]]);
+
+        $actions = collect($response->json('data'))->pluck('action');
+
+        $this->assertTrue($actions->contains('status_registered'));
+        $this->assertTrue($actions->contains('document_submitted'));
     }
 }

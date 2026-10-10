@@ -12,6 +12,7 @@ use App\Models\VendorDocument;
 use App\Support\Phone;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\URL;
 
 /**
  * Onboarding vendeur, soumission de documents et récupération du statut (J46).
@@ -106,13 +107,63 @@ class VendorOnboardingService
                     'is_closed' => (bool) $hour->is_closed,
                 ])->values(),
             ],
-            'documents' => $vendor->documents->map(fn (VendorDocument $document) => [
-                'id' => $document->id,
-                'type' => $document->type,
-                'status' => $document->status,
-                'reason' => $document->reason,
-                'created_at' => $document->created_at?->toIso8601String(),
-            ])->values(),
+            'documents' => $vendor->documents
+                ->sortBy('created_at')
+                ->map(fn (VendorDocument $document) => $this->documentPayload($document))
+                ->values(),
+            'progress' => $this->progress($vendor),
+        ];
+    }
+
+    /**
+     * Progression du dossier (J21 §4.4) :
+     * Inscription → Informations légales → Documents soumis → Vérification
+     * → Dossier validé → Boutique activée.
+     *
+     * @return array<int, array{key: string, label: string, done: bool}>
+     */
+    public function progress(Vendor $vendor): array
+    {
+        $vendor->loadMissing('documents');
+
+        $status = VendorStatus::tryFrom($vendor->status);
+        $reviewed = $vendor->documents->contains(fn (VendorDocument $document) => $document->status !== VendorDocumentStatus::Submitted->value);
+        $validated = $vendor->approved_at !== null || in_array($status, [VendorStatus::Verified, VendorStatus::Active, VendorStatus::Suspended, VendorStatus::Closed], true);
+
+        $steps = [
+            ['key' => 'registration', 'label' => 'Inscription', 'done' => true],
+            ['key' => 'legal_information', 'label' => 'Informations légales', 'done' => $vendor->business_name !== null && $vendor->phone !== null],
+            ['key' => 'documents_submitted', 'label' => 'Documents soumis', 'done' => $vendor->documents->isNotEmpty()],
+            ['key' => 'verification', 'label' => 'Vérification', 'done' => $reviewed],
+            ['key' => 'validated', 'label' => 'Dossier validé', 'done' => $validated],
+            ['key' => 'shop_activated', 'label' => 'Boutique activée', 'done' => $status === VendorStatus::Active],
+        ];
+
+        return $steps;
+    }
+
+    /**
+     * Détail d'un document du dossier vendeur (J21 §4) : métadonnées de
+     * vérification et URL temporaire signée pour la consultation (les
+     * fichiers sont stockés sur le disque privé).
+     *
+     * @return array<string, mixed>
+     */
+    public function documentPayload(VendorDocument $document): array
+    {
+        return [
+            'id' => $document->id,
+            'type' => $document->type,
+            'status' => $document->status,
+            'reason' => $document->reason,
+            'file_name' => basename($document->file_path),
+            'created_at' => $document->created_at?->toIso8601String(),
+            'reviewed_at' => $document->reviewed_at?->toIso8601String(),
+            'url' => URL::temporarySignedRoute(
+                'api.v1.vendors.me.documents.download',
+                now()->addMinutes(30),
+                ['document' => $document->id],
+            ),
         ];
     }
 

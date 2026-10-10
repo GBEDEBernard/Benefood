@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Product extends Model
@@ -53,6 +54,26 @@ class Product extends Model
     public function stockLogs(): HasMany
     {
         return $this->hasMany(StockLog::class)->orderByDesc('created_at');
+    }
+
+    public function favorites(): HasMany
+    {
+        return $this->hasMany(Favorite::class);
+    }
+
+    /**
+     * Avis portant sur ce produit, à travers la table pivot `review_items`.
+     */
+    public function reviews(): HasManyThrough
+    {
+        return $this->hasManyThrough(
+            Review::class,
+            ReviewItem::class,
+            'product_id',   // FK sur review_items
+            'id',           // FK sur reviews
+            'id',           // FK locale sur products
+            'review_id',    // FK locale sur review_items
+        );
     }
 
     /**

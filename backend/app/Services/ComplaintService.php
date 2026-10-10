@@ -51,6 +51,30 @@ class ComplaintService
     }
 
     /**
+     * Ouvre une réclamation côté vendeur sur l'une de ses commandes (J21 §3.4).
+     *
+     * @param  array{type?: string, subject: string, description: string}  $data
+     */
+    public function openForVendor(User $vendorUser, Order $order, array $data): Complaint
+    {
+        $complaint = Complaint::create([
+            'user_id' => $vendorUser->id,
+            'order_id' => $order->id,
+            'type' => $data['type'] ?? 'other',
+            'subject' => $data['subject'],
+            'description' => $data['description'],
+            'status' => ComplaintStatus::Open->value,
+        ]);
+
+        $this->notifications->notifyEvent('complaint.opened', $this->notifications->porteuseUsers()->all(), [
+            'complaint_id' => $complaint->id,
+            'subject' => $complaint->subject,
+        ]);
+
+        return $complaint->fresh('messages');
+    }
+
+    /**
      * Ajoute un message à une réclamation ouverte (client ou porteuse).
      */
     public function reply(Complaint $complaint, User $sender, string $message): ComplaintMessage
