@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "CHANGEME_PROJECT_NUMBER",
+    "project_id": "CHANGEME_PROJECT_ID",
+    "storage_bucket": "CHANGEME_STORAGE_BUCKET"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "CHANGEME_MOBILESDK_APP_ID",
+        "android_client_info": {
+          "package_name": "com.beninfood.beninfood"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "CHANGEME_API_KEY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

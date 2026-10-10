@@ -25,6 +25,10 @@ mobile/android/local.properties
 mobile/ios/Pods/
 mobile/ios/.symlinks/
 
+# ===== Secrets mobiles (Firebase) — templates dans *.example =====
+mobile/android/app/google-services.json
+mobile/ios/Runner/GoogleService-Info.plist
+
 # ===== Base de données =====
 *.sqlite
 *.sqlite-journal
