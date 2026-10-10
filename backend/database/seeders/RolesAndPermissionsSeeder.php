@@ -53,10 +53,12 @@ class RolesAndPermissionsSeeder extends Seeder
             'vendor.delivery.rates.manage' => ['name' => 'Gérer ses tarifs de livraison', 'module' => 'vendor'],
             'client.cart.manage' => ['name' => 'Gérer son panier', 'module' => 'client'],
             'client.orders.manage' => ['name' => 'Gérer ses commandes', 'module' => 'client'],
+            'client.parcels.manage' => ['name' => 'Envoyer et suivre des colis', 'module' => 'client'],
             'client.complaints.manage' => ['name' => 'Ouvrir et suivre ses réclamations', 'module' => 'client'],
             'client.reviews.create' => ['name' => 'Laisser des avis', 'module' => 'client'],
             'driver.availability.manage' => ['name' => 'Gérer sa disponibilité', 'module' => 'driver'],
             'driver.deliveries.manage' => ['name' => 'Gérer ses courses', 'module' => 'driver'],
+            'driver.parcels.manage' => ['name' => 'Gérer les colis', 'module' => 'driver'],
             'driver.documents.manage' => ['name' => 'Gérer ses documents', 'module' => 'driver'],
             'driver.finance.earnings' => ['name' => 'Consulter ses gains', 'module' => 'driver'],
         ];

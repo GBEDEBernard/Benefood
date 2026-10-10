@@ -7,8 +7,10 @@ use App\Enums\PaymentStatus;
 use App\Http\Controllers\Controller;
 use App\Models\FinancialTransaction;
 use App\Models\Order;
+use App\Models\Parcel;
 use App\Models\Payment;
 use App\Models\PaymentEvent;
+use App\Services\ParcelService;
 use App\Services\Payments\KkiapayConnector;
 use App\Support\Api;
 use Illuminate\Http\JsonResponse;
@@ -18,16 +20,30 @@ use Illuminate\Support\Facades\Log;
 
 class PaymentController extends Controller
 {
+    public function __construct(private readonly ParcelService $parcels) {}
+
     public function create(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'order_id' => ['required', 'uuid', 'exists:orders,id'],
+            'order_id' => ['required_without:parcel_id', 'uuid', 'exists:orders,id'],
+            'parcel_id' => ['required_without:order_id', 'uuid', 'exists:parcels,id'],
         ]);
 
-        $order = Order::findOrFail($data['order_id']);
+        if (isset($data['order_id'])) {
+            return $this->createOrderPayment($request, Order::findOrFail($data['order_id']));
+        }
 
+        return $this->createParcelPayment($request, Parcel::findOrFail($data['parcel_id']));
+    }
+
+    private function createOrderPayment(Request $request, Order $order): JsonResponse
+    {
         if ($order->user_id !== $request->user()->id) {
             return Api::error('Ressource introuvable.', 'not_found', 404);
+        }
+
+        if ($order->payment_method?->isCash()) {
+            return Api::error('Cette commande est payée en espèces à la livraison.', 'payment.cash_not_online', 422);
         }
 
         if (! $order->isAwaitingPayment()) {
@@ -41,6 +57,27 @@ class PaymentController extends Controller
         $connector = new KkiapayConnector;
 
         $payload = $connector->createPayment($order);
+
+        return Api::ok($payload);
+    }
+
+    private function createParcelPayment(Request $request, Parcel $parcel): JsonResponse
+    {
+        if ($parcel->user_id !== $request->user()->id) {
+            return Api::error('Ressource introuvable.', 'not_found', 404);
+        }
+
+        if (! $parcel->status->isAwaitingPayment()) {
+            return Api::error('Ce colis ne peut plus être payé.', 'payment.invalid_state', 422);
+        }
+
+        if ($parcel->payment_deadline_at && $parcel->payment_deadline_at->isPast()) {
+            return Api::error('Le délai de paiement pour ce colis est expiré.', 'payment.expired', 422);
+        }
+
+        $connector = new KkiapayConnector;
+
+        $payload = $connector->createPaymentForParcel($parcel);
 
         return Api::ok($payload);
     }
@@ -153,13 +190,22 @@ class PaymentController extends Controller
                 $orderId = $event['order_id'] ?? null;
                 $order = $orderId ? Order::find($orderId) : null;
 
+                $parcelId = $event['parcel_id'] ?? null;
+                $parcel = $parcelId ? Parcel::find($parcelId) : null;
+
                 $payment = null;
                 if ($order) {
                     $payment = $order->payment;
+                } elseif ($parcel) {
+                    $payment = $parcel->payment;
                 }
 
                 if (! $payment && $orderId) {
                     $payment = Payment::where('order_id', $orderId)->first();
+                }
+
+                if (! $payment && $parcelId) {
+                    $payment = Payment::where('parcel_id', $parcelId)->first();
                 }
 
                 if ($payment) {
@@ -210,7 +256,7 @@ class PaymentController extends Controller
                         $amount = $payment?->amount ?? ($event['amount'] ?? 0);
                         $currency = $payment?->currency ?? ($event['raw']['data']['transaction']['currency'] ?? 'XOF');
 
-                        if ($amount) {
+                        if ($amount && $order) {
                             FinancialTransaction::create([
                                 'payment_id' => $payment?->id,
                                 'order_id' => $order->id,
@@ -221,6 +267,10 @@ class PaymentController extends Controller
                                 'meta' => $event['raw'],
                             ]);
                         }
+                    }
+
+                    if ($parcel && $parcel->status->isAwaitingPayment()) {
+                        $this->parcels->confirmPayment($parcel, (int) ($payment?->amount ?? $parcel->delivery_fee));
                     }
                 } elseif (in_array($status, ['failed', 'cancelled', 'expired'])) {
                     if ($payment) {
@@ -235,6 +285,15 @@ class PaymentController extends Controller
 
                     if ($order) {
                         $order->update(['payment_status' => match ($status) {
+                            'failed' => PaymentStatus::Failed->value,
+                            'cancelled' => PaymentStatus::Cancelled->value,
+                            'expired' => PaymentStatus::Expired->value,
+                            default => PaymentStatus::Failed->value,
+                        }]);
+                    }
+
+                    if ($parcel) {
+                        $parcel->update(['payment_status' => match ($status) {
                             'failed' => PaymentStatus::Failed->value,
                             'cancelled' => PaymentStatus::Cancelled->value,
                             'expired' => PaymentStatus::Expired->value,

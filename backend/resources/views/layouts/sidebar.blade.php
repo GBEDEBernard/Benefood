@@ -38,6 +38,13 @@
                     <span class="nav-title">{{ __('admin.orders') }}</span>
                 </a>
             </li>
+
+            <li class="{{ request()->routeIs('admin.parcels.*') ? 'active' : '' }}">
+                <a href="{{ route('admin.parcels.index') }}" style="color: {{ request()->routeIs('admin.parcels.*') ? '#FFFFFF' : 'var(--sidebar-text)' }}; background-color: {{ request()->routeIs('admin.parcels.*') ? 'var(--sidebar-active-bg)' : 'transparent' }};">
+                    <i class="nav-icon ti ti-package" style="color: {{ request()->routeIs('admin.parcels.*') ? '#FFFFFF' : 'var(--sidebar-text)' }};"></i>
+                    <span class="nav-title">Colis</span>
+                </a>
+            </li>
             
             <li class="{{ request()->routeIs('admin.products.*') || request()->routeIs('admin.shops.*') ? 'active' : '' }}">
                 <a class="has-arrow" href="javascript:void(0)" aria-expanded="false" style="color: {{ request()->routeIs('admin.products.*') || request()->routeIs('admin.shops.*') ? '#FFFFFF' : 'var(--sidebar-text)' }}; background-color: {{ request()->routeIs('admin.products.*') || request()->routeIs('admin.shops.*') ? 'var(--sidebar-active-bg)' : 'transparent' }};">
@@ -76,9 +83,9 @@
                 </ul>
             </li>
             
-            <li class="{{ request()->routeIs('admin.payments.*') || request()->routeIs('admin.refunds.*') ? 'active' : '' }}">
-                <a class="has-arrow" href="javascript:void(0)" aria-expanded="false" style="color: {{ request()->routeIs('admin.payments.*') || request()->routeIs('admin.refunds.*') ? '#FFFFFF' : 'var(--sidebar-text)' }}; background-color: {{ request()->routeIs('admin.payments.*') || request()->routeIs('admin.refunds.*') ? 'var(--sidebar-active-bg)' : 'transparent' }};">
-                    <i class="nav-icon ti ti-credit-card" style="color: {{ request()->routeIs('admin.payments.*') || request()->routeIs('admin.refunds.*') ? '#FFFFFF' : 'var(--sidebar-text)' }};"></i>
+            <li class="{{ request()->routeIs('admin.payments.*') || request()->routeIs('admin.refunds.*') || request()->routeIs('admin.payouts.*') ? 'active' : '' }}">
+                <a class="has-arrow" href="javascript:void(0)" aria-expanded="false" style="color: {{ request()->routeIs('admin.payments.*') || request()->routeIs('admin.refunds.*') || request()->routeIs('admin.payouts.*') ? '#FFFFFF' : 'var(--sidebar-text)' }}; background-color: {{ request()->routeIs('admin.payments.*') || request()->routeIs('admin.refunds.*') || request()->routeIs('admin.payouts.*') ? 'var(--sidebar-active-bg)' : 'transparent' }};">
+                    <i class="nav-icon ti ti-credit-card" style="color: {{ request()->routeIs('admin.payments.*') || request()->routeIs('admin.refunds.*') || request()->routeIs('admin.payouts.*') ? '#FFFFFF' : 'var(--sidebar-text)' }};"></i>
                     <span class="nav-title">{{ __('admin.payments') }}</span>
                 </a>
                 <ul aria-expanded="false" style="background-color: rgba(0,0,0,0.2);">
@@ -87,6 +94,9 @@
                     </li>
                     <li class="{{ request()->routeIs('admin.refunds.*') ? 'active' : '' }}">
                         <a href="{{ route('admin.refunds.index') }}" style="color: {{ request()->routeIs('admin.refunds.*') ? 'var(--benin-orange)' : 'var(--sidebar-text)' }};">{{ __('admin.refunds') }}</a>
+                    </li>
+                    <li class="{{ request()->routeIs('admin.payouts.*') ? 'active' : '' }}">
+                        <a href="{{ route('admin.payouts.index') }}" style="color: {{ request()->routeIs('admin.payouts.*') ? 'var(--benin-orange)' : 'var(--sidebar-text)' }};">Wallets & retraits</a>
                     </li>
                 </ul>
             </li>

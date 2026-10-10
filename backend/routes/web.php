@@ -8,7 +8,9 @@ use App\Http\Controllers\Admin\AdminComplaintsController;
 use App\Http\Controllers\Admin\AdminController;
 use App\Http\Controllers\Admin\AdminDriversController;
 use App\Http\Controllers\Admin\AdminOrdersController;
+use App\Http\Controllers\Admin\AdminParcelsController;
 use App\Http\Controllers\Admin\AdminPaymentsController;
+use App\Http\Controllers\Admin\AdminPayoutsController;
 use App\Http\Controllers\Admin\AdminProductsController;
 use App\Http\Controllers\Admin\AdminRatesController;
 use App\Http\Controllers\Admin\AdminRefundsController;
@@ -122,6 +124,10 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function (): v
     Route::resource('orders', AdminOrdersController::class)->only(['index', 'show']);
     Route::post('orders/{order}/cancel', [AdminOrdersController::class, 'cancel'])->name('orders.cancel');
 
+    // ---------- Cahier v1.0 — Phase 3 : Colis ----------
+    Route::resource('parcels', AdminParcelsController::class)->only(['index', 'show']);
+    Route::post('parcels/{parcel}/cancel', [AdminParcelsController::class, 'cancel'])->name('parcels.cancel');
+
     // ---------- Phase 16 — Commissions (J138) ----------
     Route::get('commissions', [AdminCommissionsController::class, 'index'])->name('commissions.index');
     Route::post('commissions', [AdminCommissionsController::class, 'store'])->name('commissions.store');
@@ -130,6 +136,11 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function (): v
     // ---------- Phase 16 — Remboursements (J140) ----------
     Route::resource('refunds', AdminRefundsController::class)->only(['index', 'show']);
     Route::post('refunds/{refund}/execute', [AdminRefundsController::class, 'execute'])->name('refunds.execute');
+
+    // ---------- Wallets & retraits (cahier v1.0) ----------
+    Route::get('payouts', [AdminPayoutsController::class, 'index'])->name('payouts.index');
+    Route::post('payouts/{payout}/execute', [AdminPayoutsController::class, 'execute'])->name('payouts.execute');
+    Route::post('payouts/{payout}/fail', [AdminPayoutsController::class, 'fail'])->name('payouts.fail');
 
     // ---------- Phase 16 — Réclamations & litiges (J141) ----------
     Route::resource('complaints', AdminComplaintsController::class)->only(['index', 'show']);

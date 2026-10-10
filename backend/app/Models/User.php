@@ -82,6 +82,11 @@ class User extends Authenticatable
         return $this->hasMany(Order::class);
     }
 
+    public function parcels(): HasMany
+    {
+        return $this->hasMany(Parcel::class);
+    }
+
     public function complaints(): HasMany
     {
         return $this->hasMany(Complaint::class);

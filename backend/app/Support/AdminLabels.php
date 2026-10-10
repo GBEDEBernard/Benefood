@@ -6,6 +6,7 @@ use App\Enums\ComplaintStatus;
 use App\Enums\DriverDocumentType;
 use App\Enums\DriverStatus;
 use App\Enums\OrderStatus;
+use App\Enums\ParcelStatus;
 use App\Enums\PaymentStatus;
 use App\Enums\RefundStatus;
 use App\Enums\UserStatus;
@@ -181,6 +182,27 @@ class AdminLabels
     public static function paymentStatusBadge(string $status): string
     {
         $s = self::paymentStatus($status);
+
+        return '<span class="badge badge-pill" style="background-color: '.$s['bg'].'; color: '.$s['fg'].'; font-weight: 600; padding: 6px 12px; border-radius: 20px;">'.$s['label'].'</span>';
+    }
+
+    /** @return array{label: string, bg: string, fg: string} */
+    public static function parcelStatus(string $status): array
+    {
+        return match ($status) {
+            ParcelStatus::Delivered->value => ['label' => 'Livré', 'bg' => '#E8F5E9', 'fg' => '#2E7D32'],
+            ParcelStatus::Paid->value => ['label' => 'Payé — à assigner', 'bg' => '#FFF3E0', 'fg' => '#E65100'],
+            ParcelStatus::Assigned->value, ParcelStatus::PickedUp->value, ParcelStatus::InDelivery->value => ['label' => 'En cours', 'bg' => '#E1F5FE', 'fg' => '#0277BD'],
+            ParcelStatus::AwaitingPayment->value => ['label' => 'En attente de paiement', 'bg' => '#FFF3E0', 'fg' => '#E65100'],
+            ParcelStatus::Cancelled->value => ['label' => 'Annulé', 'bg' => '#FFEBEE', 'fg' => '#C62828'],
+            ParcelStatus::Refunded->value => ['label' => 'Remboursé', 'bg' => '#F3E5F5', 'fg' => '#6A1B9A'],
+            default => ['label' => ucfirst($status), 'bg' => '#ECEFF1', 'fg' => '#37474F'],
+        };
+    }
+
+    public static function parcelStatusBadge(string $status): string
+    {
+        $s = self::parcelStatus($status);
 
         return '<span class="badge badge-pill" style="background-color: '.$s['bg'].'; color: '.$s['fg'].'; font-weight: 600; padding: 6px 12px; border-radius: 20px;">'.$s['label'].'</span>';
     }

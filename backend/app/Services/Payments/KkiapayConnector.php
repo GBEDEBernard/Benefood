@@ -3,6 +3,7 @@
 namespace App\Services\Payments;
 
 use App\Models\Order;
+use App\Models\Parcel;
 use App\Models\Payment;
 use Illuminate\Support\Facades\Http;
 
@@ -39,6 +40,21 @@ class KkiapayConnector implements PaymentGateway
         ];
     }
 
+    /** Payload du widget pour régler un colis (fournit l'id du colis dans les métadonnées). */
+    public function createPaymentForParcel(Parcel $parcel): array
+    {
+        return [
+            'provider' => 'kkiapay',
+            'widget' => [
+                'key' => $this->key,
+                'amount' => (int) $parcel->delivery_fee,
+                'order_id' => $parcel->id,
+                'metadata' => ['type' => 'parcel', 'parcel_id' => $parcel->id],
+                'callback' => route('api.v1.payments.callback'),
+            ],
+        ];
+    }
+
     public function verifyTransaction(string $transactionId): array
     {
         // Example verification with Kkiapay public API (sandbox)
@@ -65,6 +81,7 @@ class KkiapayConnector implements PaymentGateway
 
         // attempt to extract order id from metadata
         $orderId = $transaction['metadata']['order_id'] ?? $transaction['metadata']['order'] ?? null;
+        $parcelId = $transaction['metadata']['parcel_id'] ?? null;
 
         return [
             'event' => $event,
@@ -72,6 +89,7 @@ class KkiapayConnector implements PaymentGateway
             'status' => $transaction['status'] ?? $payload['status'] ?? null,
             'amount' => $transaction['amount'] ?? null,
             'order_id' => $orderId,
+            'parcel_id' => $parcelId,
             'raw' => $payload,
         ];
     }

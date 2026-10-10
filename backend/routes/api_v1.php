@@ -8,15 +8,22 @@ use App\Http\Controllers\Api\CatalogController;
 use App\Http\Controllers\Api\ComplaintController;
 use App\Http\Controllers\Api\DeliveryController;
 use App\Http\Controllers\Api\DeliveryQuoteController;
+use App\Http\Controllers\Api\DeliveryZoneController;
 use App\Http\Controllers\Api\DriverController;
+use App\Http\Controllers\Api\DriverFloatController;
 use App\Http\Controllers\Api\HealthController;
 use App\Http\Controllers\Api\HomeController;
 use App\Http\Controllers\Api\MeController;
 use App\Http\Controllers\Api\OrderController;
+use App\Http\Controllers\Api\ParcelController;
 use App\Http\Controllers\Api\PaymentController;
 use App\Http\Controllers\Api\RefundController;
+use App\Http\Controllers\Api\ReviewController;
 use App\Http\Controllers\Api\VendorController;
 use App\Http\Controllers\Api\VendorProductController;
+use App\Http\Controllers\Api\VendorRevenueController;
+use App\Http\Controllers\Api\VendorReviewController;
+use App\Http\Controllers\Api\WalletController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/health', [HealthController::class, 'index'])->name('api.v1.health');
@@ -60,7 +67,9 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::prefix('vendors/me')->group(function (): void {
         Route::post('/onboarding', [VendorController::class, 'onboarding'])->name('api.v1.vendors.me.onboarding');
         Route::post('/documents', [VendorController::class, 'uploadDocument'])->name('api.v1.vendors.me.documents');
+        Route::get('/documents', [VendorController::class, 'documents'])->name('api.v1.vendors.me.documents.index');
         Route::get('/status', [VendorController::class, 'status'])->name('api.v1.vendors.me.status');
+        Route::get('/activity', [VendorController::class, 'activity'])->name('api.v1.vendors.me.activity');
         Route::get('/products', [VendorController::class, 'myProducts'])->name('api.v1.vendors.me.products');
         Route::post('/products', [VendorProductController::class, 'store'])->name('api.v1.vendors.me.products.store');
         Route::patch('/products/{product}', [VendorProductController::class, 'update'])->name('api.v1.vendors.me.products.update');
@@ -74,12 +83,37 @@ Route::middleware('auth:sanctum')->group(function (): void {
         Route::get('/zones', [VendorController::class, 'listZones'])->name('api.v1.vendors.me.zones.index');
         Route::post('/zones', [VendorController::class, 'syncZones'])->name('api.v1.vendors.me.zones.sync');
         Route::delete('/zones/{zone}', [VendorController::class, 'detachZone'])->name('api.v1.vendors.me.zones.detach');
+        Route::get('/settings', [VendorController::class, 'settings'])->name('api.v1.vendors.me.settings.index');
+        Route::patch('/settings', [VendorController::class, 'updateSettings'])->name('api.v1.vendors.me.settings.update');
+        Route::post('/orders/{order}/incident', [VendorController::class, 'reportIncident'])->name('api.v1.vendors.me.orders.incident');
     });
+
+    Route::prefix('vendors/me/reviews')->group(function (): void {
+        Route::get('/', [VendorReviewController::class, 'index'])->name('api.v1.vendors.me.reviews.index');
+        Route::post('/{review}/reply', [VendorReviewController::class, 'reply'])->name('api.v1.vendors.me.reviews.reply');
+    });
+
+    Route::get('vendors/me/revenues', [VendorRevenueController::class, 'index'])->name('api.v1.vendors.me.revenues.index');
+
+    // ---------- Wallets & retraits (cahier v1.0) ----------
+    Route::get('vendors/me/wallet', [WalletController::class, 'vendorWallet'])->name('api.v1.vendors.me.wallet');
+    Route::get('vendors/me/wallet/payouts', [WalletController::class, 'vendorPayouts'])->name('api.v1.vendors.me.wallet.payouts');
+    Route::post('vendors/me/wallet/payouts', [WalletController::class, 'requestVendorPayout'])->name('api.v1.vendors.me.wallet.payouts.store');
 
     Route::prefix('driver/me')->group(function (): void {
         Route::post('/onboarding', [DriverController::class, 'onboarding'])->name('api.v1.driver.me.onboarding');
         Route::post('/documents', [DriverController::class, 'uploadDocument'])->name('api.v1.driver.me.documents');
         Route::get('/status', [DriverController::class, 'status'])->name('api.v1.driver.me.status');
+
+        // ---------- Wallet & retraits livreur (cahier v1.0) ----------
+        Route::get('/wallet', [WalletController::class, 'driverWallet'])->name('api.v1.driver.me.wallet');
+        Route::post('/wallet/payouts', [WalletController::class, 'requestDriverPayout'])->name('api.v1.driver.me.wallet.payouts.store');
+
+        // ---------- Flottant cash (cahier v1.0) ----------
+        Route::prefix('float')->middleware('permission:driver.finance.earnings')->group(function (): void {
+            Route::get('/', [DriverFloatController::class, 'show'])->name('api.v1.driver.me.float');
+            Route::post('/topup', [DriverFloatController::class, 'topUp'])->name('api.v1.driver.me.float.topup');
+        });
 
         Route::prefix('availability')->middleware('permission:driver.availability.manage')->group(function (): void {
             Route::post('/', [DeliveryController::class, 'setAvailability'])->name('api.v1.driver.me.availability');
@@ -95,6 +129,15 @@ Route::middleware('auth:sanctum')->group(function (): void {
             Route::post('/{delivery}/start', [DeliveryController::class, 'start'])->name('api.v1.driver.me.deliveries.start');
             Route::post('/{delivery}/deliver', [DeliveryController::class, 'deliver'])->name('api.v1.driver.me.deliveries.deliver');
             Route::post('/{delivery}/incident', [DeliveryController::class, 'incident'])->name('api.v1.driver.me.deliveries.incident');
+        });
+
+        Route::prefix('parcels')->middleware('permission:driver.parcels.manage')->group(function (): void {
+            Route::get('/', [ParcelController::class, 'driverIndex'])->name('api.v1.driver.me.parcels.index');
+            Route::get('/offers', [ParcelController::class, 'offers'])->name('api.v1.driver.me.parcels.offers');
+            Route::post('/{parcel}/accept', [ParcelController::class, 'accept'])->name('api.v1.driver.me.parcels.accept');
+            Route::post('/{parcel}/pickup', [ParcelController::class, 'pickup'])->name('api.v1.driver.me.parcels.pickup');
+            Route::post('/{parcel}/start', [ParcelController::class, 'start'])->name('api.v1.driver.me.parcels.start');
+            Route::post('/{parcel}/deliver', [ParcelController::class, 'deliver'])->name('api.v1.driver.me.parcels.deliver');
         });
     });
 
@@ -119,6 +162,20 @@ Route::middleware('auth:sanctum')->group(function (): void {
         Route::get('/', [OrderController::class, 'index'])->name('api.v1.orders.index')->middleware('permission:client.orders.manage');
         Route::get('/{order}', [OrderController::class, 'show'])->name('api.v1.orders.show')->middleware('permission:client.orders.manage');
         Route::post('/{order}/cancel', [OrderController::class, 'cancel'])->name('api.v1.orders.cancel')->middleware('permission:client.orders.manage');
+        Route::post('/{order}/confirm-delivery', [OrderController::class, 'confirmDelivery'])->name('api.v1.orders.confirm-delivery')->middleware('permission:client.orders.manage');
+        Route::post('/{order}/dispute', [OrderController::class, 'dispute'])->name('api.v1.orders.dispute')->middleware('permission:client.orders.manage');
+    });
+
+    // Dépôt d'avis client (vendeur + livreur) après livraison.
+    Route::post('orders/{order}/review', [ReviewController::class, 'store'])->name('api.v1.orders.review')->middleware('permission:client.orders.manage');
+
+    // Service colis (cahier v1.0, phase 3).
+    Route::prefix('parcels')->group(function (): void {
+        Route::post('/quote', [ParcelController::class, 'quote'])->name('api.v1.parcels.quote')->middleware('permission:client.parcels.manage');
+        Route::post('/', [ParcelController::class, 'store'])->name('api.v1.parcels.store')->middleware('permission:client.parcels.manage');
+        Route::get('/', [ParcelController::class, 'index'])->name('api.v1.parcels.index')->middleware('permission:client.parcels.manage');
+        Route::get('/{parcel}', [ParcelController::class, 'show'])->name('api.v1.parcels.show')->middleware('permission:client.parcels.manage');
+        Route::post('/{parcel}/cancel', [ParcelController::class, 'cancel'])->name('api.v1.parcels.cancel')->middleware('permission:client.parcels.manage');
     });
 
     Route::prefix('complaints')->middleware('permission:client.complaints.manage')->group(function (): void {
@@ -143,6 +200,7 @@ Route::middleware('auth:sanctum')->group(function (): void {
         Route::post('/vendors/{vendor}/approve', [AdminVendorController::class, 'approve'])->name('api.v1.admin.vendors.approve');
         Route::post('/vendors/{vendor}/suspend', [AdminVendorController::class, 'suspend'])->name('api.v1.admin.vendors.suspend');
         Route::post('/orders/{order}/cancel', [OrderController::class, 'adminCancel'])->name('api.v1.admin.orders.cancel')->middleware('permission:admin.orders.cancel');
+        Route::post('/orders/{order}/dispute/resolve', [OrderController::class, 'adminResolveDispute'])->name('api.v1.admin.orders.dispute.resolve')->middleware('permission:admin.support.resolve');
 
         Route::prefix('complaints')->middleware('permission:admin.support.resolve')->group(function (): void {
             Route::get('/', [ComplaintController::class, 'adminIndex'])->name('api.v1.admin.complaints.index');
@@ -167,10 +225,16 @@ Route::middleware('auth:sanctum')->group(function (): void {
     });
 });
 
+// Document vendeur : consultation via URL temporaire signée (disque privé).
+Route::get('/vendors/me/documents/{document}/download', [VendorController::class, 'downloadDocument'])
+    ->middleware('signed')
+    ->name('api.v1.vendors.me.documents.download');
+
 Route::get('/categories', [CatalogController::class, 'categories'])->name('api.v1.categories.index');
 Route::get('/products', [CatalogController::class, 'index'])->name('api.v1.products.index');
 Route::get('/products/{product}', [CatalogController::class, 'show'])->name('api.v1.products.show');
 Route::get('/vendors', [VendorController::class, 'index'])->name('api.v1.vendors.index');
+Route::get('/delivery/zones', [DeliveryZoneController::class, 'index'])->name('api.v1.delivery.zones.index');
 Route::get('/vendors/{vendor}', [VendorController::class, 'show'])->name('api.v1.vendors.show');
 Route::get('/vendors/{vendor}/products', [VendorProductController::class, 'index'])->name('api.v1.vendors.products.index');
 

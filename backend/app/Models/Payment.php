@@ -31,6 +31,11 @@ class Payment extends Model
         return $this->belongsTo(Order::class);
     }
 
+    public function parcel()
+    {
+        return $this->belongsTo(Parcel::class);
+    }
+
     public function events()
     {
         return $this->hasMany(PaymentEvent::class);
