@@ -30,6 +30,67 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Frais de service client (cahier de conception v1.0)
+    |--------------------------------------------------------------------------
+    | Taux en pourcentage prélevé au client sur (nourriture + livraison).
+    */
+    'service_fee' => [
+        'rate' => (int) env('BENINFOOD_SERVICE_FEE_RATE', 5),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Commission livreur
+    |--------------------------------------------------------------------------
+    | Taux en pourcentage prélevé par la plateforme sur le prix de livraison.
+    | (Le livreur reçoit donc 80 % de la livraison.)
+    */
+    'delivery_commission' => [
+        'rate' => (int) env('BENINFOOD_DELIVERY_COMMISSION_RATE', 20),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Frais de la passerelle de paiement (coût plateforme)
+    |--------------------------------------------------------------------------
+    | Taux en pourcentage du montant payé par le client, absorbé par la
+    | plateforme. Stocké à titre informatif (non refacturé au client).
+    | Le taux est exprimé en points de base (120 = 1,2 %) pour éviter les
+    | problèmes de flottants.
+    */
+    'payment_gateway' => [
+        'fee_rate_basis_points' => (int) env('BENINFOOD_GATEWAY_FEE_BASIS_POINTS', 120),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Envoi de colis (cahier de conception v1.0, phase 3)
+    |--------------------------------------------------------------------------
+    | Prix du colis selon la distance (paliers), commission plateforme et
+    | tarif par défaut quand la distance n'est pas calculable.
+    */
+    'parcels' => [
+        'commission_rate' => (int) env('BENINFOOD_PARCEL_COMMISSION_RATE', 20),
+        'default_fee' => (int) env('BENINFOOD_PARCEL_DEFAULT_FEE', 1000),
+        'tiers' => [
+            ['max_km' => 3, 'fee' => 500],
+            ['max_km' => 7, 'fee' => 1000],
+            ['max_km' => null, 'fee' => 2000],
+        ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Wallets & retraits
+    |--------------------------------------------------------------------------
+    | min_payout : montant minimum d'un retrait (évite les petits virements).
+    */
+    'wallet' => [
+        'min_payout' => (int) env('BENINFOOD_WALLET_MIN_PAYOUT', 1000),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Deadlines métier (minutes / secondes)
     |--------------------------------------------------------------------------
     */
@@ -39,6 +100,9 @@ return [
         'client_withdrawal_minutes' => (int) env('BENINFOOD_CLIENT_WITHDRAWAL_MINUTES', 10),
         'driver_offer_seconds' => (int) env('BENINFOOD_DRIVER_OFFER_SECONDS', 60),
         'driver_acceptance_seconds' => (int) env('BENINFOOD_DRIVER_ACCEPTANCE_SECONDS', 45),
+        // Cahier v1.0 : sans confirmation du client, la livraison est validée
+        // (et le séquestre libéré) automatiquement après ce délai.
+        'delivery_auto_confirm_minutes' => (int) env('BENINFOOD_DELIVERY_AUTO_CONFIRM_MINUTES', 30),
     ],
 
     /*
