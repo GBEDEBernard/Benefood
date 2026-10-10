@@ -9,5 +9,7 @@ Artisan::command('inspire', function () {
 })->purpose('Display an inspiring quote');
 
 Schedule::command('orders:expire-payments')->everyMinute()->withoutOverlapping();
+Schedule::command('orders:auto-confirm-deliveries')->everyMinute()->withoutOverlapping();
+Schedule::command('parcels:expire-unpaid')->everyMinute()->withoutOverlapping();
 Schedule::command('payments:reconcile')->everyFifteenMinutes()->withoutOverlapping();
 Schedule::command('tokens:cleanup')->daily();

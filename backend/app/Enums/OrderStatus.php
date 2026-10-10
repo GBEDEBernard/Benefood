@@ -17,6 +17,7 @@ enum OrderStatus: string
     case PickedUp = 'picked_up';
     case InDelivery = 'in_delivery';
     case Delivered = 'delivered';
+    case Disputed = 'disputed';
     case Cancelled = 'cancelled';
     case Refunded = 'refunded';
 }

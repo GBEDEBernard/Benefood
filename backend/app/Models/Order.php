@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\OrderStatus;
+use App\Enums\PaymentMethod;
 use App\Enums\PaymentStatus;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -26,6 +27,7 @@ class Order extends Model
     {
         return [
             'status' => OrderStatus::class,
+            'payment_method' => PaymentMethod::class,
             'payment_status' => PaymentStatus::class,
             'subtotal' => 'integer',
             'discount' => 'integer',
@@ -37,6 +39,9 @@ class Order extends Model
             'vendor_acceptance_deadline_at' => 'datetime',
             'accepted_at' => 'datetime',
             'delivered_at' => 'datetime',
+            'delivery_confirmed_at' => 'datetime',
+            'auto_confirm_at' => 'datetime',
+            'disputed_at' => 'datetime',
             'cancelled_at' => 'datetime',
         ];
     }
@@ -84,6 +89,11 @@ class Order extends Model
     public function delivery(): HasOne
     {
         return $this->hasOne(Delivery::class);
+    }
+
+    public function review(): HasOne
+    {
+        return $this->hasOne(Review::class);
     }
 
     public function refunds(): HasMany
