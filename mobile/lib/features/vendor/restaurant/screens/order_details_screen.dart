@@ -1,13 +1,17 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../../../core/utils/formatters.dart';
 import '../../../../shared/models/order.dart';
+import '../../../../shared/widgets/feedback_widgets.dart';
 import '../restaurant_palette.dart';
 import '../widgets/order_status_tag.dart';
 
 /// Détail d'une commande vendeur : client, articles, paiement, notes et
 /// actions en pied de page fixe (Accepter / Refuser, Préparation, Prête,
-/// Livrée).
+/// Livrée). Affiche aussi la minuterie d'acceptation, le détail financier et
+/// l'historique de statut (J21 §3.4).
 class OrderDetailsScreen extends StatefulWidget {
   const OrderDetailsScreen({
     super.key,
@@ -17,6 +21,7 @@ class OrderDetailsScreen extends StatefulWidget {
     required this.onPrepare,
     required this.onReady,
     this.onConfirmDelivery,
+    this.onReportIncident,
     this.busy = false,
   });
 
@@ -26,6 +31,7 @@ class OrderDetailsScreen extends StatefulWidget {
   final Future<bool> Function(Order order) onPrepare;
   final Future<bool> Function(Order order) onReady;
   final Future<bool> Function(Order order)? onConfirmDelivery;
+  final Future<bool> Function(Order order, String subject, String description)? onReportIncident;
   final bool busy;
 
   @override
@@ -35,12 +41,46 @@ class OrderDetailsScreen extends StatefulWidget {
 class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
   late Order _order;
   late bool _busy;
+  Timer? _timer;
 
   @override
   void initState() {
     super.initState();
     _order = widget.order;
     _busy = widget.busy;
+    _startTimer();
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  /// Compte à rebours d'acceptation : actif tant que la commande est payée et
+  /// en attente d'acceptation vendeur et qu'une échéance est connue.
+  void _startTimer() {
+    _timer?.cancel();
+    if (!_hasAcceptanceDeadline) return;
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (!mounted) return;
+      if (_remaining == Duration.zero) {
+        _timer?.cancel();
+      }
+      setState(() {});
+    });
+  }
+
+  bool get _hasAcceptanceDeadline =>
+      _order.status == 'paid' && _order.vendorAcceptanceDeadlineAt != null;
+
+  Duration? get _remaining {
+    final raw = _order.vendorAcceptanceDeadlineAt;
+    if (raw == null) return null;
+    final deadline = DateTime.tryParse(raw)?.toLocal();
+    if (deadline == null) return null;
+    final diff = deadline.difference(DateTime.now());
+    return diff.isNegative ? Duration.zero : diff;
   }
 
   /// Exécute une action puis applique le statut résultant localement (le
@@ -61,6 +101,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
         _order = _order.withStatus(nextStatus);
       }
     });
+    if (ok) _startTimer();
   }
 
   @override
@@ -75,6 +116,10 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
                 children: [
+                  if (_hasAcceptanceDeadline) ...[
+                    _buildCountdownCard(),
+                    const SizedBox(height: 12),
+                  ],
                   _buildCustomerCard(),
                   const SizedBox(height: 12),
                   _buildItemsCard(),
@@ -83,6 +128,18 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                   if (_order.notes != null && _order.notes!.trim().isNotEmpty) ...[
                     const SizedBox(height: 12),
                     _buildNotesCard(),
+                  ],
+                  if (_order.financials != null) ...[
+                    const SizedBox(height: 12),
+                    _buildFinancialCard(),
+                  ],
+                  if (_order.statusHistory.isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    _buildHistoryCard(),
+                  ],
+                  if (widget.onReportIncident != null) ...[
+                    const SizedBox(height: 12),
+                    _buildReportCard(),
                   ],
                   const SizedBox(height: 96),
                 ],
@@ -318,6 +375,193 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
     );
   }
 
+  Widget _buildCountdownCard() {
+    final remaining = _remaining ?? Duration.zero;
+    final urgent = remaining.inSeconds <= 60;
+    final color = urgent ? RestaurantPalette.danger : RestaurantPalette.orange;
+    final minutes = remaining.inMinutes.toString().padLeft(2, '0');
+    final seconds = (remaining.inSeconds % 60).toString().padLeft(2, '0');
+    return Container(
+      clipBehavior: Clip.antiAlias,
+      decoration: RestaurantPalette.cardDecoration,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            Icon(Icons.timer_outlined, size: 22, color: color),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'À accepter avant expiration',
+                style: TextStyle(
+                  color: color,
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+            Text(
+              '$minutes:$seconds',
+              style: TextStyle(
+                color: color,
+                fontSize: 20,
+                fontWeight: FontWeight.w800,
+                fontFeatures: const [FontFeature.tabularFigures()],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFinancialCard() {
+    final f = _order.financials!;
+    return Container(
+      clipBehavior: Clip.antiAlias,
+      decoration: RestaurantPalette.cardDecoration,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Détail financier',
+              style: TextStyle(
+                color: RestaurantPalette.darkText,
+                fontSize: 15,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const SizedBox(height: 12),
+            _SummaryRow(label: 'Base commissionnable', value: formatAmount(_order.subtotal)),
+            if (f.commissionRate != null)
+              _SummaryRow(label: 'Taux commission', value: '${f.commissionRate} %'),
+            if (f.commissionAmount != null)
+              _SummaryRow(label: 'Commission plateforme', value: '- ${formatAmount(f.commissionAmount!)}'),
+            if (f.deliveryPartnerAmount != null)
+              _SummaryRow(label: 'Part livraison', value: formatAmount(f.deliveryPartnerAmount!)),
+            const Divider(height: 16, color: RestaurantPalette.borderColor),
+            Row(
+              children: [
+                const Expanded(
+                  child: Text(
+                    'Votre part',
+                    style: TextStyle(
+                      color: RestaurantPalette.success,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+                Text(
+                  formatAmount(f.vendorAmount ?? 0),
+                  style: const TextStyle(
+                    color: RestaurantPalette.success,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHistoryCard() {
+    final history = [..._order.statusHistory];
+    return Container(
+      clipBehavior: Clip.antiAlias,
+      decoration: RestaurantPalette.cardDecoration,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Historique',
+              style: TextStyle(
+                color: RestaurantPalette.darkText,
+                fontSize: 15,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const SizedBox(height: 12),
+            for (var i = 0; i < history.length; i++) ...[
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Padding(
+                    padding: EdgeInsets.only(top: 4),
+                    child: Icon(Icons.circle, size: 8, color: RestaurantPalette.orange),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      _statusLabel(history[i].toStatus),
+                      style: const TextStyle(
+                        color: RestaurantPalette.darkText,
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  Text(
+                    formatDateTime(history[i].createdAt),
+                    style: const TextStyle(color: RestaurantPalette.grayText, fontSize: 12),
+                  ),
+                ],
+              ),
+              if (i != history.length - 1) const SizedBox(height: 10),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildReportCard() {
+    return OutlinedButton.icon(
+      onPressed: _busy ? null : _reportProblem,
+      icon: const Icon(Icons.report_problem_outlined, size: 20),
+      label: const Text('Signaler un problème'),
+      style: OutlinedButton.styleFrom(
+        foregroundColor: RestaurantPalette.danger,
+        side: const BorderSide(color: RestaurantPalette.danger),
+        minimumSize: const Size.fromHeight(48),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        textStyle: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w700),
+      ),
+    );
+  }
+
+  Future<void> _reportProblem() async {
+    final description = await showTextPromptDialog(
+      context,
+      title: 'Signaler un problème',
+      hint: 'Décrivez le problème rencontré sur cette commande…',
+      confirmLabel: 'Envoyer',
+      maxLines: 4,
+      maxLength: 2000,
+    );
+    if (description == null || description.isEmpty || !mounted) return;
+
+    setState(() => _busy = true);
+    var ok = false;
+    try {
+      ok = await widget.onReportIncident!(_order, 'Problème commande ${_order.reference}', description);
+    } catch (_) {
+      ok = false;
+    }
+    if (!mounted) return;
+    setState(() => _busy = false);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(ok ? 'Signalement envoyé au support.' : 'Échec de l\'envoi du signalement.')),
+    );
+  }
+
   Widget _buildFooter() {
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
@@ -422,6 +666,35 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
         ),
       ),
     ];
+  }
+}
+
+String _statusLabel(String status) {
+  switch (status) {
+    case 'awaiting_payment':
+      return 'En attente de paiement';
+    case 'paid':
+      return 'Payée — à accepter';
+    case 'accepted':
+      return 'Acceptée';
+    case 'preparing':
+      return 'En préparation';
+    case 'ready':
+      return 'Prête';
+    case 'assigned':
+      return 'Livreur assigné';
+    case 'picked_up':
+      return 'Récupérée par le livreur';
+    case 'in_delivery':
+      return 'En livraison';
+    case 'delivered':
+      return 'Livrée';
+    case 'cancelled':
+      return 'Annulée';
+    case 'refunded':
+      return 'Remboursée';
+    default:
+      return status;
   }
 }
 

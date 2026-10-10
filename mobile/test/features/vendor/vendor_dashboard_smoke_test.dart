@@ -9,8 +9,11 @@ import 'package:beninfood/core/data/marketplace_api.dart';
 import 'package:beninfood/core/http/api_client.dart';
 import 'package:beninfood/features/vendor/products/products_screen.dart';
 import 'package:beninfood/features/vendor/restaurant/restaurant_shell_screen.dart';
+import 'package:beninfood/features/vendor/restaurant/screens/activity_screen.dart';
+import 'package:beninfood/features/vendor/restaurant/screens/documents_screen.dart';
 import 'package:beninfood/features/vendor/restaurant/screens/orders_screen.dart';
 import 'package:beninfood/features/vendor/restaurant/screens/revenues_screen.dart';
+import 'package:beninfood/features/vendor/restaurant/screens/reviews_screen.dart';
 
 class _NoopTokenStore implements TokenStore {
   @override
@@ -296,6 +299,12 @@ void main() {
     );
     await tester.pumpAndSettle();
     await tester.tap(find.byType(Switch));
+    await tester.pumpAndSettle();
+
+    // Fermeture temporaire : le motif est requis (J21 §3.2).
+    expect(find.text('Fermer la boutique'), findsOneWidget);
+    await tester.enterText(find.byType(TextField), 'Rupture de stock');
+    await tester.tap(find.widgetWithText(FilledButton, 'Fermer'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
 
@@ -460,8 +469,9 @@ void main() {
     expect(find.text('+229 97 00 00 00'), findsOneWidget);
     expect(find.text('Bien cuire les frites, pas de sauce piquante.'), findsOneWidget);
     expect(find.text('Sous-total'), findsOneWidget);
-    expect(find.text('13 500 FCFA'), findsOneWidget);
+    expect(find.text('13 500 FCFA'), findsWidgets);
     expect(find.text('Paiement à la livraison (Espèces)'), findsOneWidget);
+    expect(find.text('Détail financier'), findsOneWidget);
     // L'écran de détail est empilé sur la liste : les textes communs peuvent
     // être trouvés deux fois.
     expect(find.text('Ulrich Hounkpe'), findsWidgets);
@@ -514,17 +524,16 @@ void main() {
     expect(find.text('Vente #BF1255'), findsOneWidget);
     expect(find.text('+9 800 FCFA'), findsOneWidget);
 
-    // Sélecteur de mois et « Voir tout » : cliquables (simple toast pour le moment).
+    // Sélecteur de mois : cliquable (simple toast pour le moment).
     await tester.tap(find.byIcon(Icons.chevron_right));
     await tester.pumpAndSettle();
     expect(find.text('Sélection du mois bientôt disponible.'), findsOneWidget);
+
+    // « Voir tout » ouvre l'historique des activités.
     await tester.tap(find.text('Voir tout'));
     await tester.pumpAndSettle();
-    expect(find.text('Historique complet bientôt disponible.'), findsOneWidget);
-
-    await tester.pump(const Duration(seconds: 5));
-    await tester.pumpAndSettle();
-    expect(find.text('Historique complet bientôt disponible.'), findsNothing);
+    expect(find.byType(ActivityScreen), findsOneWidget);
+    expect(find.text('HISTORIQUE'), findsOneWidget);
 
     expect(tester.takeException(), isNull);
   });
@@ -541,7 +550,6 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(ProductsScreen), findsOneWidget);
     expect(find.text('Mes produits'), findsOneWidget);
-    expect(find.text('3'), findsOneWidget); // badge de la cloche (démo)
     expect(find.text('Rechercher un produit...'), findsOneWidget);
 
     // Onglets dynamiques : 9 produits dont 2 archivés.
@@ -557,8 +565,8 @@ void main() {
     expect(find.text('(18 avis)'), findsOneWidget);
     expect(find.text('32'), findsOneWidget);
 
-    // Bascule Actif → inactif : toast « Produit masqué ».
-    await tester.tap(find.byType(Switch).first);
+    // Bascule Actif → inactif via le bouton unique : toast « Produit masqué ».
+    await tester.tap(find.byType(OutlinedButton).first);
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
     expect(find.text('Produit masqué'), findsOneWidget);
@@ -593,13 +601,51 @@ void main() {
     expect(find.text('Produit archivé'), findsOneWidget);
     expect(find.text('Archives (3)'), findsOneWidget);
 
-    // FAB « Ajouter un produit » et cloche : simples toasts pour l'instant.
+    // FAB « Ajouter un produit » : toast en mode démo.
     await tester.tap(find.text('Ajouter un produit'));
     await tester.pump();
     expect(find.text('Formulaire produit bientôt disponible.'), findsOneWidget);
-    await tester.tap(find.byIcon(Icons.notifications_outlined));
-    await tester.pump();
-    expect(find.text('Aucune notification pour le moment.'), findsOneWidget);
+
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('menu latéral : mon dossier, mes avis clients et historique', (tester) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(const MaterialApp(home: RestaurantShellScreen()));
+    await tester.pumpAndSettle();
+
+    // Mon dossier : progression + documents (démo).
+    await tester.tap(find.byIcon(Icons.menu));
+    await tester.pumpAndSettle();
+    await tester.tap(find.descendant(of: find.byType(Drawer), matching: find.text('Mon dossier')));
+    await tester.pumpAndSettle();
+    expect(find.byType(DocumentsScreen), findsOneWidget);
+    expect(find.text('MON DOSSIER'), findsOneWidget);
+    expect(find.text('VÉRIFICATION DU DOSSIER'), findsOneWidget);
+    expect(find.text('Registre de commerce'), findsOneWidget);
+    expect(find.text('Validé'), findsWidgets);
+
+    // Mes avis clients : note moyenne + commentaires (démo).
+    await tester.tap(find.byIcon(Icons.menu));
+    await tester.pumpAndSettle();
+    await tester.tap(find.descendant(of: find.byType(Drawer), matching: find.text('Mes avis clients')));
+    await tester.pumpAndSettle();
+    expect(find.byType(ReviewsScreen), findsOneWidget);
+    expect(find.text('MES AVIS CLIENTS'), findsOneWidget);
+    expect(find.text('Très bon, livraison rapide et plats bien chauds !'), findsOneWidget);
+    expect(find.text('24 avis'), findsOneWidget);
+
+    // Historique : chronologie des activités (démo).
+    await tester.tap(find.byIcon(Icons.menu));
+    await tester.pumpAndSettle();
+    await tester.tap(find.descendant(of: find.byType(Drawer), matching: find.text('Historique')));
+    await tester.pumpAndSettle();
+    expect(find.byType(ActivityScreen), findsOneWidget);
+    expect(find.text('HISTORIQUE'), findsOneWidget);
+    expect(find.text('Commande livrée'), findsOneWidget);
 
     expect(tester.takeException(), isNull);
   });

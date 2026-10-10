@@ -359,6 +359,14 @@ class _VendorAccountScreenState extends State<VendorAccountScreen> {
         onTap: () => _openRoute('/vendor/profile/edit'),
       ),
       ProfileMenuEntry(
+        icon: Icons.tune_outlined,
+        tint: AppColors.orangeLight,
+        accent: AppColors.orange,
+        title: 'Préférences boutique',
+        subtitle: 'Reversement, notifications, langue...',
+        onTap: () => _openRoute('/vendor/settings'),
+      ),
+      ProfileMenuEntry(
         icon: Icons.notifications_none,
         tint: AppColors.orangeLight,
         accent: AppColors.orange,

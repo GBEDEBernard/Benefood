@@ -94,6 +94,7 @@ GoRouter _router(SessionProvider session, MarketplaceApi api) {
     '/driver/notifications',
     '/driver/security',
     '/driver/complaints',
+    '/driver/wallet',
   ];
   return GoRouter(
     initialLocation: '/',
@@ -145,6 +146,8 @@ Future<void> _scrollTo(WidgetTester tester, Finder target) async {
       )
       .first;
   await tester.scrollUntilVisible(target, 400, scrollable: verticalScrollable);
+  await tester.ensureVisible(target);
+  await tester.pumpAndSettle();
 }
 
 void main() {
@@ -185,6 +188,7 @@ void main() {
     // Menu « Mon compte » : 4 entrées communes.
     await _scrollTo(tester, find.text('Se déconnecter'));
     const titles = [
+      'Mes gains & retraits',
       'Informations personnelles',
       'Notifications',
       'Sécurité',

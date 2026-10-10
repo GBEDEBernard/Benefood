@@ -7,6 +7,7 @@ import '../widgets/status_chip.dart';
 import 'shop_address_edit_screen.dart';
 import 'shop_hours_edit_screen.dart';
 import 'shop_info_edit_screen.dart';
+import 'shop_zones_edit_screen.dart';
 
 /// Écran « Ma boutique » (mobile) : carte de profil et réglages entièrement
 /// éditables. Les valeurs arrivent de l'API ; chaque réglage ouvre un
@@ -330,6 +331,13 @@ class ShopScreen extends StatelessWidget {
             label: 'Horaires d’ouverture',
             subtitle: '$_hourCount j ouverts par semaine',
             onTap: () => _openEditor(context, ShopHoursEditScreen(hours: _hours, marketplace: marketplace)),
+          ),
+          const _SettingDivider(),
+          _SettingTile(
+            icon: Icons.location_city_outlined,
+            label: 'Zones desservies',
+            subtitle: 'Définir les quartiers livrés',
+            onTap: () => _openEditor(context, ShopZonesEditScreen(marketplace: marketplace)),
           ),
           const _SettingDivider(),
           _SettingTile(

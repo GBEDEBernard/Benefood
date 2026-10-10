@@ -14,7 +14,7 @@ class VendorBottomBar extends StatelessWidget {
   });
 
   /// Index du shell correspondant à l'onglet actif (0 tableau de bord,
-  /// 2 produits, 3 commandes, 4 revenus, 5 profil).
+  /// 2 produits, 3 commandes, 4 revenus, 8 profil).
   final int currentIndex;
 
   final ValueChanged<int> onSelect;
@@ -83,8 +83,8 @@ class VendorBottomBar extends StatelessWidget {
                   icon: Icons.person_outline,
                   activeIcon: Icons.person,
                   label: 'Profil',
-                  active: currentIndex == 5,
-                  onTap: () => onSelect(5),
+                  active: currentIndex == 8,
+                  onTap: () => onSelect(8),
                 ),
               ),
             ],

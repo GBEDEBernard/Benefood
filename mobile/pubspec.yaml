@@ -46,6 +46,10 @@ dependencies:
   # Appels téléphoniques (client -> livreur, livreur -> client/vendeur)
   url_launcher: ^6.3.0
 
+  # Push FCM + deep-link « nouvelle commande » (J24, infra J126)
+  firebase_core: ^4.2.0
+  firebase_messaging: ^16.5.1
+
   # Gestion d'état
   provider: ^6.1.0
   image_picker: ^1.2.3

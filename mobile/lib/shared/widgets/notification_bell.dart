@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/data/marketplace_api.dart';
+import '../../core/navigation/notification_router.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_dimens.dart';
 import '../../core/utils/formatters.dart';
@@ -112,6 +113,7 @@ class _NotificationBellState extends State<NotificationBell> {
 /// Feuille des notifications : liste réelle (GET /me/notifications),
 /// marquage lu à l'ouverture d'un élément et « Tout lire » groupé.
 class _NotificationsSheet extends StatefulWidget {
+  // `_openItem` : marquer lu puis naviguer vers la cible (détail commande…).
   const _NotificationsSheet({required this.api});
 
   final MarketplaceApi api;
@@ -131,19 +133,23 @@ class _NotificationsSheetState extends State<_NotificationsSheet> {
 
   bool _isUnread(Map<String, dynamic> item) => item['read_at'] == null;
 
-  Future<void> _markRead(Map<String, dynamic> item) async {
-    if (!_isUnread(item)) {
-      return;
-    }
+  /// Marque lu puis ouvre la cible (détail commande pour les commandes).
+  /// Un élément déjà lu s'ouvre aussi : seul le marquage est conditionné.
+  Future<void> _openItem(BuildContext context, Map<String, dynamic> item) async {
     final id = item['id'];
-    if (id is! String) {
-      return;
+    if (_isUnread(item) && id is String) {
+      setState(() => item['read_at'] = DateTime.now().toIso8601String());
+      try {
+        await widget.api.markNotificationRead(id);
+      } catch (_) {
+        // Le retour visuel (pastille) prime : l'échec réseau reste muet.
+      }
     }
-    setState(() => item['read_at'] = DateTime.now().toIso8601String());
-    try {
-      await widget.api.markNotificationRead(id);
-    } catch (_) {
-      // Le retour visuel (pastille) prime : l'échec réseau reste muet.
+    final data = item['data'];
+    if (data is Map<String, dynamic> && data.isNotEmpty) {
+      if (context.mounted) {
+        await openNotificationTarget(context, marketplace: widget.api, data: data);
+      }
     }
   }
 
@@ -227,17 +233,16 @@ class _NotificationsSheetState extends State<_NotificationsSheet> {
                       ),
                     ),
                   );
-                }
-                return ListView.separated(
+                }                return ListView.separated(
                   padding: const EdgeInsets.symmetric(vertical: 4),
                   itemCount: items.length,
-                  separatorBuilder: (_, _) =>
+                  separatorBuilder: (_, _) => 
                       const Divider(height: 1, indent: 72),
-                  itemBuilder: (context, index) {
+                  itemBuilder: (context, index) { 
                     final item = items[index];
                     return _NotificationTile(
                       item: item,
-                      onTap: () => _markRead(item),
+                      onTap: () => _openItem(context, item),
                     );
                   },
                 );

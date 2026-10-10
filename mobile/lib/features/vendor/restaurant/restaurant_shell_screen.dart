@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/auth/session_provider.dart';
 import '../../../core/errors/api_exception.dart';
@@ -9,9 +10,14 @@ import '../../../shared/widgets/feedback_widgets.dart';
 import '../account/vendor_account_screen.dart';
 import '../products/products_screen.dart';
 import 'restaurant_palette.dart';
+import 'screens/activity_screen.dart';
 import 'screens/dashboard_screen.dart';
+import 'screens/documents_screen.dart';
 import 'screens/orders_screen.dart';
+import 'screens/order_details_screen.dart';
+import 'screens/revenue_history_screen.dart';
 import 'screens/revenues_screen.dart';
+import 'screens/reviews_screen.dart';
 import 'screens/shop_screen.dart';
 import 'widgets/restaurant_drawer.dart';
 import 'widgets/vendor_bottom_bar.dart';
@@ -39,6 +45,9 @@ class _RestaurantShellScreenState extends State<RestaurantShellScreen> {
     'Produits',
     'Commandes',
     'Revenus',
+    'Mon dossier',
+    'Mes avis clients',
+    'Historique',
     'Profil & Paramètres',
   ];
 
@@ -48,6 +57,8 @@ class _RestaurantShellScreenState extends State<RestaurantShellScreen> {
   bool _loading = true;
   String? _error;
   Map<String, dynamic>? _status;
+  Map<String, dynamic>? _revenue;
+  Map<String, dynamic>? _reviews;
   List<Order> _orders = [];
   final Set<String> _busyOrders = {};
 
@@ -83,6 +94,18 @@ class _RestaurantShellScreenState extends State<RestaurantShellScreen> {
     final api = widget.marketplace!;
     final status = await api.vendorStatus();
     final orders = await api.vendorOrders(perPage: 50);
+    Map<String, dynamic>? revenue;
+    try {
+      revenue = await api.vendorRevenues();
+    } on ApiException {
+      revenue = null;
+    }
+    Map<String, dynamic>? reviews;
+    try {
+      reviews = await api.vendorReviews(perPage: 1);
+    } on ApiException {
+      reviews = null;
+    }
     if (!mounted) return;
     final rawVendor = status['vendor'];
     final vendor = rawVendor is Map<String, dynamic> ? rawVendor : null;
@@ -90,6 +113,8 @@ class _RestaurantShellScreenState extends State<RestaurantShellScreen> {
     final open = rawOpen is bool ? rawOpen : true;
     setState(() {
       _status = status;
+      _revenue = revenue;
+      _reviews = reviews;
       _orders = orders;
       _isOpen = open;
       _loading = false;
@@ -107,6 +132,7 @@ class _RestaurantShellScreenState extends State<RestaurantShellScreen> {
     };
     _orders = _demoOrders();
     _isOpen = true;
+    _revenue = null;
     _loading = false;
   }
 
@@ -125,7 +151,10 @@ class _RestaurantShellScreenState extends State<RestaurantShellScreen> {
       String address = 'Cadjèhoun, Cotonou',
       String? notes,
       List<OrderItem>? items,
+      int? acceptInMinutes,
+      List<OrderStatusHistory>? history,
     }) {
+      final commission = subtotal * 10 ~/ 100;
       final lineItems = items ??
           List.generate(lines, (i) {
             final unit = subtotal ~/ lines;
@@ -153,6 +182,24 @@ class _RestaurantShellScreenState extends State<RestaurantShellScreen> {
         deliveryAddress: address,
         notes: notes,
         createdAt: now.subtract(Duration(minutes: minutesAgo)).toIso8601String(),
+        financials: OrderFinancials(
+          commissionRate: 10,
+          commissionAmount: commission,
+          vendorAmount: subtotal - commission,
+          deliveryPartnerAmount: deliveryFee,
+          totalClient: subtotal + deliveryFee,
+        ),
+        vendorAcceptanceDeadlineAt: status == 'paid'
+            ? now.add(Duration(minutes: acceptInMinutes ?? 5)).toIso8601String()
+            : null,
+        statusHistory: history ??
+            [
+              OrderStatusHistory(
+                toStatus: status,
+                actorType: 'system',
+                createdAt: now.subtract(Duration(minutes: minutesAgo)).toIso8601String(),
+              ),
+            ],
       );
     }
 
@@ -313,6 +360,30 @@ class _RestaurantShellScreenState extends State<RestaurantShellScreen> {
   int get _pendingCount =>
       _orders.where((o) => o.status == 'awaiting_payment' || o.status == 'paid' || o.status == 'accepted').length;
 
+  /// Note moyenne réelle du vendeur (résumé des avis) ; repli sur la démo.
+  String get _ratingLabel {
+    final summary = _reviews?['summary'];
+    if (summary is Map<String, dynamic>) {
+      final average = summary['average'];
+      if (average is num) {
+        return average.toStringAsFixed(1).replaceAll('.', ',');
+      }
+    }
+    return '4,6';
+  }
+
+  /// Nombre d'avis réels ; repli sur la démo.
+  String get _reviewCountLabel {
+    final summary = _reviews?['summary'];
+    if (summary is Map<String, dynamic>) {
+      final total = summary['total'];
+      if (total is num && total > 0) {
+        return '${total.toInt()} avis';
+      }
+    }
+    return '128 avis';
+  }
+
   int get _revenueToday {
     final today = DateTime.now();
     var sum = 0;
@@ -331,12 +402,67 @@ class _RestaurantShellScreenState extends State<RestaurantShellScreen> {
 
   void _openDrawer() => _scaffoldKey.currentState?.openDrawer();
 
+  /// Ouvre le détail d'une commande depuis le tableau de bord : on pousse
+  /// l'écran au-dessus du shell (mêmes actions que la liste).
+  void _openOrderDetail(Order order) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (context) => OrderDetailsScreen(
+          order: order,
+          busy: _busyOrders.contains(order.id),
+          onAccept: _accept,
+          onRefuse: _refuse,
+          onPrepare: _prepare,
+          onReady: _ready,
+          onReportIncident: _reportIncident,
+        ),
+      ),
+    );
+  }
+
+  /// Ouvre l'historique complet des revenus (écritures + reversements + CSV).
+  void _openRevenueHistory() {
+    final revenue = _revenue;
+    if (revenue == null) return;
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => RevenueHistoryScreen(revenue: revenue),
+      ),
+    );
+  }
+
   void _select(int index) {
     setState(() => _selectedIndex = index);
     _scaffoldKey.currentState?.closeDrawer();
   }
 
+  Future<void> _confirmLogout() async {
+    final session = widget.session;
+    if (session == null) {
+      return;
+    }
+    final confirmed = await showConfirmDialog(
+      context,
+      title: 'Déconnexion',
+      message: 'Voulez-vous vraiment vous déconnecter ?',
+      confirmLabel: 'Déconnecter',
+    );
+    if (!confirmed || !mounted) {
+      return;
+    }
+    await session.logout();
+    if (mounted) {
+      context.go('/landing');
+    }
+  }
+
   Future<void> _toggleOpen(bool open) async {
+    // Fermeture temporaire : le motif est requis (J21 §3.2).
+    String? reason;
+    if (!open) {
+      reason = await _promptCloseReason();
+      if (reason == null) return;
+    }
     final previous = _isOpen;
     setState(() => _isOpen = open);
     if (!_live) {
@@ -344,7 +470,7 @@ class _RestaurantShellScreenState extends State<RestaurantShellScreen> {
       return;
     }
     try {
-      await widget.marketplace!.setVendorOpen(open: open);
+      await widget.marketplace!.setVendorOpen(open: open, reason: reason);
       if (!mounted) return;
       showToast(context, open ? 'Boutique ouverte.' : 'Boutique fermée.');
     } on ApiException catch (e) {
@@ -353,6 +479,14 @@ class _RestaurantShellScreenState extends State<RestaurantShellScreen> {
       showToast(context, e.message, isError: true);
     }
   }
+
+  /// Demande le motif de fermeture temporaire. Renvoie `null` si annulé.
+  Future<String?> _promptCloseReason() => showTextPromptDialog(
+        context,
+        title: 'Fermer la boutique',
+        hint: 'Motif de la fermeture temporaire…',
+        confirmLabel: 'Fermer',
+      );
 
   /// Exécute une action de statut sur une commande et renvoie `true` si elle
   /// a bien été effectuée : les écrans (liste, détail) s'en servent pour
@@ -426,6 +560,23 @@ class _RestaurantShellScreenState extends State<RestaurantShellScreen> {
     return true;
   }
 
+  /// Signale un problème sur une commande au support (J21 §3.4). En démo, le
+  /// signalement est simulé.
+  Future<bool> _reportIncident(Order order, String subject, String description) async {
+    if (!_live) return true;
+    try {
+      await widget.marketplace!.vendorReportIncident(
+        order.id,
+        subject: subject,
+        description: description,
+      );
+      return true;
+    } on ApiException catch (e) {
+      if (mounted) showToast(context, e.message, isError: true);
+      return false;
+    }
+  }
+
   Future<void> _loadOrders() async {
     final orders = await widget.marketplace!.vendorOrders(perPage: 50);
     if (mounted) setState(() => _orders = orders);
@@ -442,6 +593,7 @@ class _RestaurantShellScreenState extends State<RestaurantShellScreen> {
         businessName: _businessName,
         logoUrl: _shopVendor.logoUrl,
         onSelect: _select,
+        onLogout: widget.session == null ? null : _confirmLogout,
       ),
       body: _buildBody(),
       bottomNavigationBar: VendorBottomBar(
@@ -486,12 +638,17 @@ class _RestaurantShellScreenState extends State<RestaurantShellScreen> {
           orderCount: _orders.length,
           pendingCount: _pendingCount,
           revenueToday: _revenueToday,
+          rating: _ratingLabel,
+          reviewCount: _reviewCountLabel,
           newOrders: _newOrders,
           recentOrders: _recentOrders,
           onAccept: _accept,
           onRefuse: _refuse,
           onAddProduct: () => _select(2),
           onGoToShop: () => _select(1),
+          onOpenOrder: _openOrderDetail,
+          onOpenOrders: () => _select(3),
+          marketplace: widget.marketplace,
         );
       case 1:
         return ShopScreen(
@@ -517,6 +674,7 @@ class _RestaurantShellScreenState extends State<RestaurantShellScreen> {
           onPrepare: _prepare,
           onReady: _ready,
           onConfirmDelivery: _live ? null : _confirmDelivered,
+          onReportIncident: _reportIncident,
           busyOrderIds: _busyOrders,
           onOpenDrawer: _openDrawer,
           onRefresh: _reloadData,
@@ -524,14 +682,29 @@ class _RestaurantShellScreenState extends State<RestaurantShellScreen> {
       case 4:
         return RevenusScreen(
           orders: _orders,
+          revenue: _revenue,
           onOpenDrawer: _openDrawer,
           onMonthTap: () =>
               showToast(context, 'Sélection du mois bientôt disponible.'),
-          onSeeAllTap: () =>
-              showToast(context, 'Historique complet bientôt disponible.'),
+          onSeeAllTap: _revenue == null ? () => _select(7) : _openRevenueHistory,
           onRefresh: _reloadData,
         );
       case 5:
+        return DocumentsScreen(
+          marketplace: widget.marketplace,
+          onOpenDrawer: _openDrawer,
+        );
+      case 6:
+        return ReviewsScreen(
+          marketplace: widget.marketplace,
+          onOpenDrawer: _openDrawer,
+        );
+      case 7:
+        return ActivityScreen(
+          marketplace: widget.marketplace,
+          onOpenDrawer: _openDrawer,
+        );
+      case 8:
         if (widget.marketplace != null && widget.session != null) {
           return VendorAccountScreen(
             session: widget.session!,
@@ -540,7 +713,7 @@ class _RestaurantShellScreenState extends State<RestaurantShellScreen> {
           );
         }
         return _PlaceholderScreen(
-          title: _titles[5],
+          title: _titles[8],
           onOpenDrawer: _openDrawer,
           onBack: () => _select(0),
         );

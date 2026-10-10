@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../restaurant_palette.dart';
 import 'status_chip.dart';
@@ -13,6 +14,7 @@ class RestaurantDrawer extends StatelessWidget {
     required this.currentIndex,
     required this.isOpen,
     required this.onSelect,
+    this.onLogout,
     this.businessName = 'Le Délice Fast-Food',
     this.logoUrl,
   });
@@ -31,6 +33,9 @@ class RestaurantDrawer extends StatelessWidget {
 
   /// Appelé quand l'utilisateur sélectionne un élément du menu.
   final ValueChanged<int> onSelect;
+
+  /// Déconnexion du compte vendeur.
+  final VoidCallback? onLogout;
 
   static const List<_DrawerItem> _items = [
     _DrawerItem(
@@ -59,6 +64,21 @@ class RestaurantDrawer extends StatelessWidget {
       filled: Icons.bar_chart,
     ),
     _DrawerItem(
+      label: 'Mon dossier',
+      outline: Icons.folder_outlined,
+      filled: Icons.folder,
+    ),
+    _DrawerItem(
+      label: 'Mes avis clients',
+      outline: Icons.reviews_outlined,
+      filled: Icons.reviews,
+    ),
+    _DrawerItem(
+      label: 'Historique',
+      outline: Icons.history_outlined,
+      filled: Icons.history,
+    ),
+    _DrawerItem(
       label: 'Profil & Paramètres',
       outline: Icons.person_outline,
       filled: Icons.person,
@@ -85,6 +105,41 @@ class RestaurantDrawer extends StatelessWidget {
                 itemCount: _items.length,
                 separatorBuilder: (_, _) => const SizedBox(height: 6),
                 itemBuilder: (context, index) => _buildItem(context, index, _items[index]),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(RestaurantPalette.radius),
+                  onTap: () {
+                    Navigator.of(context).pop();
+                    context.push('/vendor/wallet');
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF4B83F).withValues(alpha: 0.16),
+                      borderRadius: BorderRadius.circular(RestaurantPalette.radius),
+                      border: Border.all(color: const Color(0xFFF4B83F).withValues(alpha: 0.35)),
+                    ),
+                    child: const Row(
+                      children: [
+                        Icon(Icons.account_balance_wallet_outlined, size: 22, color: Color(0xFFF4B83F)),
+                        SizedBox(width: 14),
+                        Expanded(
+                          child: Text(
+                            'Portefeuille',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w700),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
               ),
             ),
             const Padding(
@@ -179,9 +234,14 @@ class RestaurantDrawer extends StatelessWidget {
         child: InkWell(
           borderRadius: BorderRadius.circular(RestaurantPalette.radius),
           onTap: () {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Déconnexion…')),
-            );
+            Navigator.of(context).pop();
+            if (onLogout != null) {
+              onLogout!();
+            } else {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Déconnexion…')),
+              );
+            }
           },
           child: const Padding(
             padding: EdgeInsets.symmetric(horizontal: 14, vertical: 14),

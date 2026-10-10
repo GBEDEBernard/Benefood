@@ -7,6 +7,7 @@ import '../../../shared/widgets/amount_widgets.dart';
 import '../../../shared/widgets/app_network_image.dart';
 import '../../../shared/widgets/feedback_widgets.dart';
 import '../../../shared/widgets/state_widgets.dart';
+import '../../../shared/widgets/notification_bell.dart';
 import '../restaurant/restaurant_palette.dart';
 import 'product_form_screen.dart';
 
@@ -235,7 +236,53 @@ class _ProductsScreenState extends State<ProductsScreen> {
         ),
         centerTitle: true,
         actions: [
-          _NotificationBell(demoMode: _demoMode),
+          if (_demoMode)
+            Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.notifications_none),
+                    tooltip: 'Notifications',
+                    onPressed: () => showToast(
+                      context,
+                      'Aucune notification pour le moment.',
+                    ),
+                  ),
+                  Positioned(
+                    right: 6,
+                    top: 6,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 5,
+                        vertical: 1,
+                      ),
+                      decoration: BoxDecoration(
+                        color: RestaurantPalette.danger,
+                        borderRadius: BorderRadius.circular(9),
+                      ),
+                      child: const Text(
+                        '3',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          color: RestaurantPalette.white,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            )
+          else if (widget.marketplace != null)
+            NotificationBell(api: widget.marketplace!)
+          else
+            IconButton(
+              onPressed: () =>
+                  showToast(context, 'Aucune notification pour le moment.'),
+              icon: const Icon(Icons.notifications_none),
+            ),
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
@@ -477,54 +524,6 @@ class _TabChip extends StatelessWidget {
   }
 }
 
-class _NotificationBell extends StatelessWidget {
-  const _NotificationBell({required this.demoMode});
-
-  final bool demoMode;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(right: 8),
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          IconButton(
-            icon: Icon(
-              Icons.notifications_outlined,
-              color: RestaurantPalette.darkText,
-            ),
-            tooltip: 'Notifications',
-            onPressed: () =>
-                showToast(context, 'Aucune notification pour le moment.'),
-          ),
-          if (demoMode)
-            Positioned(
-              right: 6,
-              top: 6,
-              child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-                decoration: BoxDecoration(
-                  color: RestaurantPalette.danger,
-                  borderRadius: BorderRadius.circular(9),
-                ),
-                child: const Text(
-                  '3',
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    color: RestaurantPalette.white,
-                  ),
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
 class _ProductCard extends StatelessWidget {
   const _ProductCard({
     required this.product,
@@ -546,32 +545,34 @@ class _ProductCard extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: RestaurantPalette.cardSpacing),
       padding: const EdgeInsets.all(10),
       decoration: RestaurantPalette.cardDecoration,
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(12),
-            child: SizedBox(
-              width: 64,
-              height: 64,
-              child: AppNetworkImage(
-                url: product.imageUrl,
-                icon: Icons.fastfood_outlined,
-                iconColor: RestaurantPalette.orange,
-                iconBackground: const Color(0xFFFFEDD5),
+      child: IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: SizedBox(
+                width: 84,
+                child: AppNetworkImage(
+                  url: product.imageUrl,
+                  icon: Icons.fastfood_outlined,
+                  iconColor: RestaurantPalette.orange,
+                  iconBackground: const Color(0xFFFFEDD5),
+                  fit: BoxFit.cover,
+                ),
               ),
             ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(child: _ProductInfo(product: product)),
-          const SizedBox(width: 8),
-          _ControlColumn(
-            product: product,
-            busy: busy,
-            onToggle: onToggle,
-            onMenu: onMenu,
-          ),
-        ],
+            const SizedBox(width: 12),
+            Expanded(child: _ProductInfo(product: product)),
+            const SizedBox(width: 8),
+            _ControlColumn(
+              product: product,
+              busy: busy,
+              onToggle: onToggle,
+              onMenu: onMenu,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -782,20 +783,10 @@ class _ControlColumn extends StatelessWidget {
               ],
             ),
           const SizedBox(height: 6),
-          _AvailabilityLine(
-            label: 'Actif',
-            value: product.isAvailable,
-            color: RestaurantPalette.success,
-            enabled: !busy,
-            onTap: onToggle,
-          ),
-          const SizedBox(height: 6),
-          _AvailabilityLine(
-            label: 'Inactif',
-            value: !product.isAvailable,
-            color: const Color(0xFF9CA3AF),
-            enabled: !busy,
-            onTap: onToggle,
+          _ActivePill(
+            active: product.isAvailable,
+            busy: busy,
+            onToggle: onToggle,
           ),
         ],
       ),
@@ -803,60 +794,47 @@ class _ControlColumn extends StatelessWidget {
   }
 }
 
-class _AvailabilityLine extends StatelessWidget {
-  const _AvailabilityLine({
-    required this.label,
-    required this.value,
-    required this.color,
-    required this.enabled,
-    required this.onTap,
+/// Bouton unique actif/inactif : le libellé suit l'état réel du produit et le
+/// tap bascule (Actif -> Inactif -> Actif). Un seul contrôle, pas deux.
+class _ActivePill extends StatelessWidget {
+  const _ActivePill({
+    required this.active,
+    required this.busy,
+    required this.onToggle,
   });
 
-  final String label;
-  final bool value;
-  final Color color;
-  final bool enabled;
-  final VoidCallback onTap;
+  final bool active;
+  final bool busy;
+  final VoidCallback onToggle;
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.end,
-      children: [
-        Container(
-          constraints: const BoxConstraints(maxWidth: 48),
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-          decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.12),
-            borderRadius: BorderRadius.circular(6),
-          ),
-          child: FittedBox(
-            fit: BoxFit.scaleDown,
-            child: Text(
-              label,
-              maxLines: 1,
-              style: TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.w700,
-                color: color,
-              ),
-            ),
-          ),
+    final color = active ? RestaurantPalette.success : const Color(0xFF9CA3AF);
+    return SizedBox(
+      height: 30,
+      child: OutlinedButton.icon(
+        onPressed: busy ? null : onToggle,
+        style: OutlinedButton.styleFrom(
+          foregroundColor: color,
+          side: BorderSide(color: color.withValues(alpha: 0.5)),
+          backgroundColor: active
+              ? RestaurantPalette.success.withValues(alpha: 0.08)
+              : const Color(0xFFF3F4F6),
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
         ),
-        const SizedBox(width: 4),
-        SizedBox(
-          width: 44,
-          height: 36,
-          child: FittedBox(
-            fit: BoxFit.scaleDown,
-            child: Switch(
-              value: value,
-              activeThumbColor: color,
-              onChanged: enabled ? (_) => onTap() : null,
-            ),
-          ),
+        icon: busy
+            ? const SizedBox(
+                width: 13,
+                height: 13,
+                child: CircularProgressIndicator(strokeWidth: 1.8),
+              )
+            : Icon(active ? Icons.toggle_on_outlined : Icons.toggle_off_outlined, size: 16),
+        label: Text(
+          active ? 'Actif' : 'Inactif',
+          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800),
         ),
-      ],
+      ),
     );
   }
 }

@@ -23,8 +23,10 @@ import '../features/client/account/profile_edit_screen.dart';
 import '../features/client/account/security_screen.dart';
 import '../features/client/account/server_settings_screen.dart';
 import '../features/client/orders/orders_screen.dart';
+import '../features/vendor/account/vendor_settings_screen.dart';
 import '../features/vendor/presentation/vendor_shell.dart';
 import '../features/driver/presentation/driver_shell.dart';
+import '../features/wallet/wallet_screen.dart';
 import '../shared/models/user.dart';
 
 /// Routeur central (J146) : contenu protégé selon session + contexte actif.
@@ -209,6 +211,10 @@ GoRouter buildAppRouter(SessionProvider session, MarketplaceApi marketplace) {
         builder: (context, state) => ProfileEditScreen(marketplace: marketplace, session: session),
       ),
       GoRoute(
+        path: '/vendor/settings',
+        builder: (context, state) => VendorSettingsScreen(marketplace: marketplace),
+      ),
+      GoRoute(
         path: '/vendor/notifications',
         builder: (context, state) => NotificationsScreen(marketplace: marketplace),
       ),
@@ -219,6 +225,13 @@ GoRouter buildAppRouter(SessionProvider session, MarketplaceApi marketplace) {
       GoRoute(
         path: '/vendor/complaints',
         builder: (context, state) => ComplaintsScreen(marketplace: marketplace),
+      ),
+      GoRoute(
+        path: '/vendor/wallet',
+        builder: (context, state) => WalletScreen(
+          marketplace: marketplace,
+          role: WalletRole.vendor,
+        ),
       ),
       GoRoute(
         path: '/driver',
@@ -239,6 +252,13 @@ GoRouter buildAppRouter(SessionProvider session, MarketplaceApi marketplace) {
       GoRoute(
         path: '/driver/complaints',
         builder: (context, state) => ComplaintsScreen(marketplace: marketplace),
+      ),
+      GoRoute(
+        path: '/driver/wallet',
+        builder: (context, state) => WalletScreen(
+          marketplace: marketplace,
+          role: WalletRole.driver,
+        ),
       ),
     ],
   );
@@ -276,7 +296,7 @@ class _SplashPage extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Image.asset('assets/Logo.jpeg', width: 120, height: 120, errorBuilder: (_, __, ___) => const SizedBox()),
+            Image.asset('assets/Logo.jpeg', width: 120, height: 120, errorBuilder: (_, _, _) => const SizedBox()),
             const SizedBox(height: 20),
             const Text('Béninfood', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
             const SizedBox(height: 24),

@@ -294,6 +294,14 @@ class _DriverAccountScreenState extends State<DriverAccountScreen> {
   List<ProfileMenuEntry> _buildMenuEntries() {
     return [
       ProfileMenuEntry(
+        icon: Icons.account_balance_wallet_outlined,
+        tint: AppColors.goldLight,
+        accent: AppColors.goldDark,
+        title: 'Mes gains & retraits',
+        subtitle: 'Solde disponible, séquestre, retirer',
+        onTap: () => _openRoute('/driver/wallet'),
+      ),
+      ProfileMenuEntry(
         icon: Icons.person_outline,
         tint: AppColors.greenLight,
         accent: AppColors.green,

@@ -352,12 +352,77 @@ class MarketplaceApi {
   }
 
   /// Ouvre ou ferme la boutique (interrupteur « Statut de la boutique ») :
-  /// `closed_at` horodaté pour fermer, null pour rouvrir.
-  Future<void> setVendorOpen({required bool open}) async {
+  /// `closed_at` horodaté pour fermer, null pour rouvrir. Un motif de fermeture
+  /// est requis pour fermer temporairement (J21 §3.2).
+  Future<void> setVendorOpen({required bool open, String? reason}) async {
     await _api.patch(
       '/vendors/me',
-      body: {'closed_at': open ? null : DateTime.now().toUtc().toIso8601String()},
+      body: {
+        'closed_at': open ? null : DateTime.now().toUtc().toIso8601String(),
+        if (!open && reason != null && reason.trim().isNotEmpty) 'closed_reason': reason.trim(),
+      },
     );
+  }
+
+  /// Préférences de la boutique : reversement, notifications, langue (J21 §3.6).
+  Future<Map<String, dynamic>> vendorSettings() async {
+    final response = await _api.get('/vendors/me/settings');
+    return _dataObject(response) ?? {};
+  }
+
+  /// Met à jour les préférences de la boutique.
+  Future<Map<String, dynamic>> updateVendorSettings({
+    bool? autoAccept,
+    String? payoutMethod,
+    String? payoutDetails,
+    bool? notifyNewOrders,
+    bool? notifyCancellations,
+    bool? notifyPayments,
+    String? locale,
+  }) async {
+    final response = await _api.patch('/vendors/me/settings', body: {
+      'auto_accept': ?autoAccept,
+      'payout_method': ?payoutMethod,
+      'payout_details': ?payoutDetails,
+      'notify_new_orders': ?notifyNewOrders,
+      'notify_cancellations': ?notifyCancellations,
+      'notify_payments': ?notifyPayments,
+      'locale': ?locale,
+    });
+    return _dataObject(response) ?? {};
+  }
+
+  /// Zones de livraison sélectionnables (référentiel).
+  Future<List<Map<String, dynamic>>> deliveryZones() async {
+    final response = await _api.get('/delivery/zones');
+    return _dataList(response);
+  }
+
+  /// Zones desservies par le vendeur connecté.
+  Future<List<Map<String, dynamic>>> vendorZones() async {
+    final response = await _api.get('/vendors/me/zones');
+    return _dataList(response);
+  }
+
+  /// Remplace les zones desservies par le vendeur.
+  Future<List<Map<String, dynamic>>> syncVendorZones(List<String> zoneIds) async {
+    final response = await _api.post('/vendors/me/zones', body: {'zone_ids': zoneIds});
+    return _dataList(response);
+  }
+
+  /// Signale un problème sur une commande (J21 §3.4).
+  Future<Map<String, dynamic>> vendorReportIncident(
+    String orderId, {
+    required String subject,
+    required String description,
+    String type = 'other',
+  }) async {
+    final response = await _api.post('/vendors/me/orders/$orderId/incident', body: {
+      'subject': subject,
+      'description': description,
+      'type': type,
+    });
+    return _dataObject(response) ?? {};
   }
 
   Future<void> driverOnboarding({
@@ -569,6 +634,83 @@ class MarketplaceApi {
   Future<Order> vendorCancel(String orderId, {required String reason}) async {
     final response = await _api.post('/vendors/me/orders/$orderId/cancel', body: {'reason': reason});
     return Order.fromJson(_dataObject(response) ?? {});
+  }
+
+  // ------------------------------------------------------------------
+  // Vendeur : dossier, avis, historique & revenus (J21)
+  // ------------------------------------------------------------------
+
+  /// Dossier du vendeur (J21 §4) : métadonnées des documents soumis.
+  Future<List<Map<String, dynamic>>> vendorDocuments() async {
+    final response = await _api.get('/vendors/me/documents');
+    return _dataList(response);
+  }
+
+  /// Historique des activités du vendeur (J21 §10).
+  Future<List<Map<String, dynamic>>> vendorActivity({int limit = 100}) async {
+    final response = await _api.get('/vendors/me/activity', query: {'limit': '$limit'});
+    return _dataList(response);
+  }
+
+  /// Avis clients du vendeur (J21 §9) : `{summary, reviews}`.
+  Future<Map<String, dynamic>> vendorReviews({int perPage = 15}) async {
+    final response = await _api.get('/vendors/me/reviews', query: {'per_page': '$perPage'});
+    return _dataObject(response) ?? {};
+  }
+
+  /// Réponse du vendeur à un avis client (J21 §9).
+  Future<Map<String, dynamic>> replyToReview(String reviewId, String reply) async {
+    final response = await _api.post('/vendors/me/reviews/$reviewId/reply', body: {'reply': reply});
+    return _dataObject(response) ?? {};
+  }
+
+  /// Revenus, commissions et reversements du vendeur (J21 §8).
+  Future<Map<String, dynamic>> vendorRevenues({String? from, String? to}) async {
+    final response = await _api.get('/vendors/me/revenues', query: {
+      if (from != null) 'from': from,
+      if (to != null) 'to': to,
+    });
+    return _dataObject(response) ?? {};
+  }
+
+  // ------------------------------------------------------------------
+  // Wallets & retraits (cahier de conception v1.0)
+  // ------------------------------------------------------------------
+
+  /// Wallet du vendeur : solde en attente / disponible + dernières écritures.
+  Future<Map<String, dynamic>> vendorWallet() async {
+    final response = await _api.get('/vendors/me/wallet');
+    return _dataObject(response) ?? {};
+  }
+
+  /// Historique des retraits du vendeur.
+  Future<List<Map<String, dynamic>>> vendorPayouts() async {
+    final response = await _api.get('/vendors/me/wallet/payouts');
+    return _dataList(response);
+  }
+
+  /// Demande un retrait vendeur vers son Mobile Money.
+  Future<Map<String, dynamic>> requestVendorPayout(int amount, {String? method}) async {
+    final response = await _api.post('/vendors/me/wallet/payouts', body: {
+      'amount': amount,
+      'method': ?method,
+    });
+    return _dataObject(response) ?? {};
+  }
+
+  /// Wallet du livreur : solde en attente / disponible + dernières écritures.
+  Future<Map<String, dynamic>> driverWallet() async {
+    final response = await _api.get('/driver/me/wallet');
+    return _dataObject(response) ?? {};
+  }
+
+  /// Demande un retrait livreur vers son Mobile Money.
+  Future<Map<String, dynamic>> requestDriverPayout(int amount, {String? method}) async {
+    final response = await _api.post('/driver/me/wallet/payouts', body: {
+      'amount': amount,
+      'method': ?method,
+    });
+    return _dataObject(response) ?? {};
   }
 
   Future<List<String>> categoriesForProductForm() async {

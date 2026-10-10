@@ -12,6 +12,7 @@ class RevenusScreen extends StatelessWidget {
   const RevenusScreen({
     super.key,
     required this.orders,
+    this.revenue,
     this.onOpenDrawer,
     this.onMonthTap,
     this.onSeeAllTap,
@@ -21,6 +22,10 @@ class RevenusScreen extends StatelessWidget {
   /// Commandes du vendeur (source de vérité gérée par le shell).
   final List<Order> orders;
 
+  /// Données financières réelles renvoyées par l'API (J21 §8). Quand elles
+  /// sont fournies, elles priment sur le calcul local à partir des commandes.
+  final Map<String, dynamic>? revenue;
+
   final VoidCallback? onOpenDrawer;
   final VoidCallback? onMonthTap;
   final VoidCallback? onSeeAllTap;
@@ -28,8 +33,9 @@ class RevenusScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final monthOrders = _monthOrders();
-    final (summary, transactions, orderCount) = _compute(monthOrders);
+    final (summary, transactions, orderCount) = revenue != null
+        ? _fromRevenue(revenue!)
+        : _compute(_monthOrders());
 
     return Material(
       color: RestaurantPalette.background,
@@ -131,6 +137,44 @@ class RevenusScreen extends StatelessWidget {
       transactions.take(6).toList(),
       completed,
     );
+  }
+
+  /// Résumé et transactions issus de l'API financière (J21 §8).
+  (RevenuSummary, List<RevenuTransaction>, int) _fromRevenue(
+      Map<String, dynamic> revenue) {
+    int amount(String key) => (revenue[key] as num?)?.toInt() ?? 0;
+
+    final summary = RevenuSummary(
+      walletBalance: amount('available_balance'),
+      validatedSales: amount('gross_sales'),
+      commission: amount('commission'),
+      pendingPayout: amount('pending_amount'),
+    );
+
+    final transactions = <RevenuTransaction>[];
+    final raw = revenue['transactions'];
+    if (raw is List) {
+      for (final item in raw.whereType<Map<String, dynamic>>()) {
+        final date = item['date'] as String?;
+        transactions.add(RevenuTransaction(
+          label: 'Vente ${item['reference'] ?? ''}'.trim(),
+          dateLabel: _txLabel(date),
+          amount: (item['net'] as num?)?.toInt() ?? 0,
+          type: RevenuTransactionType.sale,
+        ));
+        final commission = (item['commission'] as num?)?.toInt() ?? 0;
+        if (commission > 0) {
+          transactions.add(RevenuTransaction(
+            label: 'Commission',
+            dateLabel: _txLabel(date),
+            amount: -commission,
+            type: RevenuTransactionType.commission,
+          ));
+        }
+      }
+    }
+
+    return (summary, transactions.take(6).toList(), amount('orders_count'));
   }
 
   Widget _buildHeader() {

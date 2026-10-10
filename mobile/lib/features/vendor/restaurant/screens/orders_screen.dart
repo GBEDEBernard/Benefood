@@ -18,6 +18,7 @@ class OrdersScreen extends StatefulWidget {
     required this.onPrepare,
     required this.onReady,
     this.onConfirmDelivery,
+    this.onReportIncident,
     this.busyOrderIds = const {},
     this.onOpenDrawer,
     this.onRefresh,
@@ -35,6 +36,9 @@ class OrdersScreen extends StatefulWidget {
   /// Marquage « Livrée » : proposé en démonstration (le serveur confirme la
   /// livraison côté livreur en production).
   final Future<bool> Function(Order order)? onConfirmDelivery;
+
+  /// Signalement d'un problème sur une commande (J21 §3.4).
+  final Future<bool> Function(Order order, String subject, String description)? onReportIncident;
 
   /// Commandes en cours d'action (désactivation des boutons).
   final Set<String> busyOrderIds;
@@ -132,6 +136,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
           onPrepare: widget.onPrepare,
           onReady: widget.onReady,
           onConfirmDelivery: widget.onConfirmDelivery,
+          onReportIncident: widget.onReportIncident,
         ),
       ),
     );

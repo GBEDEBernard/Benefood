@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/data/marketplace_api.dart';
+import '../../../core/navigation/notification_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_dimens.dart';
 import '../../../core/utils/formatters.dart';
@@ -33,15 +34,26 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   }
 
   Future<void> _markRead(Map<String, dynamic> item) async {
-    if (item['read_at'] != null || item['id'] is! String) {
-      return;
+    // Marque lu seulement si besoin ; un élément déjà lu s'ouvre aussi.
+    if (item['read_at'] == null && item['id'] is String) {
+      final id = item['id'] as String;
+      setState(() => item['read_at'] = DateTime.now().toIso8601String());
+      try {
+        await widget.marketplace.markNotificationRead(id);
+      } catch (_) {
+        // L'état local reste à jour même si le réseau échoue.
+      }
     }
-    final id = item['id'] as String;
-    setState(() => item['read_at'] = DateTime.now().toIso8601String());
-    try {
-      await widget.marketplace.markNotificationRead(id);
-    } catch (_) {
-      // L'état local reste à jour même si le réseau échoue.
+    final data = item['data'];
+    if (data is Map<String, dynamic> && data.isNotEmpty && mounted) {
+      await openNotificationTarget(
+        context,
+        marketplace: widget.marketplace,
+        data: data,
+      );
+      if (mounted) {
+        _reload();
+      }
     }
   }
 

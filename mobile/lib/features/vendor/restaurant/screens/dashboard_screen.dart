@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/data/marketplace_api.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../shared/models/order.dart';
+import '../../../../shared/widgets/notification_bell.dart';
 import '../../../../shared/widgets/status_badge.dart';
 import '../restaurant_palette.dart';
 import '../widgets/status_chip.dart';
@@ -29,6 +31,9 @@ class DashboardScreen extends StatelessWidget {
     this.onRefuse,
     this.onAddProduct,
     this.onGoToShop,
+    this.onOpenOrder,
+    this.onOpenOrders,
+    this.marketplace,
   });
 
   final bool isOpen;
@@ -45,6 +50,13 @@ class DashboardScreen extends StatelessWidget {
   final ValueChanged<Order>? onRefuse;
   final VoidCallback? onAddProduct;
   final VoidCallback? onGoToShop;
+
+  /// Ouvre le détail d'une commande (depuis une carte du tableau de bord).
+  final ValueChanged<Order>? onOpenOrder;
+
+  /// Ouvre l'onglet complet « Commandes » du shell.
+  final VoidCallback? onOpenOrders;
+  final MarketplaceApi? marketplace;
 
   @override
   Widget build(BuildContext context) {
@@ -69,11 +81,12 @@ class DashboardScreen extends StatelessWidget {
                   onToggleOpen: onToggleOpen,
                   onAddProduct: onAddProduct,
                   onGoToShop: onGoToShop,
+                  marketplace: marketplace,
                 ),
                 const SizedBox(height: 24),
                 _SectionTitle(
                   title: 'Nouvelles commandes',
-                  trailing: _VoirTout(onPressed: () => toast(context, 'Toutes les nouvelles commandes')),
+                  trailing: _VoirTout(onPressed: onOpenOrders),
                 ),
                 const SizedBox(height: 10),
                 if (newOrders.isEmpty)
@@ -85,12 +98,13 @@ class DashboardScreen extends StatelessWidget {
                           order: o,
                           onAccept: () => onAccept?.call(o),
                           onRefuse: () => onRefuse?.call(o),
+                          onTap: onOpenOrder == null ? null : () => onOpenOrder!(o),
                         ),
                       )),
                 const SizedBox(height: 14),
                 _SectionTitle(
                   title: 'Commandes récentes',
-                  trailing: _VoirTout(onPressed: () => toast(context, 'Toutes les commandes récentes')),
+                  trailing: _VoirTout(onPressed: onOpenOrders),
                 ),
                 const SizedBox(height: 10),
                 if (recentOrders.isEmpty)
@@ -98,7 +112,10 @@ class DashboardScreen extends StatelessWidget {
                 else
                   ...recentOrders.map((o) => Padding(
                         padding: const EdgeInsets.only(bottom: 10),
-                        child: _RecentOrderCard(order: o),
+                        child: _RecentOrderCard(
+                          order: o,
+                          onTap: onOpenOrder == null ? null : () => onOpenOrder!(o),
+                        ),
                       )),
               ],
             ),
@@ -127,11 +144,14 @@ class DashboardScreen extends StatelessWidget {
               const Expanded(
                 child: Center(child: _BeninfoodBrand()),
               ),
-              IconButton(
-                onPressed: () => toast(context, 'Notifications disponibles bientôt'),
-                icon: const _NotificationBell(count: 3),
-                tooltip: 'Notifications',
-              ),
+              if (marketplace != null)
+                NotificationBell(api: marketplace!)
+              else
+                IconButton(
+                  onPressed: () => toast(context, 'Notifications disponibles bientôt'),
+                  icon: const Icon(Icons.notifications_none),
+                  tooltip: 'Notifications',
+                ),
             ],
           ),
         ),
@@ -236,7 +256,7 @@ class _SectionTitle extends StatelessWidget {
 class _VoirTout extends StatelessWidget {
   const _VoirTout({required this.onPressed});
 
-  final VoidCallback onPressed;
+  final VoidCallback? onPressed;
 
   @override
   Widget build(BuildContext context) {
@@ -337,12 +357,14 @@ class _QuickActions extends StatelessWidget {
     required this.onToggleOpen,
     this.onAddProduct,
     this.onGoToShop,
+    this.marketplace,
   });
 
   final bool isOpen;
   final ValueChanged<bool> onToggleOpen;
   final VoidCallback? onAddProduct;
   final VoidCallback? onGoToShop;
+  final MarketplaceApi? marketplace;
 
   @override
   Widget build(BuildContext context) {
@@ -449,86 +471,41 @@ class _BeninfoodBrand extends StatelessWidget {
   }
 }
 
-class _NotificationBell extends StatelessWidget {
-  const _NotificationBell({required this.count});
-
-  final int count;
-
-  @override
-  Widget build(BuildContext context) {
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        const Icon(Icons.notifications_none, color: RestaurantPalette.darkText),
-        if (count > 0)
-          Positioned(
-            right: -6,
-            top: -6,
-            child: Container(
-              padding: const EdgeInsets.all(4),
-              decoration: const BoxDecoration(
-                color: RestaurantPalette.danger,
-                shape: BoxShape.circle,
-              ),
-              constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
-              child: Text(
-                '$count',
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 10,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
-          ),
-      ],
-    );
-  }
-}
-
 class _NewOrderCard extends StatelessWidget {
-  const _NewOrderCard({required this.order, required this.onAccept, required this.onRefuse});
+  const _NewOrderCard({required this.order, required this.onAccept, required this.onRefuse, this.onTap});
 
   final Order order;
   final VoidCallback onAccept;
   final VoidCallback onRefuse;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(14),
+      clipBehavior: Clip.antiAlias,
       decoration: RestaurantPalette.cardDecoration,
-      child: Column(
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      order.reference,
-                      style: const TextStyle(
-                        color: RestaurantPalette.darkText,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      timeAgo(order.createdAt),
-                      style: const TextStyle(color: RestaurantPalette.grayText, fontSize: 12),
-                    ),
-                  ],
-                ),
-              ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: _buildInner(),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInner() {
+    return Column(
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    formatAmount(order.total),
+                    order.reference,
                     style: const TextStyle(
                       color: RestaurantPalette.darkText,
                       fontSize: 15,
@@ -537,61 +514,103 @@ class _NewOrderCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    '${order.items.length} article${order.items.length > 1 ? 's' : ''}',
+                    timeAgo(order.createdAt),
                     style: const TextStyle(color: RestaurantPalette.grayText, fontSize: 12),
                   ),
                 ],
               ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: FilledButton(
-                  onPressed: onAccept,
-                  style: FilledButton.styleFrom(
-                    backgroundColor: RestaurantPalette.success,
-                    padding: const EdgeInsets.symmetric(vertical: 10),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  formatAmount(order.total),
+                  style: const TextStyle(
+                    color: RestaurantPalette.darkText,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
                   ),
-                  child: const Text('Accepter', style: TextStyle(fontWeight: FontWeight.w700)),
                 ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: FilledButton(
-                  onPressed: onRefuse,
-                  style: FilledButton.styleFrom(
-                    backgroundColor: RestaurantPalette.danger.withValues(alpha: 0.12),
-                    foregroundColor: RestaurantPalette.danger,
-                    padding: const EdgeInsets.symmetric(vertical: 10),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                  ),
-                  child: const Text('Refuser', style: TextStyle(fontWeight: FontWeight.w700)),
+                const SizedBox(height: 4),
+                Text(
+                  '${order.items.length} article${order.items.length > 1 ? 's' : ''}',
+                  style: const TextStyle(color: RestaurantPalette.grayText, fontSize: 12),
                 ),
+              ],
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: FilledButton(
+                onPressed: onAccept,
+                style: FilledButton.styleFrom(
+                  backgroundColor: RestaurantPalette.success,
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+                child: const Text('Accepter', style: TextStyle(fontWeight: FontWeight.w700)),
               ),
-            ],
-          ),
-        ],
-      ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: FilledButton(
+                onPressed: onRefuse,
+                style: FilledButton.styleFrom(
+                  backgroundColor: RestaurantPalette.danger.withValues(alpha: 0.12),
+                  foregroundColor: RestaurantPalette.danger,
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+                child: const Text('Refuser', style: TextStyle(fontWeight: FontWeight.w700)),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: FilledButton(
+                onPressed: onTap,
+                style: FilledButton.styleFrom(
+                  backgroundColor: RestaurantPalette.orange,
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+                child: const Text('Voir détails', style: TextStyle(fontWeight: FontWeight.w700)),
+              ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 }
 
 class _RecentOrderCard extends StatelessWidget {
-  const _RecentOrderCard({required this.order});
+  const _RecentOrderCard({required this.order, this.onTap});
 
   final Order order;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     final palette = BadgePalette.order(order.status);
     return Container(
-      padding: const EdgeInsets.all(14),
+      clipBehavior: Clip.antiAlias,
       decoration: RestaurantPalette.cardDecoration,
-      child: Row(
-        children: [
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: _buildInner(palette),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInner((String, Color)? palette) {
+    return Row(
+      children: [
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -629,8 +648,7 @@ class _RecentOrderCard extends StatelessWidget {
               background: RestaurantPalette.grayText.withValues(alpha: 0.12),
               foreground: RestaurantPalette.grayText,
             ),
-        ],
-      ),
+      ],
     );
   }
 }
