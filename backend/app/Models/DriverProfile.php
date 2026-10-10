@@ -18,11 +18,17 @@ class DriverProfile extends Model
     {
         return [
             'available' => 'boolean',
+            'prepaid_balance' => 'integer',
             'last_latitude' => 'decimal:7',
             'last_longitude' => 'decimal:7',
             'last_location_at' => 'datetime',
             'rating' => 'decimal:2',
         ];
+    }
+
+    public function floatTransactions(): HasMany
+    {
+        return $this->hasMany(DriverFloatTransaction::class);
     }
 
     public function user(): BelongsTo

@@ -4,16 +4,19 @@ namespace App\Services;
 
 use App\Enums\DeliveryStatus;
 use App\Enums\OrderStatus;
+use App\Enums\PaymentMethod;
 use App\Enums\PaymentStatus;
 use App\Exceptions\DomainException;
 use App\Models\Address;
 use App\Models\Cart;
 use App\Models\CartItem;
 use App\Models\CommissionRate;
+use App\Models\DriverProfile;
 use App\Models\Order;
 use App\Models\Vendor;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 /**
@@ -31,6 +34,8 @@ class OrderService
         private readonly CatalogService $catalog,
         private readonly RefundService $refunds,
         private readonly NotificationService $notifications,
+        private readonly FinanceService $finance,
+        private readonly CashService $cash,
     ) {}
 
     // ------------------------------------------------------------------ J82
@@ -48,6 +53,8 @@ class OrderService
 
         $this->assertVendorSellable($cart->vendor);
         $this->assertItemsOrderable($cart->items);
+
+        $paymentMethod = $this->normalizePaymentMethod($options['payment_method'] ?? 'online');
 
         $entries = [];
         $subtotal = 0;
@@ -68,7 +75,7 @@ class OrderService
         $delivery = $this->deliveryQuote($cart, $options);
 
         $commissionRate = $this->resolveCommissionRate($cart->vendor);
-        $commission = (int) round($subtotal * $commissionRate / 100);
+        $breakdown = $this->finance->breakdown($subtotal, (int) $delivery['fee'], $commissionRate);
 
         return [
             'vendor' => [
@@ -77,19 +84,23 @@ class OrderService
             ],
             'items' => $entries,
             'subtotal' => $subtotal,
-            'delivery_fee' => $delivery['fee'],
+            'delivery_fee' => $breakdown['delivery_fee'],
             'delivery_zone' => [
                 'id' => $delivery['zone_id'],
                 'name' => $delivery['rate_snapshot']['zone_name'] ?? null,
                 'city' => $delivery['rate_snapshot']['zone_city'] ?? null,
             ],
             'currency' => config('beninfood.currency', 'XOF'),
+            'payment_method' => $paymentMethod->value,
             'commission' => [
                 'rate' => $commissionRate,
-                'amount' => $commission,
+                'amount' => $breakdown['commission_amount'],
                 'internal' => true,
             ],
-            'total' => $subtotal + $delivery['fee'],
+            // Cahier v1.0 : frais de service client (5 %) et part livreur.
+            'service_fee' => $breakdown['service_fee'],
+            'delivery_commission' => $breakdown['delivery_commission_amount'],
+            'total' => $breakdown['total_client'],
         ];
     }
 
@@ -99,7 +110,7 @@ class OrderService
      *
      * @throws DomainException order.*  si une contrainte n'est pas satisfaite
      */
-    public function createFromCart(Cart $cart, Address $address, ?string $notes = null): Order
+    public function createFromCart(Cart $cart, Address $address, ?string $notes = null, string $paymentMethod = 'online'): Order
     {
         $this->assertCartOpen($cart);
 
@@ -112,6 +123,7 @@ class OrderService
         $this->assertItemsStocked($cart->items);
 
         $delivery = $this->deliveryQuote($cart, ['address' => $address]);
+        $paymentMethod = $this->normalizePaymentMethod($paymentMethod);
 
         $subtotal = 0;
         $lines = [];
@@ -130,13 +142,15 @@ class OrderService
         }
 
         $commissionRate = $this->resolveCommissionRate($vendor);
-        $commission = (int) round($subtotal * $commissionRate / 100);
-        $deliveryFee = $delivery['fee'];
-        $total = $subtotal + $deliveryFee;
+        $breakdown = $this->finance->breakdown($subtotal, (int) $delivery['fee'], $commissionRate);
+        $deliveryFee = $breakdown['delivery_fee'];
+        $total = $breakdown['total_client'];
 
         $reference = $this->generateReference();
 
-        return DB::transaction(function () use ($cart, $address, $notes, $delivery, $lines, $subtotal, $commissionRate, $commission, $deliveryFee, $total, $reference) {
+        $paymentDeadline = $paymentMethod->isCash() ? null : now()->addMinutes((int) config('beninfood.orders.payment_deadline_minutes', 15));
+
+        return DB::transaction(function () use ($cart, $address, $notes, $delivery, $lines, $subtotal, $commissionRate, $breakdown, $deliveryFee, $total, $reference, $paymentMethod, $paymentDeadline) {
             $order = Order::create([
                 'reference' => $reference,
                 'user_id' => $cart->user_id,
@@ -144,6 +158,9 @@ class OrderService
                 'cart_id' => $cart->id,
                 'zone_id' => $delivery['zone_id'],
                 'status' => OrderStatus::AwaitingPayment->value,
+                'payment_method' => $paymentMethod->isCash()
+                    ? PaymentMethod::Cash->value
+                    : PaymentMethod::Online->value,
                 'payment_status' => PaymentStatus::Initiated->value,
                 'subtotal' => $subtotal,
                 'discount' => 0,
@@ -152,7 +169,7 @@ class OrderService
                 'address_snapshot' => $this->snapshotAddress($address, $notes),
                 'delivery_rate_snapshot' => $delivery['rate_snapshot'],
                 'notes' => $notes,
-                'payment_deadline_at' => now()->addMinutes((int) config('beninfood.orders.payment_deadline_minutes', 15)),
+                'payment_deadline_at' => $paymentDeadline,
             ]);
 
             foreach ($lines as $line) {
@@ -174,23 +191,28 @@ class OrderService
                 'subtotal' => $subtotal,
                 'discount' => 0,
                 'delivery_fee' => $deliveryFee,
-                'payment_fee' => 0,
-                'commission_base' => $subtotal,
+                'service_fee' => $breakdown['service_fee'],
+                'payment_fee' => $breakdown['payment_fee'],
+                'commission_base' => $breakdown['commission_base'],
                 'commission_rate' => $commissionRate,
-                'commission_amount' => $commission,
-                'vendor_amount' => $subtotal - $commission,
-                'delivery_partner_amount' => 0,
-                'platform_amount' => $commission,
-                'total_client' => $total,
+                'commission_amount' => $breakdown['commission_amount'],
+                'vendor_amount' => $breakdown['vendor_amount'],
+                'delivery_commission_rate' => $breakdown['delivery_commission_rate'],
+                'delivery_commission_amount' => $breakdown['delivery_commission_amount'],
+                'delivery_partner_amount' => $breakdown['delivery_partner_amount'],
+                'platform_amount' => $breakdown['platform_amount'],
+                'total_client' => $breakdown['total_client'],
             ]);
 
-            $order->payment()->create([
-                'reference' => 'PAY-'.Str::upper(Str::random(12)),
-                'gateway' => 'kkiapay',
-                'amount' => $total,
-                'status' => PaymentStatus::Initiated->value,
-                'expires_at' => $order->payment_deadline_at,
-            ]);
+            if (! $paymentMethod->isCash()) {
+                $order->payment()->create([
+                    'reference' => 'PAY-'.Str::upper(Str::random(12)),
+                    'gateway' => 'kkiapay',
+                    'amount' => $total,
+                    'status' => PaymentStatus::Initiated->value,
+                    'expires_at' => $order->payment_deadline_at,
+                ]);
+            }
 
             $this->cartService->markConverted($cart);
 
@@ -222,6 +244,8 @@ class OrderService
 
         $this->notifications->notifyEvent('order.accepted', [$order->user], [
             'reference' => $order->reference,
+            'order_id' => $order->id,
+            'image_url' => $this->firstItemImageUrl($order),
         ]);
 
         return $order->fresh('statusHistory');
@@ -301,12 +325,20 @@ class OrderService
         $order->update([
             'payment_status' => PaymentStatus::Confirmed->value,
             'status' => OrderStatus::Paid->value,
+            'vendor_acceptance_deadline_at' => now()->addMinutes((int) config('beninfood.orders.vendor_acceptance_minutes', 5)),
         ]);
 
         $this->logTransition($order, OrderStatus::AwaitingPayment, OrderStatus::Paid, 'system', null, 'Paiement confirmé');
 
+        // Cahier v1.0 : répartition interne — part vendeur créditée en attente.
+        $this->finance->distributeOrderPayment($order);
+
         $this->notifications->notifyEvent('order.paid', [$order->vendor?->user], [
             'reference' => $order->reference,
+            'order_id' => $order->id,
+            'items_count' => (int) $order->items()->count(),
+            'image_url' => $this->firstItemImageUrl($order),
+            'total' => $order->total,
         ]);
 
         return $order->fresh(['payment', 'statusHistory']);
@@ -362,6 +394,18 @@ class OrderService
 
         $from = $order->status;
 
+        // Cahier v1.0 (cash) : le livreur doit avoir un flottant suffisant pour
+        // garantir l'encaissement avant de se voir proposer/accepter la course.
+        $driver = DriverProfile::find($driverProfileId);
+
+        if ($order->payment_method?->isCash() && ($driver === null || ! $this->cash->hasCoverage($driver, $order->fresh()))) {
+            throw new DomainException(
+                'cash.insufficient_float',
+                'Flottant insuffisant pour accepter cette commande payée en espèces ('.(int) $order->total.' F requis).',
+                409,
+            );
+        }
+
         $order->update(['status' => OrderStatus::Assigned->value]);
 
         if ($order->delivery->exists()) {
@@ -373,6 +417,11 @@ class OrderService
         }
 
         $this->logTransition($order, $from, OrderStatus::Assigned, 'driver', $actorId, null);
+
+        // Le livreur n'est connu qu'à l'assignation : on crédite sa part en attente.
+        if ($driver !== null) {
+            $this->finance->creditDriverForDelivery($order, $driver);
+        }
 
         return $order->fresh(['statusHistory', 'delivery']);
     }
@@ -426,6 +475,7 @@ class OrderService
         $order->update([
             'status' => OrderStatus::Delivered->value,
             'delivered_at' => now(),
+            'auto_confirm_at' => now()->addMinutes((int) config('beninfood.orders.delivery_auto_confirm_minutes', 30)),
         ]);
 
         if ($order->delivery->exists()) {
@@ -437,11 +487,151 @@ class OrderService
 
         $this->logTransition($order, $from, OrderStatus::Delivered, 'driver', $actorId, null);
 
+        // Cahier v1.0 : le séquestre est libéré à la confirmation du client
+        // (ou automatiquement après le délai) — cf. confirmDelivery().
+        // Commande cash : le livreur encaisse sur place, le règlement est
+        // immédiat (flottant débité, parts vendeur/livreur payées).
+        if ($order->payment_method?->isCash() && $order->delivery?->driverProfile) {
+            $this->cash->settle($order->fresh('financials'), $order->delivery->driverProfile);
+        }
+
         $this->notifications->notifyEvent('order.delivered', [$order->user], [
             'reference' => $order->reference,
+            'order_id' => $order->id,
+            'image_url' => $this->firstItemImageUrl($order),
         ]);
 
         return $order->fresh(['statusHistory', 'delivery']);
+    }
+
+    /**
+     * Confirme la réception par le client (ou automatiquement) : libère les
+     * séquestres vendeur et livreur. Idempotent.
+     */
+    public function confirmDelivery(Order $order, string $actorType = 'client', ?string $actorId = null): Order
+    {
+        if ($order->status !== OrderStatus::Delivered) {
+            throw new DomainException('order.not_delivered', 'Cette commande n\'est pas livrée.', 422);
+        }
+
+        if ($order->delivery_confirmed_at !== null) {
+            return $order->fresh(['statusHistory', 'delivery']);
+        }
+
+        if ($order->disputed_at !== null) {
+            throw new DomainException('order.disputed', 'Un litige est en cours sur cette commande.', 409);
+        }
+
+        $order->update([
+            'delivery_confirmed_at' => now(),
+            'auto_confirm_at' => null,
+        ]);
+
+        $this->logTransition($order, OrderStatus::Delivered, OrderStatus::Delivered, $actorType, $actorId, 'Réception confirmée');
+
+        $this->finance->releaseOrderFunds($order);
+
+        return $order->fresh(['statusHistory', 'delivery']);
+    }
+
+    /**
+     * Ouvre un litige : bloque la libération des soldes jusqu'à décision.
+     */
+    public function openDispute(Order $order, string $actorType, ?string $actorId, string $reason): Order
+    {
+        if (! in_array($order->status, [OrderStatus::InDelivery, OrderStatus::Delivered], true)) {
+            throw new DomainException('order.cannot_dispute', 'Un litige ne peut être ouvert que sur une commande en livraison ou livrée.', 409);
+        }
+
+        if ($order->disputed_at !== null) {
+            throw new DomainException('order.already_disputed', 'Un litige est déjà ouvert sur cette commande.', 409);
+        }
+
+        $from = $order->status;
+
+        $order->update([
+            'status' => OrderStatus::Disputed->value,
+            'disputed_at' => now(),
+            'dispute_reason' => $reason,
+            'auto_confirm_at' => null,
+        ]);
+
+        $this->logTransition($order, $from, OrderStatus::Disputed, $actorType, $actorId, $reason);
+
+        return $order->fresh(['statusHistory', 'delivery']);
+    }
+
+    /**
+     * Décision du back-office sur un litige : libération (« release ») ou
+     * remboursement (« refund »).
+     */
+    public function resolveDispute(Order $order, string $resolution, ?string $actorId = null, ?int $refundAmount = null): Order
+    {
+        if ($order->status !== OrderStatus::Disputed) {
+            throw new DomainException('order.not_disputed', 'Cette commande n\'est pas en litige.', 422);
+        }
+
+        if (! in_array($resolution, ['release', 'refund'], true)) {
+            throw new DomainException('order.invalid_resolution', 'Décision de litige inconnue.', 422);
+        }
+
+        if ($resolution === 'release') {
+            $order->update([
+                'status' => OrderStatus::Delivered->value,
+                'disputed_at' => null,
+                'dispute_reason' => null,
+                'dispute_resolution' => 'release',
+                'delivery_confirmed_at' => now(),
+            ]);
+
+            $this->logTransition($order, OrderStatus::Disputed, OrderStatus::Delivered, 'porteuse', $actorId, 'Litige résolu : fonds libérés');
+
+            $this->finance->releaseOrderFunds($order);
+
+            return $order->fresh(['statusHistory', 'delivery']);
+        }
+
+        // Remboursement intégral ou partiel : contre-passe les séquestres.
+        $statusBefore = OrderStatus::Delivered;
+
+        $order->update(['dispute_resolution' => 'refund']);
+
+        $this->finance->reverseOrderDistribution($order, $actorId);
+
+        $order->update([
+            'status' => OrderStatus::Cancelled->value,
+            'cancelled_at' => now(),
+            'cancelled_by' => $actorId,
+            'cancellation_reason' => 'Litige résolu : remboursement',
+        ]);
+
+        $this->logTransition($order, OrderStatus::Disputed, OrderStatus::Cancelled, 'porteuse', $actorId, 'Litige résolu : remboursement');
+
+        $this->refunds->handleOrderCancellation($order, 'porteuse', $actorId, 'Litige résolu : remboursement', $statusBefore, $refundAmount);
+
+        return $order->fresh(['statusHistory', 'delivery', 'refunds']);
+    }
+
+    /**
+     * Auto-confirme les livraisons non confirmées dont le délai est écoulé.
+     *
+     * @return int Nombre de commandes confirmées
+     */
+    public function autoConfirmDeliveries(): int
+    {
+        $orders = Order::query()
+            ->where('status', OrderStatus::Delivered->value)
+            ->whereNull('delivery_confirmed_at')
+            ->whereNull('disputed_at')
+            ->whereNotNull('auto_confirm_at')
+            ->where('auto_confirm_at', '<=', now())
+            ->get();
+
+        foreach ($orders as $order) {
+            $this->confirmDelivery($order, 'system');
+        }
+
+        return $orders->count();
     }
 
     /**
@@ -541,6 +731,14 @@ class OrderService
     }
 
     /**
+     * Normalise le mode de paiement (online | cash) — cahier v1.0.
+     */
+    private function normalizePaymentMethod(string $value): PaymentMethod
+    {
+        return PaymentMethod::tryFrom($value) ?? PaymentMethod::Online;
+    }
+
+    /**
      * @return array<string, mixed>
      */
     private function snapshotAddress(Address $address, ?string $notes): array
@@ -637,6 +835,9 @@ class OrderService
 
         $this->logTransition($order, $from, OrderStatus::Cancelled, $actorType, $actorId, $reason);
 
+        // Contre-passe les séquestres non encore libérés (commande payée annulée).
+        $this->finance->reverseOrderDistribution($order, $actorId);
+
         if ($order->payment()->exists() && in_array($order->payment->status, [PaymentStatus::Initiated, PaymentStatus::Pending], true)) {
             $order->payment->update(['status' => PaymentStatus::Cancelled->value]);
         }
@@ -680,6 +881,24 @@ class OrderService
             'reason' => $reason,
             'created_at' => now(),
         ]);
+    }
+
+    /** Photo du premier article de la commande (aperçu notification). */
+    private function firstItemImageUrl(Order $order): ?string
+    {
+        $item = $order->items()->with('product')->first();
+
+        $path = $item?->product?->image_main;
+
+        if ($path === null || $path === '') {
+            return null;
+        }
+
+        if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
+            return $path;
+        }
+
+        return Storage::disk('public')->url($path);
     }
 
     /** Restaure le stock des articles déduits lors de la création. */

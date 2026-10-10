@@ -28,6 +28,7 @@ class OrderController extends Controller
     {
         $data = $request->validate([
             'address_id' => ['required', 'uuid', 'exists:addresses,id'],
+            'payment_method' => ['sometimes', 'string', 'in:online,cash'],
         ]);
 
         $address = $this->userAddress($request, $data['address_id']);
@@ -41,7 +42,10 @@ class OrderController extends Controller
             return Api::error('Votre panier est vide.', 'order.empty_cart', 422);
         }
 
-        return Api::ok($this->orders->summary($cart, ['address' => $address]));
+        return Api::ok($this->orders->summary($cart, [
+            'address' => $address,
+            'payment_method' => $data['payment_method'] ?? 'online',
+        ]));
     }
 
     public function store(Request $request): JsonResponse
@@ -49,6 +53,7 @@ class OrderController extends Controller
         $data = $request->validate([
             'address_id' => ['required', 'uuid', 'exists:addresses,id'],
             'notes' => ['sometimes', 'nullable', 'string', 'max:1000'],
+            'payment_method' => ['sometimes', 'string', 'in:online,cash'],
         ]);
 
         $address = $this->userAddress($request, $data['address_id']);
@@ -62,7 +67,7 @@ class OrderController extends Controller
             return Api::error('Votre panier est vide.', 'order.empty_cart', 422);
         }
 
-        $order = $this->orders->createFromCart($cart, $address, $data['notes'] ?? null);
+        $order = $this->orders->createFromCart($cart, $address, $data['notes'] ?? null, $data['payment_method'] ?? 'online');
 
         return Api::created(new OrderResource($order));
     }
@@ -90,7 +95,7 @@ class OrderController extends Controller
             return Api::error('Ressource introuvable.', 'not_found', 404);
         }
 
-        $order->load(['vendor', 'items.product', 'payment', 'financials', 'statusHistory', 'refunds', 'delivery.driverProfile.user']);
+        $order->load(['vendor', 'items.product', 'payment', 'financials', 'statusHistory', 'refunds', 'review', 'delivery.driverProfile.user']);
 
         return Api::ok(new OrderResource($order));
     }
@@ -194,6 +199,50 @@ class OrderController extends Controller
         $order = $this->orders->markReady($order, $request->user()->id);
 
         return Api::ok(new OrderResource($order->load(['statusHistory', 'delivery'])));
+    }
+
+    public function confirmDelivery(Request $request, Order $order): JsonResponse
+    {
+        if ($order->user_id !== $request->user()->id) {
+            return Api::error('Ressource introuvable.', 'not_found', 404);
+        }
+
+        $order = $this->orders->confirmDelivery($order, 'client', $request->user()->id);
+
+        return Api::ok(new OrderResource($order->load(['statusHistory', 'delivery'])));
+    }
+
+    public function dispute(Request $request, Order $order): JsonResponse
+    {
+        if ($order->user_id !== $request->user()->id) {
+            return Api::error('Ressource introuvable.', 'not_found', 404);
+        }
+
+        $data = $request->validate([
+            'reason' => ['required', 'string', 'max:500'],
+        ]);
+
+        $order = $this->orders->openDispute($order, 'client', $request->user()->id, $data['reason']);
+
+        return Api::ok(new OrderResource($order->load(['statusHistory', 'delivery'])));
+    }
+
+    public function adminResolveDispute(Request $request, Order $order): JsonResponse
+    {
+        $data = $request->validate([
+            'resolution' => ['required', 'in:release,refund'],
+            'refund_amount' => ['sometimes', 'nullable', 'integer', 'min:0'],
+            'reason' => ['sometimes', 'nullable', 'string', 'max:500'],
+        ]);
+
+        $order = $this->orders->resolveDispute(
+            $order,
+            $data['resolution'],
+            $request->user()->id,
+            $data['refund_amount'] ?? null,
+        );
+
+        return Api::ok(new OrderResource($order->load(['statusHistory', 'delivery', 'refunds'])));
     }
 
     public function adminCancel(Request $request, Order $order): JsonResponse
