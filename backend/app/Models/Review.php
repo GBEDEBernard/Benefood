@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * Avis client sur une commande (J29 §9) : note utilisée pour calculer
@@ -20,6 +21,8 @@ class Review extends Model
     {
         return [
             'rating' => 'integer',
+            'driver_rating' => 'integer',
+            'vendor_replied_at' => 'datetime',
         ];
     }
 
@@ -28,8 +31,18 @@ class Review extends Model
         return $this->belongsTo(Order::class);
     }
 
+    public function driverProfile(): BelongsTo
+    {
+        return $this->belongsTo(DriverProfile::class);
+    }
+
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function items(): HasMany
+    {
+        return $this->hasMany(ReviewItem::class);
     }
 }
