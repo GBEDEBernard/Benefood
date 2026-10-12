@@ -101,7 +101,10 @@ class DeliveryPricingService
     /**
      * Calcule les frais de livraison pour une zone donnée.
      *
-     * @return array{zone: DeliveryZone, rate: DeliveryRate, delivery_fee: int}
+     * Le prix dépend de la distance boutique → client dès que les coordonnées
+     * des deux parties sont connues ; sinon on retombe sur le tarif de zone.
+     *
+     * @return array{zone: DeliveryZone, rate: DeliveryRate, delivery_fee: int, distance_km: ?float}
      */
     public function quoteForVendor(Vendor $vendor, array $address): array
     {
@@ -117,11 +120,68 @@ class DeliveryPricingService
             throw new DomainException('delivery.rate_not_configured', 'Aucun tarif de livraison n\'est configuré pour cette zone.', 422);
         }
 
+        $distanceKm = $this->distanceKm(
+            $vendor->latitude,
+            $vendor->longitude,
+            $address['latitude'] ?? null,
+            $address['longitude'] ?? null,
+        );
+
         return [
             'zone' => $zone,
             'rate' => $rate,
-            'delivery_fee' => (int) $rate->price,
+            'delivery_fee' => $distanceKm !== null
+                ? $this->feeForDistance($distanceKm)
+                : (int) $rate->price,
+            'distance_km' => $distanceKm,
         ];
+    }
+
+    /**
+     * Tarif de livraison selon la distance boutique → client.
+     *
+     * Paliers (config `beninfood.delivery_pricing`) :
+     * - ≤ `flat_km`                : `min_fee` (ex. 2 km = 500) ;
+     * - `flat_km` → `base_km`      : progressif jusqu'à `base_fee` (ex. 8 km = 1000) ;
+     * - jusqu'à `included_km`      : `base_fee` (ex. 10 km = 1000) ;
+     * - `included_km` → `discount_km` : +`per_km`/km (ex. 11 km = 1125, 12 km = 1250) ;
+     * - au-delà de `discount_km`   : +`discounted_per_km`/km (tarif réduit).
+     */
+    public function feeForDistance(float $distanceKm): int
+    {
+        $config = config('beninfood.delivery_pricing');
+
+        $minFee = (int) $config['min_fee'];
+        $baseFee = (int) $config['base_fee'];
+        $flatKm = (float) $config['flat_km'];
+        $baseKm = (float) $config['base_km'];
+        $includedKm = (float) $config['included_km'];
+        $perKm = (int) $config['per_km'];
+        $discountKm = (float) $config['discount_km'];
+        $discountedPerKm = (int) $config['discounted_per_km'];
+
+        if ($distanceKm <= $flatKm) {
+            return $minFee;
+        }
+
+        if ($distanceKm <= $baseKm) {
+            $span = max($baseKm - $flatKm, 0.0001);
+            $ratio = ($distanceKm - $flatKm) / $span;
+
+            return (int) round($minFee + ($baseFee - $minFee) * $ratio);
+        }
+
+        if ($distanceKm <= $includedKm) {
+            return $baseFee;
+        }
+
+        if ($distanceKm <= $discountKm) {
+            return $baseFee + (int) round($perKm * ($distanceKm - $includedKm));
+        }
+
+        $feeAtDiscountKm = $baseFee + $perKm * ($discountKm - $includedKm);
+
+        return (int) round($feeAtDiscountKm + $discountedPerKm * ($distanceKm - $discountKm));
     }
 
     /**
@@ -161,6 +221,10 @@ class DeliveryPricingService
             'is_vendor_specific' => $rate->vendor_id !== null,
             'effective_from' => $rate->effective_from?->toIso8601String(),
             'effective_to' => $rate->effective_to?->toIso8601String(),
+            'delivery_fee' => (int) $quote['delivery_fee'],
+            'distance_km' => ($quote['distance_km'] ?? null) !== null
+                ? round($quote['distance_km'], 2)
+                : null,
             'computed_at' => now()->toIso8601String(),
         ];
     }

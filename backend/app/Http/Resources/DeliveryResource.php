@@ -13,11 +13,26 @@ class DeliveryResource extends JsonResource
         $loaded = $this->resource->relationLoaded('order');
         $order = $loaded ? $this->order : null;
 
+        // La part livreur est figée à la préparation de la commande ; on retombe
+        // sur la ventilation financière de la commande, puis sur un calcul
+        // (frais − commission) pour les courses historiques (partner_amount à 0).
+        $partnerAmount = (int) $this->partner_amount;
+
+        if ($partnerAmount === 0 && $order !== null && $order->relationLoaded('financials')) {
+            $partnerAmount = (int) ($order->financials?->delivery_partner_amount ?? 0);
+        }
+
+        if ($partnerAmount === 0 && (int) $this->fee > 0) {
+            $rate = (int) config('beninfood.delivery_commission.rate', 20);
+            $commission = (int) round((int) $this->fee * $rate / 100);
+            $partnerAmount = (int) $this->fee - $commission;
+        }
+
         return [
             'id' => $this->id,
             'status' => $this->status?->value,
             'fee' => $this->fee,
-            'partner_amount' => $this->partner_amount,
+            'partner_amount' => $partnerAmount,
             'currency' => $order !== null ? ($order->currency ?? 'XOF') : 'XOF',
             'order' => $this->whenLoaded('order', fn () => [
                 'id' => $order->id,

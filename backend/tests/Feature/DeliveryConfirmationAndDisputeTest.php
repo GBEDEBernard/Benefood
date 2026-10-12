@@ -99,6 +99,48 @@ class DeliveryConfirmationAndDisputeTest extends TestCase
         $this->assertNotNull($order->fresh()->delivery_confirmed_at);
     }
 
+    public function test_online_payment_releases_funds_when_driver_marks_delivered(): void
+    {
+        $client = User::factory()->create();
+        $vendor = Vendor::factory()->create(['status' => 'active']);
+        $order = $this->orderWithFinancials($client, $vendor);
+        $order->update(['payment_method' => 'online']);
+
+        $orders = app(OrderService::class);
+        $orders->confirmPayment($order, $order->total);
+
+        $driver = DriverProfile::factory()->create([
+            'user_id' => User::factory()->create()->id,
+            'status' => 'active',
+            'available' => true,
+        ]);
+
+        Delivery::create([
+            'order_id' => $order->id,
+            'driver_profile_id' => $driver->id,
+            'vendor_id' => $vendor->id,
+            'status' => 'in_delivery',
+            'fee' => $order->delivery_fee,
+            'partner_amount' => $order->financials->delivery_partner_amount,
+        ]);
+
+        $order->update(['status' => OrderStatus::InDelivery->value]);
+
+        $finance = app(FinanceService::class);
+        $finance->creditDriverForDelivery($order->fresh('financials'), $driver);
+
+        $orders->markDelivered($order->fresh(['delivery.driverProfile']));
+
+        $delivered = $order->fresh();
+        $this->assertNotNull($delivered->delivery_confirmed_at);
+        $this->assertNull($delivered->auto_confirm_at);
+
+        $this->assertSame(0, (int) $finance->walletFor($vendor)->fresh()->pending_balance);
+        $this->assertSame(4500, (int) $finance->walletFor($vendor)->fresh()->available_balance);
+        $this->assertSame(0, (int) $finance->walletFor($driver)->fresh()->pending_balance);
+        $this->assertSame(800, (int) $finance->walletFor($driver)->fresh()->available_balance);
+    }
+
     public function test_auto_confirm_releases_after_deadline(): void
     {
         $client = User::factory()->create();

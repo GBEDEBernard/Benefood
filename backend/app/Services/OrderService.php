@@ -378,7 +378,7 @@ class OrderService
                     'zone_id' => $order->zone_id,
                     'status' => DeliveryStatus::Assigned->value,
                     'fee' => $order->delivery_fee,
-                    'partner_amount' => 0,
+                    'partner_amount' => (int) ($order->financials?->delivery_partner_amount ?? 0),
                     'assigned_at' => now(),
                 ]);
             }
@@ -471,11 +471,14 @@ class OrderService
         $this->assertTransition($order, OrderStatus::Delivered);
 
         $from = $order->status;
+        $isCash = (bool) $order->payment_method?->isCash();
 
         $order->update([
             'status' => OrderStatus::Delivered->value,
             'delivered_at' => now(),
-            'auto_confirm_at' => now()->addMinutes((int) config('beninfood.orders.delivery_auto_confirm_minutes', 30)),
+            'auto_confirm_at' => $isCash
+                ? now()->addMinutes((int) config('beninfood.orders.delivery_auto_confirm_minutes', 30))
+                : null,
         ]);
 
         if ($order->delivery->exists()) {
@@ -487,12 +490,25 @@ class OrderService
 
         $this->logTransition($order, $from, OrderStatus::Delivered, 'driver', $actorId, null);
 
-        // Cahier v1.0 : le séquestre est libéré à la confirmation du client
-        // (ou automatiquement après le délai) — cf. confirmDelivery().
-        // Commande cash : le livreur encaisse sur place, le règlement est
-        // immédiat (flottant débité, parts vendeur/livreur payées).
-        if ($order->payment_method?->isCash() && $order->delivery?->driverProfile) {
-            $this->cash->settle($order->fresh('financials'), $order->delivery->driverProfile);
+        if ($isCash) {
+            // Commande cash : le livreur encaisse sur place, le règlement est
+            // immédiat (flottant débité, parts vendeur/livreur payées).
+            if ($order->delivery?->driverProfile) {
+                $this->cash->settle($order->fresh('financials'), $order->delivery->driverProfile);
+            }
+        } else {
+            // Paiement en ligne déjà encaissé : dès que le livreur ratifie la
+            // fin de course, les séquestres vendeur + livreur sont libérés dans
+            // leurs portefeuilles respectifs (plus d'attente de la confirmation
+            // client ni du délai d'auto-confirmation).
+            $order->update([
+                'delivery_confirmed_at' => now(),
+                'auto_confirm_at' => null,
+            ]);
+
+            $this->logTransition($order, OrderStatus::Delivered, OrderStatus::Delivered, 'driver', $actorId, 'Réception confirmée à la livraison');
+
+            $this->finance->releaseOrderFunds($order->fresh(['financials', 'vendor', 'delivery.driverProfile']));
         }
 
         $this->notifications->notifyEvent('order.delivered', [$order->user], [

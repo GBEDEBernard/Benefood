@@ -83,7 +83,7 @@ class DeliveryService
             ->whereNull('driver_profile_id')
             ->where('status', DeliveryStatus::Assigned->value)
             ->whereHas('order', fn ($query) => $query->where('status', OrderStatus::Ready->value))
-            ->with(['order.vendor', 'order.user', 'vendor', 'zone'])
+            ->with(['order.vendor', 'order.user', 'order.financials', 'vendor', 'zone'])
             ->orderByDesc('created_at')
             ->get();
     }
@@ -110,7 +110,7 @@ class DeliveryService
             'created_at' => now(),
         ]);
 
-        return $delivery->fresh(['order.vendor', 'order.user', 'vendor', 'driverProfile']);
+        return $delivery->fresh(['order.vendor', 'order.user', 'order.financials', 'vendor', 'driverProfile']);
     }
 
     /**
@@ -150,7 +150,7 @@ class DeliveryService
             'created_at' => now(),
         ]);
 
-        return $delivery->fresh(['order.vendor', 'order.user', 'vendor', 'driverProfile']);
+        return $delivery->fresh(['order.vendor', 'order.user', 'order.financials', 'vendor', 'driverProfile']);
     }
 
     /**
@@ -172,7 +172,7 @@ class DeliveryService
             'created_at' => now(),
         ]);
 
-        return $delivery->fresh(['order.vendor', 'order.user', 'vendor', 'driverProfile']);
+        return $delivery->fresh(['order.vendor', 'order.user', 'order.financials', 'vendor', 'driverProfile']);
     }
 
     /**
@@ -207,7 +207,7 @@ class DeliveryService
             'created_at' => now(),
         ]);
 
-        return $delivery->fresh(['order.vendor', 'order.user', 'vendor', 'driverProfile']);
+        return $delivery->fresh(['order.vendor', 'order.user', 'order.financials', 'vendor', 'driverProfile']);
     }
 
     /**

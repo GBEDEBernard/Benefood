@@ -19,6 +19,7 @@ use App\Http\Controllers\Api\ParcelController;
 use App\Http\Controllers\Api\PaymentController;
 use App\Http\Controllers\Api\RefundController;
 use App\Http\Controllers\Api\ReviewController;
+use App\Http\Controllers\Api\RouteController;
 use App\Http\Controllers\Api\VendorController;
 use App\Http\Controllers\Api\VendorProductController;
 use App\Http\Controllers\Api\VendorRevenueController;
@@ -64,6 +65,9 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::patch('/me/payment-methods/{paymentMethod}', [MeController::class, 'updatePaymentMethod'])->name('api.v1.me.payment-methods.update');
     Route::delete('/me/payment-methods/{paymentMethod}', [MeController::class, 'destroyPaymentMethod'])->name('api.v1.me.payment-methods.destroy');
     Route::get('/me/coupons', [MeController::class, 'coupons'])->name('api.v1.me.coupons.index');
+
+    // ---------- Calcul d'itinéraire routier (navigation livreur / suivi) ----------
+    Route::post('/routes', [RouteController::class, 'plan'])->name('api.v1.routes.plan');
 
     Route::prefix('vendors/me')->group(function (): void {
         Route::post('/onboarding', [VendorController::class, 'onboarding'])->name('api.v1.vendors.me.onboarding');

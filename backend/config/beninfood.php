@@ -51,6 +51,31 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Tarification de la livraison selon la distance (boutique → client)
+    |--------------------------------------------------------------------------
+    | Le prix dépend de la distance réelle boutique → adresse client :
+    | - jusqu'à `flat_km`         : prix minimum `min_fee` (ex. 2 km = 500) ;
+    | - de `flat_km` à `base_km`  : progressif jusqu'à `base_fee` (ex. 8 km = 1000) ;
+    | - jusqu'à `included_km`     : `base_fee` (ex. 10 km = 1000) ;
+    | - au-delà de `included_km`  : +`per_km` par km (ex. 11 km = 1125, 12 km = 1250) ;
+    | - au-delà de `discount_km`  : +`discounted_per_km` par km (tarif réduit).
+    | Si la distance n'est pas calculable (coordonnées manquantes), on retombe
+    | sur le tarif de la zone configurée, sinon `default_fee`.
+    */
+    'delivery_pricing' => [
+        'min_fee' => (int) env('BENINFOOD_DELIVERY_MIN_FEE', 500),
+        'flat_km' => (float) env('BENINFOOD_DELIVERY_FLAT_KM', 3),
+        'base_km' => (float) env('BENINFOOD_DELIVERY_BASE_KM', 8),
+        'base_fee' => (int) env('BENINFOOD_DELIVERY_BASE_FEE', 1000),
+        'included_km' => (float) env('BENINFOOD_DELIVERY_INCLUDED_KM', 10),
+        'per_km' => (int) env('BENINFOOD_DELIVERY_PER_KM', 125),
+        'discount_km' => (float) env('BENINFOOD_DELIVERY_DISCOUNT_KM', 15),
+        'discounted_per_km' => (int) env('BENINFOOD_DELIVERY_DISCOUNTED_PER_KM', 75),
+        'default_fee' => (int) env('BENINFOOD_DELIVERY_DEFAULT_FEE', 1000),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Frais de la passerelle de paiement (coût plateforme)
     |--------------------------------------------------------------------------
     | Taux en pourcentage du montant payé par le client, absorbé par la
@@ -183,6 +208,25 @@ return [
         'public_key' => env('KKIAPAY_PUBLIC_KEY'),
         'private_key' => env('KKIAPAY_PRIVATE_KEY'),
         'secret' => env('KKIAPAY_SECRET'),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Calcul d'itinéraires (navigation GPS livreur / suivi client)
+    |--------------------------------------------------------------------------
+    | Le tracé routier est calculé côté serveur puis renvoyé à l'app sous forme
+    | de polyligne. Fournisseur par défaut : Google Routes API (mode deux-roues,
+    | utilisé dès que `google_key` est renseigné), sinon OSRM (routage routier
+    | gratuit, sans clé), avec un repli « ligne droite » si aucun réseau.
+    */
+    'routing' => [
+        'google_key' => env('GOOGLE_MAPS_API_KEY'),
+        'google_url' => env('BENINFOOD_GOOGLE_ROUTES_URL', 'https://routes.googleapis.com/directions/v2:computeRoutes'),
+        'osrm_url' => rtrim((string) env('BENINFOOD_OSRM_URL', 'https://router.project-osrm.org'), '/'),
+        'timeout' => (int) env('BENINFOOD_ROUTING_TIMEOUT', 6),
+        'cache_ttl' => (int) env('BENINFOOD_ROUTING_CACHE_TTL', 120),
+        // Vitesse moyenne de repli (km/h) pour l'estimation « ligne droite ».
+        'fallback_speed_kmh' => (int) env('BENINFOOD_ROUTING_FALLBACK_SPEED', 22),
     ],
 
     /*
