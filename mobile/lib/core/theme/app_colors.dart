@@ -23,6 +23,9 @@ class AppColors {
   static const Color green = Color(0xFF1A5B2E);
   static const Color greenLight = Color(0xFFE3F1EA);
 
+  // --- Bleu d'itinéraire (#1414FF) ---
+  static const Color blue = Color(0xFF1414FF);
+
   // --- Fond beige clair (#F9F6F0) ---
   static const Color ivory = Color(0xFFF9F6F0);
 

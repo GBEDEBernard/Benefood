@@ -1,16 +1,36 @@
 import 'geo_point.dart';
 
 class OrderVendor {
-  const OrderVendor({required this.id, required this.businessName, this.logoUrl});
+  const OrderVendor({
+    required this.id,
+    required this.businessName,
+    this.logoUrl,
+    this.address,
+    this.city,
+    this.latitude,
+    this.longitude,
+  });
 
   final String id;
   final String businessName;
   final String? logoUrl;
+  final String? address;
+  final String? city;
+  final double? latitude;
+  final double? longitude;
+
+  /// Point de la boutique (point de collecte) si géolocalisée.
+  GeoPoint? get point =>
+      latitude != null && longitude != null ? GeoPoint(latitude!, longitude!) : null;
 
   factory OrderVendor.fromJson(Map<String, dynamic> json) => OrderVendor(
         id: _s(json['id']),
         businessName: _s(json['business_name']),
         logoUrl: json['logo_url'] is String ? json['logo_url'] as String : null,
+        address: json['address'] is String ? json['address'] as String : null,
+        city: json['city'] is String ? json['city'] as String : null,
+        latitude: _dNull(json['latitude']),
+        longitude: _dNull(json['longitude']),
       );
 }
 

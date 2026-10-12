@@ -1,11 +1,18 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../../core/data/marketplace_api.dart';
 import '../../../core/errors/api_exception.dart';
+import '../../../core/services/location_service.dart';
+import '../../../core/services/route_planner.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_dimens.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/geo.dart';
 import '../../../shared/models/delivery.dart';
+import '../../../shared/models/geo_point.dart';
+import '../../../shared/models/route_plan.dart';
 import '../../../shared/widgets/amount_widgets.dart';
 import '../../../shared/widgets/app_map.dart';
 import '../../../shared/widgets/feedback_widgets.dart';
@@ -30,10 +37,69 @@ class _OffersScreenState extends State<OffersScreen> {
   String? _error;
   String? _actionId;
 
+  /// Position GPS du livreur : origine de l'aperçu d'itinéraire de chaque offre.
+  GeoPoint? _position;
+  StreamSubscription<GeoResult>? _positionSub;
+
+  late final RoutePlanner _routePlanner;
+  final Map<String, RoutePlan> _offerRoutes = {};
+
   @override
   void initState() {
     super.initState();
+    _routePlanner = RoutePlanner(widget.marketplace);
     _load();
+    _startPositionStream();
+  }
+
+  @override
+  void dispose() {
+    _positionSub?.cancel();
+    super.dispose();
+  }
+
+  void _startPositionStream() {
+    _positionSub = LocationService.watch().listen(
+      (geo) {
+        if (!mounted) {
+          return;
+        }
+        setState(() => _position = GeoPoint(geo.latitude, geo.longitude));
+        _updateRoutes();
+      },
+      onError: (_) {
+        // Permission / GPS indisponible : la carte reste sur l'offre seule.
+      },
+    );
+  }
+
+  /// Calcule (ou met en cache) l'itinéraire livreur → point de collecte de
+  /// chaque offre, pour situer le retrait et la livraison avant d'accepter.
+  Future<void> _updateRoutes() async {
+    final position = _position;
+    if (position == null || _offers.isEmpty) {
+      return;
+    }
+
+    final entries = await Future.wait(_offers.map((offer) async {
+      final pickup = offer.pickupPoint;
+      if (pickup == null) {
+        return null;
+      }
+      final plan = await _routePlanner.plan([position, pickup]);
+      return plan == null ? null : MapEntry(offer.id, plan);
+    }));
+
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      for (final entry in entries) {
+        if (entry != null) {
+          _offerRoutes[entry.key] = entry.value;
+        }
+      }
+    });
   }
 
   Future<void> _load() async {
@@ -52,6 +118,7 @@ class _OffersScreenState extends State<OffersScreen> {
           _offers = offers;
           _loading = false;
         });
+        _updateRoutes();
       }
     } on ApiException catch (e) {
       if (mounted) {
@@ -228,6 +295,8 @@ class _OffersScreenState extends State<OffersScreen> {
                 ),
                 child: _OfferCard(
                   offer: offer,
+                  origin: _position,
+                  route: _offerRoutes[offer.id],
                   busy: _actionId == offer.id,
                   onAccept: () => _accept(offer),
                   onDecline: () => _decline(offer),
@@ -247,9 +316,18 @@ class _OfferCard extends StatefulWidget {
     required this.busy,
     required this.onAccept,
     required this.onDecline,
+    this.origin,
+    this.route,
   });
 
   final Delivery offer;
+
+  /// Position GPS courante du livreur (aperçu avant acceptation).
+  final GeoPoint? origin;
+
+  /// Itinéraire routier livreur → point de collecte (si calculé).
+  final RoutePlan? route;
+
   final bool busy;
   final VoidCallback onAccept;
   final VoidCallback onDecline;
@@ -260,6 +338,30 @@ class _OfferCard extends StatefulWidget {
 
 class _OfferCardState extends State<_OfferCard> {
   bool _hover = false;
+
+  /// Distance livreur → point de collecte (itinéraire routier, sinon vol d'oiseau).
+  double? get _pickupDistanceKm {
+    final route = widget.route;
+    if (route != null && route.distanceMeters > 0) {
+      return route.distanceKm;
+    }
+    final origin = widget.origin;
+    final pickup = widget.offer.pickupPoint;
+    if (origin != null && pickup != null) {
+      return distanceKm(origin.latLng, pickup.latLng);
+    }
+    return null;
+  }
+
+  String _pickupGuidance() {
+    final km = _pickupDistanceKm;
+    if (km == null) {
+      return 'Position en cours d\'acquisition…';
+    }
+    final minutes = widget.route?.etaMinutes ?? estimateMinutes(km);
+    final label = '${formatGeoDistance(km)} jusqu\'au retrait';
+    return minutes == null ? label : '$label · ~${formatEta(minutes)}';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -349,18 +451,48 @@ class _OfferCardState extends State<_OfferCard> {
                   ],
                 ),
               ],
-              // Aperçu cartographique de l'offre : le livreur voit la zone de
-              // collecte et l'adresse de livraison avant d'accepter.
+              // Aperçu cartographique de l'offre : le livreur se situe (moto) par
+              // rapport à la boutique (collecte) et à l'adresse du client, avec
+              // l'itinéraire et la distance avant d'accepter la course.
               if (widget.offer.pickupPoint != null || widget.offer.dropoffPoint != null) ...[
                 const SizedBox(height: AppDimens.sm),
                 AppMap(
+                  origin: widget.origin,
+                  originLabel: 'Vous',
                   target: widget.offer.pickupPoint,
+                  targetLabel: widget.offer.vendor?.businessName ?? 'Boutique',
+                  targetIcon: Icons.storefront_outlined,
+                  targetColor: AppColors.gold,
                   secondary: widget.offer.dropoffPoint,
-                  height: 130,
+                  secondaryLabel: widget.offer.order?.client?.name ?? 'Client',
+                  secondaryIcon: Icons.place,
+                  secondaryColor: AppColors.orange,
+                  route: widget.route?.latLng,
+                  routeColor: AppColors.blue,
+                  height: 150,
                   initialZoom: 12,
-                  followOrigin: false,
-                  showRoute: false,
+                  followOrigin: true,
+                  showRoute: widget.route == null,
                 ),
+                if (widget.origin != null && widget.offer.pickupPoint != null) ...[
+                  const SizedBox(height: AppDimens.xs),
+                  Row(
+                    children: [
+                      const Icon(Icons.near_me_outlined, size: 15, color: AppColors.orange),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          _pickupGuidance(),
+                          style: const TextStyle(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.orangeDark,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ],
               if (widget.offer.order?.address != null && widget.offer.order!.address!.isNotEmpty) ...[
                 const SizedBox(height: AppDimens.xs),

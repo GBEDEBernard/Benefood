@@ -1,15 +1,18 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:latlong2/latlong.dart';
 
 import '../../../core/data/marketplace_api.dart';
 import '../../../core/errors/api_exception.dart';
 import '../../../core/services/location_service.dart';
+import '../../../core/services/route_planner.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_dimens.dart';
 import '../../../core/utils/geo.dart';
 import '../../../shared/models/delivery.dart';
 import '../../../shared/models/geo_point.dart';
+import '../../../shared/models/route_plan.dart';
 import '../../../shared/widgets/app_button.dart';
 import '../../../shared/widgets/app_map.dart';
 import '../../../shared/widgets/amount_widgets.dart';
@@ -53,11 +56,22 @@ class _MissionDetailScreenState extends State<MissionDetailScreen>
 
   StreamSubscription<GeoResult>? _positionSubscription;
 
+  late final RoutePlanner _routePlanner;
+
+  /// Itinéraire routier réel et la cible pour laquelle il a été calculé.
+  RoutePlan? _route;
+  GeoPoint? _routeTarget;
+
+  /// Tronçon livraison boutique → client (tracé bleu, en complément du tronçon
+  /// actif), pour visualiser tout le trajet de la course.
+  RoutePlan? _deliveryLeg;
+
   static const _activeStatuses = {'assigned', 'picked_up', 'in_delivery'};
 
   @override
   void initState() {
     super.initState();
+    _routePlanner = RoutePlanner(widget.marketplace);
     _delivery = widget.initialDelivery;
     _load();
     _startPositionStream();
@@ -80,6 +94,7 @@ class _MissionDetailScreenState extends State<MissionDetailScreen>
           return;
         }
         setState(() => _position = GeoPoint(geo.latitude, geo.longitude));
+        _updateRoute();
       },
       onError: (_) {
         // Permission refusée / GPS coupé : la carte reste sur la destination.
@@ -132,6 +147,45 @@ class _MissionDetailScreenState extends State<MissionDetailScreen>
       return null;
     }
     return bearingDegrees(position.latLng, target.latLng);
+  }
+
+  /// Calcule les itinéraires routiers réels : le tronçon actif (livreur → cible
+  /// courante) et le tronçon livraison boutique → client.
+  Future<void> _updateRoute() async {
+    final delivery = _delivery;
+    final shop = delivery?.pickupPoint;
+    final dropoff = delivery?.dropoffPoint;
+
+    // Tronçon livraison, indépendant de la position du livreur.
+    if (shop != null && dropoff != null) {
+      final leg = await _routePlanner.plan([shop, dropoff]);
+      if (!mounted) {
+        return;
+      }
+      setState(() => _deliveryLeg = leg);
+    }
+
+    final target = _target;
+    final position = _position;
+    if (target == null || position == null) {
+      return;
+    }
+    final plan = await _routePlanner.plan([position, target]);
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _route = plan;
+      _routeTarget = target;
+    });
+  }
+
+  /// Itinéraire à tracer uniquement s'il correspond à la cible courante.
+  List<LatLng>? get _activeRoute {
+    if (_route == null || _routeTarget != _target) {
+      return null;
+    }
+    return _route!.latLng;
   }
 
   Future<void> _sendLocation() async {
@@ -200,6 +254,7 @@ class _MissionDetailScreenState extends State<MissionDetailScreen>
           _loading = false;
         });
         _syncLocationReporting();
+        _updateRoute();
       }
     } on ApiException catch (e) {
       if (mounted) {
@@ -221,6 +276,7 @@ class _MissionDetailScreenState extends State<MissionDetailScreen>
           _actionLoading = false;
         });
         _syncLocationReporting();
+        _updateRoute();
         showToast(context, successMessage);
       }
     } on ApiException catch (e) {
@@ -408,10 +464,19 @@ class _MissionDetailScreenState extends State<MissionDetailScreen>
           const SizedBox(height: AppDimens.sm),
           AppMap(
             origin: _position,
-            target: _target,
-            secondary: _isPickupPhase ? _delivery?.dropoffPoint : _delivery?.pickupPoint,
-            secondaryLabel: _isPickupPhase ? 'Livraison' : 'Collecte',
-            height: 250,
+            originLabel: 'Vous',
+            target: delivery.dropoffPoint,
+            targetLabel: delivery.order?.client?.name ?? 'Client',
+            targetIcon: Icons.place,
+            targetColor: AppColors.orange,
+            secondary: delivery.pickupPoint,
+            secondaryLabel: delivery.vendor?.businessName ?? 'Boutique',
+            secondaryIcon: Icons.storefront_outlined,
+            secondaryColor: AppColors.gold,
+            route: _activeRoute,
+            routeColor: AppColors.blue,
+            extraRoute: _deliveryLeg?.latLng,
+            height: 280,
             followOrigin: true,
           ),
           const SizedBox(height: AppDimens.md),
@@ -463,7 +528,7 @@ class _MissionDetailScreenState extends State<MissionDetailScreen>
             ),
           if (status == 'in_delivery')
             AppButton(
-              label: 'Livrer',
+              label: 'Course terminée',
               icon: Icons.check_circle_outline,
               onPressed: _actionLoading ? null : _deliver,
               loading: _actionLoading,

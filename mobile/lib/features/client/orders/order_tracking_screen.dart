@@ -5,12 +5,16 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/data/marketplace_api.dart';
 import '../../../core/errors/api_exception.dart';
+import '../../../core/services/location_service.dart';
+import '../../../core/services/route_planner.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_dimens.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../core/utils/geo.dart';
+import '../../../shared/models/geo_point.dart';
 import '../../../shared/models/order.dart';
+import '../../../shared/models/route_plan.dart';
 import '../../../shared/widgets/app_button.dart';
 import '../../../shared/widgets/app_map.dart';
 import '../../../shared/widgets/amount_widgets.dart';
@@ -31,7 +35,7 @@ class OrderTrackingScreen extends StatefulWidget {
 }
 
 class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
-  static const _pollInterval = Duration(seconds: 15);
+  static const _pollInterval = Duration(seconds: 5);
 
   Order? _order;
   bool _loading = true;
@@ -41,16 +45,91 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
   Timer? _pollTimer;
   bool _polling = false;
 
+  /// Position GPS du client (pour se situer par rapport à la boutique).
+  GeoPoint? _selfPosition;
+  StreamSubscription<GeoResult>? _positionSub;
+
+  late final RoutePlanner _routePlanner;
+  RoutePlan? _route;
+
+  /// Tronçon boutique → client (tracé bleu) affiché en complément du tronçon actif.
+  RoutePlan? _deliveryLeg;
+
   @override
   void initState() {
     super.initState();
+    _routePlanner = RoutePlanner(widget.marketplace);
     _load();
+    _startPositionStream();
   }
 
   @override
   void dispose() {
     _pollTimer?.cancel();
+    _positionSub?.cancel();
     super.dispose();
+  }
+
+  /// Suit la position du client : son marqueur se déplace en direct sur la carte.
+  void _startPositionStream() {
+    _positionSub = LocationService.watch().listen(
+      (geo) {
+        if (!mounted) {
+          return;
+        }
+        setState(() => _selfPosition = GeoPoint(geo.latitude, geo.longitude));
+        _updateRoute();
+      },
+      onError: (_) {
+        // Permission refusée / GPS coupé : la carte reste sur les points connus.
+      },
+    );
+  }
+
+  /// Point de la boutique (point de collecte) depuis le vendeur de la commande.
+  GeoPoint? _shopPoint(Order order) => order.vendor?.point;
+
+  /// Extrémités du tracé : livreur → adresse pendant la course, sinon moi → boutique.
+  List<GeoPoint>? _routeEndpoints(Order order) {
+    final driver = order.delivery?.position?.point;
+    final dropoff = order.dropoffPoint;
+    if (driver != null && dropoff != null) {
+      return [driver, dropoff];
+    }
+    final self = _selfPosition;
+    final shop = _shopPoint(order);
+    if (self != null && shop != null) {
+      return [self, shop];
+    }
+    return null;
+  }
+
+  Future<void> _updateRoute() async {
+    final order = _order;
+    if (order == null) {
+      return;
+    }
+
+    // Tronçon boutique → client (indépendant de la position affichée).
+    final shop = _shopPoint(order);
+    final dropoff = order.dropoffPoint;
+    if (shop != null && dropoff != null) {
+      final leg = await _routePlanner.plan([shop, dropoff]);
+      if (!mounted) {
+        return;
+      }
+      setState(() => _deliveryLeg = leg);
+    }
+
+    final points = _routeEndpoints(order);
+    if (points == null) {
+      return;
+    }
+    final plan = await _routePlanner.plan(points);
+    if (!mounted) {
+      return;
+    }
+    setState(() => _route = plan);
   }
 
   bool get _shouldPoll => _order?.delivery?.isTracking ?? false;
@@ -74,6 +153,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
           _order = order;
           _error = null;
         });
+        _updateRoute();
       }
     } on ApiException {
       // Silence : on ne coupe pas le suivi si un rafraîchissement échoue.
@@ -98,6 +178,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
           _loading = false;
         });
         _schedulePolling();
+        _updateRoute();
       }
     } on ApiException catch (e) {
       if (mounted) {
@@ -246,23 +327,79 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
     };
   }
 
-  /// Carte de suivi : position du livreur (mise à jour toutes les 15 s) et
-  /// adresse de livraison. Masquée tant qu'aucune coordonnée n'est disponible.
+  /// Carte de suivi « ultra pro ».
+  ///
+  /// - Avant l'affectation d'un livreur : ma position (point bleu) → boutique,
+  ///   pour que le client se situe par rapport au lieu de sa commande.
+  /// - Pendant la course : position du livreur (moto) → adresse de livraison,
+  ///   tracé routier réel et mise à jour toutes les 5 s.
   Widget _liveTrackingMap(Order order) {
-    final position = order.delivery?.position;
+    final driver = order.delivery?.position?.point;
     final dropoff = order.dropoffPoint;
-    final origin = position?.point;
+    final shop = _shopPoint(order);
+    final self = _selfPosition;
 
-    if (origin == null && dropoff == null) {
+    if (driver != null && dropoff != null) {
+      return AppMap(
+        origin: driver,
+        originLabel: order.delivery?.driver?.name ?? 'Livreur',
+        target: dropoff,
+        targetLabel: 'Vous',
+        targetIcon: Icons.place,
+        targetColor: AppColors.orange,
+        secondary: shop,
+        secondaryLabel: order.vendor?.businessName ?? 'Boutique',
+        secondaryIcon: Icons.storefront_outlined,
+        secondaryColor: AppColors.gold,
+        route: _route?.latLng,
+        routeColor: AppColors.blue,
+        extraRoute: _deliveryLeg?.latLng,
+        height: 240,
+        followOrigin: true,
+      );
+    }
+
+    if (self != null && shop != null) {
+      return AppMap(
+        origin: self,
+        originIsDriver: false,
+        originLabel: 'Vous',
+        target: shop,
+        targetLabel: order.vendor?.businessName ?? 'Boutique',
+        targetIcon: Icons.storefront_outlined,
+        targetColor: AppColors.gold,
+        secondary: dropoff,
+        secondaryLabel: 'Adresse de livraison',
+        secondaryIcon: Icons.place,
+        secondaryColor: AppColors.orange,
+        route: _route?.latLng,
+        routeColor: AppColors.blue,
+        height: 240,
+        followOrigin: true,
+      );
+    }
+
+    if (shop == null && dropoff == null) {
       return const SizedBox.shrink();
     }
 
     return AppMap(
-      origin: origin,
-      target: dropoff,
-      height: 230,
-      followOrigin: false,
-      originLabel: order.delivery?.driver?.name ?? 'Livreur',
+      origin: self,
+      originIsDriver: false,
+      originLabel: 'Vous',
+      target: shop ?? dropoff,
+      targetLabel: shop != null
+          ? (order.vendor?.businessName ?? 'Boutique')
+          : 'Adresse de livraison',
+      targetIcon: shop != null ? Icons.storefront_outlined : Icons.place,
+      targetColor: shop != null ? AppColors.gold : AppColors.orange,
+      secondary: shop != null ? dropoff : null,
+      secondaryIcon: Icons.place,
+      secondaryColor: AppColors.orange,
+      routeColor: AppColors.blue,
+      height: 240,
+      followOrigin: self != null,
+      openInMaps: false,
     );
   }
 

@@ -6,8 +6,10 @@ import '../../shared/models/checkout.dart';
 import '../../shared/models/complaint.dart';
 import '../../shared/models/delivery.dart';
 import '../../shared/models/order.dart';
+import '../../shared/models/geo_point.dart';
 import '../../shared/models/parcel.dart';
 import '../../shared/models/product.dart';
+import '../../shared/models/route_plan.dart';
 import '../../shared/models/user.dart';
 import '../../shared/models/vendor.dart';
 
@@ -257,6 +259,18 @@ class MarketplaceApi {
       if (longitude != null) 'longitude': longitude,
     });
     return _dataObject(response) ?? {};
+  }
+
+  /// Itinéraire routier passant par [points] (2 à 10) ; `moto` par défaut.
+  Future<RoutePlan> routePlan(List<GeoPoint> points, {String profile = 'moto'}) async {
+    final response = await _api.post('/routes', body: {
+      'profile': profile,
+      'points': [
+        for (final point in points)
+          {'latitude': point.latitude, 'longitude': point.longitude},
+      ],
+    });
+    return RoutePlan.fromJson(_dataObject(response) ?? {});
   }
 
   Future<Map<String, dynamic>> updateDriverLocation(double latitude, double longitude) async {

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_dimens.dart';
@@ -9,9 +10,11 @@ import '../models/geo_point.dart';
 
 /// Carte de localisation réutilisable (J162 / J177).
 ///
-/// Affiche la position courante (`origin`, le livreur), la destination active
-/// (`target`) et un point secondaire (`secondary`, ex. point de collecte).
-/// Le tracé `origin` → `target` matérialise le trajet à effectuer.
+/// Affiche la position courante (`origin`, le livreur ou l'utilisateur), la
+/// destination active (`target`) et un point secondaire (`secondary`, ex. point
+/// de collecte). Le tracé peut suivre les routes réelles via [route] (polyligne
+/// renvoyée par le backend) ; à défaut, un segment direct `origin` → `target`
+/// est dessiné. La portion déjà parcourue ([travelled]) s'affiche en gris.
 class AppMap extends StatefulWidget {
   const AppMap({
     super.key,
@@ -25,6 +28,18 @@ class AppMap extends StatefulWidget {
     this.followOrigin = true,
     this.initialZoom = 14,
     this.showRoute = true,
+    this.route,
+    this.routeColor,
+    this.extraRoute,
+    this.travelled,
+    this.originIsDriver = true,
+    this.openInMaps = false,
+    this.expandable = true,
+    this.fullscreen = false,
+    this.targetIcon = Icons.place,
+    this.targetColor,
+    this.secondaryIcon = Icons.storefront_outlined,
+    this.secondaryColor,
   });
 
   /// Position de l'utilisateur (livreur) : `null` si inconnue.
@@ -47,8 +62,40 @@ class AppMap extends StatefulWidget {
 
   final double initialZoom;
 
-  /// Trace le segment [origin] -> [target].
+  /// Trace un segment direct [origin] -> [target] si [route] est absent.
   final bool showRoute;
+
+  /// Itinéraire routier réel (polyligne) à tracer à la place du segment direct.
+  final List<LatLng>? route;
+
+  /// Couleur du tracé actif ([route]). Par défaut : orange.
+  final Color? routeColor;
+
+  /// Second itinéraire (ex. tronçon complémentaire) tracé en bleu atténué.
+  final List<LatLng>? extraRoute;
+
+  /// Portion déjà parcourue de l'itinéraire (tracée en gris atténué).
+  final List<LatLng>? travelled;
+
+  /// `true` : marqueur moto pour [origin] (livreur) ; `false` : point bleu « moi ».
+  final bool originIsDriver;
+
+  /// Affiche un bouton « Ouvrir dans Google Maps » (navigation guidée).
+  final bool openInMaps;
+
+  /// Affiche un bouton pour agrandir la carte plein écran (dans l'application).
+  final bool expandable;
+
+  /// Rendu plein écran : la carte remplit l'écran et affiche un bouton fermer.
+  final bool fullscreen;
+
+  /// Icône et couleur du marqueur cible (destination principale).
+  final IconData targetIcon;
+  final Color? targetColor;
+
+  /// Icône et couleur du marqueur secondaire (boutique, adresse…).
+  final IconData secondaryIcon;
+  final Color? secondaryColor;
 
   @override
   State<AppMap> createState() => _AppMapState();
@@ -83,6 +130,98 @@ class _AppMapState extends State<AppMap> {
     }
   }
 
+  /// Points à tracer : l'itinéraire routier fourni, sinon le segment direct
+  /// `origin` → `target` (repli « ligne droite »).
+  List<LatLng> get _routePoints {
+    final route = widget.route;
+    if (route != null && route.length >= 2) {
+      return route;
+    }
+    if (widget.showRoute && widget.origin != null && widget.target != null) {
+      return [widget.origin!.latLng, widget.target!.latLng];
+    }
+    return const [];
+  }
+
+  /// Applique les mêmes données à une carte plein écran (dans l'application).
+  Widget _fullscreenMap() {
+    return AppMap(
+      origin: widget.origin,
+      target: widget.target,
+      secondary: widget.secondary,
+      originLabel: widget.originLabel,
+      targetLabel: widget.targetLabel,
+      secondaryLabel: widget.secondaryLabel,
+      followOrigin: widget.followOrigin,
+      initialZoom: widget.initialZoom,
+      showRoute: widget.showRoute,
+      route: widget.route,
+      routeColor: widget.routeColor,
+      extraRoute: widget.extraRoute,
+      travelled: widget.travelled,
+      originIsDriver: widget.originIsDriver,
+      openInMaps: widget.openInMaps,
+      fullscreen: true,
+      expandable: false,
+      targetIcon: widget.targetIcon,
+      targetColor: widget.targetColor,
+      secondaryIcon: widget.secondaryIcon,
+      secondaryColor: widget.secondaryColor,
+    );
+  }
+
+  /// Ouvre la carte en plein écran, sans quitter l'application.
+  void _openFullscreen() {
+    Navigator.of(context, rootNavigator: true).push(
+      MaterialPageRoute<void>(
+        fullscreenDialog: true,
+        builder: (_) => _FullscreenMapPage(child: _fullscreenMap()),
+      ),
+    );
+  }
+
+  Future<void> _openInGoogleMaps() async {
+    final origin = widget.origin;
+    final target = widget.target;
+    if (origin == null || target == null) {
+      return;
+    }
+    final uri = Uri.parse(
+      'https://www.google.com/maps/dir/?api=1'
+      '&origin=${origin.latitude},${origin.longitude}'
+      '&destination=${target.latitude},${target.longitude}'
+      '&travelmode=two-wheeler',
+    );
+    try {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } catch (_) {
+      // Aucune application de navigation : on ignore silencieusement.
+    }
+  }
+
+  /// Construit un marqueur avec, si fourni, un libellé lisible sous l'icône.
+  Marker _marker({
+    required GeoPoint point,
+    required Widget child,
+    String? label,
+    double size = 40,
+  }) {
+    final hasLabel = label != null && label.trim().isNotEmpty;
+
+    return Marker(
+      point: point.latLng,
+      width: hasLabel ? 140 : size,
+      height: hasLabel ? size + 26 : size,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(width: size, height: size, child: child),
+          if (hasLabel) _MarkerLabel(label.trim()),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final points = <LatLng>[
@@ -92,9 +231,9 @@ class _AppMapState extends State<AppMap> {
     ];
 
     return ClipRRect(
-      borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+      borderRadius: BorderRadius.circular(widget.fullscreen ? 0 : AppDimens.radiusMd),
       child: SizedBox(
-        height: widget.height,
+        height: widget.fullscreen ? double.infinity : widget.height,
         width: double.infinity,
         child: points.isEmpty
             ? const _MapPlaceholder()
@@ -118,53 +257,75 @@ class _AppMapState extends State<AppMap> {
                       ),
                     ),
                     children: [
+                      // Fonds de carte OpenStreetMap : gratuit, sans clé API.
+                      // (Les tuiles CARTO exigent désormais une clé et affichent
+                      // « API key required » sans elle.)
                       TileLayer(
-                        urlTemplate: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
-                        fallbackUrl: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                        subdomains: const ['a', 'b', 'c', 'd'],
+                        urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                         userAgentPackageName: 'com.beninfood.beninfood',
+                        maxNativeZoom: 19,
                         tileDisplay: const TileDisplay.fadeIn(duration: Duration(milliseconds: 150)),
                       ),
-                      if (widget.showRoute &&
-                          widget.origin != null &&
-                          widget.target != null)
+                      if (_routePoints.length >= 2 || (widget.extraRoute?.length ?? 0) >= 2)
                         PolylineLayer(
                           polylines: [
-                            Polyline(
-                              points: [widget.origin!.latLng, widget.target!.latLng],
-                              strokeWidth: 4,
-                              color: AppColors.orange.withValues(alpha: 0.85),
-                              borderStrokeWidth: 1,
-                              borderColor: Colors.white,
-                            ),
+                            // Tronçon complémentaire (ex. boutique → client) : bleu atténué.
+                            if (widget.extraRoute != null && widget.extraRoute!.length >= 2)
+                              Polyline(
+                                points: widget.extraRoute!,
+                                strokeWidth: 4,
+                                color: AppColors.blue.withValues(alpha: 0.45),
+                                borderStrokeWidth: 1,
+                                borderColor: Colors.white,
+                              ),
+                            if (widget.travelled != null && widget.travelled!.length >= 2)
+                              Polyline(
+                                points: widget.travelled!,
+                                strokeWidth: 6,
+                                color: AppColors.textSecondary.withValues(alpha: 0.55),
+                                borderStrokeWidth: 1,
+                                borderColor: Colors.white,
+                              ),
+                            if (_routePoints.length >= 2)
+                              Polyline(
+                                points: _routePoints,
+                                strokeWidth: 5,
+                                color: (widget.routeColor ?? AppColors.orange).withValues(alpha: 0.9),
+                                borderStrokeWidth: 1,
+                                borderColor: Colors.white,
+                              ),
                           ],
                         ),
                       MarkerLayer(
                         markers: [
                           if (widget.secondary != null)
-                            Marker(
-                              point: widget.secondary!.latLng,
-                              width: 34,
-                              height: 34,
+                            _marker(
+                              point: widget.secondary!,
+                              size: 34,
+                              label: widget.secondaryLabel,
                               child: _DotMarker(
-                                color: AppColors.gold,
-                                icon: Icons.storefront_outlined,
+                                color: widget.secondaryColor ?? AppColors.gold,
+                                icon: widget.secondaryIcon,
                               ),
                             ),
                           if (widget.target != null)
-                            Marker(
-                              point: widget.target!.latLng,
-                              width: 40,
-                              height: 40,
-                              alignment: Alignment.center,
-                              child: _PinMarker(color: AppColors.orange, icon: Icons.place),
+                            _marker(
+                              point: widget.target!,
+                              size: 40,
+                              label: widget.targetLabel,
+                              child: _PinMarker(
+                                color: widget.targetColor ?? AppColors.orange,
+                                icon: widget.targetIcon,
+                              ),
                             ),
                           if (widget.origin != null)
-                            Marker(
-                              point: widget.origin!.latLng,
-                              width: 28,
-                              height: 28,
-                              child: const _DriverMarker(),
+                            _marker(
+                              point: widget.origin!,
+                              size: widget.originIsDriver ? 42 : 28,
+                              label: widget.originLabel,
+                              child: widget.originIsDriver
+                                  ? const _MotoMarker()
+                                  : const _DriverMarker(),
                             ),
                         ],
                       ),
@@ -183,6 +344,36 @@ class _AppMapState extends State<AppMap> {
                         },
                       ),
                     ),
+                  if (widget.openInMaps && widget.origin != null && widget.target != null)
+                    Positioned(
+                      right: 8,
+                      bottom: 52,
+                      child: _MapButton(
+                        icon: Icons.directions_outlined,
+                        tooltip: 'Ouvrir dans Google Maps',
+                        onPressed: _openInGoogleMaps,
+                      ),
+                    ),
+                  if (widget.expandable && !widget.fullscreen)
+                    Positioned(
+                      right: 8,
+                      top: 8,
+                      child: _MapButton(
+                        icon: Icons.fullscreen,
+                        tooltip: 'Agrandir la carte',
+                        onPressed: _openFullscreen,
+                      ),
+                    ),
+                  if (widget.fullscreen)
+                    Positioned(
+                      right: 8,
+                      top: 8,
+                      child: _MapButton(
+                        icon: Icons.close,
+                        tooltip: 'Fermer',
+                        onPressed: () => Navigator.of(context).maybePop(),
+                      ),
+                    ),
                   const Positioned(
                     left: 4,
                     bottom: 4,
@@ -195,7 +386,68 @@ class _AppMapState extends State<AppMap> {
   }
 }
 
-/// Marqueur du livreur (point bleu avec halo).
+/// Petit libellé blanc affiché sous un marqueur (livreur, boutique, client…).
+class _MarkerLabel extends StatelessWidget {
+  const _MarkerLabel(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(top: 2),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withValues(alpha: 0.15), blurRadius: 3),
+        ],
+      ),
+      child: Text(
+        text,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        textAlign: TextAlign.center,
+        style: const TextStyle(
+          fontSize: 10,
+          fontWeight: FontWeight.w600,
+          color: AppColors.text,
+        ),
+      ),
+    );
+  }
+}
+
+/// Marqueur du livreur en déplacement (icône moto).
+class _MotoMarker extends StatelessWidget {
+  const _MotoMarker();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.orange.withValues(alpha: 0.22),
+        shape: BoxShape.circle,
+      ),
+      child: Center(
+        child: Container(
+          width: 28,
+          height: 28,
+          decoration: BoxDecoration(
+            color: AppColors.orange,
+            shape: BoxShape.circle,
+            border: Border.all(color: Colors.white, width: 2),
+            boxShadow: [BoxShadow(color: AppColors.orange.withValues(alpha: 0.45), blurRadius: 8)],
+          ),
+          child: const Icon(Icons.two_wheeler, size: 16, color: Colors.white),
+        ),
+      ),
+    );
+  }
+}
+
+/// Marqueur de la position de l'utilisateur (point bleu avec halo).
 class _DriverMarker extends StatelessWidget {
   const _DriverMarker();
 
@@ -305,7 +557,7 @@ class _Attribution extends StatelessWidget {
       child: const Padding(
         padding: EdgeInsets.symmetric(horizontal: 5, vertical: 2),
         child: Text(
-          '© OpenStreetMap · CARTO',
+          '© OpenStreetMap',
           style: TextStyle(fontSize: 9, color: AppColors.textSecondary),
         ),
       ),
@@ -345,6 +597,21 @@ class AppDimensRadius {
 
   static const double md = 12;
 }
+/// Écran plein écran hébergeant la carte, sans quitter l'application.
+class _FullscreenMapPage extends StatelessWidget {
+  const _FullscreenMapPage({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: SafeArea(child: child),
+    );
+  }
+}
+
 /// Bandeau de guidage affiché au-dessus de la carte.
 ///
 /// Affiche la direction à suivre (flèche orientée vers la destination), la
