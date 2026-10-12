@@ -51,6 +51,7 @@ class OrderFinancials {
     this.platformAmount,
     this.deliveryPartnerAmount,
     this.totalClient,
+    this.serviceFee,
   });
 
   final int? commissionRate;
@@ -60,6 +61,9 @@ class OrderFinancials {
   final int? deliveryPartnerAmount;
   final int? totalClient;
 
+  /// Frais de service client (5 %, cahier v1.0).
+  final int? serviceFee;
+
   factory OrderFinancials.fromJson(Map<String, dynamic> json) => OrderFinancials(
         commissionRate: _iNull(json['commission_rate']),
         commissionAmount: _iNull(json['commission_amount']),
@@ -67,6 +71,7 @@ class OrderFinancials {
         platformAmount: _iNull(json['platform_amount']),
         deliveryPartnerAmount: _iNull(json['delivery_partner_amount']),
         totalClient: _iNull(json['total_client']),
+        serviceFee: _iNull(json['service_fee']),
       );
 }
 

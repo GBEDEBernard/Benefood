@@ -5,6 +5,7 @@ class OrderSummary {
     required this.subtotal,
     required this.deliveryFee,
     required this.total,
+    this.serviceFee = 0,
     this.vendorId,
     this.vendorName,
     this.commissionRate,
@@ -17,6 +18,9 @@ class OrderSummary {
   final int subtotal;
   final int deliveryFee;
   final int total;
+
+  /// Frais de service client (5 %, cahier v1.0).
+  final int serviceFee;
   final String? vendorId;
   final String? vendorName;
   final int? commissionRate;
@@ -58,6 +62,7 @@ class OrderSummary {
       subtotal: _i(json['subtotal']),
       deliveryFee: _i(json['delivery_fee']),
       total: _i(json['total']),
+      serviceFee: _i(json['service_fee']),
       vendorId: vendorId,
       vendorName: vendorName,
       commissionRate: rate,
