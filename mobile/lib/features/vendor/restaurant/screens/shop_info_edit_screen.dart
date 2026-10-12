@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../../../core/data/marketplace_api.dart';
 import '../../../../core/errors/api_exception.dart';
 import '../../../../shared/models/vendor.dart';
+import '../../../../shared/widgets/app_network_image.dart';
 import '../../../../shared/widgets/feedback_widgets.dart';
 import '../../onboarding/widgets/custom_text_field.dart';
 import '../restaurant_palette.dart';
@@ -201,7 +202,7 @@ class _ShopInfoEditScreenState extends State<ShopInfoEditScreen> {
               ? Image.memory(_cover!.bytes, fit: BoxFit.cover)
               : (widget.vendor.coverUrl == null
                   ? null
-                  : Image.network(widget.vendor.coverUrl!, fit: BoxFit.cover)),
+                  : Image.network(resolveMediaUrl(widget.vendor.coverUrl!)!, fit: BoxFit.cover)),
           fallbackGradient: true,
           onPick: () => _pickMedia(isLogo: false),
         ),
@@ -213,7 +214,7 @@ class _ShopInfoEditScreenState extends State<ShopInfoEditScreen> {
               ? Image.memory(_logo!.bytes, fit: BoxFit.cover)
               : (widget.vendor.logoUrl == null
                   ? null
-                  : Image.network(widget.vendor.logoUrl!, fit: BoxFit.cover)),
+                  : Image.network(resolveMediaUrl(widget.vendor.logoUrl!)!, fit: BoxFit.cover)),
           onPick: () => _pickMedia(isLogo: true),
         ),
       ],

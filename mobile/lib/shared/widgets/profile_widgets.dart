@@ -8,6 +8,7 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_dimens.dart';
 import '../../core/theme/app_theme.dart';
 import '../models/user.dart';
+import 'app_network_image.dart';
 import 'brand_logo.dart';
 import 'notification_bell.dart';
 
@@ -397,7 +398,7 @@ class ProfileAvatar extends StatelessWidget {
             clipBehavior: Clip.antiAlias,
             child: imageUrl != null
                 ? Image.network(
-                    imageUrl!,
+                    resolveMediaUrl(imageUrl!)!,
                     width: 64,
                     height: 64,
                     fit: BoxFit.cover,

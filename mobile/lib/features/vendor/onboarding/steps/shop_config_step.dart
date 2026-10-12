@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/models/category.dart';
+import '../../../../shared/widgets/app_network_image.dart';
 import '../widgets/custom_text_field.dart';
 
 /// Étape 3/4 — Configuration de la boutique : identité visuelle (nom,
@@ -192,7 +193,7 @@ class _ShopConfigStepState extends State<ShopConfigStep> {
     final url = widget.logoUrl;
     if (url != null && url.isNotEmpty) {
       return Image.network(
-        url,
+        resolveMediaUrl(url)!,
         fit: BoxFit.cover,
         width: 116,
         height: 116,
@@ -236,7 +237,7 @@ class _ShopConfigStepState extends State<ShopConfigStep> {
     final url = widget.coverUrl;
     if (url != null && url.isNotEmpty) {
       return Image.network(
-        url,
+        resolveMediaUrl(url)!,
         fit: BoxFit.cover,
         errorBuilder: (_, _, _) => _coverPlaceholder(),
       );

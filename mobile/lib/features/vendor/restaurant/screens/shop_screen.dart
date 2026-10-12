@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/data/marketplace_api.dart';
 import '../../../../shared/models/vendor.dart';
+import '../../../../shared/widgets/app_network_image.dart';
 import '../restaurant_palette.dart';
 import '../widgets/status_chip.dart';
 import 'shop_address_edit_screen.dart';
@@ -381,7 +382,7 @@ class _CoverImage extends StatelessWidget {
   Widget build(BuildContext context) {
     if (url != null && url!.trim().isNotEmpty) {
       return Image.network(
-        url!,
+        resolveMediaUrl(url!)!,
         fit: BoxFit.cover,
         errorBuilder: (_, _, _) => const _CoverFallback(),
       );
@@ -428,7 +429,7 @@ class _LogoCircle extends StatelessWidget {
       decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
       child: ClipOval(
         child: Image.network(
-          url,
+          resolveMediaUrl(url)!,
           fit: BoxFit.cover,
           errorBuilder: (_, _, _) => ColoredBox(
             color: RestaurantPalette.orange,

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../shared/widgets/app_network_image.dart';
 import '../restaurant_palette.dart';
 import 'status_chip.dart';
 
@@ -288,7 +289,7 @@ class _ShopLogo extends StatelessWidget {
       child: ClipOval(
         child: hasUrl
             ? Image.network(
-                url!,
+                resolveMediaUrl(url!)!,
                 fit: BoxFit.cover,
                 errorBuilder: (_, _, _) => const _ShopLogoFallback(),
               )

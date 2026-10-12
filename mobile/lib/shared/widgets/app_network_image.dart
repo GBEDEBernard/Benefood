@@ -2,6 +2,43 @@ import 'package:flutter/material.dart';
 
 import '../../core/config/app_config.dart';
 
+/// Réécrit les URLs générées avec `APP_URL` locale (localhost / 127.0.0.1)
+/// vers l'API configurée dans l'app ([AppConfig.apiBaseUrl]), pour que les
+/// images soient joignables depuis un appareil physique. Gère aussi les
+/// chemins relatifs legacy (`storage/...`, `vendor-media/...`) en les
+/// préfixant.
+String? resolveMediaUrl(String? source) {
+  if (source == null || source.isEmpty) {
+    return source;
+  }
+
+  final base = Uri.parse(AppConfig.apiBaseUrl);
+
+  // Chemin racine-relative ("/storage/...") : on le préfixe avec la base API.
+  if (source.startsWith('/')) {
+    return base.replace(path: source).toString();
+  }
+
+  final uri = Uri.tryParse(source);
+  if (uri == null || uri.host.isEmpty) {
+    return base.resolve(source).toString();
+  }
+
+  if (uri.host != 'localhost' && uri.host != '127.0.0.1') {
+    return source;
+  }
+
+  // On remplace schéma + hôte (+ port) par ceux de la base API configurée :
+  // le port éventuel (ex. 8000) ne doit pas être reporté sur l'hôte public.
+  return base
+      .replace(
+        path: uri.path,
+        query: uri.hasQuery ? uri.query : null,
+        fragment: uri.hasFragment ? uri.fragment : null,
+      )
+      .toString();
+}
+
 /// Image distante avec placeholder et fallback d'erreur.
 class AppNetworkImage extends StatelessWidget {
   const AppNetworkImage({
@@ -49,39 +86,7 @@ class AppNetworkImage extends StatelessWidget {
     );
   }
 
-  /// Réécrit les URLs générées avec `APP_URL` locale (localhost / 127.0.0.1)
-  /// vers l'API configurée dans l'app (`API_BASE_URL`), pour que les images
-  /// soient joignables depuis un appareil physique. Gère aussi les chemins
-  /// relatifs legacy (`storage/...`, `vendor-media/...`) en les préfixant.
-  String? _resolve(String? source) {
-    if (source == null || source.isEmpty) {
-      return source;
-    }
-
-    final base = Uri.parse(AppConfig.apiBaseUrl);
-
-    // Chemin racine-relative ("/storage/...") : on le préfixe avec la base API.
-    if (source.startsWith('/')) {
-      return base.replace(path: source).toString();
-    }
-
-    final uri = Uri.tryParse(source);
-    if (uri == null || uri.host.isEmpty) {
-      return base.resolve(source).toString();
-    }
-
-    if (uri.host != 'localhost' && uri.host != '127.0.0.1') {
-      return source;
-    }
-
-    return uri
-        .replace(
-          scheme: base.scheme,
-          host: base.host,
-          port: base.hasPort ? base.port : uri.port,
-        )
-        .toString();
-  }
+  String? _resolve(String? source) => resolveMediaUrl(source);
 
   Widget _fallback(BuildContext context) {
     return Container(

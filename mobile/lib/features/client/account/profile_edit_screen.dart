@@ -8,6 +8,7 @@ import '../../../core/errors/api_exception.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_dimens.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/widgets/app_network_image.dart';
 import '../../../shared/widgets/feedback_widgets.dart';
 
 /// Édition du profil client : photo (upload), nom et e-mail (J153).
@@ -124,7 +125,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                   child: user?.avatarUrl != null
                       ? ClipOval(
                           child: Image.network(
-                            user!.avatarUrl!,
+                            resolveMediaUrl(user!.avatarUrl!)!,
                             width: 96,
                             height: 96,
                             fit: BoxFit.cover,

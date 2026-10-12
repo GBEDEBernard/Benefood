@@ -11,6 +11,7 @@ import '../../../core/theme/app_dimens.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../shared/models/user.dart';
+import '../../../shared/widgets/app_network_image.dart';
 import '../../../shared/widgets/brand_logo.dart';
 import '../../../shared/widgets/feedback_widgets.dart';
 import '../../../shared/widgets/notification_bell.dart';
@@ -560,7 +561,7 @@ class _Avatar extends StatelessWidget {
             clipBehavior: Clip.antiAlias,
             child: imageUrl != null
                 ? Image.network(
-                    imageUrl!,
+                    resolveMediaUrl(imageUrl!)!,
                     width: 64,
                     height: 64,
                     fit: BoxFit.cover,
