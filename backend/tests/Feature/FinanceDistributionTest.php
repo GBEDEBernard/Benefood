@@ -114,6 +114,22 @@ class FinanceDistributionTest extends TestCase
         $this->assertSame(0, (int) $vendorWallet->fresh()->pending_balance);
         $this->assertSame(4500, (int) $vendorWallet->fresh()->available_balance);
         $this->assertSame(800, (int) $driverWallet->fresh()->available_balance);
+
+        // Journal : la libération du séquestre laisse une écriture par partie.
+        $this->assertDatabaseHas('financial_journal', [
+            'entry_type' => 'transfer',
+            'reference_type' => 'order',
+            'reference_id' => $order->id,
+            'credit' => 4500,
+            'participant' => $vendor->user_id,
+        ]);
+        $this->assertDatabaseHas('financial_journal', [
+            'entry_type' => 'transfer',
+            'reference_type' => 'order',
+            'reference_id' => $order->id,
+            'credit' => 800,
+            'participant' => $driverUser->id,
+        ]);
     }
 
     public function test_payout_request_debits_available_and_enforces_minimum(): void

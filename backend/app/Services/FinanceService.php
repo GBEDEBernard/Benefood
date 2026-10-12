@@ -263,25 +263,49 @@ class FinanceService
         }
 
         if ($order->vendor !== null) {
+            $vendorWallet = $this->walletFor($order->vendor);
+
             $this->releasePending(
-                $this->walletFor($order->vendor),
+                $vendorWallet,
                 (int) $financials->vendor_amount,
                 'order_vendor_release',
                 $order->id,
                 'Libération part vendeur — '.$order->reference,
             );
+
+            $this->journal->record([
+                'entry_type' => JournalEntryType::Transfer,
+                'reference_type' => 'order',
+                'reference_id' => $order->id,
+                'credit' => (int) $financials->vendor_amount,
+                'participant' => $order->vendor->user_id,
+                'balance_after' => (int) $vendorWallet->fresh()->available_balance,
+                'actor' => 'system',
+            ]);
         }
 
         $driver = $order->delivery?->driverProfile;
 
         if ($driver !== null) {
+            $driverWallet = $this->walletFor($driver);
+
             $this->releasePending(
-                $this->walletFor($driver),
+                $driverWallet,
                 (int) $financials->delivery_partner_amount,
                 'order_driver_release',
                 $order->id,
                 'Libération part livreur — '.$order->reference,
             );
+
+            $this->journal->record([
+                'entry_type' => JournalEntryType::Transfer,
+                'reference_type' => 'order',
+                'reference_id' => $order->id,
+                'credit' => (int) $financials->delivery_partner_amount,
+                'participant' => $driver->user_id,
+                'balance_after' => (int) $driverWallet->fresh()->available_balance,
+                'actor' => 'system',
+            ]);
         }
     }
 

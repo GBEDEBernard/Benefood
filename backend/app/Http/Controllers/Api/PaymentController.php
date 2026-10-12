@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Enums\OrderStatus;
 use App\Enums\PaymentStatus;
 use App\Http\Controllers\Controller;
 use App\Models\FinancialTransaction;
@@ -10,6 +9,7 @@ use App\Models\Order;
 use App\Models\Parcel;
 use App\Models\Payment;
 use App\Models\PaymentEvent;
+use App\Services\OrderService;
 use App\Services\ParcelService;
 use App\Services\Payments\KkiapayConnector;
 use App\Support\Api;
@@ -20,7 +20,10 @@ use Illuminate\Support\Facades\Log;
 
 class PaymentController extends Controller
 {
-    public function __construct(private readonly ParcelService $parcels) {}
+    public function __construct(
+        private readonly ParcelService $parcels,
+        private readonly OrderService $orders,
+    ) {}
 
     public function create(Request $request): JsonResponse
     {
@@ -235,25 +238,19 @@ class PaymentController extends Controller
                     }
 
                     if ($order && ! $order->isPaid()) {
-                        $order->update([
-                            'payment_status' => PaymentStatus::Confirmed->value,
-                        ]);
+                        $amount = (int) ($payment?->amount ?? $event['amount'] ?? 0);
 
                         if ($order->isAwaitingPayment()) {
+                            // Règle d'or : on passe par le flux standard pour
+                            // déclencher la répartition interne (part vendeur en
+                            // attente) et la notification vendeur.
+                            $this->orders->confirmPayment($order, $amount);
+                        } else {
                             $order->update([
-                                'status' => OrderStatus::Paid->value,
-                            ]);
-
-                            $order->statusHistory()->create([
-                                'from_status' => OrderStatus::AwaitingPayment->value,
-                                'to_status' => OrderStatus::Paid->value,
-                                'actor_type' => 'system',
-                                'reason' => 'Paiement confirmé via '.$provider,
-                                'created_at' => now(),
+                                'payment_status' => PaymentStatus::Confirmed->value,
                             ]);
                         }
 
-                        $amount = $payment?->amount ?? ($event['amount'] ?? 0);
                         $currency = $payment?->currency ?? ($event['raw']['data']['transaction']['currency'] ?? 'XOF');
 
                         if ($amount && $order) {

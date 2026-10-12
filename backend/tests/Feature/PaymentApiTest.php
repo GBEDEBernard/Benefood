@@ -15,6 +15,7 @@ use App\Models\Product;
 use App\Models\Role;
 use App\Models\User;
 use App\Models\Vendor;
+use App\Models\Wallet;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
@@ -255,6 +256,43 @@ class PaymentApiTest extends TestCase
             'order_id' => $order->id,
             'type' => 'payment',
             'amount' => $order->total,
+        ]);
+    }
+
+    public function test_webhook_success_distributes_vendor_share_and_journals(): void
+    {
+        $client = $this->actingUser('client');
+        $order = $this->createOrderWithPayment($client);
+
+        $payload = [
+            'event' => 'success',
+            'data' => [
+                'transaction' => [
+                    'id' => 'txn-dist-001',
+                    'status' => 'successful',
+                    'amount' => $order->total,
+                    'currency' => 'XOF',
+                    'metadata' => ['order_id' => $order->id],
+                ],
+            ],
+        ];
+
+        $this->postJson('/api/v1/payments/webhook', $payload)->assertOk();
+
+        $order->refresh()->load('financials', 'vendor');
+
+        $wallet = Wallet::where('owner_type', $order->vendor->getMorphClass())
+            ->where('owner_id', $order->vendor->id)
+            ->first();
+
+        $this->assertNotNull($wallet);
+        $this->assertSame((int) $order->financials->vendor_amount, (int) $wallet->pending_balance);
+
+        $this->assertDatabaseHas('financial_journal', [
+            'entry_type' => 'payment',
+            'reference_type' => 'order',
+            'reference_id' => $order->id,
+            'credit' => $order->financials->total_client,
         ]);
     }
 
