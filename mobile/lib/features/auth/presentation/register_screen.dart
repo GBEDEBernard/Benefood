@@ -3,7 +3,6 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/auth/session_provider.dart';
 import '../../../core/errors/api_exception.dart';
-import '../../../shared/models/user.dart';
 import '../../../shared/widgets/app_button.dart';
 import '../../../shared/widgets/app_text_field.dart';
 import '../../../shared/widgets/auth_header.dart';
@@ -28,8 +27,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _password = TextEditingController();
   final _confirm = TextEditingController();
   bool _loading = false;
-  bool _wantVendor = false;
-  bool _wantDriver = false;
 
   @override
   void dispose() {
@@ -46,12 +43,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
       return;
     }
 
-    final roles = <String>[
-      AppContext.client,
-      if (_wantVendor) AppContext.vendor,
-      if (_wantDriver) AppContext.driverRegistrationSlug,
-    ];
-
     setState(() => _loading = true);
     try {
       await widget.session.register(
@@ -60,11 +51,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
         email: _email.text.trim().isEmpty ? null : _email.text.trim(),
         password: _password.text,
         passwordConfirmation: _confirm.text,
-        roles: roles,
       );
       if (mounted) {
         showToast(context, 'Compte créé. Bienvenue sur Béninfood !');
-        context.go('/client');
+        context.go('/choose-account');
       }
     } on ApiException catch (e) {
       if (mounted) {
@@ -141,73 +131,20 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   obscureText: true,
                   validator: (v) => v == _password.text ? null : 'Les mots de passe diffèrent',
                 ),
-                const SizedBox(height: 24),
-                Text('Je souhaite aussi :', style: Theme.of(context).textTheme.titleSmall),
-                const SizedBox(height: 8),
-                _RoleChip(
-                  icon: Icons.storefront_outlined,
-                  label: 'Ouvrir une boutique (Vendeur)',
-                  selected: _wantVendor,
-                  onChanged: (v) => setState(() => _wantVendor = v),
-                ),
-                const SizedBox(height: 8),
-                _RoleChip(
-                  icon: Icons.delivery_dining_outlined,
-                  label: 'Livrer des commandes (Livreur)',
-                  selected: _wantDriver,
-                  onChanged: (v) => setState(() => _wantDriver = v),
-                ),
                 const SizedBox(height: 28),
                 AppButton(label: 'Créer mon compte', onPressed: _submit, loading: _loading),
+                const SizedBox(height: 10),
+                Text(
+                  'Vous choisirez ensuite le type de compte à créer.',
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context)
+                      .textTheme
+                      .bodySmall
+                      ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
+                ),
               ],
             ),
           ),
-        ),
-      ),
-    );
-  }
-}
-
-class _RoleChip extends StatelessWidget {
-  const _RoleChip({
-    required this.icon,
-    required this.label,
-    required this.selected,
-    required this.onChanged,
-  });
-
-  final IconData icon;
-  final String label;
-  final bool selected;
-  final ValueChanged<bool> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
-    return InkWell(
-      onTap: () => onChanged(!selected),
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: selected ? colorScheme.primary : colorScheme.outlineVariant,
-            width: selected ? 2 : 1,
-          ),
-          color: selected ? colorScheme.primary.withValues(alpha: 0.06) : null,
-        ),
-        child: Row(
-          children: [
-            Icon(icon, color: selected ? colorScheme.primary : colorScheme.onSurfaceVariant),
-            const SizedBox(width: 12),
-            Expanded(child: Text(label)),
-            Icon(
-              selected ? Icons.check_circle : Icons.radio_button_unchecked,
-              color: selected ? colorScheme.primary : colorScheme.outline,
-            ),
-          ],
         ),
       ),
     );

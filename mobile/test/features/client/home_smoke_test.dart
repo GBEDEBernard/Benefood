@@ -44,6 +44,20 @@ MockClient _mockBackend({bool unwrapHomeData = false}) {
     if (path.endsWith('/home')) {
       return http.Response(homePayload, 200, headers: json);
     }
+    if (path.endsWith('/client/me/status')) {
+      return http.Response(
+        jsonEncode({
+          'data': {
+            'profile': {'id': 'cp-1', 'status': 'active'},
+            'required_documents': ['id_card', 'proof_of_address'],
+            'completed_documents': ['id_card', 'proof_of_address'],
+            'completed': true,
+          }
+        }),
+        200,
+        headers: json,
+      );
+    }
     if (path.endsWith('/products')) {
       return http.Response(jsonEncode({'data': []}), 200, headers: json);
     }

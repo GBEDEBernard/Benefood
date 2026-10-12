@@ -291,6 +291,11 @@ class MarketplaceApi {
     return _dataObject(response) ?? {};
   }
 
+  Future<Map<String, dynamic>> clientStatus() async {
+    final response = await _api.get('/client/me/status');
+    return _dataObject(response) ?? {};
+  }
+
   Future<void> vendorOnboarding({
     required String businessName,
     String? legalName,
@@ -444,6 +449,20 @@ class MarketplaceApi {
     required String vehicle,
   }) async {
     await _api.post('/driver/me/onboarding', body: {'vehicle': vehicle});
+  }
+
+  Future<void> clientOnboarding({
+    String? fullName,
+    String? phone,
+    String? address,
+    String? city,
+  }) async {
+    await _api.post('/client/me/onboarding', body: {
+      if (fullName != null && fullName.isNotEmpty) 'full_name': fullName,
+      if (phone != null && phone.isNotEmpty) 'phone': phone,
+      if (address != null && address.isNotEmpty) 'address': address,
+      if (city != null && city.isNotEmpty) 'city': city,
+    });
   }
 
   Future<void> registerDevice({required String fcmToken, required String platform}) async {
@@ -875,7 +894,16 @@ class MarketplaceApi {
       '/driver/me/documents',
       fields: {'type': type},
       files: {'document': bytes},
-      fileNames: {'document': fileName ?? 'document.pdf'},
+      fileNames: {'document': fileName ?? 'document.${_imageExtension(bytes)}'},
+    );
+  }
+
+  Future<void> uploadClientDocument(String type, List<int> bytes, {String? fileName}) async {
+    await _api.multipart(
+      '/client/me/documents',
+      fields: {'type': type},
+      files: {'document': bytes},
+      fileNames: {'document': fileName ?? 'document.${_imageExtension(bytes)}'},
     );
   }
 

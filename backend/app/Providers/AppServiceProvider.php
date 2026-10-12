@@ -2,10 +2,12 @@
 
 namespace App\Providers;
 
+use App\Models\ClientProfile;
 use App\Models\DriverProfile;
 use App\Models\User;
 use App\Models\Vendor;
 use App\Policies\AdminPolicy;
+use App\Policies\ClientProfilePolicy;
 use App\Policies\DriverProfilePolicy;
 use App\Policies\VendorPolicy;
 use App\Services\Push\FirebasePushTransport;
@@ -42,6 +44,7 @@ class AppServiceProvider extends ServiceProvider
     {
         Gate::policy(Vendor::class, VendorPolicy::class);
         Gate::policy(DriverProfile::class, DriverProfilePolicy::class);
+        Gate::policy(ClientProfile::class, ClientProfilePolicy::class);
         Gate::policy(User::class, AdminPolicy::class);
     }
 

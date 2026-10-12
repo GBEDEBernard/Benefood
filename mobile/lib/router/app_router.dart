@@ -7,6 +7,7 @@ import '../features/auth/presentation/landing_screen.dart';
 import '../features/auth/presentation/login_screen.dart';
 import '../features/auth/presentation/register_screen.dart';
 import '../features/auth/presentation/reset_password_screen.dart';
+import '../features/auth/presentation/choose_account_screen.dart';
 import '../features/auth/presentation/context_selector_screen.dart';
 import '../features/client/presentation/client_shell.dart';
 import '../features/client/product/product_detail_screen.dart';
@@ -107,6 +108,10 @@ GoRouter buildAppRouter(SessionProvider session, MarketplaceApi marketplace) {
       GoRoute(
         path: '/server',
         builder: (context, state) => const ServerSettingsScreen(),
+      ),
+      GoRoute(
+        path: '/choose-account',
+        builder: (context, state) => ChooseAccountScreen(session: session),
       ),
       GoRoute(
         path: '/context',

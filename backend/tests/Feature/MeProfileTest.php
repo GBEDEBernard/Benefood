@@ -114,4 +114,43 @@ class MeProfileTest extends TestCase
             ->assertStatus(401)
             ->assertJsonPath('errors.0.code', 'unauthenticated');
     }
+
+    public function test_request_roles_attaches_roles_inactive(): void
+    {
+        $user = $this->actingUser(['client']);
+
+        $this->postJson('/api/v1/me/roles', ['roles' => ['vendor', 'driver-independent']])
+            ->assertOk();
+
+        $fresh = $user->fresh();
+        $this->assertContains('vendor', $fresh->roles()->pluck('slug')->all());
+        $this->assertContains('driver-independent', $fresh->roles()->pluck('slug')->all());
+        $this->assertFalse((bool) $fresh->roles()->where('slug', 'vendor')->first()->pivot->is_active);
+        $this->assertTrue((bool) $fresh->roles()->where('slug', 'client')->first()->pivot->is_active);
+    }
+
+    public function test_request_roles_is_idempotent(): void
+    {
+        $user = $this->actingUser(['client']);
+
+        $this->postJson('/api/v1/me/roles', ['roles' => ['vendor']])->assertOk();
+        $this->postJson('/api/v1/me/roles', ['roles' => ['vendor']])->assertOk();
+
+        $this->assertSame(1, $user->fresh()->roles()->where('slug', 'vendor')->count());
+    }
+
+    public function test_request_roles_rejects_unknown_role(): void
+    {
+        $this->actingUser(['client']);
+
+        $this->postJson('/api/v1/me/roles', ['roles' => ['paysan']])
+            ->assertStatus(422);
+    }
+
+    public function test_request_roles_requires_authentication(): void
+    {
+        $this->postJson('/api/v1/me/roles', ['roles' => ['vendor']])
+            ->assertStatus(401)
+            ->assertJsonPath('errors.0.code', 'unauthenticated');
+    }
 }

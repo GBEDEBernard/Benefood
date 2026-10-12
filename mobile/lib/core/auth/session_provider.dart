@@ -178,6 +178,18 @@ class SessionProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Attache de nouveaux rôles au compte connecté (choix du type de compte
+  /// après inscription). Les rôles restent inactifs tant que l'onboarding
+  /// n'est pas terminé.
+  Future<void> requestRoles(List<String> roles) async {
+    if (roles.isEmpty) {
+      return;
+    }
+    final response = await _api.post('/me/roles', body: {'roles': roles});
+    _user = User.fromJson(_dataOf(response));
+    notifyListeners();
+  }
+
   Future<void> refreshProfile() async {
     try {
       final response = await _api.get('/me');

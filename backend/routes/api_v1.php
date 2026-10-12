@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\AddressController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CartController;
 use App\Http\Controllers\Api\CatalogController;
+use App\Http\Controllers\Api\ClientController;
 use App\Http\Controllers\Api\ComplaintController;
 use App\Http\Controllers\Api\DeliveryController;
 use App\Http\Controllers\Api\DeliveryQuoteController;
@@ -47,6 +48,7 @@ Route::middleware('auth:sanctum')->group(function (): void {
 
     Route::get('/me', [MeController::class, 'show'])->name('api.v1.me.show');
     Route::get('/me/roles', [MeController::class, 'roles'])->name('api.v1.me.roles');
+    Route::post('/me/roles', [MeController::class, 'requestRoles'])->name('api.v1.me.roles.store');
     Route::post('/me/active-role', [MeController::class, 'activeRole'])->name('api.v1.me.active-role');
     Route::patch('/me', [MeController::class, 'update'])->name('api.v1.me.update');
     Route::get('/me/devices', [MeController::class, 'devices'])->name('api.v1.me.devices.index');
@@ -104,6 +106,12 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::get('vendors/me/wallet', [WalletController::class, 'vendorWallet'])->name('api.v1.vendors.me.wallet');
     Route::get('vendors/me/wallet/payouts', [WalletController::class, 'vendorPayouts'])->name('api.v1.vendors.me.wallet.payouts');
     Route::post('vendors/me/wallet/payouts', [WalletController::class, 'requestVendorPayout'])->name('api.v1.vendors.me.wallet.payouts.store');
+
+    Route::prefix('client/me')->group(function (): void {
+        Route::post('/onboarding', [ClientController::class, 'onboarding'])->name('api.v1.client.me.onboarding');
+        Route::post('/documents', [ClientController::class, 'uploadDocument'])->name('api.v1.client.me.documents');
+        Route::get('/status', [ClientController::class, 'status'])->name('api.v1.client.me.status');
+    });
 
     Route::prefix('driver/me')->group(function (): void {
         Route::post('/onboarding', [DriverController::class, 'onboarding'])->name('api.v1.driver.me.onboarding');

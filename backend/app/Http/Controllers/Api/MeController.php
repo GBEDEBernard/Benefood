@@ -45,6 +45,27 @@ class MeController extends Controller
         ])->values());
     }
 
+    /**
+     * Attache de nouveaux rôles à l'utilisateur connecté (choix du type de
+     * compte après inscription). Les rôles restent inactifs tant que
+     * l'onboarding n'est pas terminé.
+     */
+    public function requestRoles(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'roles' => ['required', 'array', 'min:1'],
+            'roles.*' => ['string', 'in:client,vendor,driver-independent'],
+        ]);
+
+        $user = $request->user();
+
+        foreach (array_values(array_unique($data['roles'])) as $slug) {
+            $this->auth->assignRole($user, $slug, isActive: false);
+        }
+
+        return Api::ok(new UserResource($user->fresh()->loadMissing('roles')));
+    }
+
     public function activeRole(Request $request): JsonResponse
     {
         $data = $request->validate([

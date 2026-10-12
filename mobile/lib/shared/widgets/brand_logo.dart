@@ -107,3 +107,59 @@ class _ChefHatPainter extends CustomPainter {
   bool shouldRepaint(_ChefHatPainter oldDelegate) =>
       oldDelegate.hatColor != hatColor || oldDelegate.steamColor != steamColor;
 }
+
+/// Logo officiel Béninfood (image ronde) dans un cadre arrondi prêt à l'emploi.
+///
+/// Pensé pour les écrans de bienvenue et d'onboarding : fond blanc, ombre
+/// douce et rendu responsive (la taille s'adapte au côté demandé).
+class BrandLogo extends StatelessWidget {
+  const BrandLogo({
+    super.key,
+    this.size = 112,
+    this.background = Colors.white,
+    this.padding = 10,
+    this.showShadow = true,
+  });
+
+  /// Côté du carré (largeur = hauteur).
+  final double size;
+  final Color background;
+  final double padding;
+  final bool showShadow;
+
+  @override
+  Widget build(BuildContext context) {
+    final outerRadius = size * 0.26;
+    final innerRadius = (outerRadius - padding).clamp(0.0, outerRadius);
+
+    return Container(
+      width: size,
+      height: size,
+      padding: EdgeInsets.all(padding),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(outerRadius),
+        boxShadow: showShadow
+            ? [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.16),
+                  blurRadius: size * 0.2,
+                  offset: Offset(0, size * 0.08),
+                ),
+              ]
+            : null,
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(innerRadius),
+        child: Image.asset(
+          'assets/Logo.jpeg',
+          fit: BoxFit.contain,
+          errorBuilder: (_, _, _) => const Icon(
+            Icons.storefront,
+            color: AppColors.orange,
+          ),
+        ),
+      ),
+    );
+  }
+}

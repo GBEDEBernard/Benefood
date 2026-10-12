@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/app_button.dart';
+import '../../../../shared/widgets/brand_logo.dart';
 import '../widgets/step_dots.dart';
-import '../widgets/store_illustration.dart';
 
 /// Écran d'accueil du parcours vendeur : illustration, promesses et bouton
 /// « Commencer » (avec lien « Passer » en haut à droite).
@@ -39,8 +39,8 @@ class WelcomeStep extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const StoreIllustration(height: 168),
-                const SizedBox(height: 12),
+                const Center(child: BrandLogo(size: 132)),
+                const SizedBox(height: 16),
                 Text.rich(
                   TextSpan(
                     style: const TextStyle(

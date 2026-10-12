@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/auth/session_provider.dart';
 import '../../../core/data/marketplace_api.dart';
+import '../../../core/errors/api_exception.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_dimens.dart';
 import '../../../shared/widgets/brand_logo.dart';
@@ -10,6 +11,7 @@ import '../account/account_screen.dart';
 import '../cart/cart_screen.dart';
 import '../categories/categories_screen.dart';
 import '../home/home_screen.dart';
+import '../onboarding/client_onboarding_screen.dart';
 import '../orders/orders_screen.dart';
 
 /// Espace Client (J148+) : accueil, catégories, panier, commandes, profil.
@@ -35,10 +37,43 @@ class _ClientShellState extends State<ClientShell> {
   int _cartCount = 0;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
+  bool _statusLoading = true;
+  bool _needsOnboarding = false;
+
   @override
   void initState() {
     super.initState();
     _refreshCartCount();
+    _loadStatus();
+  }
+
+  /// Vérifie l'activation du compte client : tant que le dossier
+  /// d'identification n'est pas complété, l'onboarding s'affiche à la place
+  /// de l'espace client (J19).
+  Future<void> _loadStatus() async {
+    if (mounted) {
+      setState(() => _statusLoading = true);
+    }
+    try {
+      final status = await widget.marketplace.clientStatus();
+      if (!mounted) {
+        return;
+      }
+      final profile = status['profile'];
+      final active = profile is Map<String, dynamic> && profile['status'] == 'active';
+      setState(() {
+        _needsOnboarding = !active;
+        _statusLoading = false;
+      });
+    } on ApiException catch (e) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _needsOnboarding = e.isNotFound || e.code == 'client.not_onboarded';
+        _statusLoading = false;
+      });
+    }
   }
 
   /// Nombre d'articles du panier (badge du bouton flottant).
@@ -64,6 +99,18 @@ class _ClientShellState extends State<ClientShell> {
 
   @override
   Widget build(BuildContext context) {
+    if (_statusLoading) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
+    if (_needsOnboarding) {
+      return ClientOnboardingScreen(
+        marketplace: widget.marketplace,
+        user: widget.session.user,
+        onCompleted: _loadStatus,
+      );
+    }
+
     return Scaffold(
       key: _scaffoldKey,
       drawer: _ClientDrawer(session: widget.session, onSelectTab: _selectTab),

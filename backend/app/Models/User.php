@@ -62,6 +62,11 @@ class User extends Authenticatable
         return $this->hasOne(DriverProfile::class);
     }
 
+    public function clientProfile(): HasOne
+    {
+        return $this->hasOne(ClientProfile::class);
+    }
+
     public function devices(): HasMany
     {
         return $this->hasMany(UserDevice::class);
