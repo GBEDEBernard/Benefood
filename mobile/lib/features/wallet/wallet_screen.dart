@@ -36,14 +36,20 @@ class WalletScreen extends StatefulWidget {
 
 class _WalletScreenState extends State<WalletScreen> {
   Map<String, dynamic> _wallet = const {};
+  Map<String, dynamic> _float = const {};
   List<Map<String, dynamic>> _payouts = const [];
   bool _loading = true;
   String? _error;
   bool _requesting = false;
+  bool _floatBusy = false;
 
   int get _pending => (_wallet['pending_balance'] as num?)?.toInt() ?? 0;
   int get _available => (_wallet['available_balance'] as num?)?.toInt() ?? 0;
   int get _minPayout => (_wallet['min_payout'] as num?)?.toInt() ?? 1000;
+  int get _floatBalance => (_float['prepaid_balance'] as num?)?.toInt() ?? 0;
+
+  List<Map<String, dynamic>> get _floatTransactions =>
+      (_float['transactions'] as List?)?.whereType<Map<String, dynamic>>().toList() ?? const [];
 
   List<Map<String, dynamic>> get _transactions =>
       (_wallet['transactions'] as List?)?.whereType<Map<String, dynamic>>().toList() ?? const [];
@@ -63,6 +69,14 @@ class _WalletScreenState extends State<WalletScreen> {
       final wallet = widget.role == WalletRole.vendor
           ? await widget.marketplace.vendorWallet()
           : await widget.marketplace.driverWallet();
+      Map<String, dynamic> floatData = const {};
+      if (widget.role == WalletRole.driver) {
+        try {
+          floatData = await widget.marketplace.driverFloat();
+        } on ApiException {
+          floatData = const {};
+        }
+      }
       List<Map<String, dynamic>> payouts = const [];
       if (widget.role == WalletRole.vendor) {
         try {
@@ -74,6 +88,7 @@ class _WalletScreenState extends State<WalletScreen> {
       if (!mounted) return;
       setState(() {
         _wallet = wallet;
+        _float = floatData;
         _payouts = payouts;
         _loading = false;
       });
@@ -128,6 +143,31 @@ class _WalletScreenState extends State<WalletScreen> {
     }
   }
 
+  Future<void> _openFloatSheet() async {
+    final result = await showModalBottomSheet<int>(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) => const _FloatSheet(),
+    );
+    if (result == null || !mounted) return;
+
+    setState(() => _floatBusy = true);
+    try {
+      await widget.marketplace.topUpFloat(result);
+      if (!mounted) return;
+      showToast(context, 'Flottant rechargé (démo).');
+      await _load();
+    } on ApiException catch (e) {
+      if (mounted) {
+        showToast(context, e.message, isError: true);
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _floatBusy = false);
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final title = widget.role == WalletRole.vendor ? 'Portefeuille' : 'Mes gains';
@@ -174,6 +214,15 @@ class _WalletScreenState extends State<WalletScreen> {
             onWithdraw: _openPayoutSheet,
           ),
           const SizedBox(height: AppDimens.lg),
+          if (widget.role == WalletRole.driver) ...[
+            _FloatCard(
+              balance: _floatBalance,
+              transactions: _floatTransactions,
+              busy: _floatBusy,
+              onTopUp: _openFloatSheet,
+            ),
+            const SizedBox(height: AppDimens.lg),
+          ],
           _QuickFacts(minPayout: _minPayout, role: widget.role),
           const SizedBox(height: AppDimens.xl),
           _SectionTitle(
@@ -875,3 +924,198 @@ class _MethodChip extends StatelessWidget {
 }
 
 String _dateLabel(String? iso) => formatDateTime(iso, fallback: '');
+
+// ---------------------------------------------------------------- Flottant
+
+/// Flottant prépayé du livreur pour les commandes en espèces (cahier v1.0).
+class _FloatCard extends StatelessWidget {
+  const _FloatCard({
+    required this.balance,
+    required this.transactions,
+    required this.busy,
+    required this.onTopUp,
+  });
+
+  final int balance;
+  final List<Map<String, dynamic>> transactions;
+  final bool busy;
+  final VoidCallback onTopUp;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Container(
+      padding: const EdgeInsets.all(AppDimens.lg),
+      decoration: BoxDecoration(
+        color: AppColors.goldLight,
+        borderRadius: BorderRadius.circular(AppDimens.radiusLg),
+        border: Border.all(color: AppColors.gold.withValues(alpha: 0.4)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: AppColors.gold.withValues(alpha: 0.18),
+                  borderRadius: BorderRadius.circular(11),
+                ),
+                child: const Icon(Icons.payments, size: 19, color: AppColors.goldDark),
+              ),
+              const SizedBox(width: AppDimens.md),
+              const Expanded(
+                child: Text(
+                  'Flottant espèces (cash)',
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: AppColors.text),
+                ),
+              ),
+              FilledButton.tonalIcon(
+                onPressed: busy ? null : onTopUp,
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.gold,
+                  foregroundColor: AppColors.goldDark,
+                ),
+                icon: busy
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.goldDark),
+                      )
+                    : const Icon(Icons.add, size: 18),
+                label: const Text('Recharger'),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppDimens.md),
+          Text(
+            formatAmount(balance),
+            style: const TextStyle(fontSize: 30, fontWeight: FontWeight.w900, color: AppColors.goldDark),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            'Avance servant à régler les commandes payées en espèces à la livraison.',
+            style: theme.textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+          ),
+          if (transactions.isNotEmpty) ...[
+            const Divider(height: AppDimens.xl),
+            for (final tx in transactions.take(3))
+              Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Row(
+                  children: [
+                    Icon(
+                      (tx['type'] ?? 'topup') == 'topup' ? Icons.add_circle_outline : Icons.remove_circle_outline,
+                      size: 16,
+                      color: (tx['type'] ?? 'topup') == 'topup' ? AppColors.green : AppColors.orangeDark,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        (tx['description'] as String?) ?? 'Opération',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                    Text(
+                      '${(tx['type'] ?? 'topup') == 'topup' ? '+' : '-'}${formatAmount((tx['amount'] as num?)?.toInt() ?? 0)}',
+                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: AppColors.text),
+                    ),
+                  ],
+                ),
+              ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// Feuille de rechargement du flottant : montant (démo : crédit direct).
+class _FloatSheet extends StatefulWidget {
+  const _FloatSheet();
+
+  @override
+  State<_FloatSheet> createState() => _FloatSheetState();
+}
+
+class _FloatSheetState extends State<_FloatSheet> {
+  final _amount = TextEditingController();
+  String? _error;
+
+  @override
+  void dispose() {
+    _amount.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    final value = int.tryParse(_amount.text.trim());
+    if (value == null || value < 100) {
+      setState(() => _error = 'Montant minimum : ${formatAmount(100)}.');
+      return;
+    }
+    Navigator.of(context).pop(value);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bottom = MediaQuery.of(context).viewInsets.bottom;
+    return Padding(
+      padding: EdgeInsets.fromLTRB(AppDimens.xl, AppDimens.lg, AppDimens.xl, AppDimens.xl + bottom),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Center(
+            child: Container(
+              width: 44,
+              height: 5,
+              decoration: BoxDecoration(
+                color: AppColors.borderStrong,
+                borderRadius: BorderRadius.circular(AppDimens.radiusPill),
+              ),
+            ),
+          ),
+          const SizedBox(height: AppDimens.xl),
+          const Text(
+            'Recharger le flottant',
+            style: TextStyle(fontSize: 19, fontWeight: FontWeight.w800, color: AppColors.text),
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'Démo : le montant est crédité directement sur votre flottant.',
+            style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
+          ),
+          const SizedBox(height: AppDimens.xl),
+          TextField(
+            controller: _amount,
+            keyboardType: TextInputType.number,
+            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+            autofocus: true,
+            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
+            decoration: InputDecoration(
+              labelText: 'Montant (F CFA)',
+              prefixIcon: const Icon(Icons.payments_outlined),
+              suffixText: 'FCFA',
+              errorText: _error,
+              hintText: 'Minimum 100',
+            ),
+          ),
+          const SizedBox(height: AppDimens.xl),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton(
+              onPressed: _submit,
+              child: const Text('Recharger'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}

@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/data/marketplace_api.dart';
 import '../../../core/errors/api_exception.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_dimens.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../core/utils/geo.dart';
@@ -36,6 +37,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
   bool _loading = true;
   String? _error;
   bool _actionLoading = false;
+  bool _reviewing = false;
   Timer? _pollTimer;
   bool _polling = false;
 
@@ -156,6 +158,50 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
             child: const Text('Confirmer'),
           ),
         ],
+      ),
+    );
+  }
+
+  Future<void> _submitReview({
+    required int rating,
+    int? driverRating,
+    String? comment,
+  }) async {
+    setState(() => _reviewing = true);
+    try {
+      await widget.marketplace.reviewOrder(
+        widget.orderId,
+        rating: rating,
+        driverRating: driverRating,
+        comment: comment,
+      );
+      await _load();
+      if (mounted) {
+        showToast(context, 'Merci pour votre avis !');
+      }
+    } on ApiException catch (e) {
+      if (mounted) {
+        showToast(context, e.message, isError: true);
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _reviewing = false);
+      }
+    }
+  }
+
+  void _openReviewDialog(Order order) {
+    final canRateDriver = order.delivery?.driver != null;
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => _ReviewDialog(
+        canRateDriver: canRateDriver,
+        onCancel: () => Navigator.of(dialogContext).pop(),
+        onSubmit: (rating, driverRating, comment) {
+          Navigator.of(dialogContext).pop();
+          _submitReview(rating: rating, driverRating: driverRating, comment: comment);
+        },
       ),
     );
   }
@@ -441,12 +487,26 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
               loading: _actionLoading,
             ),
           const SizedBox(height: 8),
-          AppButton(
-            label: 'Signaler un problème',
-            variant: AppButtonVariant.outline,
-            icon: Icons.support_agent,
-            onPressed: () => context.push('/client/complaints/new', extra: {'order_id': order.id}),
-          ),
+AppButton(
+              label: 'Signaler un problème',
+              variant: AppButtonVariant.outline,
+              icon: Icons.support_agent,
+              onPressed: () => context.push('/client/complaints/new', extra: {'order_id': order.id}),
+            ),
+          if (order.isDelivered) ...[
+            const SizedBox(height: AppDimens.md),
+            if (order.hasReview) ...[
+              _ReviewCard(review: order.review!),
+            ] else ...[
+              AppButton(
+                label: 'Donner mon avis',
+                variant: AppButtonVariant.outline,
+                icon: Icons.star_outline,
+                onPressed: _reviewing ? null : () => _openReviewDialog(order),
+                loading: _reviewing,
+              ),
+            ],
+          ],
         ],
       ),
     );
@@ -942,6 +1002,185 @@ class _LiveDot extends StatelessWidget {
         ),
         const SizedBox(width: 6),
         const Text('Suivi en direct'),
+      ],
+    );
+  }
+}
+
+/// Avis déjà déposé sur la commande.
+class _ReviewCard extends StatelessWidget {
+  const _ReviewCard({required this.review});
+
+  final OrderReview review;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(AppDimens.md),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(Icons.fact_check_outlined, size: 22, color: AppColors.goldDark),
+            const SizedBox(width: AppDimens.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Avis déposé',
+                    style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w800),
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      _Stars(rating: review.rating),
+                      const SizedBox(width: 8),
+                      Text('Vendeur', style: theme.textTheme.bodySmall?.copyWith(color: AppColors.textSecondary)),
+                    ],
+                  ),
+                  if (review.driverRating != null) ...[
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        _Stars(rating: review.driverRating!),
+                        const SizedBox(width: 8),
+                        Text('Livreur', style: theme.textTheme.bodySmall?.copyWith(color: AppColors.textSecondary)),
+                      ],
+                    ),
+                  ],
+                  if (review.comment != null && review.comment!.isNotEmpty) ...[
+                    const SizedBox(height: 6),
+                    Text(review.comment!, style: theme.textTheme.bodyMedium),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Dialogue de notation vendeur + livreur (cahier v1.0, J29 §9).
+class _ReviewDialog extends StatefulWidget {
+  const _ReviewDialog({required this.canRateDriver, required this.onCancel, required this.onSubmit});
+
+  final bool canRateDriver;
+  final VoidCallback onCancel;
+  final void Function(int rating, int? driverRating, String comment) onSubmit;
+
+  @override
+  State<_ReviewDialog> createState() => _ReviewDialogState();
+}
+
+class _ReviewDialogState extends State<_ReviewDialog> {
+  final _comment = TextEditingController();
+  int _rating = 0;
+  int? _driverRating;
+
+  @override
+  void dispose() {
+    _comment.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    if (_rating < 1) {
+      showToast(context, 'Indiquez une note (1 à 5 étoiles).', isError: true);
+      return;
+    }
+    widget.onSubmit(_rating, widget.canRateDriver ? _driverRating : null, _comment.text.trim());
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Donner mon avis'),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Votre note pour le vendeur *', style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700)),
+            const SizedBox(height: 4),
+            Center(
+              child: _StarsInput(rating: _rating, onChanged: (v) => setState(() => _rating = v)),
+            ),
+            if (widget.canRateDriver) ...[
+              const SizedBox(height: AppDimens.md),
+              const Text('Note pour le livreur (optionnel)', style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700)),
+              const SizedBox(height: 4),
+              Center(
+                child: _StarsInput(rating: _driverRating ?? 0, onChanged: (v) => setState(() => _driverRating = v)),
+              ),
+            ],
+            const SizedBox(height: AppDimens.md),
+            TextField(
+              controller: _comment,
+              maxLines: 3,
+              maxLength: 1000,
+              decoration: const InputDecoration(
+                labelText: 'Commentaire (optionnel)',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(onPressed: widget.onCancel, child: const Text('Plus tard')),
+        FilledButton(onPressed: _submit, child: const Text('Envoyer')),
+      ],
+    );
+  }
+}
+
+/// Rangée d'étoiles (lecture).
+class _Stars extends StatelessWidget {
+  const _Stars({required this.rating});
+
+  final int rating;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        for (var i = 1; i <= 5; i++)
+          Icon(
+            i <= rating ? Icons.star : Icons.star_border,
+            size: 16,
+            color: AppColors.goldDark,
+          ),
+      ],
+    );
+  }
+}
+
+/// Rangée d'étoiles interactives (saisie).
+class _StarsInput extends StatelessWidget {
+  const _StarsInput({required this.rating, required this.onChanged});
+
+  final int rating;
+  final ValueChanged<int> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        for (var i = 1; i <= 5; i++)
+          IconButton(
+            onPressed: () => onChanged(i),
+            icon: Icon(
+              i <= rating ? Icons.star : Icons.star_border,
+              size: 30,
+              color: AppColors.goldDark,
+            ),
+          ),
       ],
     );
   }

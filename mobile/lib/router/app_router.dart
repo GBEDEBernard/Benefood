@@ -23,6 +23,9 @@ import '../features/client/account/profile_edit_screen.dart';
 import '../features/client/account/security_screen.dart';
 import '../features/client/account/server_settings_screen.dart';
 import '../features/client/orders/orders_screen.dart';
+import '../features/client/parcels/parcel_create_screen.dart';
+import '../features/client/parcels/parcel_detail_screen.dart';
+import '../features/client/parcels/parcels_screen.dart';
 import '../features/vendor/account/vendor_settings_screen.dart';
 import '../features/vendor/presentation/vendor_shell.dart';
 import '../features/driver/presentation/driver_shell.dart';
@@ -152,6 +155,21 @@ GoRouter buildAppRouter(SessionProvider session, MarketplaceApi marketplace) {
       GoRoute(
         path: '/client/orders',
         builder: (context, state) => OrdersScreen(marketplace: marketplace),
+      ),
+      GoRoute(
+        path: '/client/parcels',
+        builder: (context, state) => ParcelsScreen(marketplace: marketplace),
+      ),
+      GoRoute(
+        path: '/client/parcels/new',
+        builder: (context, state) => ParcelCreateScreen(marketplace: marketplace),
+      ),
+      GoRoute(
+        path: '/client/parcels/:id',
+        builder: (context, state) => ParcelDetailScreen(
+          marketplace: marketplace,
+          parcelId: state.pathParameters['id']!,
+        ),
       ),
       GoRoute(
         path: '/client/complaints',

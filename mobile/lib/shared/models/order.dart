@@ -262,6 +262,7 @@ class Order {
     this.customerName,
     this.customerPhone,
     this.notes,
+    this.review,
   });
 
   final String id;
@@ -302,6 +303,12 @@ class Order {
 
   /// Note de livraison laissée par le client (« Bien cuire les frites… »).
   final String? notes;
+
+  /// Avis déposé par le client (cahier v1.0, J29 §9) : null si pas encore noté.
+  final OrderReview? review;
+
+  /// Un avis a déjà été déposé sur cette commande.
+  bool get hasReview => review != null;
 
   bool get isAwaitingPayment => status == 'awaiting_payment';
   bool get isPaid => status == 'paid';
@@ -353,6 +360,7 @@ class Order {
         customerName: customerName,
         customerPhone: customerPhone,
         notes: notes,
+        review: review,
       );
 
   factory Order.fromJson(Map<String, dynamic> json) {
@@ -430,8 +438,33 @@ class Order {
       customerName: _customerField(json['customer'], 'name') ?? _stringOrNull(json['customer_name']),
       customerPhone: _customerField(json['customer'], 'phone') ?? _stringOrNull(json['customer_phone']),
       notes: _stringOrNull(json['notes']),
+      review: json['review'] is Map<String, dynamic>
+          ? OrderReview.fromJson(json['review'] as Map<String, dynamic>)
+          : null,
     );
   }
+}
+
+/// Avis client déposé sur une commande livrée (cahier v1.0, J29 §9).
+class OrderReview {
+  const OrderReview({
+    required this.id,
+    this.rating = 0,
+    this.driverRating,
+    this.comment,
+  });
+
+  final String id;
+  final int rating;
+  final int? driverRating;
+  final String? comment;
+
+  factory OrderReview.fromJson(Map<String, dynamic> json) => OrderReview(
+        id: _s(json['id']),
+        rating: _i(json['rating']),
+        driverRating: json['driver_rating'] is int ? json['driver_rating'] as int : null,
+        comment: _stringOrNull(json['comment']),
+      );
 }
 
 /// Champ d'un objet client `{"name": …, "phone": …}` renvoyé par l'API.

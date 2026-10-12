@@ -373,6 +373,14 @@ class _ClientDrawer extends StatelessWidget {
                     },
                   ),
                   _DrawerTile(
+                    icon: Icons.local_shipping_outlined,
+                    label: 'Mes colis',
+                    onTap: () {
+                      Navigator.of(context).pop();
+                      context.push('/client/parcels');
+                    },
+                  ),
+                  _DrawerTile(
                     icon: Icons.shopping_cart_outlined,
                     label: 'Mon panier',
                     onTap: () {

@@ -98,6 +98,26 @@ class BadgePalette {
         _ => null,
       };
 
+  /// Palette statuts colis (cahier v1.0, phase 3).
+  static (String, Color)? parcel(String? status) => switch (status) {
+        'awaiting_payment' => ('En attente de paiement', _grey),
+        'paid' => ('Payé', _amber),
+        'assigned' => ('Livreur affecté', _indigo),
+        'picked_up' => ('Collecté', _indigo),
+        'in_delivery' => ('En livraison', _indigo),
+        'delivered' => ('Livré', _green),
+        'cancelled' => ('Annulé', _red),
+        'refunded' => ('Remboursé', _green),
+        _ => null,
+      };
+
+  static (String, Color)? parcelPayment(String? status) => switch (status) {
+        'initiated' => ('En attente', _grey),
+        'confirmed' || 'paid' => ('Payé', _green),
+        'failed' => ('Échoué', _red),
+        _ => null,
+      };
+
   static (String, Color)? refund(String? status) => switch (status) {
         'pending' => ('En attente', _amber),
         'processing' => ('En cours', _grey),

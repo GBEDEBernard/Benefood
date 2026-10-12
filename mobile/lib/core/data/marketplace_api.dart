@@ -6,6 +6,7 @@ import '../../shared/models/checkout.dart';
 import '../../shared/models/complaint.dart';
 import '../../shared/models/delivery.dart';
 import '../../shared/models/order.dart';
+import '../../shared/models/parcel.dart';
 import '../../shared/models/product.dart';
 import '../../shared/models/user.dart';
 import '../../shared/models/vendor.dart';
@@ -716,6 +717,130 @@ class MarketplaceApi {
   Future<List<String>> categoriesForProductForm() async {
     final cats = await categories();
     return cats.map((c) => c.id).toList();
+  }
+
+  // ------------------------------------------------------------------
+  // Service colis — client (cahier v1.0, phase 3)
+  // ------------------------------------------------------------------
+
+  /// Devis d'un colis A → B (distance + répartition de l'encours).
+  Future<Map<String, dynamic>> parcelQuote({
+    required Map<String, dynamic> pickup,
+    required Map<String, dynamic> dropoff,
+  }) async {
+    final response = await _api.post('/parcels/quote', body: {
+      'pickup': pickup,
+      'dropoff': dropoff,
+    });
+    return _dataObject(response) ?? {};
+  }
+
+  /// Crée un colis en attente de paiement.
+  Future<Parcel> createParcel({
+    required Map<String, dynamic> pickup,
+    required Map<String, dynamic> dropoff,
+    String? description,
+  }) async {
+    final response = await _api.post('/parcels', body: {
+      'pickup': pickup,
+      'dropoff': dropoff,
+      if (description != null && description.trim().isNotEmpty) 'description': description.trim(),
+    });
+    return Parcel.fromJson(_dataObject(response) ?? {});
+  }
+
+  /// Colis envoyés par le client connecté.
+  Future<List<Parcel>> myParcels({int perPage = 25}) async {
+    final response = await _api.get('/parcels', query: {'per_page': perPage.toString()});
+    return _dataList(response).map(Parcel.fromJson).toList();
+  }
+
+  /// Détail d'un colis (client ou livreur assigné).
+  Future<Parcel> parcel(String id) async {
+    final response = await _api.get('/parcels/$id');
+    return Parcel.fromJson(_dataObject(response) ?? {});
+  }
+
+  /// Annule un colis en attente de paiement (client).
+  Future<Parcel> cancelParcel(String id, {required String reason}) async {
+    final response = await _api.post('/parcels/$id/cancel', body: {'reason': reason});
+    return Parcel.fromJson(_dataObject(response) ?? {});
+  }
+
+  /// Lance le paiement Kkiapay d'un colis (parallèle au paiement des commandes).
+  Future<Map<String, dynamic>> createParcelPayment(String parcelId) async {
+    final response = await _api.post('/payments/create', body: {'parcel_id': parcelId});
+    return _dataObject(response) ?? {};
+  }
+
+  // ------------------------------------------------------------------
+  // Service colis — livreur (cahier v1.0, phase 3)
+  // ------------------------------------------------------------------
+
+  /// Offres de colis disponibles sur la zone.
+  Future<List<Parcel>> driverParcelOffers() async {
+    final response = await _api.get('/driver/me/parcels/offers');
+    return _dataList(response).map(Parcel.fromJson).toList();
+  }
+
+  /// Colis assignés au livreur connecté (en cours ou terminés).
+  Future<List<Parcel>> myDriverParcels() async {
+    final response = await _api.get('/driver/me/parcels');
+    return _dataList(response).map(Parcel.fromJson).toList();
+  }
+
+  Future<Parcel> acceptParcelDelivery(String id) async {
+    final response = await _api.post('/driver/me/parcels/$id/accept');
+    return Parcel.fromJson(_dataObject(response) ?? {});
+  }
+
+  Future<Parcel> pickupParcelDelivery(String id) async {
+    final response = await _api.post('/driver/me/parcels/$id/pickup');
+    return Parcel.fromJson(_dataObject(response) ?? {});
+  }
+
+  Future<Parcel> startParcelDelivery(String id) async {
+    final response = await _api.post('/driver/me/parcels/$id/start');
+    return Parcel.fromJson(_dataObject(response) ?? {});
+  }
+
+  Future<Parcel> deliverParcelDelivery(String id) async {
+    final response = await _api.post('/driver/me/parcels/$id/deliver');
+    return Parcel.fromJson(_dataObject(response) ?? {});
+  }
+
+  // ------------------------------------------------------------------
+  // Flottant cash du livreur (cahier v1.0)
+  // ------------------------------------------------------------------
+
+  /// Solde du flottant prépayé + historique des opérations.
+  Future<Map<String, dynamic>> driverFloat() async {
+    final response = await _api.get('/driver/me/float');
+    return _dataObject(response) ?? {};
+  }
+
+  /// Recharge le flottant (démo : crédit direct).
+  Future<Map<String, dynamic>> topUpFloat(int amount) async {
+    final response = await _api.post('/driver/me/float/topup', body: {'amount': amount});
+    return _dataObject(response) ?? {};
+  }
+
+  // ------------------------------------------------------------------
+  // Avis client (cahier v1.0, J29 §9)
+  // ------------------------------------------------------------------
+
+  /// Note le vendeur et le livreur après livraison.
+  Future<void> reviewOrder(
+    String orderId, {
+    required int rating,
+    int? driverRating,
+    String? comment,
+  }) async {
+    await _api.post('/orders/$orderId/review', body: {
+      'rating': rating,
+      if (driverRating != null) 'driver_rating': driverRating,
+      if (comment != null && comment.trim().isNotEmpty) 'comment': comment.trim(),
+    });
   }
 
   // ------------------------------------------------------------------

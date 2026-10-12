@@ -13,6 +13,7 @@ import '../account/driver_account_screen.dart';
 import '../history/driver_history_screen.dart';
 import '../missions/driver_home_screen.dart';
 import '../offers/offers_screen.dart';
+import '../parcels/parcels_tab_screen.dart';
 
 /// Espace Livreur (J160) : missions, offres, historique, compte.
 ///
@@ -94,6 +95,10 @@ class _DriverShellState extends State<DriverShell> {
             marketplace: widget.marketplace,
             onOfferAccepted: () => _missionsKey.currentState?.refresh(),
           ),
+          DriverParcelsScreen(
+            marketplace: widget.marketplace,
+            onOfferAccepted: () => _missionsKey.currentState?.refresh(),
+          ),
           DriverHistoryScreen(marketplace: widget.marketplace),
           DriverAccountScreen(
             session: widget.session,
@@ -108,6 +113,7 @@ class _DriverShellState extends State<DriverShell> {
         destinations: const [
           NavigationDestination(icon: Icon(Icons.delivery_dining_outlined), selectedIcon: Icon(Icons.delivery_dining), label: 'Missions'),
           NavigationDestination(icon: Icon(Icons.local_offer_outlined), selectedIcon: Icon(Icons.local_offer), label: 'Offres'),
+          NavigationDestination(icon: Icon(Icons.inventory_2_outlined), selectedIcon: Icon(Icons.inventory_2), label: 'Colis'),
           NavigationDestination(icon: Icon(Icons.history_outlined), selectedIcon: Icon(Icons.history), label: 'Historique'),
           NavigationDestination(icon: Icon(Icons.person_outline), selectedIcon: Icon(Icons.person), label: 'Compte'),
         ],
