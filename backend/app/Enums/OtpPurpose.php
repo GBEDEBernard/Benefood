@@ -13,4 +13,5 @@ enum OtpPurpose: string
 
     case PhoneVerification = 'phone_verification';
     case PasswordReset = 'password_reset';
+    case LoginTwoFactor = 'login_two_factor';
 }

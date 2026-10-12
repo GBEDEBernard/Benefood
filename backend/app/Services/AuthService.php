@@ -8,6 +8,7 @@ use App\Exceptions\DomainException;
 use App\Models\Role;
 use App\Models\User;
 use App\Support\Phone;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Hash;
 
 /**
@@ -67,6 +68,10 @@ class AuthService
 
         $this->assertCanLogin($user);
 
+        if ($user->requiresTwoFactor()) {
+            return $this->twoFactorChallenge($user);
+        }
+
         return $this->tokenPayload($user);
     }
 
@@ -87,6 +92,64 @@ class AuthService
     public function logout(User $user): void
     {
         $user->currentAccessToken()?->delete();
+    }
+
+    /**
+     * Émet un défi 2FA (code OTP + jeton signé) pour un compte back-office.
+     *
+     * @return array{two_factor_required: bool, challenge_token: string, expires_at: string, code: ?string}
+     */
+    public function twoFactorChallenge(User $user): array
+    {
+        $ttl = (int) config('beninfood.two_factor.challenge_ttl_minutes', 10);
+        $expiresAt = now()->addMinutes($ttl);
+        $code = $this->otp->generate($this->twoFactorIdentifier($user), OtpPurpose::LoginTwoFactor);
+
+        $challenge = Crypt::encryptString(json_encode([
+            'uid' => $user->id,
+            'exp' => $expiresAt->timestamp,
+        ]));
+
+        return [
+            'two_factor_required' => true,
+            'challenge_token' => $challenge,
+            'expires_at' => $expiresAt->toIso8601String(),
+            'code' => app()->isProduction() ? null : $code,
+        ];
+    }
+
+    public function verifyTwoFactor(string $challengeToken, string $code): array
+    {
+        try {
+            $payload = json_decode(Crypt::decryptString($challengeToken), true, 512, JSON_THROW_ON_ERROR);
+        } catch (\Throwable) {
+            throw new DomainException('auth.invalid_challenge', 'La session de connexion a expiré, reconnectez-vous.', 422);
+        }
+
+        if (! is_array($payload) || (int) ($payload['exp'] ?? 0) < now()->timestamp) {
+            throw new DomainException('auth.invalid_challenge', 'La session de connexion a expiré, reconnectez-vous.', 422);
+        }
+
+        $user = User::find($payload['uid'] ?? null);
+
+        if ($user === null) {
+            throw new DomainException('auth.invalid_challenge', 'La session de connexion a expiré, reconnectez-vous.', 422);
+        }
+
+        $this->assertCanLogin($user);
+
+        $ok = $this->otp->verify($this->twoFactorIdentifier($user), OtpPurpose::LoginTwoFactor, $code);
+
+        if (! $ok) {
+            throw new DomainException('auth.invalid_code', 'Le code de vérification est invalide ou expiré.', 422);
+        }
+
+        return $this->tokenPayload($user);
+    }
+
+    protected function twoFactorIdentifier(User $user): string
+    {
+        return $user->email ?: $user->phone;
     }
 
     public function issuePhoneVerification(User $user): string

@@ -33,6 +33,7 @@ Route::get('/home', [HomeController::class, 'index'])->name('api.v1.home');
 Route::prefix('auth')->middleware('throttle:auth')->group(function (): void {
     Route::post('/register', [AuthController::class, 'register'])->name('api.v1.auth.register');
     Route::post('/login', [AuthController::class, 'login'])->name('api.v1.auth.login');
+    Route::post('/login/two-factor', [AuthController::class, 'verifyTwoFactor'])->name('api.v1.auth.login.two-factor');
     Route::post('/forgot-password', [AuthController::class, 'forgotPassword'])->name('api.v1.auth.forgot-password');
     Route::post('/reset-password', [AuthController::class, 'resetPassword'])->name('api.v1.auth.reset-password');
 });

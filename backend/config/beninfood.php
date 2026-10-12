@@ -141,6 +141,18 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Double authentification (cahier v1.0, sécurité back-office)
+    |--------------------------------------------------------------------------
+    | Rôles soumis à la double authentification OTP à chaque connexion, et
+    | durée de validité (minutes) du jeton de défi émis avant validation.
+    */
+    'two_factor' => [
+        'admin_roles' => ['porteuse', 'admin-technique'],
+        'challenge_ttl_minutes' => (int) env('BENINFOOD_TWO_FACTOR_TTL_MINUTES', 10),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Pagination par défaut
     |--------------------------------------------------------------------------
     */

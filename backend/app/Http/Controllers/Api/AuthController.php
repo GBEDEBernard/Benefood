@@ -42,6 +42,27 @@ class AuthController extends Controller
 
         $payload = $this->auth->attempt($data['login'], $data['password']);
 
+        if (($payload['two_factor_required'] ?? false) === true) {
+            return Api::ok([
+                'two_factor_required' => true,
+                'challenge_token' => $payload['challenge_token'],
+                'expires_at' => $payload['expires_at'],
+                ...(isset($payload['code']) ? ['code' => $payload['code']] : []),
+            ]);
+        }
+
+        return Api::ok($this->payload($payload));
+    }
+
+    public function verifyTwoFactor(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'challenge_token' => ['required', 'string'],
+            'code' => ['required', 'string', 'digits:6'],
+        ]);
+
+        $payload = $this->auth->verifyTwoFactor($data['challenge_token'], $data['code']);
+
         return Api::ok($this->payload($payload));
     }
 

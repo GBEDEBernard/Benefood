@@ -117,6 +117,17 @@ class User extends Authenticatable
         return $this->roles()->where('slug', $slug)->exists();
     }
 
+    /**
+     * Le compte doit-il confirmer sa connexion par un code OTP (2FA) ?
+     * Réservé aux rôles back-office listés dans la configuration.
+     */
+    public function requiresTwoFactor(): bool
+    {
+        $adminRoles = (array) config('beninfood.two_factor.admin_roles', []);
+
+        return $adminRoles !== [] && $this->roles()->whereIn('slug', $adminRoles)->exists();
+    }
+
     public function activeRoleSlug(): ?string
     {
         return $this->roles()->wherePivot('is_active', true)->value('slug');
