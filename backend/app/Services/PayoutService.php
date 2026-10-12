@@ -2,13 +2,16 @@
 
 namespace App\Services;
 
+use App\Enums\PayoutBatchStatus;
 use App\Enums\PayoutStatus;
 use App\Exceptions\DomainException;
 use App\Models\Payout;
+use App\Models\PayoutBatch;
 use App\Models\Vendor;
 use App\Models\Wallet;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 /**
  * Retraits des wallets (cahier de conception v1.0, J21 §8).
@@ -112,6 +115,137 @@ class PayoutService
             return $owner->settings->payout_method;
         }
 
-        return $details !== null && $details !== '' ? 'mobile_money' : 'mobile_money';
+        return 'mobile_money';
+    }
+
+    // ------------------------------------------------------------------- B
+    // Retraits groupés (Mode B) : l'admin regroupe des demandes en attente
+    // dans un lot puis exécute l'ensemble en une seule opération.
+
+    /**
+     * Regroupe des retraits en attente dans un lot (Mode B).
+     *
+     * @param  array<int, string>  $payoutIds
+     */
+    public function createBatch(array $payoutIds, ?string $actorId = null, ?string $label = null): PayoutBatch
+    {
+        if ($payoutIds === []) {
+            throw new DomainException('payout_batch.empty', 'Sélectionnez au moins un retrait.', 422);
+        }
+
+        $payouts = Payout::whereIn('id', $payoutIds)->get();
+
+        if ($payouts->count() !== count(array_unique($payoutIds))) {
+            throw new DomainException('payout_batch.invalid', 'Certains retraits sélectionnés sont introuvables.', 422);
+        }
+
+        foreach ($payouts as $payout) {
+            if ($payout->status !== PayoutStatus::Pending) {
+                throw new DomainException('payout_batch.not_pending', 'Un retrait sélectionné n\'est plus en attente.', 409);
+            }
+        }
+
+        return DB::transaction(function () use ($payouts, $actorId, $label): PayoutBatch {
+            $batch = PayoutBatch::create([
+                'reference' => 'BATCH-'.Str::upper(Str::random(10)),
+                'label' => $label,
+                'status' => PayoutBatchStatus::Processing->value,
+                'total_amount' => (int) $payouts->sum('amount'),
+                'payouts_count' => $payouts->count(),
+                'created_by' => $actorId,
+            ]);
+
+            foreach ($payouts as $payout) {
+                $payout->update([
+                    'batch_id' => $batch->id,
+                    'status' => PayoutStatus::Processing->value,
+                ]);
+            }
+
+            return $batch->fresh('payouts');
+        });
+    }
+
+    /**
+     * Exécute tous les retraits d'un lot (Mode B) : chacun est marqué versé
+     * d'un coup et le lot passe à executed (ou partially_failed).
+     */
+    public function executeBatch(PayoutBatch $batch, ?string $actorId = null, ?string $gatewayRef = null): PayoutBatch
+    {
+        if ($batch->status === PayoutBatchStatus::Executed) {
+            return $batch->fresh('payouts');
+        }
+
+        $affected = 0;
+
+        return DB::transaction(function () use ($batch, $actorId, $gatewayRef, &$affected): PayoutBatch {
+            foreach ($batch->payouts as $payout) {
+                if (in_array($payout->status, [PayoutStatus::Pending, PayoutStatus::Processing], true)) {
+                    $this->execute($payout, $actorId, $gatewayRef);
+                    $affected++;
+                }
+            }
+
+            $batch->refresh();
+
+            $executedCount = $batch->payouts()->where('status', PayoutStatus::Executed->value)->count();
+            $failedCount = $batch->payouts()->where('status', PayoutStatus::Failed->value)->count();
+
+            $batch->update([
+                'executed_count' => $executedCount,
+                'failed_count' => $failedCount,
+                'status' => $this->resolveBatchStatus($executedCount, $failedCount, $batch->payouts_count),
+                'gateway_ref' => $gatewayRef,
+                'executed_at' => now(),
+            ]);
+
+            return $batch->fresh('payouts');
+        });
+    }
+
+    /** Marque un retrait d'un lot en échec : le montant est re-crédité. */
+    public function failBatchPayout(PayoutBatch $batch, Payout $payout, ?string $reason = null, ?string $actorId = null): Payout
+    {
+        $payout->refresh();
+
+        if ($payout->batch_id !== $batch->id) {
+            throw new DomainException('payout_batch.mismatch', 'Ce retrait ne fait pas partie du lot.', 409);
+        }
+
+        $payout = $this->fail($payout, $reason);
+
+        if ($reason !== null) {
+            $payout->update(['failed_reason' => $reason]);
+        }
+
+        $batch->refresh();
+
+        $executedCount = $batch->payouts()->where('status', PayoutStatus::Executed->value)->count();
+        $failedCount = $batch->payouts()->where('status', PayoutStatus::Failed->value)->count();
+
+        $batch->update([
+            'executed_count' => $executedCount,
+            'failed_count' => $failedCount,
+            'status' => $this->resolveBatchStatus($executedCount, $failedCount, $batch->payouts_count),
+        ]);
+
+        return $payout->fresh();
+    }
+
+    private function resolveBatchStatus(int $executedCount, int $failedCount, int $total): string
+    {
+        if ($failedCount === $total && $total > 0) {
+            return PayoutBatchStatus::Failed->value;
+        }
+
+        if ($executedCount > 0 && $failedCount > 0 && $executedCount + $failedCount >= $total) {
+            return PayoutBatchStatus::PartiallyFailed->value;
+        }
+
+        if ($executedCount === $total && $total > 0) {
+            return PayoutBatchStatus::Executed->value;
+        }
+
+        return PayoutBatchStatus::Processing->value;
     }
 }

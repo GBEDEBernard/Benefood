@@ -142,6 +142,13 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function (): v
     Route::post('payouts/{payout}/execute', [AdminPayoutsController::class, 'execute'])->name('payouts.execute');
     Route::post('payouts/{payout}/fail', [AdminPayoutsController::class, 'fail'])->name('payouts.fail');
 
+    // ---------- Retraits groupés (Mode B, cahier v1.0) ----------
+    Route::get('payouts/batches', [AdminPayoutsController::class, 'batches'])->name('payouts.batches.index');
+    Route::post('payouts/batches', [AdminPayoutsController::class, 'createBatch'])->name('payouts.batches.store');
+    Route::get('payouts/batches/{batch}', [AdminPayoutsController::class, 'showBatch'])->name('payouts.batches.show');
+    Route::post('payouts/batches/{batch}/execute', [AdminPayoutsController::class, 'executeBatch'])->name('payouts.batches.execute');
+    Route::post('payouts/batches/{batch}/payouts/{payout}/fail', [AdminPayoutsController::class, 'failBatchPayout'])->name('payouts.batches.payouts.fail');
+
     // ---------- Phase 16 — Réclamations & litiges (J141) ----------
     Route::resource('complaints', AdminComplaintsController::class)->only(['index', 'show']);
     Route::post('complaints/{complaint}/reply', [AdminComplaintsController::class, 'reply'])->name('complaints.reply');

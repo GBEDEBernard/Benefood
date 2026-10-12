@@ -8,7 +8,8 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
- * Reversement du solde vendeur (J21 §8).
+ * Reversement du solde vendeur (J21 §8) ou livreur, exécuté seul (Mode A)
+ * ou au sein d'un lot groupé (Mode B).
  */
 class Payout extends Model
 {
@@ -28,5 +29,10 @@ class Payout extends Model
     public function wallet(): BelongsTo
     {
         return $this->belongsTo(Wallet::class);
+    }
+
+    public function batch(): BelongsTo
+    {
+        return $this->belongsTo(PayoutBatch::class, 'batch_id');
     }
 }

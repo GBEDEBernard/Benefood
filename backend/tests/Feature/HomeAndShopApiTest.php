@@ -112,7 +112,12 @@ class HomeAndShopApiTest extends TestCase
             'category_id' => $category->id,
             'stock_qty' => 5,
         ]);
-        $vendor->hours()->create(['day_of_week' => 1, 'opens_at' => '08:00', 'closes_at' => '20:00']);
+        $now = now();
+        $vendor->hours()->create([
+            'day_of_week' => $now->dayOfWeek,
+            'opens_at' => $now->copy()->subMinutes(30)->format('H:i'),
+            'closes_at' => $now->copy()->addHours(5)->format('H:i'),
+        ]);
 
         $this->getJson("/api/v1/vendors/{$vendor->id}")
             ->assertOk()

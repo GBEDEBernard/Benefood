@@ -2,9 +2,11 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Enums\PayoutBatchStatus;
 use App\Enums\PayoutStatus;
 use App\Http\Controllers\Controller;
 use App\Models\Payout;
+use App\Models\PayoutBatch;
 use App\Models\User;
 use App\Services\PayoutService;
 use Illuminate\Http\RedirectResponse;
@@ -81,6 +83,92 @@ class AdminPayoutsController extends Controller
         }
 
         $this->payouts->fail($payout);
+
+        return back()->with('success', 'Retrait marqué en échec : le montant a été re-crédité au wallet.');
+    }
+
+    // ---------------- Retraits groupés (Mode B) ----------------
+
+    public function batches(Request $request): View
+    {
+        $this->authorize('manage', User::class);
+
+        $batches = PayoutBatch::query()
+            ->with('creator')
+            ->withCount('payouts')
+            ->orderByDesc('created_at')
+            ->paginate(20)
+            ->withQueryString();
+
+        return view('admin.payouts.batches.index', [
+            'batches' => $batches,
+            'counts' => [
+                'all' => PayoutBatch::count(),
+                'processing' => PayoutBatch::where('status', PayoutBatchStatus::Processing->value)->count(),
+                'executed' => PayoutBatch::where('status', PayoutBatchStatus::Executed->value)->count(),
+                'partially_failed' => PayoutBatch::where('status', PayoutBatchStatus::PartiallyFailed->value)->count(),
+                'failed' => PayoutBatch::where('status', PayoutBatchStatus::Failed->value)->count(),
+            ],
+            'totals' => [
+                'executed' => (int) PayoutBatch::where('status', PayoutBatchStatus::Executed->value)->sum('total_amount'),
+            ],
+        ]);
+    }
+
+    public function showBatch(Request $request, PayoutBatch $batch): View
+    {
+        $this->authorize('manage', User::class);
+
+        $payouts = $batch->payouts()->with('wallet')->orderByDesc('created_at')->paginate(20)->withQueryString();
+
+        return view('admin.payouts.batches.show', compact('batch', 'payouts'));
+    }
+
+    public function createBatch(Request $request): RedirectResponse
+    {
+        $this->authorize('manage', User::class);
+
+        if (! $request->user()->hasPermission('payments.refund')) {
+            abort(403, 'Vous n\'avez pas le droit de créer des lots de retraits.');
+        }
+
+        $data = $request->validate([
+            'payout_ids' => ['required', 'array', 'min:1'],
+            'payout_ids.*' => ['string', 'uuid', 'exists:payouts,id'],
+            'label' => ['nullable', 'string', 'max:120'],
+        ]);
+
+        $batch = $this->payouts->createBatch($data['payout_ids'], (string) Auth::id(), $data['label'] ?? null);
+
+        return redirect()
+            ->route('admin.payouts.batches.show', $batch)
+            ->with('success', 'Lot n°'.$batch->reference.' créé : '.$batch->payouts_count.' retrait(s) à exécuter.');
+    }
+
+    public function executeBatch(Request $request, PayoutBatch $batch): RedirectResponse
+    {
+        $this->authorize('manage', User::class);
+
+        if (! $request->user()->hasPermission('payments.refund')) {
+            abort(403, 'Vous n\'avez pas le droit d\'exécuter des retraits.');
+        }
+
+        $this->payouts->executeBatch($batch, (string) Auth::id());
+
+        return back()->with('success', 'Lot exécuté : tous les retraits en attente ont été marqués versés.');
+    }
+
+    public function failBatchPayout(Request $request, PayoutBatch $batch, Payout $payout): RedirectResponse
+    {
+        $this->authorize('manage', User::class);
+
+        if (! $request->user()->hasPermission('payments.refund')) {
+            abort(403, 'Vous n\'avez pas le droit de gérer les retraits.');
+        }
+
+        $reason = $request->validate(['reason' => ['nullable', 'string', 'max:255']])['reason'] ?? null;
+
+        $this->payouts->failBatchPayout($batch, $payout, $reason, (string) Auth::id());
 
         return back()->with('success', 'Retrait marqué en échec : le montant a été re-crédité au wallet.');
     }
