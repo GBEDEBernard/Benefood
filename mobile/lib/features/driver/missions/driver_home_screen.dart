@@ -7,10 +7,11 @@ import '../../../core/theme/app_dimens.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/models/delivery.dart';
 import '../../../shared/widgets/amount_widgets.dart';
+import '../../../shared/widgets/app_network_image.dart';
+import '../../../shared/widgets/beninfood_header.dart';
 import '../../../shared/widgets/feedback_widgets.dart';
 import '../../../shared/widgets/home_header.dart';
 import '../../../shared/widgets/section_header.dart';
-import '../../../shared/widgets/app_network_image.dart';
 import '../../../shared/widgets/status_badge.dart';
 import '../../../shared/widgets/state_widgets.dart';
 import '../../../core/utils/formatters.dart';
@@ -23,11 +24,15 @@ class DriverHomeScreen extends StatefulWidget {
     required this.marketplace,
     this.visible = true,
     this.userName,
+    this.onOpenMenu,
   });
 
   final MarketplaceApi marketplace;
   final bool visible;
   final String? userName;
+
+  /// Ouvre le tiroir latéral (menu hamburger) — géré par le shell livreur.
+  final VoidCallback? onOpenMenu;
 
   @override
   State<DriverHomeScreen> createState() => DriverHomeScreenState();
@@ -219,10 +224,9 @@ class DriverHomeScreenState extends State<DriverHomeScreen>
       return ListView(
         physics: const AlwaysScrollableScrollPhysics(),
         children: [
-          HomeHeader(
-            title: greeting,
-            subtitle: 'Préparation de vos missions…',
-            leading: const HomeBadgeIcon(icon: Icons.delivery_dining),
+          BeninfoodAppBar(
+            onMenu: widget.onOpenMenu,
+            api: widget.marketplace,
           ),
           const SizedBox(height: 120),
           const Center(child: CircularProgressIndicator()),
@@ -244,17 +248,26 @@ class DriverHomeScreenState extends State<DriverHomeScreen>
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.only(bottom: AppDimens.xl),
       children: [
-        HomeHeader(
-          title: greeting,
-          subtitle: 'Prêt pour vos livraisons du jour ?',
-          leading: const HomeBadgeIcon(icon: Icons.delivery_dining),
-          actions: [
-            HomeHeaderAction(
-              icon: Icons.refresh,
-              tooltip: 'Rafraîchir',
-              onPressed: _load,
+        BeninfoodAppBar(
+          onMenu: widget.onOpenMenu,
+          api: widget.marketplace,
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppDimens.pagePadding,
+            8,
+            AppDimens.pagePadding,
+            0,
+          ),
+          child: Text(
+            greeting,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontSize: 13.5,
+              color: AppColors.textSecondary,
             ),
-          ],
+          ),
         ),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: AppDimens.pagePadding),

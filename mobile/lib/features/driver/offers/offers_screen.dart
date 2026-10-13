@@ -15,16 +15,25 @@ import '../../../shared/models/geo_point.dart';
 import '../../../shared/models/route_plan.dart';
 import '../../../shared/widgets/amount_widgets.dart';
 import '../../../shared/widgets/app_map.dart';
+import '../../../shared/widgets/beninfood_header.dart';
 import '../../../shared/widgets/feedback_widgets.dart';
 import '../../../shared/widgets/status_badge.dart';
 import '../../../shared/widgets/state_widgets.dart';
 
 /// Offres de livraison disponibles (J161).
 class OffersScreen extends StatefulWidget {
-  const OffersScreen({super.key, required this.marketplace, this.onOfferAccepted});
+  const OffersScreen({
+    super.key,
+    required this.marketplace,
+    this.onOfferAccepted,
+    this.onOpenMenu,
+  });
 
   final MarketplaceApi marketplace;
   final VoidCallback? onOfferAccepted;
+
+  /// Ouvre le tiroir latéral (menu hamburger) — géré par le shell livreur.
+  final VoidCallback? onOpenMenu;
 
   @override
   State<OffersScreen> createState() => _OffersScreenState();
@@ -202,13 +211,15 @@ class _OffersScreenState extends State<OffersScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Offres disponibles'),
-        elevation: 0,
-        backgroundColor: Colors.transparent,
-        foregroundColor: AppColors.text,
+      body: Column(
+        children: [
+          BeninfoodAppBar(
+            onMenu: widget.onOpenMenu,
+            api: widget.marketplace,
+          ),
+          Expanded(child: _buildBody()),
+        ],
       ),
-      body: _buildBody(),
     );
   }
 

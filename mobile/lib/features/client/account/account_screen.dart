@@ -12,9 +12,8 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../shared/models/user.dart';
 import '../../../shared/widgets/app_network_image.dart';
-import '../../../shared/widgets/brand_logo.dart';
+import '../../../shared/widgets/beninfood_header.dart';
 import '../../../shared/widgets/feedback_widgets.dart';
-import '../../../shared/widgets/notification_bell.dart';
 
 /// Profil client (J153) : carte verte, statistiques, menu « Mon compte ».
 ///
@@ -25,11 +24,16 @@ class AccountScreen extends StatefulWidget {
     super.key,
     required this.session,
     required this.marketplace,
+    this.onOpenMenu,
     required this.onSelectTab,
   });
 
   final SessionProvider session;
   final MarketplaceApi marketplace;
+
+  /// Ouvre le tiroir latéral (menu hamburger) — géré par le shell client.
+  final VoidCallback? onOpenMenu;
+
   final ValueChanged<int> onSelectTab;
 
   @override
@@ -272,15 +276,14 @@ class _AccountScreenState extends State<AccountScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: SafeArea(
-        bottom: false,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _Header(
-              marketplace: widget.marketplace,
-              uploadingAvatar: _uploadingAvatar,
-            ),
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _Header(
+            marketplace: widget.marketplace,
+            uploadingAvatar: _uploadingAvatar,
+            onMenu: widget.onOpenMenu,
+          ),
             Expanded(
               child: ListView(
                 padding: EdgeInsets.zero,
@@ -343,7 +346,6 @@ class _AccountScreenState extends State<AccountScreen> {
             ),
           ],
         ),
-      ),
     );
   }
 }
@@ -352,30 +354,23 @@ class _AccountScreenState extends State<AccountScreen> {
 
 /// En-tête : logo central + cloche dynamique (pastille = non lus réels).
 class _Header extends StatelessWidget {
-  const _Header({required this.marketplace, required this.uploadingAvatar});
+  const _Header({
+    required this.marketplace,
+    required this.uploadingAvatar,
+    this.onMenu,
+  });
 
   final MarketplaceApi marketplace;
   final bool uploadingAvatar;
+  final VoidCallback? onMenu;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-      child: Row(
-        children: [
-          const SizedBox(width: 44),
-          Expanded(
-            child: Center(
-              child: Image.asset(
-                'assets/Logo.jpeg',
-                height: 44,
-                fit: BoxFit.contain,
-                errorBuilder: (_, _, _) => const BrandMark(),
-              ),
-            ),
-          ),
-          if (uploadingAvatar)
-            const SizedBox(
+    return BeninfoodAppBar(
+      onMenu: onMenu,
+      api: marketplace,
+      trailing: uploadingAvatar
+          ? const SizedBox(
               width: 44,
               height: 44,
               child: Center(
@@ -386,10 +381,7 @@ class _Header extends StatelessWidget {
                 ),
               ),
             )
-          else
-            NotificationBell(api: marketplace),
-        ],
-      ),
+          : null,
     );
   }
 }

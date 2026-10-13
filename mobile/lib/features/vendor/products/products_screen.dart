@@ -5,9 +5,9 @@ import '../../../core/errors/api_exception.dart';
 import '../../../shared/models/product.dart';
 import '../../../shared/widgets/amount_widgets.dart';
 import '../../../shared/widgets/app_network_image.dart';
+import '../../../shared/widgets/beninfood_header.dart';
 import '../../../shared/widgets/feedback_widgets.dart';
 import '../../../shared/widgets/state_widgets.dart';
-import '../../../shared/widgets/notification_bell.dart';
 import '../restaurant/restaurant_palette.dart';
 import 'product_form_screen.dart';
 
@@ -214,75 +214,13 @@ class _ProductsScreenState extends State<ProductsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: RestaurantPalette.background,
-      appBar: AppBar(
-        backgroundColor: RestaurantPalette.white,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        leadingWidth: 56,
-        leading: widget.onOpenDrawer == null
-            ? null
-            : IconButton(
-                icon: Icon(Icons.menu, color: RestaurantPalette.darkText),
-                tooltip: 'Menu',
-                onPressed: widget.onOpenDrawer,
-              ),
-        title: Text(
-          'Mes produits',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w700,
-            color: RestaurantPalette.darkText,
+      body: Column(
+        children: [
+          BeninfoodAppBar(
+            onMenu: widget.onOpenDrawer,
+            api: widget.marketplace,
           ),
-        ),
-        centerTitle: true,
-        actions: [
-          if (_demoMode)
-            Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.notifications_none),
-                    tooltip: 'Notifications',
-                    onPressed: () => showToast(
-                      context,
-                      'Aucune notification pour le moment.',
-                    ),
-                  ),
-                  Positioned(
-                    right: 6,
-                    top: 6,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 5,
-                        vertical: 1,
-                      ),
-                      decoration: BoxDecoration(
-                        color: RestaurantPalette.danger,
-                        borderRadius: BorderRadius.circular(9),
-                      ),
-                      child: const Text(
-                        '3',
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
-                          color: RestaurantPalette.white,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            )
-          else if (widget.marketplace != null)
-            NotificationBell(api: widget.marketplace!)
-          else
-            IconButton(
-              onPressed: () =>
-                  showToast(context, 'Aucune notification pour le moment.'),
-              icon: const Icon(Icons.notifications_none),
-            ),
+          Expanded(child: _buildBody()),
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
@@ -295,7 +233,6 @@ class _ProductsScreenState extends State<ProductsScreen> {
           style: TextStyle(fontWeight: FontWeight.w700),
         ),
       ),
-      body: _buildBody(),
     );
   }
 

@@ -3,10 +3,10 @@ import 'package:flutter/material.dart';
 import '../../../../core/data/marketplace_api.dart';
 import '../../../../core/errors/api_exception.dart';
 import '../../../../core/utils/formatters.dart';
+import '../../../../shared/widgets/beninfood_header.dart';
 import '../../../../shared/widgets/state_widgets.dart';
 import '../restaurant_palette.dart';
 import '../screens/order_details_screen.dart';
-import '../widgets/vendor_screen_header.dart';
 
 /// Historique des activités (J21 §10) : chronologie des événements du compte,
 /// des documents, des commandes et des produits.
@@ -110,7 +110,7 @@ class _ActivityScreenState extends State<ActivityScreen> {
       color: RestaurantPalette.background,
       child: Column(
         children: [
-          VendorScreenHeader(title: 'HISTORIQUE', onOpenDrawer: widget.onOpenDrawer),
+          BeninfoodAppBar(onMenu: widget.onOpenDrawer, api: widget.marketplace),
           Expanded(child: _buildBody()),
         ],
       ),

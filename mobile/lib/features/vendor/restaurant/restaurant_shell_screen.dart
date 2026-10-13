@@ -6,6 +6,7 @@ import '../../../core/errors/api_exception.dart';
 import '../../../core/data/marketplace_api.dart';
 import '../../../shared/models/order.dart';
 import '../../../shared/models/vendor.dart';
+import '../../../shared/widgets/beninfood_header.dart';
 import '../../../shared/widgets/feedback_widgets.dart';
 import '../account/vendor_account_screen.dart';
 import '../products/products_screen.dart';
@@ -678,12 +679,14 @@ class _RestaurantShellScreenState extends State<RestaurantShellScreen> {
           busyOrderIds: _busyOrders,
           onOpenDrawer: _openDrawer,
           onRefresh: _reloadData,
+          marketplace: widget.marketplace,
         );
       case 4:
         return RevenusScreen(
           orders: _orders,
           revenue: _revenue,
           onOpenDrawer: _openDrawer,
+          marketplace: widget.marketplace,
           onMonthTap: () =>
               showToast(context, 'Sélection du mois bientôt disponible.'),
           onSeeAllTap: _revenue == null ? () => _select(7) : _openRevenueHistory,
@@ -710,6 +713,7 @@ class _RestaurantShellScreenState extends State<RestaurantShellScreen> {
             session: widget.session!,
             marketplace: widget.marketplace!,
             onSelectTab: (index) => _select(_mapAccountTab(index)),
+            onOpenMenu: _openDrawer,
           );
         }
         return _PlaceholderScreen(
@@ -745,73 +749,43 @@ class _PlaceholderScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Material(
       color: RestaurantPalette.background,
-      child: SafeArea(
-        child: Column(
-          children: [
-            Material(
-              color: RestaurantPalette.white,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
-                child: Row(
-                  children: [
-                    IconButton(
-                      onPressed: onOpenDrawer,
-                      icon: const Icon(Icons.menu, color: RestaurantPalette.darkText),
-                      tooltip: 'Ouvrir le menu',
+      child: Column(
+        children: [
+          BeninfoodAppBar(onMenu: onOpenDrawer),
+          Expanded(
+            child: Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.construction_outlined,
+                    size: 56,
+                    color: RestaurantPalette.orange,
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    '$title — bientôt disponible',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: RestaurantPalette.grayText,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w500,
                     ),
-                    Expanded(
-                      child: Text(
-                        title,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          color: RestaurantPalette.darkText,
-                          fontSize: 17,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
+                  ),
+                  const SizedBox(height: 20),
+                  OutlinedButton.icon(
+                    onPressed: onBack,
+                    icon: const Icon(Icons.arrow_back),
+                    label: const Text('Retour au tableau de bord'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: RestaurantPalette.orange,
                     ),
-                    const SizedBox(width: 48),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
-            Expanded(
-              child: Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(
-                      Icons.construction_outlined,
-                      size: 56,
-                      color: RestaurantPalette.orange,
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      '$title — bientôt disponible',
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        color: RestaurantPalette.grayText,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    OutlinedButton.icon(
-                      onPressed: onBack,
-                      icon: const Icon(Icons.arrow_back),
-                      label: const Text('Retour au tableau de bord'),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: RestaurantPalette.orange,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

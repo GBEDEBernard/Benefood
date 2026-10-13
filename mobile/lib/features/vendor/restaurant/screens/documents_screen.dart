@@ -4,10 +4,10 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/data/marketplace_api.dart';
 import '../../../../core/errors/api_exception.dart';
+import '../../../../shared/widgets/beninfood_header.dart';
 import '../../../../shared/widgets/feedback_widgets.dart';
 import '../../../../shared/widgets/state_widgets.dart';
 import '../restaurant_palette.dart';
-import '../widgets/vendor_screen_header.dart';
 
 /// Mon dossier (J21 §4) : progression de la vérification et documents
 /// transmis (statut, motif de rejet, consultation et renvoi).
@@ -142,7 +142,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
       color: RestaurantPalette.background,
       child: Column(
         children: [
-          VendorScreenHeader(title: 'MON DOSSIER', onOpenDrawer: widget.onOpenDrawer),
+          BeninfoodAppBar(onMenu: widget.onOpenDrawer, api: widget.marketplace),
           Expanded(child: _buildBody()),
         ],
       ),

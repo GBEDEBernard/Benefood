@@ -8,6 +8,7 @@ import '../../../shared/models/parcel.dart';
 import '../../../shared/widgets/amount_widgets.dart';
 import '../../../shared/widgets/app_button.dart';
 import '../../../shared/widgets/app_map.dart';
+import '../../../shared/widgets/beninfood_header.dart';
 import '../../../shared/widgets/feedback_widgets.dart';
 import '../../../shared/widgets/status_badge.dart';
 import '../../../shared/widgets/state_widgets.dart';
@@ -15,10 +16,18 @@ import '../../../shared/widgets/state_widgets.dart';
 /// Service colis côté livreur (cahier v1.0, phase 3) :
 /// offres de colis disponibles + courses assignées (accept → pickup → start → deliver).
 class DriverParcelsScreen extends StatefulWidget {
-  const DriverParcelsScreen({super.key, required this.marketplace, this.onOfferAccepted});
+  const DriverParcelsScreen({
+    super.key,
+    required this.marketplace,
+    this.onOfferAccepted,
+    this.onOpenMenu,
+  });
 
   final MarketplaceApi marketplace;
   final VoidCallback? onOfferAccepted;
+
+  /// Ouvre le tiroir latéral (menu hamburger) — géré par le shell livreur.
+  final VoidCallback? onOpenMenu;
 
   @override
   State<DriverParcelsScreen> createState() => _DriverParcelsScreenState();
@@ -85,13 +94,15 @@ class _DriverParcelsScreenState extends State<DriverParcelsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Colis'),
-        backgroundColor: Colors.transparent,
-        foregroundColor: AppColors.text,
-        elevation: 0,
+      body: Column(
+        children: [
+          BeninfoodAppBar(
+            onMenu: widget.onOpenMenu,
+            api: widget.marketplace,
+          ),
+          Expanded(child: _buildBody()),
+        ],
       ),
-      body: _buildBody(),
     );
   }
 

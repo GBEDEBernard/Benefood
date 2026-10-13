@@ -9,18 +9,21 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../shared/models/order.dart';
 import '../../../shared/widgets/app_network_image.dart';
+import '../../../shared/widgets/beninfood_header.dart';
 import '../../../shared/widgets/call_button.dart';
 import '../../../shared/widgets/feedback_widgets.dart';
-import '../../../shared/widgets/notification_bell.dart';
 import '../../../shared/widgets/state_widgets.dart';
 import 'order_tracking_screen.dart';
 
 /// Mes commandes (J152) — suivi et historique : en-tête brandé, onglets de
 /// filtre, cartes par statut avec barre de progression et actions.
 class OrdersScreen extends StatefulWidget {
-  const OrdersScreen({super.key, required this.marketplace});
+  const OrdersScreen({super.key, required this.marketplace, this.onOpenMenu});
 
   final MarketplaceApi marketplace;
+
+  /// Ouvre le tiroir latéral (menu hamburger) — géré par le shell client.
+  final VoidCallback? onOpenMenu;
 
   @override
   State<OrdersScreen> createState() => _OrdersScreenState();
@@ -216,38 +219,15 @@ class _OrdersScreenState extends State<OrdersScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: SafeArea(
-        bottom: false,
-        child: Column(
-          children: [
-            _buildHeader(),
-            _buildTitle(),
-            _buildTabs(),
-            Expanded(child: _buildList(visible)),
-          ],
-        ),
-      ),
-    );
-  }
-
-  /// En-tête blanc : logo central + cloche avec pastille « 2 ».
-  Widget _buildHeader() {
-    return Container(
-      color: AppColors.surface,
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-      child: Row(
+      body: Column(
         children: [
-          const SizedBox(width: 44),
-          Expanded(
-            child: Center(
-              child: Image.asset(
-                'assets/Logo.jpeg',
-                height: 44,
-                fit: BoxFit.contain,
-              ),
-            ),
+          BeninfoodAppBar(
+            onMenu: widget.onOpenMenu,
+            api: widget.marketplace,
           ),
-          NotificationBell(api: widget.marketplace),
+          _buildTitle(),
+          _buildTabs(),
+          Expanded(child: _buildList(visible)),
         ],
       ),
     );

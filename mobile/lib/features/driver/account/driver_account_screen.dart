@@ -24,11 +24,15 @@ class DriverAccountScreen extends StatefulWidget {
     required this.session,
     required this.marketplace,
     required this.onSelectTab,
+    this.onOpenMenu,
   });
 
   final SessionProvider session;
   final MarketplaceApi marketplace;
   final ValueChanged<int> onSelectTab;
+
+  /// Ouvre le tiroir latéral (menu hamburger) — géré par le shell livreur.
+  final VoidCallback? onOpenMenu;
 
   @override
   State<DriverAccountScreen> createState() => _DriverAccountScreenState();
@@ -171,15 +175,14 @@ class _DriverAccountScreenState extends State<DriverAccountScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: SafeArea(
-        bottom: false,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            ProfileHeader(
-              marketplace: widget.marketplace,
-              uploadingAvatar: _uploadingAvatar,
-            ),
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          ProfileHeader(
+            marketplace: widget.marketplace,
+            uploadingAvatar: _uploadingAvatar,
+            onMenu: widget.onOpenMenu,
+          ),
             Expanded(
               child: RefreshIndicator(
                 onRefresh: _load,
@@ -226,7 +229,6 @@ class _DriverAccountScreenState extends State<DriverAccountScreen> {
             ),
           ],
         ),
-      ),
     );
   }
 

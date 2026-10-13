@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/data/marketplace_api.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../shared/models/order.dart';
+import '../../../../shared/widgets/beninfood_header.dart';
 import '../restaurant_palette.dart';
 
 /// Écran « E. REVENUS » : résumé du mois (solde wallet, ventes validées,
@@ -14,6 +16,7 @@ class RevenusScreen extends StatelessWidget {
     required this.orders,
     this.revenue,
     this.onOpenDrawer,
+    this.marketplace,
     this.onMonthTap,
     this.onSeeAllTap,
     this.onRefresh,
@@ -27,6 +30,7 @@ class RevenusScreen extends StatelessWidget {
   final Map<String, dynamic>? revenue;
 
   final VoidCallback? onOpenDrawer;
+  final MarketplaceApi? marketplace;
   final VoidCallback? onMonthTap;
   final VoidCallback? onSeeAllTap;
   final Future<void> Function()? onRefresh;
@@ -39,25 +43,22 @@ class RevenusScreen extends StatelessWidget {
 
     return Material(
       color: RestaurantPalette.background,
-      child: SafeArea(
-        bottom: false,
-        child: Column(
-          children: [
-            _buildHeader(),
-            Expanded(
-              child: RefreshIndicator(
-                onRefresh: () async => onRefresh?.call(),
-                child: ListView(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
-                  children: [
-                    _buildMainCard(summary, transactions, orderCount),
-                  ],
-                ),
+      child: Column(
+        children: [
+          BeninfoodAppBar(onMenu: onOpenDrawer, api: marketplace),
+          Expanded(
+            child: RefreshIndicator(
+              onRefresh: () async => onRefresh?.call(),
+              child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
+                children: [
+                  _buildMainCard(summary, transactions, orderCount),
+                ],
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -175,38 +176,6 @@ class RevenusScreen extends StatelessWidget {
     }
 
     return (summary, transactions.take(6).toList(), amount('orders_count'));
-  }
-
-  Widget _buildHeader() {
-    return Material(
-      color: RestaurantPalette.white,
-      child: Padding(
-        padding: const EdgeInsets.only(left: 6, right: 16, top: 8, bottom: 10),
-        child: Row(
-          children: [
-            if (onOpenDrawer != null)
-              IconButton(
-                onPressed: onOpenDrawer,
-                icon: const Icon(Icons.menu, color: RestaurantPalette.darkText),
-                tooltip: 'Ouvrir le menu',
-              )
-            else
-              const SizedBox(width: 12),
-            const Expanded(
-              child: Text(
-                'E. REVENUS',
-                style: TextStyle(
-                  color: RestaurantPalette.forest,
-                  fontSize: 19,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 0.4,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 
   Widget _buildMainCard(

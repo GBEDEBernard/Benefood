@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/data/marketplace_api.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../shared/models/order.dart';
+import '../../../../shared/widgets/beninfood_header.dart';
 import '../restaurant_palette.dart';
 import '../widgets/order_status_tag.dart';
 import 'order_details_screen.dart';
@@ -22,6 +24,7 @@ class OrdersScreen extends StatefulWidget {
     this.busyOrderIds = const {},
     this.onOpenDrawer,
     this.onRefresh,
+    this.marketplace,
   });
 
   /// Commandes déjà chargées par le shell (live ou démo).
@@ -45,6 +48,9 @@ class OrdersScreen extends StatefulWidget {
 
   final VoidCallback? onOpenDrawer;
   final Future<void> Function()? onRefresh;
+
+  /// API pour la cloche de notification de l'en-tête (`null` en démo).
+  final MarketplaceApi? marketplace;
 
   @override
   State<OrdersScreen> createState() => _OrdersScreenState();
@@ -80,19 +86,20 @@ class _OrdersScreenState extends State<OrdersScreen> {
 
     return Material(
       color: RestaurantPalette.background,
-      child: SafeArea(
-        bottom: false,
-        child: Column(
-          children: [
-            _buildHeader(),
-            Expanded(
-              child: RefreshIndicator(
-                onRefresh: () async => widget.onRefresh?.call(),
-                child: ListView(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
-                  children: [
-                    _buildTabsCard(groups),
+      child: Column(
+        children: [
+          BeninfoodAppBar(
+            onMenu: widget.onOpenDrawer,
+            api: widget.marketplace,
+          ),
+          Expanded(
+            child: RefreshIndicator(
+              onRefresh: () async => widget.onRefresh?.call(),
+              child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
+                children: [
+                  _buildTabsCard(groups),
                     const SizedBox(height: 14),
                     if (current.isEmpty)
                       _EmptyTab(
@@ -121,7 +128,6 @@ class _OrdersScreenState extends State<OrdersScreen> {
             ),
           ],
         ),
-      ),
     );
   }
 
@@ -137,44 +143,6 @@ class _OrdersScreenState extends State<OrdersScreen> {
           onReady: widget.onReady,
           onConfirmDelivery: widget.onConfirmDelivery,
           onReportIncident: widget.onReportIncident,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildHeader() {
-    return Material(
-      color: RestaurantPalette.white,
-      child: Padding(
-        padding: const EdgeInsets.only(left: 6, right: 6, top: 8, bottom: 10),
-        child: Row(
-          children: [
-            if (widget.onOpenDrawer != null)
-              IconButton(
-                onPressed: widget.onOpenDrawer,
-                icon: const Icon(Icons.menu, color: RestaurantPalette.darkText),
-                tooltip: 'Ouvrir le menu',
-              )
-            else
-              const SizedBox(width: 12),
-            const Expanded(
-              child: Text(
-                'D. COMMANDES',
-                style: TextStyle(
-                  color: RestaurantPalette.forest,
-                  fontSize: 19,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 0.4,
-                ),
-              ),
-            ),
-            if (widget.onRefresh != null)
-              IconButton(
-                onPressed: widget.onRefresh,
-                icon: const Icon(Icons.refresh, color: RestaurantPalette.grayText),
-                tooltip: 'Actualiser',
-              ),
-          ],
         ),
       ),
     );

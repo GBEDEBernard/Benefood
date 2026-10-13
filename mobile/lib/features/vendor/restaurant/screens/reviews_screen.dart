@@ -3,10 +3,10 @@ import 'package:flutter/material.dart';
 import '../../../../core/data/marketplace_api.dart';
 import '../../../../core/errors/api_exception.dart';
 import '../../../../core/utils/formatters.dart';
+import '../../../../shared/widgets/beninfood_header.dart';
 import '../../../../shared/widgets/feedback_widgets.dart';
 import '../../../../shared/widgets/state_widgets.dart';
 import '../restaurant_palette.dart';
-import '../widgets/vendor_screen_header.dart';
 
 /// Mes avis clients (J21 §9) : note moyenne, répartition des notes,
 /// commentaires et réponse du vendeur.
@@ -155,7 +155,7 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
       color: RestaurantPalette.background,
       child: Column(
         children: [
-          VendorScreenHeader(title: 'MES AVIS CLIENTS', onOpenDrawer: widget.onOpenDrawer),
+          BeninfoodAppBar(onMenu: widget.onOpenDrawer, api: widget.marketplace),
           Expanded(child: _buildBody()),
         ],
       ),

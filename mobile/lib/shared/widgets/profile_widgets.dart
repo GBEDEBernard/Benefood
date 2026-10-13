@@ -9,8 +9,7 @@ import '../../core/theme/app_dimens.dart';
 import '../../core/theme/app_theme.dart';
 import '../models/user.dart';
 import 'app_network_image.dart';
-import 'brand_logo.dart';
-import 'notification_bell.dart';
+import 'beninfood_header.dart';
 
 // ------------------------------------------------------------------- en-tête
 
@@ -21,30 +20,22 @@ class ProfileHeader extends StatelessWidget {
     super.key,
     required this.marketplace,
     this.uploadingAvatar = false,
+    this.onMenu,
   });
 
   final MarketplaceApi marketplace;
   final bool uploadingAvatar;
 
+  /// Ouvre le tiroir latéral (menu hamburger).
+  final VoidCallback? onMenu;
+
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-      child: Row(
-        children: [
-          const SizedBox(width: 44),
-          Expanded(
-            child: Center(
-              child: Image.asset(
-                'assets/Logo.jpeg',
-                height: 44,
-                fit: BoxFit.contain,
-                errorBuilder: (_, _, _) => const BrandMark(),
-              ),
-            ),
-          ),
-          if (uploadingAvatar)
-            const SizedBox(
+    return BeninfoodAppBar(
+      onMenu: onMenu,
+      api: marketplace,
+      trailing: uploadingAvatar
+          ? const SizedBox(
               width: 44,
               height: 44,
               child: Center(
@@ -55,10 +46,7 @@ class ProfileHeader extends StatelessWidget {
                 ),
               ),
             )
-          else
-            NotificationBell(api: marketplace),
-        ],
-      ),
+          : null,
     );
   }
 }

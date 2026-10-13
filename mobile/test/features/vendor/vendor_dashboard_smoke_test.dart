@@ -247,7 +247,7 @@ void main() {
     await tester.tap(find.text('Revenus'));
     await tester.pumpAndSettle();
     expect(find.byType(RevenusScreen), findsOneWidget);
-    expect(find.text('E. REVENUS'), findsOneWidget);
+    expect(find.text('BÉNINFOOD', findRichText: true), findsOneWidget);
     expect(find.text('Solde wallet'), findsOneWidget);
     expect(find.text('Ventes validées'), findsOneWidget);
     expect(find.text('Commission prélevée'), findsOneWidget);
@@ -413,7 +413,7 @@ void main() {
     await tester.tap(find.descendant(of: find.byType(Drawer), matching: find.text('Produits')));
     await tester.pumpAndSettle();
 
-    expect(find.text('Mes produits'), findsOneWidget);
+    expect(find.text('BÉNINFOOD', findRichText: true), findsOneWidget);
     expect(find.byType(ProductsScreen), findsOneWidget);
 
     // Le hamburger de l'écran réouvre le tiroir latéral (plus de bouton retour).
@@ -434,11 +434,11 @@ void main() {
     await tester.pumpWidget(const MaterialApp(home: RestaurantShellScreen()));
     await tester.pumpAndSettle();
 
-    // Onglet Commandes de la barre inférieure : liste D. COMMANDES.
+    // Onglet Commandes de la barre inférieure : liste des commandes.
     await tester.tap(find.text('Commandes'));
     await tester.pumpAndSettle();
     expect(find.byType(OrdersScreen), findsOneWidget);
-    expect(find.text('D. COMMANDES'), findsOneWidget);
+    expect(find.text('BÉNINFOOD', findRichText: true), findsOneWidget);
     expect(find.text('Commandes'), findsWidgets); // en-tête carte + barre
 
     // Compteurs dynamiques : 3 nouvelles, 2 en préparation, 1 prête, 2 terminées.
@@ -501,7 +501,7 @@ void main() {
     await tester.tap(find.text('Revenus'));
     await tester.pumpAndSettle();
     expect(find.byType(RevenusScreen), findsOneWidget);
-    expect(find.text('E. REVENUS'), findsOneWidget);
+    expect(find.text('BÉNINFOOD', findRichText: true), findsOneWidget);
     expect(find.text('Revenus'), findsWidgets); // titre de carte + barre
     expect(find.text('6 commandes ce mois-ci'), findsOneWidget);
 
@@ -533,7 +533,7 @@ void main() {
     await tester.tap(find.text('Voir tout'));
     await tester.pumpAndSettle();
     expect(find.byType(ActivityScreen), findsOneWidget);
-    expect(find.text('HISTORIQUE'), findsOneWidget);
+    expect(find.text('BÉNINFOOD', findRichText: true), findsOneWidget);
 
     expect(tester.takeException(), isNull);
   });
@@ -549,7 +549,7 @@ void main() {
     await tester.tap(find.text('Produits'));
     await tester.pumpAndSettle();
     expect(find.byType(ProductsScreen), findsOneWidget);
-    expect(find.text('Mes produits'), findsOneWidget);
+    expect(find.text('BÉNINFOOD', findRichText: true), findsOneWidget);
     expect(find.text('Rechercher un produit...'), findsOneWidget);
 
     // Onglets dynamiques : 9 produits dont 2 archivés.
@@ -623,7 +623,7 @@ void main() {
     await tester.tap(find.descendant(of: find.byType(Drawer), matching: find.text('Mon dossier')));
     await tester.pumpAndSettle();
     expect(find.byType(DocumentsScreen), findsOneWidget);
-    expect(find.text('MON DOSSIER'), findsOneWidget);
+    expect(find.text('BÉNINFOOD', findRichText: true), findsOneWidget); // en-tête comun brandé
     expect(find.text('VÉRIFICATION DU DOSSIER'), findsOneWidget);
     expect(find.text('Registre de commerce'), findsOneWidget);
     expect(find.text('Validé'), findsWidgets);
@@ -634,7 +634,7 @@ void main() {
     await tester.tap(find.descendant(of: find.byType(Drawer), matching: find.text('Mes avis clients')));
     await tester.pumpAndSettle();
     expect(find.byType(ReviewsScreen), findsOneWidget);
-    expect(find.text('MES AVIS CLIENTS'), findsOneWidget);
+    expect(find.text('BÉNINFOOD', findRichText: true), findsOneWidget);
     expect(find.text('Très bon, livraison rapide et plats bien chauds !'), findsOneWidget);
     expect(find.text('24 avis'), findsOneWidget);
 
@@ -644,7 +644,7 @@ void main() {
     await tester.tap(find.descendant(of: find.byType(Drawer), matching: find.text('Historique')));
     await tester.pumpAndSettle();
     expect(find.byType(ActivityScreen), findsOneWidget);
-    expect(find.text('HISTORIQUE'), findsOneWidget);
+    expect(find.text('BÉNINFOOD', findRichText: true), findsOneWidget);
     expect(find.text('Commande livrée'), findsOneWidget);
 
     expect(tester.takeException(), isNull);

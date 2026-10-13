@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/data/marketplace_api.dart';
-import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../shared/models/order.dart';
-import '../../../../shared/widgets/notification_bell.dart';
+import '../../../../shared/widgets/beninfood_header.dart';
 import '../../../../shared/widgets/status_badge.dart';
 import '../restaurant_palette.dart';
 import '../widgets/status_chip.dart';
@@ -128,34 +127,9 @@ class DashboardScreen extends StatelessWidget {
   Future<void> onRefreshOrNoop() async {}
 
   Widget _buildHeader(BuildContext context) {
-    return Material(
-      color: RestaurantPalette.white,
-      child: SafeArea(
-        bottom: false,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
-          child: Row(
-            children: [
-              IconButton(
-                onPressed: onOpenDrawer,
-                icon: const Icon(Icons.menu, color: RestaurantPalette.darkText, size: 26),
-                tooltip: 'Ouvrir le menu',
-              ),
-              const Expanded(
-                child: Center(child: _BeninfoodBrand()),
-              ),
-              if (marketplace != null)
-                NotificationBell(api: marketplace!)
-              else
-                IconButton(
-                  onPressed: () => toast(context, 'Notifications disponibles bientôt'),
-                  icon: const Icon(Icons.notifications_none),
-                  tooltip: 'Notifications',
-                ),
-            ],
-          ),
-        ),
-      ),
+    return BeninfoodAppBar(
+      onMenu: onOpenDrawer,
+      api: marketplace,
     );
   }
 
@@ -422,51 +396,6 @@ class _ActionLabel extends StatelessWidget {
       maxLines: 1,
       overflow: TextOverflow.ellipsis,
       style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
-    );
-  }
-}
-
-/// Marque Béninfood affichée au centre de l'en-tête du tableau de bord :
-/// logo image (assets/Logo.jpeg) arrondi + écriture bicolore.
-class _BeninfoodBrand extends StatelessWidget {
-  const _BeninfoodBrand();
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        ClipRRect(
-          borderRadius: BorderRadius.circular(9),
-          child: Image.asset(
-            'assets/Logo.jpeg',
-            width: 30,
-            height: 30,
-            fit: BoxFit.cover,
-            errorBuilder: (_, _, _) => const ColoredBox(
-              color: AppColors.greenLight,
-              child: Center(child: Icon(Icons.restaurant, size: 18, color: AppColors.green)),
-            ),
-          ),
-        ),
-        const SizedBox(width: 8),
-        RichText(
-          maxLines: 1,
-          overflow: TextOverflow.clip,
-          text: const TextSpan(
-            style: TextStyle(
-              fontSize: 17,
-              fontWeight: FontWeight.w900,
-              letterSpacing: -0.4,
-              height: 1.1,
-            ),
-            children: [
-              TextSpan(text: 'BÉN', style: TextStyle(color: AppColors.green)),
-              TextSpan(text: 'INFOOD', style: TextStyle(color: AppColors.orange)),
-            ],
-          ),
-        ),
-      ],
     );
   }
 }

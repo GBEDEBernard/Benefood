@@ -131,12 +131,19 @@ class _ClientShellState extends State<ClientShell> {
             onOpenMenu: () => _scaffoldKey.currentState?.openDrawer(),
             onCartChanged: _refreshCartCount,
           ),
-          CategoriesScreen(marketplace: widget.marketplace),
+          CategoriesScreen(
+            marketplace: widget.marketplace,
+            onOpenMenu: () => _scaffoldKey.currentState?.openDrawer(),
+          ),
           CartScreen(marketplace: widget.marketplace),
-          OrdersScreen(marketplace: widget.marketplace),
+          OrdersScreen(
+            marketplace: widget.marketplace,
+            onOpenMenu: () => _scaffoldKey.currentState?.openDrawer(),
+          ),
           AccountScreen(
             session: widget.session,
             marketplace: widget.marketplace,
+            onOpenMenu: () => _scaffoldKey.currentState?.openDrawer(),
             onSelectTab: _selectTab,
           ),
         ],

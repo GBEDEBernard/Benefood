@@ -11,9 +11,8 @@ import '../../../shared/models/category.dart';
 import '../../../shared/models/product.dart';
 import '../../../shared/widgets/app_network_image.dart';
 import '../../../shared/widgets/app_search_field.dart';
-import '../../../shared/widgets/brand_logo.dart';
+import '../../../shared/widgets/beninfood_header.dart';
 import '../../../shared/widgets/feedback_widgets.dart';
-import '../../../shared/widgets/notification_bell.dart';
 import '../../../shared/widgets/product_cards.dart';
 import '../../../shared/widgets/section_header.dart';
 import '../../../shared/widgets/state_widgets.dart';
@@ -229,35 +228,9 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SafeArea(
-            bottom: false,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-              child: Row(
-                children: [
-                  IconButton(
-                    onPressed: widget.onOpenMenu,
-                    tooltip: 'Menu',
-                    icon: const Icon(
-                      Icons.menu,
-                      size: 26,
-                      color: AppColors.text,
-                    ),
-                  ),
-                  Expanded(
-                    child: Center(
-                      child: Image.asset(
-                        'assets/Logo.jpeg',
-                        height: 44,
-                        fit: BoxFit.contain,
-                        errorBuilder: (_, _, _) => const BrandMark(),
-                      ),
-                    ),
-                  ),
-                  NotificationBell(api: widget.marketplace),
-                ],
-              ),
-            ),
+          BeninfoodAppBar(
+            onMenu: widget.onOpenMenu,
+            api: widget.marketplace,
           ),
           Padding(
             padding: const EdgeInsets.fromLTRB(

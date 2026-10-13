@@ -28,11 +28,15 @@ class VendorAccountScreen extends StatefulWidget {
     required this.session,
     required this.marketplace,
     required this.onSelectTab,
+    this.onOpenMenu,
   });
 
   final SessionProvider session;
   final MarketplaceApi marketplace;
   final ValueChanged<int> onSelectTab;
+
+  /// Ouvre le tiroir latéral (menu hamburger).
+  final VoidCallback? onOpenMenu;
 
   @override
   State<VendorAccountScreen> createState() => _VendorAccountScreenState();
@@ -231,15 +235,14 @@ class _VendorAccountScreenState extends State<VendorAccountScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: SafeArea(
-        bottom: false,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            ProfileHeader(
-              marketplace: widget.marketplace,
-              uploadingAvatar: _uploadingAvatar,
-            ),
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          ProfileHeader(
+            marketplace: widget.marketplace,
+            uploadingAvatar: _uploadingAvatar,
+            onMenu: widget.onOpenMenu,
+          ),
             Expanded(
               child: RefreshIndicator(
                 onRefresh: _load,
@@ -289,7 +292,6 @@ class _VendorAccountScreenState extends State<VendorAccountScreen> {
             ),
           ],
         ),
-      ),
     );
   }
 

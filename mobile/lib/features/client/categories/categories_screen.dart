@@ -9,8 +9,7 @@ import '../../../shared/models/category.dart';
 import '../../../shared/models/product.dart';
 import '../../../shared/widgets/app_network_image.dart';
 import '../../../shared/widgets/app_search_field.dart';
-import '../../../shared/widgets/brand_logo.dart';
-import '../../../shared/widgets/notification_bell.dart';
+import '../../../shared/widgets/beninfood_header.dart';
 
 /// Catégories (J151) : grille 2 colonnes d'exploration visuelle.
 ///
@@ -21,9 +20,12 @@ import '../../../shared/widgets/notification_bell.dart';
 /// chaque carte affiche la première photo produit de la catégorie mappée
 /// (repli emoji tant qu'aucune photo n'existe).
 class CategoriesScreen extends StatefulWidget {
-  const CategoriesScreen({super.key, required this.marketplace});
+  const CategoriesScreen({super.key, required this.marketplace, this.onOpenMenu});
 
   final MarketplaceApi marketplace;
+
+  /// Ouvre le tiroir latéral (menu hamburger) — géré par le shell client.
+  final VoidCallback? onOpenMenu;
 
   @override
   State<CategoriesScreen> createState() => _CategoriesScreenState();
@@ -114,27 +116,9 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SafeArea(
-            bottom: false,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-              child: Row(
-                children: [
-                  const SizedBox(width: 44),
-                  Expanded(
-                    child: Center(
-                      child: Image.asset(
-                        'assets/Logo.jpeg',
-                        height: 44,
-                        fit: BoxFit.contain,
-                        errorBuilder: (_, _, _) => const BrandMark(),
-                      ),
-                    ),
-                  ),
-                  NotificationBell(api: widget.marketplace),
-                ],
-              ),
-            ),
+          BeninfoodAppBar(
+            onMenu: widget.onOpenMenu,
+            api: widget.marketplace,
           ),
           Padding(
             padding: const EdgeInsets.fromLTRB(

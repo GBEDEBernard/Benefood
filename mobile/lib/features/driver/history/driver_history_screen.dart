@@ -5,14 +5,18 @@ import '../../../core/errors/api_exception.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../shared/models/delivery.dart';
 import '../../../shared/widgets/amount_widgets.dart';
+import '../../../shared/widgets/beninfood_header.dart';
 import '../../../shared/widgets/status_badge.dart';
 import '../../../shared/widgets/state_widgets.dart';
 
 /// Historique des missions terminées du livreur (J162).
 class DriverHistoryScreen extends StatefulWidget {
-  const DriverHistoryScreen({super.key, required this.marketplace});
+  const DriverHistoryScreen({super.key, required this.marketplace, this.onOpenMenu});
 
   final MarketplaceApi marketplace;
+
+  /// Ouvre le tiroir latéral (menu hamburger) — géré par le shell livreur.
+  final VoidCallback? onOpenMenu;
 
   @override
   State<DriverHistoryScreen> createState() => _DriverHistoryScreenState();
@@ -57,8 +61,15 @@ class _DriverHistoryScreenState extends State<DriverHistoryScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Historique')),
-      body: _buildBody(),
+      body: Column(
+        children: [
+          BeninfoodAppBar(
+            onMenu: widget.onOpenMenu,
+            api: widget.marketplace,
+          ),
+          Expanded(child: _buildBody()),
+        ],
+      ),
     );
   }
 
