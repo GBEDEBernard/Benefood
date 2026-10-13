@@ -3,13 +3,15 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/auth/session_provider.dart';
 import '../../../core/errors/api_exception.dart';
-import '../../../core/theme/app_colors.dart';
 import '../../../shared/models/user.dart';
-import '../../../shared/widgets/app_button.dart';
-import '../../../shared/widgets/app_text_field.dart';
+import '../../../shared/widgets/auth_kit.dart';
 import '../../../shared/widgets/feedback_widgets.dart';
 
 /// Connexion (J19 §2.3) : téléphone OU email + mot de passe.
+///
+/// Design : bandeau orange dégradé, grand bol de légumes qui déborde sur le
+/// panneau blanc, formulaire épuré, rappel COMMANDEZ / PAYEZ / RECEVEZ.
+/// Page fixe, partagée avec l'inscription via le kit `auth_kit.dart`.
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key, required this.session});
 
@@ -32,7 +34,19 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
+  void _back() {
+    if (context.canPop()) {
+      context.pop();
+    } else {
+      context.go(kLandingRoute);
+    }
+  }
+
   Future<void> _submit() async {
+    if (_loading) {
+      return;
+    }
+    FocusScope.of(context).unfocus();
     if (!_formKey.currentState!.validate()) {
       return;
     }
@@ -67,93 +81,69 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Connexion')),
-      body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.all(24),
-          children: [
-            const SizedBox(height: 12),
-            Center(
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(20),
-                child: Image.asset(
-                  'assets/Logo.jpeg',
-                  width: 84,
-                  height: 84,
-                  errorBuilder: (_, __, ___) =>
-                      const Icon(Icons.storefront, size: 72, color: AppColors.orange),
+    return AuthScaffold(
+      hero: true,
+      title: 'Bon retour !',
+      subtitle: 'Connectez-vous pour continuer vos achats.',
+      onBack: _back,
+      child: AutofillGroup(
+        child: Form(
+          key: _formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              AuthField(
+                controller: _login,
+                label: 'Téléphone ou email',
+                hint: 'Votre numéro ou votre email',
+                icon: Icons.person_outline_rounded,
+                keyboardType: TextInputType.emailAddress,
+                textInputAction: TextInputAction.next,
+                autofillHints: const [AutofillHints.username],
+                validator: (v) => (v == null || v.trim().isEmpty) ? 'Requis' : null,
+              ),
+              const SizedBox(height: 16),
+              AuthField(
+                controller: _password,
+                label: 'Mot de passe',
+                hint: 'Votre mot de passe',
+                icon: Icons.lock_outline_rounded,
+                isPassword: true,
+                textInputAction: TextInputAction.done,
+                autofillHints: const [AutofillHints.password],
+                onSubmitted: (_) => _submit(),
+                validator: (v) => (v == null || v.length < 6) ? 'Au moins 6 caractères' : null,
+              ),
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton(
+                  onPressed: () => context.go('/reset-password'),
+                  style: TextButton.styleFrom(
+                    foregroundColor: AuthColors.brand,
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    minimumSize: const Size(0, 40),
+                  ),
+                  child: const Text(
+                    'Mot de passe oublié ?',
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(height: 20),
-            Text(
-              'Bon retour !',
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              'Connectez-vous pour continuer vos achats.',
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
-            ),
-            const SizedBox(height: 32),
-            Form(
-              key: _formKey,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  AppTextField(
-                    controller: _login,
-                    label: 'Téléphone ou email',
-                    icon: Icons.person_outline,
-                    keyboardType: TextInputType.emailAddress,
-                    validator: (v) => (v == null || v.trim().isEmpty) ? 'Requis' : null,
-                  ),
-                  const SizedBox(height: 16),
-                  AppTextField(
-                    controller: _password,
-                    label: 'Mot de passe',
-                    icon: Icons.lock_outline,
-                    obscureText: true,
-                    validator: (v) => (v == null || v.length < 6) ? 'Au moins 6 caractères' : null,
-                    onFieldSubmitted: (_) => _submit(),
-                  ),
-                  const SizedBox(height: 24),
-                  AppButton(
-                    label: 'Se connecter',
-                    icon: Icons.login,
-                    onPressed: _submit,
-                    loading: _loading,
-                  ),
-                  const SizedBox(height: 12),
-                  TextButton(
-                    onPressed: () => context.go('/reset-password'),
-                    child: const Text('Mot de passe oublié ?'),
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Text(
-                        'Pas encore de compte ?',
-                        style: TextStyle(color: AppColors.textSecondary, fontSize: 14),
-                      ),
-                      TextButton(
-                        style: TextButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(horizontal: 8),
-                          minimumSize: const Size(0, 36),
-                        ),
-                        onPressed: () => context.go('/register'),
-                        child: const Text('Inscrivez-vous'),
-                      ),
-                    ],
-                  ),
-                ],
+              const SizedBox(height: 8),
+              AuthPrimaryButton(
+                label: 'Se connecter',
+                icon: Icons.login_rounded,
+                loading: _loading,
+                onPressed: _submit,
               ),
-            ),
-          ],
+              const SizedBox(height: 34),
+              const Divider(height: 1, thickness: 1, color: Color(0xFFEDEDF0)),
+              const SizedBox(height: 22),
+              const AuthPromises(),
+              const SizedBox(height: 26),
+              const AuthSecureNote(),
+            ],
+          ),
         ),
       ),
     );
