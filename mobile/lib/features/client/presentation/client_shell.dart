@@ -40,6 +40,12 @@ class _ClientShellState extends State<ClientShell> {
   bool _statusLoading = true;
   bool _needsOnboarding = false;
 
+  /// Indicateur : ne montre le spinner de chargement du statut qu'à la
+  /// toute première vérification. Les rafraîchissements suivants (uploads de
+  /// documents…) gardent l'onboarding monté afin de ne pas réinitialiser le
+  /// parcours vers la page de bienvenue.
+  bool _loadedOnce = false;
+
   @override
   void initState() {
     super.initState();
@@ -51,7 +57,7 @@ class _ClientShellState extends State<ClientShell> {
   /// d'identification n'est pas complété, l'onboarding s'affiche à la place
   /// de l'espace client (J19).
   Future<void> _loadStatus() async {
-    if (mounted) {
+    if (mounted && !_loadedOnce) {
       setState(() => _statusLoading = true);
     }
     try {
@@ -64,6 +70,7 @@ class _ClientShellState extends State<ClientShell> {
       setState(() {
         _needsOnboarding = !active;
         _statusLoading = false;
+        _loadedOnce = true;
       });
     } on ApiException catch (e) {
       if (!mounted) {
@@ -72,6 +79,7 @@ class _ClientShellState extends State<ClientShell> {
       setState(() {
         _needsOnboarding = e.isNotFound || e.code == 'client.not_onboarded';
         _statusLoading = false;
+        _loadedOnce = true;
       });
     }
   }

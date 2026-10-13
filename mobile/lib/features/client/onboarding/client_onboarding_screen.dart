@@ -61,6 +61,7 @@ class _ClientOnboardingScreenState extends State<ClientOnboardingScreen> {
   bool _profileCreated = false;
   bool _submitting = false;
   String? _uploadingType;
+  bool _navigated = false;
   final Map<String, Uint8List?> _previews = {};
 
   @override
@@ -109,6 +110,16 @@ class _ClientOnboardingScreenState extends State<ClientOnboardingScreen> {
         _profileCreated = true;
       }
       setState(() => _uploadedTypes.addAll(uploaded));
+      // Dossier déjà commencé (montage de l'écran) : on reprend directement
+      // sur la page des documents au lieu de repasser par la bienvenue.
+      if (_profileCreated && !_navigated) {
+        _navigated = true;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted && _pageController.hasClients) {
+            _pageController.jumpToPage(1);
+          }
+        });
+      }
     } on ApiException {
       // Pas encore de dossier : premier passage.
     }
@@ -119,6 +130,7 @@ class _ClientOnboardingScreenState extends State<ClientOnboardingScreen> {
   // ---------------------------------------------------------------- navigation
 
   void _goTo(int step) {
+    _navigated = true;
     _pageController.animateToPage(
       step,
       duration: const Duration(milliseconds: 280),
@@ -170,7 +182,7 @@ class _ClientOnboardingScreenState extends State<ClientOnboardingScreen> {
     }
     try {
       final file = await ImagePicker().pickImage(source: source, imageQuality: 85);
-      return file?.readAsBytes();
+      return await file?.readAsBytes();
     } catch (_) {
       if (mounted) {
         showToast(context, "Impossible de charger l'image.", isError: true);

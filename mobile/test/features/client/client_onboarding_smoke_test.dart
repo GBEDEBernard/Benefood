@@ -28,13 +28,39 @@ final Uint8List _pngBytes = base64Decode(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
 );
 
-MockClient _mockBackend(List<String> log) {
+/// Backend de test : aucun dossier existant (404), onboarding et documents
+/// acceptés.
+MockClient _mockBackend(List<String> log, {bool started = false}) {
   return MockClient((request) async {
     final headers = {'content-type': 'application/json'};
     final path = request.url.path;
     log.add('${request.method} $path');
 
     if (path.endsWith('/client/me/status')) {
+      if (started) {
+        return http.Response(
+          jsonEncode({
+            'data': {
+              'profile': {
+                'id': 'cp-1',
+                'status': 'pending',
+                'full_name': 'Awa Sossou',
+                'phone': '+229 97 00 00 50',
+                'city': 'Cotonou',
+                'address': 'Rue 12, Cadjèhoun',
+              },
+              'documents': [
+                {'id': 'doc-1', 'type': 'id_card', 'status': 'submitted'},
+              ],
+              'required_documents': ['id_card', 'proof_of_address'],
+              'completed_documents': ['id_card'],
+              'completed': false,
+            }
+          }),
+          200,
+          headers: headers,
+        );
+      }
       return http.Response(
         jsonEncode({
           'message': 'Aucun profil client associé à ce compte.',
@@ -152,6 +178,31 @@ void main() {
     expect(find.text('Activer mon compte'), findsOneWidget);
     await tester.tap(find.text('Activer mon compte'));
     await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('dossier déjà commencé : reprise directe sur les documents', (tester) async {
+    final log = <String>[];
+    final api = ApiClient(
+      tokenStore: _NoopTokenStore(),
+      httpClient: _mockBackend(log, started: true),
+      baseUrl: 'http://api.test',
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ClientOnboardingScreen(
+          marketplace: MarketplaceApi(api),
+          user: null,
+          imagePicker: (_) async => _pngBytes,
+          onCompleted: () {},
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 350));
+    expect(find.text('Bienvenue chez Béninfood', findRichText: true), findsNothing);
+    expect(find.text('Activation du compte'), findsOneWidget);
+    expect(find.text('Informations enregistrées.'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }

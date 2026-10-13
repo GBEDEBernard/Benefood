@@ -156,6 +156,8 @@ void main() {
     await tester.tap(find.text('Enregistrer mon inscription'));
     await tester.pumpAndSettle();
     expect(log.where((e) => e.endsWith('/driver/me/onboarding')), hasLength(1));
+    // On reste sur la page des documents (jamais de retour à la bienvenue).
+    expect(find.text('Bienvenue chez Béninfood', findRichText: true), findsNothing);
 
     await _uploadDocument(tester, 'Pièce d\'identité');
     await _uploadDocument(tester, 'Permis de conduire');
@@ -164,6 +166,35 @@ void main() {
       hasLength(2),
     );
     expect(find.text('Document transmis'), findsNWidgets(2));
+    expect(find.text('Bienvenue chez Béninfood', findRichText: true), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('dossier déjà commencé : reprise directe sur les documents', (tester) async {
+    final api = ApiClient(
+      tokenStore: _NoopTokenStore(),
+      httpClient: _mockBackend(<String>[]),
+      baseUrl: 'http://api.test',
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: DriverOnboardingScreen(
+            marketplace: MarketplaceApi(api),
+            profile: const {'status': 'pending_validation', 'vehicle': 'Moto'},
+            documents: const [
+              {'id': 'd1', 'type': 'id_card', 'status': 'submitted'},
+            ],
+            onRefresh: () async {},
+            imagePicker: (_) async => _pngBytes,
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 350));
+    expect(find.text('Bienvenue chez Béninfood', findRichText: true), findsNothing);
+    expect(find.text('Inscription livreur'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }

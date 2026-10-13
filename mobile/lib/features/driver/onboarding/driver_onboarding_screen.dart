@@ -64,6 +64,15 @@ class _DriverOnboardingScreenState extends State<DriverOnboardingScreen> {
   void initState() {
     super.initState();
     _restoreUploads();
+    // Dossier déjà commencé (inscription ou documents envoyés) : on reprend
+    // directement sur la page Documents au lieu de la bienvenue.
+    if (widget.profile != null || widget.documents.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _pageController.hasClients) {
+          _pageController.jumpToPage(1);
+        }
+      });
+    }
   }
 
   @override

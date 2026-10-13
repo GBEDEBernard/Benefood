@@ -34,6 +34,11 @@ class _DriverShellState extends State<DriverShell> {
   bool _statusLoading = true;
   String? _statusError;
 
+  /// Comme pour l'onboarding client : le spinner de statut ne s'affiche qu'à
+  /// la première vérification. Les rafraîchissements (inscription, uploads de
+  /// documents) gardent le parcours livreur monté sur sa page courante.
+  bool _loadedOnce = false;
+
   @override
   void initState() {
     super.initState();
@@ -41,16 +46,19 @@ class _DriverShellState extends State<DriverShell> {
   }
 
   Future<void> _loadStatus() async {
-    setState(() {
-      _statusLoading = true;
-      _statusError = null;
-    });
+    if (!_loadedOnce) {
+      setState(() {
+        _statusLoading = true;
+        _statusError = null;
+      });
+    }
     try {
       final status = await widget.marketplace.driverStatus();
       if (mounted) {
         setState(() {
           _status = status;
           _statusLoading = false;
+          _loadedOnce = true;
         });
       }
     } on ApiException catch (e) {
@@ -61,11 +69,13 @@ class _DriverShellState extends State<DriverShell> {
             _status = null;
             _statusError = null;
             _statusLoading = false;
+            _loadedOnce = true;
           });
         } else {
           setState(() {
             _statusError = e.message;
             _statusLoading = false;
+            _loadedOnce = true;
           });
         }
       }
