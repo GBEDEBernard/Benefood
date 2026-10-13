@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../../core/data/marketplace_api.dart';
 import '../../../core/errors/api_exception.dart';
+import '../../../core/theme/app_colors.dart';
 import '../../../shared/models/category.dart';
 import '../../../shared/models/product.dart';
 import '../../../shared/widgets/app_button.dart';
@@ -39,10 +40,21 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
   bool _loadingCategories = true;
   bool _saving = false;
   bool _deleting = false;
-  bool _pickingImage = false;
+  bool _pickingImages = false;
+  bool _pickingVideo = false;
+  bool _removingExistingImage = false;
 
-  Uint8List? _imageBytes;
-  String? _imageName;
+  /// Nouvelles photos sélectionnées (hors modifications de produits existants).
+  final List<Uint8List> _newImages = [];
+  final List<String> _newImageNames = [];
+
+  /// Photos déjà rattachées au produit (mode édition).
+  final List<ProductImage> _existingImages = [];
+
+  /// Petite vidéo sélectionnée (nulle si inchangée/absente).
+  Uint8List? _videoBytes;
+  String? _videoName;
+  bool _videoRemoved = false;
 
   bool get _isEditing => widget.product != null;
 
@@ -57,6 +69,7 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
       _unit.text = product.unit;
       _stock.text = product.stockQty?.toString() ?? '';
       _isAvailable = product.isAvailable;
+      _existingImages.addAll(product.images);
     }
     _loadCategories();
   }
@@ -114,10 +127,44 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
     return int.tryParse(text);
   }
 
-  Future<void> _pickImage() async {
-    setState(() => _pickingImage = true);
+  Future<void> _pickImages() async {
+    setState(() => _pickingImages = true);
     try {
-      final file = await ImagePicker().pickImage(source: ImageSource.gallery);
+      final files = await ImagePicker().pickMultiImage();
+      if (files.isEmpty || !mounted) {
+        return;
+      }
+      final remaining = 10 - _existingImages.length - _newImages.length;
+      final selected = files.take(remaining).toList();
+      final bytes = <Uint8List>[];
+      final names = <String>[];
+      for (final file in selected) {
+        final data = await file.readAsBytes();
+        bytes.add(data);
+        names.add(file.name);
+      }
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _newImages.addAll(bytes);
+        _newImageNames.addAll(names);
+      });
+    } catch (_) {
+      if (mounted) {
+        showToast(context, 'Impossible de charger les photos.', isError: true);
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _pickingImages = false);
+      }
+    }
+  }
+
+  Future<void> _pickVideo() async {
+    setState(() => _pickingVideo = true);
+    try {
+      final file = await ImagePicker().pickVideo(source: ImageSource.gallery);
       if (file == null || !mounted) {
         return;
       }
@@ -126,16 +173,39 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
         return;
       }
       setState(() {
-        _imageBytes = bytes;
-        _imageName = file.name;
+        _videoBytes = bytes;
+        _videoName = file.name;
+        _videoRemoved = false;
       });
     } catch (_) {
       if (mounted) {
-        showToast(context, 'Impossible de charger l\'image.', isError: true);
+        showToast(context, 'Impossible de charger la vidéo.', isError: true);
       }
     } finally {
       if (mounted) {
-        setState(() => _pickingImage = false);
+        setState(() => _pickingVideo = false);
+      }
+    }
+  }
+
+  Future<void> _removeExistingImage(ProductImage image) async {
+    if (_removingExistingImage || !_isEditing) {
+      return;
+    }
+    setState(() => _removingExistingImage = true);
+    try {
+      await widget.marketplace.removeProductImage(widget.product!.id, image.id);
+      if (!mounted) {
+        return;
+      }
+      setState(() => _existingImages.removeWhere((i) => i.id == image.id));
+    } on ApiException catch (e) {
+      if (mounted) {
+        showToast(context, e.message, isError: true);
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _removingExistingImage = false);
       }
     }
   }
@@ -150,7 +220,9 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
       return;
     }
     final priceCents = (_parsePrice() * 100).round();
-    final description = _description.text.trim().isEmpty ? null : _description.text.trim();
+    final description = _description.text.trim().isEmpty
+        ? null
+        : _description.text.trim();
     final unit = _unit.text.trim().isEmpty ? null : _unit.text.trim();
     final stockQty = _stockValue();
 
@@ -179,7 +251,7 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
           isAvailable: _isAvailable,
         );
       }
-      await _uploadImageIfAny(saved.id);
+      await _uploadMediaIfAny(saved.id);
       if (mounted) {
         Navigator.of(context).pop(true);
       }
@@ -198,17 +270,25 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
     }
   }
 
-  Future<void> _uploadImageIfAny(String productId) async {
-    final bytes = _imageBytes;
-    if (bytes == null) {
-      return;
+  Future<void> _uploadMediaIfAny(String productId) async {
+    for (var i = 0; i < _newImages.length; i++) {
+      await widget.marketplace.uploadProductImage(
+        productId,
+        _newImages[i],
+        fileName: _newImageNames[i],
+      );
     }
-    await widget.marketplace.uploadProductImage(
-      productId,
-      bytes,
-      fileName: _imageName,
-      isMain: true,
-    );
+
+    final video = _videoBytes;
+    if (video != null) {
+      await widget.marketplace.uploadProductVideo(
+        productId,
+        video,
+        fileName: _videoName,
+      );
+    } else if (_videoRemoved && _isEditing) {
+      await widget.marketplace.removeProductVideo(productId);
+    }
   }
 
   Future<void> _delete() async {
@@ -241,7 +321,9 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(_isEditing ? 'Modifier le produit' : 'Nouveau produit')),
+      appBar: AppBar(
+        title: Text(_isEditing ? 'Modifier le produit' : 'Nouveau produit'),
+      ),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
@@ -250,13 +332,14 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                _buildImagePicker(),
+                _buildMediaPicker(),
                 const SizedBox(height: 14),
                 AppTextField(
                   controller: _name,
                   label: 'Nom du produit',
                   icon: Icons.shopping_bag_outlined,
-                  validator: (v) => (v == null || v.trim().isEmpty) ? 'Requis' : null,
+                  validator: (v) =>
+                      (v == null || v.trim().isEmpty) ? 'Requis' : null,
                 ),
                 const SizedBox(height: 14),
                 Row(
@@ -266,9 +349,13 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
                         controller: _price,
                         label: 'Prix (FCFA)',
                         icon: Icons.payments_outlined,
-                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
                         validator: (v) {
-                          final value = double.tryParse((v ?? '').replaceAll(' ', '').replaceAll(',', '.'));
+                          final value = double.tryParse(
+                            (v ?? '').replaceAll(' ', '').replaceAll(',', '.'),
+                          );
                           if (value == null || value <= 0) {
                             return 'Prix invalide';
                           }
@@ -293,9 +380,16 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
                   isExpanded: true,
                   decoration: const InputDecoration(labelText: 'Catégorie *'),
                   items: _categories
-                      .map((c) => DropdownMenuItem<Category>(value: c, child: Text(c.name)))
+                      .map(
+                        (c) => DropdownMenuItem<Category>(
+                          value: c,
+                          child: Text(c.name),
+                        ),
+                      )
                       .toList(),
-                  onChanged: _loadingCategories ? null : (value) => setState(() => _category = value),
+                  onChanged: _loadingCategories
+                      ? null
+                      : (value) => setState(() => _category = value),
                 ),
                 const SizedBox(height: 14),
                 AppTextField(
@@ -315,14 +409,18 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
                 Card(
                   child: SwitchListTile(
                     title: const Text('Produit disponible'),
-                    subtitle: const Text('Visible et commandable par les clients'),
+                    subtitle: const Text(
+                      'Visible et commandable par les clients',
+                    ),
                     value: _isAvailable,
                     onChanged: (v) => setState(() => _isAvailable = v),
                   ),
                 ),
                 const SizedBox(height: 24),
                 AppButton(
-                  label: _isEditing ? 'Enregistrer les modifications' : 'Créer le produit',
+                  label: _isEditing
+                      ? 'Enregistrer les modifications'
+                      : 'Créer le produit',
                   icon: Icons.save_outlined,
                   onPressed: _saving ? null : _save,
                   loading: _saving,
@@ -344,11 +442,12 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
       ),
     );
   }
-Widget _buildImagePicker() {
+
+  Widget _buildMediaPicker() {
     final theme = Theme.of(context);
-    final current = _imageBytes != null
-        ? Image.memory(_imageBytes!, fit: BoxFit.cover)
-        : AppNetworkImage(url: widget.product?.imageUrl, icon: Icons.add_photo_alternate_outlined);
+
+    final totalImages = _existingImages.length + _newImages.length;
+    final canAddMore = totalImages < 10;
 
     return Card(
       child: Padding(
@@ -356,44 +455,179 @@ Widget _buildImagePicker() {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Photo du produit', style: theme.textTheme.titleSmall),
-            const SizedBox(height: 8),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: SizedBox(
-                height: 140,
-                width: double.infinity,
-                child: current,
-              ),
+            Text('Photos du produit', style: theme.textTheme.titleSmall),
+            Text(
+              'Jusqu\'à 10 photos ($totalImages/10)',
+              style: theme.textTheme.bodySmall,
             ),
+            const SizedBox(height: 10),
+            _buildImageThumbnails(),
             const SizedBox(height: 8),
             Row(
               children: [
                 Expanded(
                   child: OutlinedButton.icon(
-                    icon: _pickingImage
-                        ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                    icon: _pickingImages
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
                         : const Icon(Icons.photo_library_outlined),
-                    label: Text(_imageBytes != null ? 'Changer l\'image' : 'Choisir une image'),
-                    onPressed: _pickingImage ? null : _pickImage,
+                    label: Text(
+                      _newImages.isEmpty && _existingImages.isEmpty
+                          ? 'Ajouter des photos'
+                          : 'Ajouter des photos',
+                    ),
+                    onPressed: _pickingImages || !canAddMore
+                        ? null
+                        : _pickImages,
                   ),
                 ),
-                if (_imageBytes != null) ...[
-                  const SizedBox(width: 8),
-                  IconButton(
-                    tooltip: 'Retirer l\'image',
-                    icon: const Icon(Icons.delete_outline),
-                    onPressed: () => setState(() {
-                      _imageBytes = null;
-                      _imageName = null;
-                    }),
-                  ),
-                ],
               ],
             ),
+            const SizedBox(height: 14),
+            Text('Petite vidéo', style: theme.textTheme.titleSmall),
+            const SizedBox(height: 8),
+            _buildVideoTile(),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildImageThumbnails() {
+    if (_existingImages.isEmpty && _newImages.isEmpty) {
+      return Container(
+        height: 140,
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: const Center(
+          child: Icon(
+            Icons.add_photo_alternate_outlined,
+            size: 40,
+            color: AppColors.textFaint,
+          ),
+        ),
+      );
+    }
+
+    return SizedBox(
+      height: 120,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        children: [
+          for (final image in _existingImages)
+            _photoThumb(
+              child: AppNetworkImage(url: image.url, fit: BoxFit.cover),
+              onRemove: _isEditing ? () => _removeExistingImage(image) : null,
+            ),
+          for (var i = 0; i < _newImages.length; i++)
+            _photoThumb(
+              child: Image.memory(_newImages[i], fit: BoxFit.cover),
+              onRemove: () => setState(() {
+                _newImages.removeAt(i);
+                _newImageNames.removeAt(i);
+              }),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _photoThumb({required Widget child, VoidCallback? onRemove}) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 10),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: SizedBox(
+          width: 100,
+          height: 120,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              child,
+              if (onRemove != null)
+                Positioned(
+                  top: 4,
+                  right: 4,
+                  child: GestureDetector(
+                    onTap: _removingExistingImage ? null : onRemove,
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: const BoxDecoration(
+                        color: Colors.black54,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.close,
+                        size: 16,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildVideoTile() {
+    final theme = Theme.of(context);
+    final hasExisting =
+        _isEditing && widget.product!.videoUrl != null && !_videoRemoved;
+    final hasNew = _videoBytes != null;
+
+    if (hasExisting || hasNew) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.play_circle_outline, color: AppColors.orange),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                hasNew
+                    ? 'Vidéo ajoutée (${_videoName ?? 'clip'})'
+                    : 'Vidéo actuelle',
+                style: const TextStyle(fontSize: 13),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            IconButton(
+              tooltip: 'Retirer la vidéo',
+              icon: const Icon(Icons.delete_outline),
+              onPressed: _pickingVideo
+                  ? null
+                  : () => setState(() {
+                      _videoBytes = null;
+                      _videoName = null;
+                      _videoRemoved = true;
+                    }),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return OutlinedButton.icon(
+      icon: _pickingVideo
+          ? const SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          : const Icon(Icons.videocam_outlined),
+      label: const Text('Ajouter une petite vidéo'),
+      onPressed: _pickingVideo ? null : _pickVideo,
     );
   }
 }

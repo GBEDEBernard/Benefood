@@ -17,8 +17,19 @@ class MediaService
     /** Taille maximale d'une image (J34 : 5 Mo). */
     public const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
+    /** Taille maximale d'une vidéo produit (petit clip). */
+    public const MAX_VIDEO_BYTES = 25 * 1024 * 1024;
+
     /** MIME autorisés pour les images (J34). */
     private const ALLOWED_IMAGE_MIME = ['image/jpeg', 'image/png', 'image/webp'];
+
+    /** MIME autorisés pour les vidéos produit, associés à leur extension. */
+    private const ALLOWED_VIDEO_MIME = [
+        'video/mp4' => 'mp4',
+        'application/mp4' => 'mp4',
+        'video/quicktime' => 'mov',
+        'video/webm' => 'webm',
+    ];
 
     /** Couverture principale produit (J34 : 800x800). */
     private const COVER_SIZE = 800;
@@ -70,6 +81,59 @@ class MediaService
         if (is_string($thumb) && $thumb !== $path) {
             $disk->delete($thumb);
         }
+    }
+
+    /**
+     * Stocke une petite vidéo produit sur le disque public.
+     *
+     * @return array{path: string, mime: string, size: int}
+     */
+    public function storeProductVideo(UploadedFile $file, string $vendorId, string $productId): array
+    {
+        $mime = $this->assertValidVideo($file);
+
+        $dir = "products/{$vendorId}/{$productId}";
+        $filename = Str::uuid().'.'.self::ALLOWED_VIDEO_MIME[$mime];
+
+        Storage::disk($this->disk)->putFileAs($dir, $file, $filename);
+
+        return [
+            'path' => "{$dir}/{$filename}",
+            'mime' => $mime,
+            'size' => (int) $file->getSize(),
+        ];
+    }
+
+    public function deleteProductVideo(string $path): void
+    {
+        if ($path === '') {
+            return;
+        }
+
+        Storage::disk($this->disk)->delete($path);
+    }
+
+    /**
+     * Valide la vidéo par contenu et retourne son MIME détecté.
+     */
+    private function assertValidVideo(UploadedFile $file): string
+    {
+        if (! $file->isValid()) {
+            throw new DomainException('media.invalid_file', 'Le fichier envoyé est invalide.', 422);
+        }
+
+        if ($file->getSize() > self::MAX_VIDEO_BYTES) {
+            throw new DomainException('media.too_large', 'La vidéo ne doit pas dépasser 25 Mo.', 422);
+        }
+
+        $realPath = (string) $file->getRealPath();
+        $detected = (new \finfo(FILEINFO_MIME_TYPE))->file($realPath) ?: $file->getMimeType();
+
+        if (! isset(self::ALLOWED_VIDEO_MIME[$detected])) {
+            throw new DomainException('media.invalid_mime', 'Format vidéo non autorisé (mp4, mov ou webm uniquement).', 422);
+        }
+
+        return $detected;
     }
 
     private function assertValidImage(UploadedFile $file): void

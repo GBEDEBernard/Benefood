@@ -199,6 +199,54 @@ class VendorProductsTest extends TestCase
         $this->assertDatabaseMissing('product_images', ['id' => $imageId]);
     }
 
+    public function test_vendor_can_upload_and_remove_product_video(): void
+    {
+        [$user, $vendor] = $this->vendorUser();
+        $product = Product::factory()->create([
+            'vendor_id' => $vendor->id,
+            'category_id' => $this->category()->id,
+        ]);
+        Sanctum::actingAs($user);
+
+        $clip = UploadedFile::fake()->createWithContent(
+            'clip.mp4',
+            "\x00\x00\x00\x18ftypisom\x00\x00\x02\x00isomiso2",
+        );
+
+        $this->postJson(route('api.v1.vendors.me.products.video.store', $product), ['video' => $clip])
+            ->assertCreated()
+            ->assertJsonPath('data.video_url', fn ($url) => is_string($url) && str_ends_with($url, '.mp4'));
+
+        $product->refresh();
+        $this->assertNotNull($product->video_path);
+        Storage::disk('public')->assertExists($product->video_path);
+
+        $path = $product->video_path;
+
+        $this->deleteJson(route('api.v1.vendors.me.products.video.destroy', $product))
+            ->assertNoContent();
+
+        $this->assertNull($product->fresh()->video_path);
+        Storage::disk('public')->assertMissing($path);
+    }
+
+    public function test_vendor_cannot_upload_invalid_product_video(): void
+    {
+        [$user, $vendor] = $this->vendorUser();
+        $product = Product::factory()->create([
+            'vendor_id' => $vendor->id,
+            'category_id' => $this->category()->id,
+        ]);
+        Sanctum::actingAs($user);
+
+        $invalid = UploadedFile::fake()->createWithContent('clip.mp4', 'definitely not a video');
+
+        $this->postJson(route('api.v1.vendors.me.products.video.store', $product), ['video' => $invalid])
+            ->assertStatus(422);
+
+        $this->assertNull($product->fresh()->video_path);
+    }
+
     public function test_vendor_without_profile_gets_not_found_on_store(): void
     {
         $user = User::factory()->create(['phone' => '+22997000012']);

@@ -529,7 +529,12 @@ class VendorController extends Controller
         $vendor->load([
             'settings',
             'hours',
-            'products' => fn ($products) => $products->orderable()->orderBy('name'),
+            'products' => fn ($products) => $products
+                ->orderable()
+                ->with('images')
+                ->withAvg('reviews as reviews_avg_rating', 'rating')
+                ->withCount(['reviews', 'favorites'])
+                ->orderBy('name'),
         ]);
 
         return Api::ok($this->shopPayload($vendor));

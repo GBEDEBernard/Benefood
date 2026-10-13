@@ -5,6 +5,8 @@ namespace Tests\Feature;
 use App\Models\Delivery;
 use App\Models\DriverProfile;
 use App\Models\Order;
+use App\Models\Product;
+use App\Models\Review;
 use App\Models\Role;
 use App\Models\User;
 use App\Models\Vendor;
@@ -123,5 +125,61 @@ class ReviewSubmissionTest extends TestCase
         $order = $this->deliveredOrder($otherClient, $vendor);
 
         $this->postJson("/api/v1/orders/{$order->id}/review", ['rating' => 5])->assertNotFound();
+    }
+
+    public function test_client_can_review_a_product_directly(): void
+    {
+        $client = $this->client();
+        $vendor = Vendor::factory()->create(['status' => 'active']);
+        $product = Product::factory()->create([
+            'vendor_id' => $vendor->id,
+            'is_active' => true,
+            'is_available' => true,
+        ]);
+
+        $this->postJson("/api/v1/products/{$product->id}/review", [
+            'rating' => 4,
+            'comment' => 'Excellent plat.',
+        ])
+            ->assertCreated()
+            ->assertJsonPath('data.rating', 4)
+            ->assertJsonPath('data.product_rating', 4)
+            ->assertJsonPath('data.product_reviews_count', 1);
+
+        $this->assertDatabaseHas('reviews', [
+            'user_id' => $client->id,
+            'rating' => 4,
+            'order_id' => null,
+        ]);
+        $this->assertDatabaseHas('review_items', ['product_id' => $product->id]);
+    }
+
+    public function test_client_product_review_updates_existing_one(): void
+    {
+        $client = $this->client();
+        $vendor = Vendor::factory()->create(['status' => 'active']);
+        $product = Product::factory()->create(['vendor_id' => $vendor->id]);
+
+        $this->postJson("/api/v1/products/{$product->id}/review", ['rating' => 5])->assertCreated();
+        $this->postJson("/api/v1/products/{$product->id}/review", ['rating' => 2])
+            ->assertCreated()
+            ->assertJsonPath('data.product_reviews_count', 1);
+
+        $this->assertSame(1, Review::where('user_id', $client->id)->whereNull('order_id')->count());
+        $this->assertDatabaseHas('reviews', [
+            'user_id' => $client->id,
+            'rating' => 2,
+            'order_id' => null,
+        ]);
+    }
+
+    public function test_product_review_requires_a_valid_rating(): void
+    {
+        $this->client();
+        $vendor = Vendor::factory()->create(['status' => 'active']);
+        $product = Product::factory()->create(['vendor_id' => $vendor->id]);
+
+        $this->postJson("/api/v1/products/{$product->id}/review", ['rating' => 9])
+            ->assertStatus(422);
     }
 }

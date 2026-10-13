@@ -8,10 +8,12 @@ use App\Models\Category;
 use App\Models\Order;
 use App\Models\Product;
 use App\Models\Review;
+use App\Models\ReviewItem;
 use App\Models\User;
 use App\Models\Vendor;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class HomeAndShopApiTest extends TestCase
@@ -156,6 +158,43 @@ class HomeAndShopApiTest extends TestCase
             ->assertJsonPath('data.products.0.id', $product->id)
             ->assertJsonPath('data.products.0.is_orderable', true)
             ->assertJsonCount(1, 'data.hours');
+    }
+
+    public function test_vendor_shop_products_expose_images_rating_and_likes(): void
+    {
+        Storage::fake('public');
+
+        $vendor = Vendor::factory()->create(['status' => VendorStatus::Active->value]);
+        $category = Category::factory()->create();
+        $product = Product::factory()->create([
+            'vendor_id' => $vendor->id,
+            'category_id' => $category->id,
+            'stock_qty' => 5,
+        ]);
+
+        $product->images()->create([
+            'path' => 'products/p1.jpg',
+            'thumb_path' => 'products/p1-thumb.jpg',
+            'mime' => 'image/jpeg',
+            'size' => 1024,
+            'is_main' => true,
+            'sort_order' => 0,
+        ]);
+
+        $client = User::factory()->create();
+        $review = Review::create([
+            'user_id' => $client->id,
+            'rating' => 5,
+            'status' => 'new',
+        ]);
+        ReviewItem::create(['review_id' => $review->id, 'product_id' => $product->id]);
+
+        $this->getJson("/api/v1/vendors/{$vendor->id}")
+            ->assertOk()
+            ->assertJsonCount(1, 'data.products.0.images')
+            ->assertJsonPath('data.products.0.rating', 5)
+            ->assertJsonPath('data.products.0.reviews_count', 1)
+            ->assertJsonPath('data.products.0.likes_count', 0);
     }
 
     public function test_vendor_shop_hides_inactive_and_closed_vendor(): void

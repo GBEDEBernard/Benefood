@@ -83,6 +83,8 @@ Route::middleware('auth:sanctum')->group(function (): void {
         Route::delete('/products/{product}', [VendorProductController::class, 'destroy'])->name('api.v1.vendors.me.products.destroy');
         Route::post('/products/{product}/images', [VendorProductController::class, 'uploadImage'])->name('api.v1.vendors.me.products.images.store');
         Route::delete('/products/{product}/images/{image}', [VendorProductController::class, 'removeImage'])->name('api.v1.vendors.me.products.images.destroy');
+        Route::post('/products/{product}/video', [VendorProductController::class, 'uploadVideo'])->name('api.v1.vendors.me.products.video.store');
+        Route::delete('/products/{product}/video', [VendorProductController::class, 'removeVideo'])->name('api.v1.vendors.me.products.video.destroy');
         Route::patch('/', [VendorController::class, 'updateProfile'])->name('api.v1.vendors.me.update');
         Route::get('/contacts', [VendorController::class, 'listContacts'])->name('api.v1.vendors.me.contacts.index');
         Route::post('/contacts', [VendorController::class, 'addContact'])->name('api.v1.vendors.me.contacts.store');
@@ -181,6 +183,9 @@ Route::middleware('auth:sanctum')->group(function (): void {
 
     // Dépôt d'avis client (vendeur + livreur) après livraison.
     Route::post('orders/{order}/review', [ReviewController::class, 'store'])->name('api.v1.orders.review')->middleware('permission:client.orders.manage');
+
+    // Avis direct sur un produit (sans commande).
+    Route::post('products/{product}/review', [ReviewController::class, 'storeForProduct'])->name('api.v1.products.review')->middleware('permission:client.reviews.create');
 
     // Service colis (cahier v1.0, phase 3).
     Route::prefix('parcels')->group(function (): void {

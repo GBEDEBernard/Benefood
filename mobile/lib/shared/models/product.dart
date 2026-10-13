@@ -12,11 +12,11 @@ class ProductImage {
   final bool isMain;
 
   factory ProductImage.fromJson(Map<String, dynamic> json) => ProductImage(
-        id: _s(json['id']),
-        url: _s(json['url']),
-        thumbUrl: json['thumb_url'] is String ? json['thumb_url'] as String : null,
-        isMain: json['is_main'] == true,
-      );
+    id: _s(json['id']),
+    url: _s(json['url']),
+    thumbUrl: json['thumb_url'] is String ? json['thumb_url'] as String : null,
+    isMain: json['is_main'] == true,
+  );
 }
 
 class Product {
@@ -32,6 +32,7 @@ class Product {
     this.stockQty,
     this.imageUrl,
     this.imageMain,
+    this.videoUrl,
     this.images = const [],
     this.isActive = true,
     this.isAvailable = true,
@@ -54,6 +55,7 @@ class Product {
   final int? stockQty;
   final String? imageUrl;
   final String? imageMain;
+  final String? videoUrl;
   final List<ProductImage> images;
   final bool isActive;
   final bool isAvailable;
@@ -69,14 +71,35 @@ class Product {
 
   bool get isOutOfStock => stockQty != null && stockQty == 0;
 
+  /// URL d'image principale réellement affichable : photo chargée (tableau
+  /// `images`) sinon `image_url` résolue par le backend. `image_main` brut
+  /// (chemin de stockage) n'est volontairement pas utilisé.
+  String? get displayImageUrl {
+    if (images.isNotEmpty) {
+      final main = images.firstWhere((i) => i.isMain, orElse: () => images.first);
+      if (main.url.isNotEmpty) {
+        return main.url;
+      }
+    }
+    return imageUrl;
+  }
+
+  /// URLs de la galerie produit (photos chargées sinon image principale).
+  List<String> get galleryImageUrls {
+    if (images.isNotEmpty) {
+      return images
+          .map((i) => i.url)
+          .where((url) => url.isNotEmpty)
+          .toList();
+    }
+    final url = imageUrl;
+    return (url != null && url.isNotEmpty) ? [url] : const [];
+  }
+
   /// Produit rangé dans l'archivage (désactivé — plus proposé à la vente).
   bool get archived => !isActive || status == 'archived';
 
-  Product copyWith({
-    bool? isAvailable,
-    bool? isActive,
-    String? status,
-  }) {
+  Product copyWith({bool? isAvailable, bool? isActive, String? status}) {
     return Product(
       id: id,
       vendorId: vendorId,
@@ -89,6 +112,7 @@ class Product {
       stockQty: stockQty,
       imageUrl: imageUrl,
       imageMain: imageMain,
+      videoUrl: videoUrl,
       images: images,
       isActive: isActive ?? this.isActive,
       isAvailable: isAvailable ?? this.isAvailable,
@@ -118,19 +142,30 @@ class Product {
       vendorId: _s(json['vendor_id']),
       categoryId: _s(json['category_id']),
       name: _s(json['name']),
-      description: json['description'] is String ? json['description'] as String : null,
+      description: json['description'] is String
+          ? json['description'] as String
+          : null,
       price: _i(json['price']),
       currency: _s(json['currency'], 'XOF'),
       unit: _s(json['unit'], 'pce'),
       stockQty: json['stock_qty'] is int ? json['stock_qty'] as int : null,
-      imageUrl: json['image_url'] is String ? json['image_url'] as String : null,
-      imageMain: json['image_main'] is String ? json['image_main'] as String : null,
+      imageUrl: json['image_url'] is String
+          ? json['image_url'] as String
+          : null,
+      imageMain: json['image_main'] is String
+          ? json['image_main'] as String
+          : null,
+      videoUrl: json['video_url'] is String
+          ? json['video_url'] as String
+          : null,
       images: images,
       isActive: json['is_active'] != false,
       isAvailable: json['is_available'] != false,
       isOrderable: json['is_orderable'] != false,
       status: _s(json['status'], 'active'),
-      vendorName: json['vendor_name'] is String ? json['vendor_name'] as String : null,
+      vendorName: json['vendor_name'] is String
+          ? json['vendor_name'] as String
+          : null,
       rating: _d(json['rating']),
       reviewsCount: _i(json['reviews_count']),
       likesCount: _i(json['likes_count']),
@@ -138,7 +173,8 @@ class Product {
   }
 }
 
-String _s(dynamic value, [String fallback = '']) => value is String ? value : fallback;
+String _s(dynamic value, [String fallback = '']) =>
+    value is String ? value : fallback;
 
 double? _d(dynamic value) {
   if (value is num) {

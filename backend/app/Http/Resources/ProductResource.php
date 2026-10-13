@@ -28,6 +28,7 @@ class ProductResource extends JsonResource
             'stock_qty' => $this->stock_qty,
             'image_main' => $this->image_main,
             'image_url' => $this->image_main ? Storage::disk('public')->url($this->image_main) : null,
+            'video_url' => $this->video_path ? Storage::disk('public')->url($this->video_path) : null,
             'images' => $this->whenLoaded('images', fn () => $this->images->map(fn ($image) => [
                 'id' => $image->id,
                 'url' => Storage::disk('public')->url($image->path),

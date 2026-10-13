@@ -50,13 +50,16 @@ class MarketplaceApi {
     bool? inStock,
     int perPage = 25,
   }) async {
-    final response = await _api.get('/products', query: {
-      if (categoryId != null) 'category_id': categoryId,
-      if (q != null && q.isNotEmpty) 'q': q,
-      if (vendorId != null) 'vendor_id': vendorId,
-      if (inStock != null) 'in_stock': inStock.toString(),
-      'per_page': perPage.toString(),
-    });
+    final response = await _api.get(
+      '/products',
+      query: {
+        if (categoryId != null) 'category_id': categoryId,
+        if (q != null && q.isNotEmpty) 'q': q,
+        if (vendorId != null) 'vendor_id': vendorId,
+        if (inStock != null) 'in_stock': inStock.toString(),
+        'per_page': perPage.toString(),
+      },
+    );
     return _dataList(response).map(Product.fromJson).toList();
   }
 
@@ -65,12 +68,19 @@ class MarketplaceApi {
     return Product.fromJson(_dataObject(response) ?? {});
   }
 
-  Future<List<Vendor>> vendors({String? q, String? city, int perPage = 25}) async {
-    final response = await _api.get('/vendors', query: {
-      if (q != null && q.isNotEmpty) 'q': q,
-      if (city != null && city.isNotEmpty) 'city': city,
-      'per_page': perPage.toString(),
-    });
+  Future<List<Vendor>> vendors({
+    String? q,
+    String? city,
+    int perPage = 25,
+  }) async {
+    final response = await _api.get(
+      '/vendors',
+      query: {
+        if (q != null && q.isNotEmpty) 'q': q,
+        if (city != null && city.isNotEmpty) 'city': city,
+        'per_page': perPage.toString(),
+      },
+    );
     return _dataList(response).map(Vendor.fromJson).toList();
   }
 
@@ -79,16 +89,25 @@ class MarketplaceApi {
     return ShopDetail.fromJson(_dataObject(response) ?? {});
   }
 
-  Future<DeliveryQuote> deliveryQuote(String vendorId, {String? city, String? address, double? latitude, double? longitude}) async {
-    final response = await _api.post('/delivery/quote', body: {
-      'vendor_id': vendorId,
-      'address': {
-        if (city != null && city.isNotEmpty) 'city': city,
-        if (address != null && address.isNotEmpty) 'address_text': address,
-        if (latitude != null) 'latitude': latitude,
-        if (longitude != null) 'longitude': longitude,
+  Future<DeliveryQuote> deliveryQuote(
+    String vendorId, {
+    String? city,
+    String? address,
+    double? latitude,
+    double? longitude,
+  }) async {
+    final response = await _api.post(
+      '/delivery/quote',
+      body: {
+        'vendor_id': vendorId,
+        'address': {
+          if (city != null && city.isNotEmpty) 'city': city,
+          if (address != null && address.isNotEmpty) 'address_text': address,
+          if (latitude != null) 'latitude': latitude,
+          if (longitude != null) 'longitude': longitude,
+        },
       },
-    });
+    );
     return DeliveryQuote.fromJson(_dataObject(response) ?? {});
   }
 
@@ -107,16 +126,19 @@ class MarketplaceApi {
     double? longitude,
     bool? isDefault,
   }) async {
-    final response = await _api.post('/addresses', body: {
-      if (label != null && label.isNotEmpty) 'label': label,
-      'full_address': fullAddress ?? '',
-      if (city != null && city.isNotEmpty) 'city': city,
-      if (area != null && area.isNotEmpty) 'area': area,
-      if (landmark != null && landmark.isNotEmpty) 'landmark': landmark,
-      if (latitude != null) 'latitude': latitude,
-      if (longitude != null) 'longitude': longitude,
-      if (isDefault ?? false) 'is_default': true,
-    });
+    final response = await _api.post(
+      '/addresses',
+      body: {
+        if (label != null && label.isNotEmpty) 'label': label,
+        'full_address': fullAddress ?? '',
+        if (city != null && city.isNotEmpty) 'city': city,
+        if (area != null && area.isNotEmpty) 'area': area,
+        if (landmark != null && landmark.isNotEmpty) 'landmark': landmark,
+        if (latitude != null) 'latitude': latitude,
+        if (longitude != null) 'longitude': longitude,
+        if (isDefault ?? false) 'is_default': true,
+      },
+    );
     return Address.fromJson(_dataObject(response) ?? {});
   }
 
@@ -130,12 +152,18 @@ class MarketplaceApi {
   }
 
   Future<Cart> addToCart(String productId, {int quantity = 1}) async {
-    final response = await _api.post('/cart/items', body: {'product_id': productId, 'quantity': quantity});
+    final response = await _api.post(
+      '/cart/items',
+      body: {'product_id': productId, 'quantity': quantity},
+    );
     return Cart.fromJson(_dataObject(response) ?? {});
   }
 
   Future<Cart> updateCartItem(String itemId, int quantity) async {
-    final response = await _api.patch('/cart/items/$itemId', body: {'quantity': quantity});
+    final response = await _api.patch(
+      '/cart/items/$itemId',
+      body: {'quantity': quantity},
+    );
     return Cart.fromJson(_dataObject(response) ?? {});
   }
 
@@ -149,7 +177,10 @@ class MarketplaceApi {
   }
 
   Future<OrderSummary> orderSummary(String addressId) async {
-    final response = await _api.post('/orders/summary', body: {'address_id': addressId});
+    final response = await _api.post(
+      '/orders/summary',
+      body: {'address_id': addressId},
+    );
     return OrderSummary.fromJson(_dataObject(response) ?? {});
   }
 
@@ -162,26 +193,38 @@ class MarketplaceApi {
     String? notes,
     String paymentMethod = 'online',
   }) async {
-    final response = await _api.post('/orders', body: {
-      'address_id': addressId,
-      'payment_method': paymentMethod,
-      if (notes != null && notes.isNotEmpty) 'notes': notes,
-    });
+    final response = await _api.post(
+      '/orders',
+      body: {
+        'address_id': addressId,
+        'payment_method': paymentMethod,
+        if (notes != null && notes.isNotEmpty) 'notes': notes,
+      },
+    );
     return Order.fromJson(_dataObject(response) ?? {});
   }
 
   Future<Map<String, dynamic>> createPayment(String orderId) async {
-    final response = await _api.post('/payments/create', body: {'order_id': orderId});
+    final response = await _api.post(
+      '/payments/create',
+      body: {'order_id': orderId},
+    );
     return _dataObject(response) ?? {};
   }
 
   Future<Map<String, dynamic>> verifyPayment(String transactionId) async {
-    final response = await _api.post('/payments/verify', body: {'transaction_id': transactionId});
+    final response = await _api.post(
+      '/payments/verify',
+      body: {'transaction_id': transactionId},
+    );
     return _dataObject(response) ?? {};
   }
 
   Future<List<Order>> orders({int perPage = 25}) async {
-    final response = await _api.get('/orders', query: {'per_page': perPage.toString()});
+    final response = await _api.get(
+      '/orders',
+      query: {'per_page': perPage.toString()},
+    );
     return _dataList(response).map(Order.fromJson).toList();
   }
 
@@ -191,12 +234,18 @@ class MarketplaceApi {
   }
 
   Future<Order> cancelOrder(String orderId, String reason) async {
-    final response = await _api.post('/orders/$orderId/cancel', body: {'reason': reason});
+    final response = await _api.post(
+      '/orders/$orderId/cancel',
+      body: {'reason': reason},
+    );
     return Order.fromJson(_dataObject(response) ?? {});
   }
 
   Future<List<Complaint>> complaints({int perPage = 25}) async {
-    final response = await _api.get('/complaints', query: {'per_page': perPage.toString()});
+    final response = await _api.get(
+      '/complaints',
+      query: {'per_page': perPage.toString()},
+    );
     return _dataList(response).map(Complaint.fromJson).toList();
   }
 
@@ -205,18 +254,29 @@ class MarketplaceApi {
     return Complaint.fromJson(_dataObject(response) ?? {});
   }
 
-  Future<Complaint> createComplaint({String? orderId, required String type, required String subject, required String description}) async {
-    final response = await _api.post('/complaints', body: {
-      if (orderId != null) 'order_id': orderId,
-      'type': type,
-      'subject': subject,
-      'description': description,
-    });
+  Future<Complaint> createComplaint({
+    String? orderId,
+    required String type,
+    required String subject,
+    required String description,
+  }) async {
+    final response = await _api.post(
+      '/complaints',
+      body: {
+        if (orderId != null) 'order_id': orderId,
+        'type': type,
+        'subject': subject,
+        'description': description,
+      },
+    );
     return Complaint.fromJson(_dataObject(response) ?? {});
   }
 
   Future<void> replyComplaint(String complaintId, String message) async {
-    await _api.post('/complaints/$complaintId/messages', body: {'message': message});
+    await _api.post(
+      '/complaints/$complaintId/messages',
+      body: {'message': message},
+    );
   }
 
   Future<List<Delivery>> myDeliveries() async {
@@ -235,7 +295,10 @@ class MarketplaceApi {
   }
 
   Future<Delivery> declineOffer(String id, {String? reason}) async {
-    final response = await _api.post('/driver/me/deliveries/$id/decline', body: {if (reason != null) 'reason': reason});
+    final response = await _api.post(
+      '/driver/me/deliveries/$id/decline',
+      body: {if (reason != null) 'reason': reason},
+    );
     return Delivery.fromJson(_dataObject(response) ?? {});
   }
 
@@ -250,43 +313,65 @@ class MarketplaceApi {
   }
 
   Future<Delivery> markDelivered(String id, {String? proofCode}) async {
-    final response = await _api.post('/driver/me/deliveries/$id/deliver', body: {
-      if (proofCode != null && proofCode.isNotEmpty) 'proof_code': proofCode,
-    });
+    final response = await _api.post(
+      '/driver/me/deliveries/$id/deliver',
+      body: {
+        if (proofCode != null && proofCode.isNotEmpty) 'proof_code': proofCode,
+      },
+    );
     return Delivery.fromJson(_dataObject(response) ?? {});
   }
 
   Future<Delivery> reportIncident(String id, String message) async {
-    final response = await _api.post('/driver/me/deliveries/$id/incident', body: {'message': message});
+    final response = await _api.post(
+      '/driver/me/deliveries/$id/incident',
+      body: {'message': message},
+    );
     return Delivery.fromJson(_dataObject(response) ?? {});
   }
 
-  Future<Map<String, dynamic>> setAvailability(bool available, {double? latitude, double? longitude}) async {
-    final response = await _api.post('/driver/me/availability', body: {
-      'available': available,
-      if (latitude != null) 'latitude': latitude,
-      if (longitude != null) 'longitude': longitude,
-    });
+  Future<Map<String, dynamic>> setAvailability(
+    bool available, {
+    double? latitude,
+    double? longitude,
+  }) async {
+    final response = await _api.post(
+      '/driver/me/availability',
+      body: {
+        'available': available,
+        if (latitude != null) 'latitude': latitude,
+        if (longitude != null) 'longitude': longitude,
+      },
+    );
     return _dataObject(response) ?? {};
   }
 
   /// Itinéraire routier passant par [points] (2 à 10) ; `moto` par défaut.
-  Future<RoutePlan> routePlan(List<GeoPoint> points, {String profile = 'moto'}) async {
-    final response = await _api.post('/routes', body: {
-      'profile': profile,
-      'points': [
-        for (final point in points)
-          {'latitude': point.latitude, 'longitude': point.longitude},
-      ],
-    });
+  Future<RoutePlan> routePlan(
+    List<GeoPoint> points, {
+    String profile = 'moto',
+  }) async {
+    final response = await _api.post(
+      '/routes',
+      body: {
+        'profile': profile,
+        'points': [
+          for (final point in points)
+            {'latitude': point.latitude, 'longitude': point.longitude},
+        ],
+      },
+    );
     return RoutePlan.fromJson(_dataObject(response) ?? {});
   }
 
-  Future<Map<String, dynamic>> updateDriverLocation(double latitude, double longitude) async {
-    final response = await _api.patch('/driver/me/availability/location', body: {
-      'latitude': latitude,
-      'longitude': longitude,
-    });
+  Future<Map<String, dynamic>> updateDriverLocation(
+    double latitude,
+    double longitude,
+  ) async {
+    final response = await _api.patch(
+      '/driver/me/availability/location',
+      body: {'latitude': latitude, 'longitude': longitude},
+    );
     return _dataObject(response) ?? {};
   }
 
@@ -316,17 +401,22 @@ class MarketplaceApi {
     String? address,
     String? categoryId,
   }) async {
-    await _api.post('/vendors/me/onboarding', body: {
-      'business_name': businessName,
-      if (legalName != null && legalName.isNotEmpty) 'legal_name': legalName,
-      if (ifu != null && ifu.isNotEmpty) 'ifu': ifu,
-      if (description != null && description.isNotEmpty) 'description': description,
-      'phone': phone,
-      if (email != null && email.isNotEmpty) 'email': email,
-      if (city != null && city.isNotEmpty) 'city': city,
-      if (address != null && address.isNotEmpty) 'address': address,
-      if (categoryId != null && categoryId.isNotEmpty) 'category_id': categoryId,
-    });
+    await _api.post(
+      '/vendors/me/onboarding',
+      body: {
+        'business_name': businessName,
+        if (legalName != null && legalName.isNotEmpty) 'legal_name': legalName,
+        if (ifu != null && ifu.isNotEmpty) 'ifu': ifu,
+        if (description != null && description.isNotEmpty)
+          'description': description,
+        'phone': phone,
+        if (email != null && email.isNotEmpty) 'email': email,
+        if (city != null && city.isNotEmpty) 'city': city,
+        if (address != null && address.isNotEmpty) 'address': address,
+        if (categoryId != null && categoryId.isNotEmpty)
+          'category_id': categoryId,
+      },
+    );
   }
 
   /// Met à jour les informations de la boutique (`PATCH /vendors/me`) :
@@ -343,17 +433,22 @@ class MarketplaceApi {
     String? address,
     String? categoryId,
   }) async {
-    await _api.patch('/vendors/me', body: {
-      if (businessName != null && businessName.isNotEmpty) 'business_name': businessName,
-      'legal_name': ?legalName,
-      'ifu': ?ifu,
-      'description': ?description,
-      if (phone != null && phone.isNotEmpty) 'phone': phone,
-      'email': ?email,
-      'city': ?city,
-      'address': ?address,
-      if (categoryId != null && categoryId.isNotEmpty) 'category_id': categoryId,
-    });
+    await _api.patch(
+      '/vendors/me',
+      body: {
+        if (businessName != null && businessName.isNotEmpty)
+          'business_name': businessName,
+        'legal_name': ?legalName,
+        'ifu': ?ifu,
+        'description': ?description,
+        if (phone != null && phone.isNotEmpty) 'phone': phone,
+        'email': ?email,
+        'city': ?city,
+        'address': ?address,
+        if (categoryId != null && categoryId.isNotEmpty)
+          'category_id': categoryId,
+      },
+    );
   }
 
   /// Met à jour la boutique du vendeur connecté (`PATCH /vendors/me`) :
@@ -369,15 +464,21 @@ class MarketplaceApi {
     String? address,
     List<OpeningHour>? hours,
   }) async {
-    await _api.patch('/vendors/me', body: {
-      if (businessName != null && businessName.trim().isNotEmpty) 'business_name': businessName.trim(),
-      if (description != null) 'description': description.trim().isEmpty ? null : description.trim(),
-      if (phone != null && phone.trim().isNotEmpty) 'phone': phone.trim(),
-      if (email != null) 'email': email.trim().isEmpty ? null : email.trim(),
-      if (city != null) 'city': city.trim().isEmpty ? null : city.trim(),
-      if (address != null) 'address': address.trim().isEmpty ? null : address.trim(),
-      if (hours != null) 'hours': hours.map((h) => h.toJson()).toList(),
-    });
+    await _api.patch(
+      '/vendors/me',
+      body: {
+        if (businessName != null && businessName.trim().isNotEmpty)
+          'business_name': businessName.trim(),
+        if (description != null)
+          'description': description.trim().isEmpty ? null : description.trim(),
+        if (phone != null && phone.trim().isNotEmpty) 'phone': phone.trim(),
+        if (email != null) 'email': email.trim().isEmpty ? null : email.trim(),
+        if (city != null) 'city': city.trim().isEmpty ? null : city.trim(),
+        if (address != null)
+          'address': address.trim().isEmpty ? null : address.trim(),
+        if (hours != null) 'hours': hours.map((h) => h.toJson()).toList(),
+      },
+    );
   }
 
   /// Ouvre ou ferme la boutique (interrupteur « Statut de la boutique ») :
@@ -388,7 +489,8 @@ class MarketplaceApi {
       '/vendors/me',
       body: {
         'closed_at': open ? null : DateTime.now().toUtc().toIso8601String(),
-        if (!open && reason != null && reason.trim().isNotEmpty) 'closed_reason': reason.trim(),
+        if (!open && reason != null && reason.trim().isNotEmpty)
+          'closed_reason': reason.trim(),
       },
     );
   }
@@ -409,15 +511,18 @@ class MarketplaceApi {
     bool? notifyPayments,
     String? locale,
   }) async {
-    final response = await _api.patch('/vendors/me/settings', body: {
-      'auto_accept': ?autoAccept,
-      'payout_method': ?payoutMethod,
-      'payout_details': ?payoutDetails,
-      'notify_new_orders': ?notifyNewOrders,
-      'notify_cancellations': ?notifyCancellations,
-      'notify_payments': ?notifyPayments,
-      'locale': ?locale,
-    });
+    final response = await _api.patch(
+      '/vendors/me/settings',
+      body: {
+        'auto_accept': ?autoAccept,
+        'payout_method': ?payoutMethod,
+        'payout_details': ?payoutDetails,
+        'notify_new_orders': ?notifyNewOrders,
+        'notify_cancellations': ?notifyCancellations,
+        'notify_payments': ?notifyPayments,
+        'locale': ?locale,
+      },
+    );
     return _dataObject(response) ?? {};
   }
 
@@ -434,8 +539,13 @@ class MarketplaceApi {
   }
 
   /// Remplace les zones desservies par le vendeur.
-  Future<List<Map<String, dynamic>>> syncVendorZones(List<String> zoneIds) async {
-    final response = await _api.post('/vendors/me/zones', body: {'zone_ids': zoneIds});
+  Future<List<Map<String, dynamic>>> syncVendorZones(
+    List<String> zoneIds,
+  ) async {
+    final response = await _api.post(
+      '/vendors/me/zones',
+      body: {'zone_ids': zoneIds},
+    );
     return _dataList(response);
   }
 
@@ -446,17 +556,14 @@ class MarketplaceApi {
     required String description,
     String type = 'other',
   }) async {
-    final response = await _api.post('/vendors/me/orders/$orderId/incident', body: {
-      'subject': subject,
-      'description': description,
-      'type': type,
-    });
+    final response = await _api.post(
+      '/vendors/me/orders/$orderId/incident',
+      body: {'subject': subject, 'description': description, 'type': type},
+    );
     return _dataObject(response) ?? {};
   }
 
-  Future<void> driverOnboarding({
-    required String vehicle,
-  }) async {
+  Future<void> driverOnboarding({required String vehicle}) async {
     await _api.post('/driver/me/onboarding', body: {'vehicle': vehicle});
   }
 
@@ -466,19 +573,25 @@ class MarketplaceApi {
     String? address,
     String? city,
   }) async {
-    await _api.post('/client/me/onboarding', body: {
-      if (fullName != null && fullName.isNotEmpty) 'full_name': fullName,
-      if (phone != null && phone.isNotEmpty) 'phone': phone,
-      if (address != null && address.isNotEmpty) 'address': address,
-      if (city != null && city.isNotEmpty) 'city': city,
-    });
+    await _api.post(
+      '/client/me/onboarding',
+      body: {
+        if (fullName != null && fullName.isNotEmpty) 'full_name': fullName,
+        if (phone != null && phone.isNotEmpty) 'phone': phone,
+        if (address != null && address.isNotEmpty) 'address': address,
+        if (city != null && city.isNotEmpty) 'city': city,
+      },
+    );
   }
 
-  Future<void> registerDevice({required String fcmToken, required String platform}) async {
-    await _api.post('/me/devices', body: {
-      'fcm_token': fcmToken,
-      'platform': platform,
-    });
+  Future<void> registerDevice({
+    required String fcmToken,
+    required String platform,
+  }) async {
+    await _api.post(
+      '/me/devices',
+      body: {'fcm_token': fcmToken, 'platform': platform},
+    );
   }
 
   Future<User> me() async {
@@ -487,10 +600,13 @@ class MarketplaceApi {
   }
 
   Future<void> updateMe({String? name, String? email}) async {
-    await _api.patch('/me', body: {
-      if (name != null && name.isNotEmpty) 'name': name,
-      if (email != null) 'email': email,
-    });
+    await _api.patch(
+      '/me',
+      body: {
+        if (name != null && name.isNotEmpty) 'name': name,
+        if (email != null) 'email': email,
+      },
+    );
   }
 
   Future<Map<String, dynamic>> meStats() async {
@@ -512,11 +628,14 @@ class MarketplaceApi {
     required String currentPassword,
     required String newPassword,
   }) async {
-    await _api.post('/me/password', body: {
-      'current_password': currentPassword,
-      'password': newPassword,
-      'password_confirmation': newPassword,
-    });
+    await _api.post(
+      '/me/password',
+      body: {
+        'current_password': currentPassword,
+        'password': newPassword,
+        'password_confirmation': newPassword,
+      },
+    );
   }
 
   Future<List<Map<String, dynamic>>> myNotifications() async {
@@ -545,6 +664,24 @@ class MarketplaceApi {
     await _api.delete('/me/favorites/$productId');
   }
 
+  /// Dépose (ou met à jour) l'avis direct du client sur un produit et renvoie
+  /// la note moyenne et le nombre d'avis recalculés.
+  Future<ProductReviewResult> submitProductReview(
+    String productId, {
+    required int rating,
+    String? comment,
+  }) async {
+    final response = await _api.post('/products/$productId/review', body: {
+      'rating': rating,
+      if (comment != null && comment.isNotEmpty) 'comment': comment,
+    });
+    final data = _dataObject(response) ?? const <String, dynamic>{};
+    return ProductReviewResult(
+      rating: (data['product_rating'] as num?)?.toDouble(),
+      reviewsCount: (data['product_reviews_count'] as num?)?.toInt() ?? 0,
+    );
+  }
+
   Future<List<Map<String, dynamic>>> myPaymentMethods() async {
     final response = await _api.get('/me/payment-methods');
     return _dataList(response);
@@ -557,20 +694,24 @@ class MarketplaceApi {
     String? last4,
     bool isDefault = false,
   }) async {
-    final response = await _api.post('/me/payment-methods', body: {
-      'type': type,
-      'provider': provider,
-      'label': label,
-      if (last4 != null && last4.isNotEmpty) 'last4': last4,
-      if (isDefault) 'is_default': true,
-    });
+    final response = await _api.post(
+      '/me/payment-methods',
+      body: {
+        'type': type,
+        'provider': provider,
+        'label': label,
+        if (last4 != null && last4.isNotEmpty) 'last4': last4,
+        if (isDefault) 'is_default': true,
+      },
+    );
     return _dataObject(response) ?? {};
   }
 
   Future<Map<String, dynamic>> setDefaultPaymentMethod(String id) async {
-    final response = await _api.patch('/me/payment-methods/$id', body: {
-      'is_default': true,
-    });
+    final response = await _api.patch(
+      '/me/payment-methods/$id',
+      body: {'is_default': true},
+    );
     return _dataObject(response) ?? {};
   }
 
@@ -606,19 +747,24 @@ class MarketplaceApi {
     int? stockQty,
     bool isAvailable = true,
   }) async {
-    final response = await _api.post('/vendors/me/products', body: {
-      'name': name,
-      'price': price,
-      'category_id': categoryId,
-      if (description != null && description.isNotEmpty) 'description': description,
-      if (unit != null && unit.isNotEmpty) 'unit': unit,
-      if (stockQty != null) 'stock_qty': stockQty,
-      'is_available': isAvailable,
-    });
+    final response = await _api.post(
+      '/vendors/me/products',
+      body: {
+        'name': name,
+        'price': price,
+        'category_id': categoryId,
+        if (description != null && description.isNotEmpty)
+          'description': description,
+        if (unit != null && unit.isNotEmpty) 'unit': unit,
+        if (stockQty != null) 'stock_qty': stockQty,
+        'is_available': isAvailable,
+      },
+    );
     return Product.fromJson(_dataObject(response) ?? {});
   }
 
-  Future<Product> updateProduct(String productId, {
+  Future<Product> updateProduct(
+    String productId, {
     String? name,
     int? price,
     String? categoryId,
@@ -628,16 +774,19 @@ class MarketplaceApi {
     bool? isAvailable,
     bool? isActive,
   }) async {
-    final response = await _api.patch('/vendors/me/products/$productId', body: {
-      if (name != null) 'name': name,
-      if (price != null) 'price': price,
-      if (categoryId != null) 'category_id': categoryId,
-      if (description != null) 'description': description,
-      if (unit != null) 'unit': unit,
-      if (stockQty != null) 'stock_qty': stockQty,
-      if (isAvailable != null) 'is_available': isAvailable,
-      if (isActive != null) 'is_active': isActive,
-    });
+    final response = await _api.patch(
+      '/vendors/me/products/$productId',
+      body: {
+        if (name != null) 'name': name,
+        if (price != null) 'price': price,
+        if (categoryId != null) 'category_id': categoryId,
+        if (description != null) 'description': description,
+        if (unit != null) 'unit': unit,
+        if (stockQty != null) 'stock_qty': stockQty,
+        if (isAvailable != null) 'is_available': isAvailable,
+        if (isActive != null) 'is_active': isActive,
+      },
+    );
     return Product.fromJson(_dataObject(response) ?? {});
   }
 
@@ -650,7 +799,10 @@ class MarketplaceApi {
   // ------------------------------------------------------------------
 
   Future<List<Order>> vendorOrders({int perPage = 25}) async {
-    final response = await _api.get('/vendors/me/orders', query: {'per_page': perPage.toString()});
+    final response = await _api.get(
+      '/vendors/me/orders',
+      query: {'per_page': perPage.toString()},
+    );
     return _dataList(response).map(Order.fromJson).toList();
   }
 
@@ -660,7 +812,10 @@ class MarketplaceApi {
   }
 
   Future<Order> vendorRefuse(String orderId, {required String reason}) async {
-    final response = await _api.post('/vendors/me/orders/$orderId/refuse', body: {'reason': reason});
+    final response = await _api.post(
+      '/vendors/me/orders/$orderId/refuse',
+      body: {'reason': reason},
+    );
     return Order.fromJson(_dataObject(response) ?? {});
   }
 
@@ -675,7 +830,10 @@ class MarketplaceApi {
   }
 
   Future<Order> vendorCancel(String orderId, {required String reason}) async {
-    final response = await _api.post('/vendors/me/orders/$orderId/cancel', body: {'reason': reason});
+    final response = await _api.post(
+      '/vendors/me/orders/$orderId/cancel',
+      body: {'reason': reason},
+    );
     return Order.fromJson(_dataObject(response) ?? {});
   }
 
@@ -691,28 +849,43 @@ class MarketplaceApi {
 
   /// Historique des activités du vendeur (J21 §10).
   Future<List<Map<String, dynamic>>> vendorActivity({int limit = 100}) async {
-    final response = await _api.get('/vendors/me/activity', query: {'limit': '$limit'});
+    final response = await _api.get(
+      '/vendors/me/activity',
+      query: {'limit': '$limit'},
+    );
     return _dataList(response);
   }
 
   /// Avis clients du vendeur (J21 §9) : `{summary, reviews}`.
   Future<Map<String, dynamic>> vendorReviews({int perPage = 15}) async {
-    final response = await _api.get('/vendors/me/reviews', query: {'per_page': '$perPage'});
+    final response = await _api.get(
+      '/vendors/me/reviews',
+      query: {'per_page': '$perPage'},
+    );
     return _dataObject(response) ?? {};
   }
 
   /// Réponse du vendeur à un avis client (J21 §9).
-  Future<Map<String, dynamic>> replyToReview(String reviewId, String reply) async {
-    final response = await _api.post('/vendors/me/reviews/$reviewId/reply', body: {'reply': reply});
+  Future<Map<String, dynamic>> replyToReview(
+    String reviewId,
+    String reply,
+  ) async {
+    final response = await _api.post(
+      '/vendors/me/reviews/$reviewId/reply',
+      body: {'reply': reply},
+    );
     return _dataObject(response) ?? {};
   }
 
   /// Revenus, commissions et reversements du vendeur (J21 §8).
-  Future<Map<String, dynamic>> vendorRevenues({String? from, String? to}) async {
-    final response = await _api.get('/vendors/me/revenues', query: {
-      if (from != null) 'from': from,
-      if (to != null) 'to': to,
-    });
+  Future<Map<String, dynamic>> vendorRevenues({
+    String? from,
+    String? to,
+  }) async {
+    final response = await _api.get(
+      '/vendors/me/revenues',
+      query: {if (from != null) 'from': from, if (to != null) 'to': to},
+    );
     return _dataObject(response) ?? {};
   }
 
@@ -733,11 +906,14 @@ class MarketplaceApi {
   }
 
   /// Demande un retrait vendeur vers son Mobile Money.
-  Future<Map<String, dynamic>> requestVendorPayout(int amount, {String? method}) async {
-    final response = await _api.post('/vendors/me/wallet/payouts', body: {
-      'amount': amount,
-      'method': ?method,
-    });
+  Future<Map<String, dynamic>> requestVendorPayout(
+    int amount, {
+    String? method,
+  }) async {
+    final response = await _api.post(
+      '/vendors/me/wallet/payouts',
+      body: {'amount': amount, 'method': ?method},
+    );
     return _dataObject(response) ?? {};
   }
 
@@ -748,11 +924,14 @@ class MarketplaceApi {
   }
 
   /// Demande un retrait livreur vers son Mobile Money.
-  Future<Map<String, dynamic>> requestDriverPayout(int amount, {String? method}) async {
-    final response = await _api.post('/driver/me/wallet/payouts', body: {
-      'amount': amount,
-      'method': ?method,
-    });
+  Future<Map<String, dynamic>> requestDriverPayout(
+    int amount, {
+    String? method,
+  }) async {
+    final response = await _api.post(
+      '/driver/me/wallet/payouts',
+      body: {'amount': amount, 'method': ?method},
+    );
     return _dataObject(response) ?? {};
   }
 
@@ -770,10 +949,10 @@ class MarketplaceApi {
     required Map<String, dynamic> pickup,
     required Map<String, dynamic> dropoff,
   }) async {
-    final response = await _api.post('/parcels/quote', body: {
-      'pickup': pickup,
-      'dropoff': dropoff,
-    });
+    final response = await _api.post(
+      '/parcels/quote',
+      body: {'pickup': pickup, 'dropoff': dropoff},
+    );
     return _dataObject(response) ?? {};
   }
 
@@ -783,17 +962,24 @@ class MarketplaceApi {
     required Map<String, dynamic> dropoff,
     String? description,
   }) async {
-    final response = await _api.post('/parcels', body: {
-      'pickup': pickup,
-      'dropoff': dropoff,
-      if (description != null && description.trim().isNotEmpty) 'description': description.trim(),
-    });
+    final response = await _api.post(
+      '/parcels',
+      body: {
+        'pickup': pickup,
+        'dropoff': dropoff,
+        if (description != null && description.trim().isNotEmpty)
+          'description': description.trim(),
+      },
+    );
     return Parcel.fromJson(_dataObject(response) ?? {});
   }
 
   /// Colis envoyés par le client connecté.
   Future<List<Parcel>> myParcels({int perPage = 25}) async {
-    final response = await _api.get('/parcels', query: {'per_page': perPage.toString()});
+    final response = await _api.get(
+      '/parcels',
+      query: {'per_page': perPage.toString()},
+    );
     return _dataList(response).map(Parcel.fromJson).toList();
   }
 
@@ -805,13 +991,19 @@ class MarketplaceApi {
 
   /// Annule un colis en attente de paiement (client).
   Future<Parcel> cancelParcel(String id, {required String reason}) async {
-    final response = await _api.post('/parcels/$id/cancel', body: {'reason': reason});
+    final response = await _api.post(
+      '/parcels/$id/cancel',
+      body: {'reason': reason},
+    );
     return Parcel.fromJson(_dataObject(response) ?? {});
   }
 
   /// Lance le paiement Kkiapay d'un colis (parallèle au paiement des commandes).
   Future<Map<String, dynamic>> createParcelPayment(String parcelId) async {
-    final response = await _api.post('/payments/create', body: {'parcel_id': parcelId});
+    final response = await _api.post(
+      '/payments/create',
+      body: {'parcel_id': parcelId},
+    );
     return _dataObject(response) ?? {};
   }
 
@@ -863,7 +1055,10 @@ class MarketplaceApi {
 
   /// Recharge le flottant (démo : crédit direct).
   Future<Map<String, dynamic>> topUpFloat(int amount) async {
-    final response = await _api.post('/driver/me/float/topup', body: {'amount': amount});
+    final response = await _api.post(
+      '/driver/me/float/topup',
+      body: {'amount': amount},
+    );
     return _dataObject(response) ?? {};
   }
 
@@ -878,18 +1073,26 @@ class MarketplaceApi {
     int? driverRating,
     String? comment,
   }) async {
-    await _api.post('/orders/$orderId/review', body: {
-      'rating': rating,
-      if (driverRating != null) 'driver_rating': driverRating,
-      if (comment != null && comment.trim().isNotEmpty) 'comment': comment.trim(),
-    });
+    await _api.post(
+      '/orders/$orderId/review',
+      body: {
+        'rating': rating,
+        if (driverRating != null) 'driver_rating': driverRating,
+        if (comment != null && comment.trim().isNotEmpty)
+          'comment': comment.trim(),
+      },
+    );
   }
 
   // ------------------------------------------------------------------
   // Upload médias
   // ------------------------------------------------------------------
 
-  Future<void> uploadVendorDocument(String type, List<int> bytes, {String? fileName}) async {
+  Future<void> uploadVendorDocument(
+    String type,
+    List<int> bytes, {
+    String? fileName,
+  }) async {
     await _api.multipart(
       '/vendors/me/documents',
       fields: {'type': type},
@@ -898,7 +1101,11 @@ class MarketplaceApi {
     );
   }
 
-  Future<void> uploadDriverDocument(String type, List<int> bytes, {String? fileName}) async {
+  Future<void> uploadDriverDocument(
+    String type,
+    List<int> bytes, {
+    String? fileName,
+  }) async {
     await _api.multipart(
       '/driver/me/documents',
       fields: {'type': type},
@@ -907,7 +1114,11 @@ class MarketplaceApi {
     );
   }
 
-  Future<void> uploadClientDocument(String type, List<int> bytes, {String? fileName}) async {
+  Future<void> uploadClientDocument(
+    String type,
+    List<int> bytes, {
+    String? fileName,
+  }) async {
     await _api.multipart(
       '/client/me/documents',
       fields: {'type': type},
@@ -917,13 +1128,42 @@ class MarketplaceApi {
   }
 
   /// Ajoute une image à un produit (première image = image principale).
-  Future<void> uploadProductImage(String productId, List<int> bytes, {String? fileName, bool isMain = false}) async {
+  Future<void> uploadProductImage(
+    String productId,
+    List<int> bytes, {
+    String? fileName,
+    bool isMain = false,
+  }) async {
     await _api.multipart(
       '/vendors/me/products/$productId/images',
       fields: {if (isMain) 'is_main': '1'},
       files: {'image': bytes},
       fileNames: {'image': fileName ?? 'image.jpg'},
     );
+  }
+
+  /// Supprime une image précise d'un produit.
+  Future<void> removeProductImage(String productId, String imageId) async {
+    await _api.delete('/vendors/me/products/$productId/images/$imageId');
+  }
+
+  /// Ajoute (ou remplace) la petite vidéo d'un produit.
+  Future<void> uploadProductVideo(
+    String productId,
+    List<int> bytes, {
+    String? fileName,
+  }) async {
+    await _api.multipart(
+      '/vendors/me/products/$productId/video',
+      fields: const {},
+      files: {'video': bytes},
+      fileNames: {'video': fileName ?? 'video.mp4'},
+    );
+  }
+
+  /// Supprime la vidéo d'un produit.
+  Future<void> removeProductVideo(String productId) async {
+    await _api.delete('/vendors/me/products/$productId/video');
   }
 
   /// Met à jour le logo / la couverture de la boutique du vendeur.
@@ -953,10 +1193,18 @@ class MarketplaceApi {
 
 /// Détecte l'extension d'une image à partir de ses octets (magic bytes).
 String _imageExtension(List<int> bytes) {
-  if (bytes.length >= 8 && bytes[0] == 0x89 && bytes[1] == 0x50 && bytes[2] == 0x4E && bytes[3] == 0x47) {
+  if (bytes.length >= 8 &&
+      bytes[0] == 0x89 &&
+      bytes[1] == 0x50 &&
+      bytes[2] == 0x4E &&
+      bytes[3] == 0x47) {
     return 'png';
   }
-  if (bytes.length >= 4 && bytes[0] == 0x52 && bytes[1] == 0x49 && bytes[2] == 0x46 && bytes[3] == 0x46) {
+  if (bytes.length >= 4 &&
+      bytes[0] == 0x52 &&
+      bytes[1] == 0x49 &&
+      bytes[2] == 0x46 &&
+      bytes[3] == 0x46) {
     return 'webp';
   }
   if (bytes.length >= 3 && bytes[0] == 0xFF && bytes[1] == 0xD8) {
@@ -1007,22 +1255,32 @@ class HomeVendor {
   }
 
   factory HomeVendor.fromJson(Map<String, dynamic> json) => HomeVendor(
-        id: _s(json['id']),
-        businessName: _s(json['business_name']),
-        description: json['description'] is String ? json['description'] as String : null,
-        logoUrl: json['logo_url'] is String ? json['logo_url'] as String : null,
-        coverUrl: json['cover_url'] is String ? json['cover_url'] as String : null,
-        city: json['city'] is String ? json['city'] as String : null,
-        isOpen: json['is_open'] is bool ? json['is_open'] as bool : null,
-        category: json['category'] is String ? json['category'] as String : null,
-        rating: json['rating'] is num ? (json['rating'] as num).toDouble() : null,
-        reviewsCount: json['reviews_count'] is int ? json['reviews_count'] as int : 0,
-        prepMinutes: json['prep_minutes'] is int ? json['prep_minutes'] as int : null,
-      );
+    id: _s(json['id']),
+    businessName: _s(json['business_name']),
+    description: json['description'] is String
+        ? json['description'] as String
+        : null,
+    logoUrl: json['logo_url'] is String ? json['logo_url'] as String : null,
+    coverUrl: json['cover_url'] is String ? json['cover_url'] as String : null,
+    city: json['city'] is String ? json['city'] as String : null,
+    isOpen: json['is_open'] is bool ? json['is_open'] as bool : null,
+    category: json['category'] is String ? json['category'] as String : null,
+    rating: json['rating'] is num ? (json['rating'] as num).toDouble() : null,
+    reviewsCount: json['reviews_count'] is int
+        ? json['reviews_count'] as int
+        : 0,
+    prepMinutes: json['prep_minutes'] is int
+        ? json['prep_minutes'] as int
+        : null,
+  );
 }
 
 class HomeData {
-  const HomeData({this.categories = const [], this.featuredProducts = const [], this.vendors = const []});
+  const HomeData({
+    this.categories = const [],
+    this.featuredProducts = const [],
+    this.vendors = const [],
+  });
 
   final List<Category> categories;
   final List<Product> featuredProducts;
@@ -1038,15 +1296,34 @@ class HomeData {
     final rawVendors = root['vendors'];
 
     return HomeData(
-      categories: rawCategories is List ? rawCategories.whereType<Map<String, dynamic>>().map(Category.fromJson).toList() : [],
-      featuredProducts: rawProducts is List ? rawProducts.whereType<Map<String, dynamic>>().map(Product.fromJson).toList() : [],
-      vendors: rawVendors is List ? rawVendors.whereType<Map<String, dynamic>>().map(HomeVendor.fromJson).toList() : [],
+      categories: rawCategories is List
+          ? rawCategories
+                .whereType<Map<String, dynamic>>()
+                .map(Category.fromJson)
+                .toList()
+          : [],
+      featuredProducts: rawProducts is List
+          ? rawProducts
+                .whereType<Map<String, dynamic>>()
+                .map(Product.fromJson)
+                .toList()
+          : [],
+      vendors: rawVendors is List
+          ? rawVendors
+                .whereType<Map<String, dynamic>>()
+                .map(HomeVendor.fromJson)
+                .toList()
+          : [],
     );
   }
 }
 
 class ShopDetail {
-  const ShopDetail({required this.vendor, this.products = const [], this.hours = const []});
+  const ShopDetail({
+    required this.vendor,
+    this.products = const [],
+    this.hours = const [],
+  });
 
   final Vendor vendor;
   final List<Product> products;
@@ -1055,18 +1332,35 @@ class ShopDetail {
   factory ShopDetail.fromJson(Map<String, dynamic> json) {
     final rawProducts = json['products'];
     final rawHours = json['hours'];
-    final rawVendor = Map<String, dynamic>.of(json)..remove('products')..remove('hours');
+    final rawVendor = Map<String, dynamic>.of(json)
+      ..remove('products')
+      ..remove('hours');
 
     return ShopDetail(
       vendor: Vendor.fromJson(rawVendor),
-      products: rawProducts is List ? rawProducts.whereType<Map<String, dynamic>>().map(Product.fromJson).toList() : [],
-      hours: rawHours is List ? rawHours.whereType<Map<String, dynamic>>().map(OpeningHour.fromJson).toList() : [],
+      products: rawProducts is List
+          ? rawProducts
+                .whereType<Map<String, dynamic>>()
+                .map(Product.fromJson)
+                .toList()
+          : [],
+      hours: rawHours is List
+          ? rawHours
+                .whereType<Map<String, dynamic>>()
+                .map(OpeningHour.fromJson)
+                .toList()
+          : [],
     );
   }
 }
 
 class OpeningHour {
-  const OpeningHour({required this.dayOfWeek, this.opensAt, this.closesAt, this.isClosed = false});
+  const OpeningHour({
+    required this.dayOfWeek,
+    this.opensAt,
+    this.closesAt,
+    this.isClosed = false,
+  });
 
   final int dayOfWeek;
   final String? opensAt;
@@ -1074,18 +1368,18 @@ class OpeningHour {
   final bool isClosed;
 
   factory OpeningHour.fromJson(Map<String, dynamic> json) => OpeningHour(
-        dayOfWeek: _i(json['day_of_week']),
-        opensAt: json['opens_at'] is String ? json['opens_at'] as String : null,
-        closesAt: json['closes_at'] is String ? json['closes_at'] as String : null,
-        isClosed: json['is_closed'] == true,
-      );
+    dayOfWeek: _i(json['day_of_week']),
+    opensAt: json['opens_at'] is String ? json['opens_at'] as String : null,
+    closesAt: json['closes_at'] is String ? json['closes_at'] as String : null,
+    isClosed: json['is_closed'] == true,
+  );
 
   Map<String, dynamic> toJson() => {
-        'day_of_week': dayOfWeek,
-        'opens_at': opensAt,
-        'closes_at': closesAt,
-        'is_closed': isClosed,
-      };
+    'day_of_week': dayOfWeek,
+    'opens_at': opensAt,
+    'closes_at': closesAt,
+    'is_closed': isClosed,
+  };
 }
 
 int _i(dynamic value, [int fallback = 0]) {
@@ -1101,4 +1395,13 @@ int _i(dynamic value, [int fallback = 0]) {
   return fallback;
 }
 
-String _s(dynamic value, [String fallback = '']) => value is String ? value : fallback;
+String _s(dynamic value, [String fallback = '']) =>
+    value is String ? value : fallback;
+
+/// Résultat d'un avis produit : note moyenne et nombre d'avis recalculés.
+class ProductReviewResult {
+  const ProductReviewResult({this.rating, this.reviewsCount = 0});
+
+  final double? rating;
+  final int reviewsCount;
+}

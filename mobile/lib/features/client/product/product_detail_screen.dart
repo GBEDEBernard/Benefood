@@ -9,8 +9,9 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../shared/models/product.dart';
 import '../../../shared/widgets/app_button.dart';
-import '../../../shared/widgets/app_network_image.dart';
 import '../../../shared/widgets/feedback_widgets.dart';
+import '../../../shared/widgets/product_media_gallery.dart';
+import '../../../shared/widgets/product_review_sheet.dart';
 import '../../../shared/widgets/quantity_stepper.dart';
 import '../../../shared/widgets/state_widgets.dart';
 import '../../../shared/widgets/status_badge.dart';
@@ -35,12 +36,39 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   int _quantity = 1;
   bool _adding = false;
   bool _isFavorite = false;
+  ProductReviewResult? _reviewResult;
 
   @override
   void initState() {
     super.initState();
     _future = widget.marketplace.product(widget.productId);
     _loadFavorite();
+  }
+
+  Future<void> _openReviewSheet(Product product) async {
+    final input = await showProductReviewSheet(
+      context,
+      productName: product.name,
+    );
+    if (input == null || !mounted) {
+      return;
+    }
+    try {
+      final result = await widget.marketplace.submitProductReview(
+        product.id,
+        rating: input.rating,
+        comment: input.comment,
+      );
+      if (!mounted) {
+        return;
+      }
+      setState(() => _reviewResult = result);
+      showToast(context, 'Merci pour votre avis !');
+    } on ApiException catch (e) {
+      if (mounted) {
+        showToast(context, e.message, isError: true);
+      }
+    }
   }
 
   Future<void> _loadFavorite() async {
@@ -140,10 +168,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                 child: ListView(
                   padding: const EdgeInsets.only(bottom: 140),
                   children: [
-                    // Visuel produit
+                    // Visuel produit (galerie images + vidéo)
                     Container(
                       margin: const EdgeInsets.all(AppDimens.pagePadding),
-                      height: 260,
+                      height: 280,
                       clipBehavior: Clip.antiAlias,
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(AppDimens.radiusXl),
@@ -153,9 +181,14 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                       child: Stack(
                         fit: StackFit.expand,
                         children: [
-                          AppNetworkImage(
-                            url: product.imageUrl,
-                            icon: Icons.fastfood_outlined,
+                          ProductMediaGallery(
+                            imageUrls: product.images.isNotEmpty
+                                ? product.images.map((i) => i.url).toList()
+                                : [
+                                    if (product.imageUrl != null)
+                                      product.imageUrl!,
+                                  ],
+                            videoUrl: product.videoUrl,
                           ),
                           if (!product.isOrderable || product.isOutOfStock)
                             Positioned(
@@ -221,6 +254,12 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                               fontWeight: FontWeight.w800,
                               color: AppColors.orange,
                             ),
+                          ),
+                          const SizedBox(height: 12),
+                          _ProductStats(
+                            product: product,
+                            reviewResult: _reviewResult,
+                            onReview: () => _openReviewSheet(product),
                           ),
                           if (product.stockQty != null) ...[
                             const SizedBox(height: 10),
@@ -333,6 +372,106 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
             ],
           );
         },
+      ),
+    );
+  }
+}
+
+/// Note moyenne, nombre d'avis et nombre de « j'aime » du produit.
+class _ProductStats extends StatelessWidget {
+  const _ProductStats({
+    required this.product,
+    required this.onReview,
+    this.reviewResult,
+  });
+
+  final Product product;
+  final VoidCallback onReview;
+  final ProductReviewResult? reviewResult;
+
+  @override
+  Widget build(BuildContext context) {
+    final rating = reviewResult?.rating ?? product.rating;
+    final reviews = reviewResult?.reviewsCount ?? (product.reviewsCount ?? 0);
+    final likes = product.likesCount ?? 0;
+
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        if (rating != null)
+          _StatChip(
+            icon: Icons.star_rounded,
+            iconColor: AppColors.gold,
+            label:
+                '${rating.toStringAsFixed(1).replaceAll('.', ',')} ($reviews avis)',
+          )
+        else if (reviews > 0)
+          _StatChip(icon: Icons.rate_review_outlined, label: '$reviews avis'),
+        _StatChip(
+          icon: Icons.favorite,
+          iconColor: AppColors.red,
+          label: '$likes',
+        ),
+        _StatChip(
+          icon: Icons.rate_review_outlined,
+          label: rating != null || reviews > 0 ? 'Modifier mon avis' : 'Noter',
+          onTap: onReview,
+        ),
+      ],
+    );
+  }
+}
+
+class _StatChip extends StatelessWidget {
+  const _StatChip({
+    required this.icon,
+    required this.label,
+    this.iconColor,
+    this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final Color? iconColor;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(AppDimens.radiusPill),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: onTap != null ? AppColors.orangeLight : AppColors.surface,
+          borderRadius: BorderRadius.circular(AppDimens.radiusPill),
+          border: Border.all(
+            color: onTap != null ? AppColors.orange : AppColors.border,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              size: 16,
+              color: onTap != null
+                  ? AppColors.orange
+                  : (iconColor ?? AppColors.textSecondary),
+            ),
+            const SizedBox(width: 5),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12.5,
+                fontWeight: FontWeight.w600,
+                color: onTap != null ? AppColors.orange : AppColors.text,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -9,6 +11,8 @@ import '../../../core/theme/app_dimens.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/models/category.dart';
 import '../../../shared/models/product.dart';
+import '../../../shared/models/vendor.dart';
+import '../../../shared/widgets/amount_widgets.dart';
 import '../../../shared/widgets/app_network_image.dart';
 import '../../../shared/widgets/app_search_field.dart';
 import '../../../shared/widgets/beninfood_header.dart';
@@ -78,10 +82,24 @@ class _HomeScreenState extends State<HomeScreen> {
   /// Dernières catégories reçues (utilisées par le bouton de filtres).
   List<Category> _lastCategories = const [];
 
+  /// Recherche dynamique (plats + boutiques) directement sur l'accueil.
+  final TextEditingController _searchController = TextEditingController();
+  Timer? _searchDebounce;
+  List<Product> _searchProducts = const [];
+  List<Vendor> _searchVendors = const [];
+  bool _searchRunning = false;
+
   @override
   void initState() {
     super.initState();
     _future = widget.marketplace.home();
+  }
+
+  @override
+  void dispose() {
+    _searchDebounce?.cancel();
+    _searchController.dispose();
+    super.dispose();
   }
 
   void _reload() {
@@ -90,6 +108,79 @@ class _HomeScreenState extends State<HomeScreen> {
       _categoryIndex = 0;
     });
   }
+
+  // ----------------------------------------------------- recherche dynamique
+
+  void _onSearchChanged(String value) {
+    setState(() {});
+    _searchDebounce?.cancel();
+    final query = value.trim();
+    if (query.isEmpty) {
+      setState(() {
+        _searchProducts = const [];
+        _searchVendors = const [];
+        _searchRunning = false;
+      });
+      return;
+    }
+    _searchDebounce = Timer(const Duration(milliseconds: 350), () async {
+      if (!mounted) {
+        return;
+      }
+      setState(() => _searchRunning = true);
+      try {
+        final products = await widget.marketplace.products(
+          q: query,
+          perPage: 8,
+        );
+        final vendors = await widget.marketplace.vendors(q: query, perPage: 6);
+        if (!mounted) {
+          return;
+        }
+        setState(() {
+          _searchProducts = products;
+          _searchVendors = vendors;
+          _searchRunning = false;
+        });
+      } catch (_) {
+        if (!mounted) {
+          return;
+        }
+        setState(() {
+          _searchProducts = const [];
+          _searchVendors = const [];
+          _searchRunning = false;
+        });
+      }
+    });
+  }
+
+  void _clearSearch() {
+    _searchDebounce?.cancel();
+    _searchController.clear();
+    FocusScope.of(context).unfocus();
+    setState(() {
+      _searchProducts = const [];
+      _searchVendors = const [];
+      _searchRunning = false;
+    });
+  }
+
+  void _openVendor(Vendor vendor) {
+    _clearSearch();
+    context.push('/client/shop/${vendor.id}');
+  }
+
+  void _openProduct(Product product) {
+    _clearSearch();
+    context.push('/client/product/${product.id}');
+  }
+
+  bool get _searchActive =>
+      _searchController.text.trim().isNotEmpty ||
+      _searchRunning ||
+      _searchProducts.isNotEmpty ||
+      _searchVendors.isNotEmpty;
 
   Future<void> _addToCart(Product product) async {
     try {
@@ -228,10 +319,7 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          BeninfoodAppBar(
-            onMenu: widget.onOpenMenu,
-            api: widget.marketplace,
-          ),
+          BeninfoodAppBar(onMenu: widget.onOpenMenu, api: widget.marketplace),
           Padding(
             padding: const EdgeInsets.fromLTRB(
               AppDimens.pagePadding,
@@ -256,18 +344,39 @@ class _HomeScreenState extends State<HomeScreen> {
               AppDimens.pagePadding,
               10,
             ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
+            child: Column(
               children: [
-                Expanded(
-                  child: AppSearchField(
-                    hintText: 'Rechercher un plat, un resto...',
-                    readOnly: true,
-                    onTap: () => context.push('/client/search'),
-                  ),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Expanded(
+                      child: AppSearchField(
+                        controller: _searchController,
+                        hintText: 'Rechercher un plat, un resto...',
+                        onChanged: _onSearchChanged,
+                        suffix: _searchController.text.isEmpty
+                            ? null
+                            : IconButton(
+                                icon: const Icon(Icons.close, size: 20),
+                                onPressed: _clearSearch,
+                              ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    _FilterButton(
+                      onPressed: () => _showFilters(_lastCategories),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 10),
-                _FilterButton(onPressed: () => _showFilters(_lastCategories)),
+                if (_searchActive)
+                  _SearchOverlay(
+                    running: _searchRunning,
+                    query: _searchController.text.trim(),
+                    products: _searchProducts,
+                    vendors: _searchVendors,
+                    onVendor: _openVendor,
+                    onProduct: _openProduct,
+                  ),
               ],
             ),
           ),
@@ -992,6 +1101,245 @@ class _FilterButton extends StatelessWidget {
             border: Border.all(color: AppColors.border),
           ),
           child: const Icon(Icons.tune, size: 22, color: AppColors.orange),
+        ),
+      ),
+    );
+  }
+}
+
+// ------------------------------------------------------- recherche dynamique
+
+/// Panneau de résultats de la recherche dynamique : boutiques puis plats.
+class _SearchOverlay extends StatelessWidget {
+  const _SearchOverlay({
+    required this.running,
+    required this.query,
+    required this.products,
+    required this.vendors,
+    required this.onVendor,
+    required this.onProduct,
+  });
+
+  final bool running;
+  final String query;
+  final List<Product> products;
+  final List<Vendor> vendors;
+  final ValueChanged<Vendor> onVendor;
+  final ValueChanged<Product> onProduct;
+
+  @override
+  Widget build(BuildContext context) {
+    if (running) {
+      return Container(
+        margin: const EdgeInsets.only(top: 8),
+        padding: const EdgeInsets.symmetric(vertical: 20),
+        alignment: Alignment.center,
+        child: const SizedBox(
+          width: 22,
+          height: 22,
+          child: CircularProgressIndicator(
+            strokeWidth: 2.4,
+            color: AppColors.orange,
+          ),
+        ),
+      );
+    }
+
+    if (products.isEmpty && vendors.isEmpty) {
+      return Container(
+        margin: const EdgeInsets.only(top: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+        decoration: BoxDecoration(
+          color: AppColors.surfaceVariant,
+          borderRadius: BorderRadius.circular(AppDimens.radiusLg),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.search_off, color: AppColors.textFaint, size: 20),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'Aucun résultat pour “$query”',
+                style: const TextStyle(
+                  fontSize: 13.5,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Container(
+      margin: const EdgeInsets.only(top: 8),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppDimens.radiusLg),
+        border: Border.all(color: AppColors.border),
+        boxShadow: AppTheme.softShadow(),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (vendors.isNotEmpty) ...[
+            const _SearchSectionLabel('Boutiques'),
+            for (final vendor in vendors)
+              _SearchVendorTile(vendor: vendor, onTap: () => onVendor(vendor)),
+          ],
+          if (products.isNotEmpty) ...[
+            const _SearchSectionLabel('Plats'),
+            for (final product in products)
+              _SearchProductTile(
+                product: product,
+                onTap: () => onProduct(product),
+              ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _SearchSectionLabel extends StatelessWidget {
+  const _SearchSectionLabel(this.label);
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 4),
+      child: Text(
+        label.toUpperCase(),
+        style: const TextStyle(
+          fontSize: 11,
+          letterSpacing: 0.6,
+          fontWeight: FontWeight.w800,
+          color: AppColors.textFaint,
+        ),
+      ),
+    );
+  }
+}
+
+class _SearchVendorTile extends StatelessWidget {
+  const _SearchVendorTile({required this.vendor, required this.onTap});
+
+  final Vendor vendor;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final city = vendor.city;
+    final subtitle = (city != null && city.isNotEmpty) ? city : null;
+
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        child: Row(
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(10),
+              child: SizedBox(
+                width: 42,
+                height: 42,
+                child: AppNetworkImage(
+                  url: vendor.coverUrl ?? vendor.logoUrl,
+                  icon: Icons.storefront,
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    vendor.businessName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.text,
+                    ),
+                  ),
+                  if (subtitle != null)
+                    Text(
+                      subtitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            const Icon(
+              Icons.chevron_right,
+              size: 20,
+              color: AppColors.textFaint,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SearchProductTile extends StatelessWidget {
+  const _SearchProductTile({required this.product, required this.onTap});
+
+  final Product product;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        child: Row(
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(10),
+              child: SizedBox(
+                width: 42,
+                height: 42,
+                child: AppNetworkImage(
+                  url: product.displayImageUrl,
+                  icon: Icons.fastfood,
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                product.name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.text,
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            AmountText(
+              product.price,
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w800,
+                color: AppColors.orange,
+              ),
+            ),
+          ],
         ),
       ),
     );

@@ -231,4 +231,54 @@ class VendorProductController extends Controller
 
         return Api::noContent();
     }
+
+    public function uploadVideo(Request $request, Product $product): JsonResponse
+    {
+        $user = $request->user();
+        $vendor = $user->vendor()->first();
+
+        if ($vendor === null || $product->vendor_id !== $vendor->id) {
+            return Api::error('Ressource introuvable.', 'not_found', 404);
+        }
+
+        if (! $user->hasPermission('vendor.products.manage')) {
+            return Api::error('Accès refusé.', 'forbidden', 403);
+        }
+
+        $request->validate([
+            'video' => ['required', 'file', 'mimes:mp4,mov,webm', 'max:25600'],
+        ]);
+
+        if ($product->video_path) {
+            $this->media->deleteProductVideo($product->video_path);
+        }
+
+        $stored = $this->media->storeProductVideo($request->file('video'), $product->vendor_id, $product->id);
+        $product->update(['video_path' => $stored['path']]);
+
+        return Api::created([
+            'video_url' => Storage::disk('public')->url($stored['path']),
+        ]);
+    }
+
+    public function removeVideo(Request $request, Product $product): JsonResponse
+    {
+        $user = $request->user();
+        $vendor = $user->vendor()->first();
+
+        if ($vendor === null || $product->vendor_id !== $vendor->id) {
+            return Api::error('Ressource introuvable.', 'not_found', 404);
+        }
+
+        if (! $user->hasPermission('vendor.products.manage')) {
+            return Api::error('Accès refusé.', 'forbidden', 403);
+        }
+
+        if ($product->video_path) {
+            $this->media->deleteProductVideo($product->video_path);
+            $product->update(['video_path' => null]);
+        }
+
+        return Api::noContent();
+    }
 }

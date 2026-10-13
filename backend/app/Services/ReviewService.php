@@ -6,6 +6,7 @@ use App\Enums\OrderStatus;
 use App\Exceptions\DomainException;
 use App\Models\DriverProfile;
 use App\Models\Order;
+use App\Models\Product;
 use App\Models\Review;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
@@ -66,6 +67,44 @@ class ReviewService
             }
 
             return $review->fresh(['user', 'order', 'items.product']);
+        });
+    }
+
+    /**
+     * Avis direct sur un produit (sans commande) : crée ou met à jour l'avis
+     * du client pour ce produit, lié via la table pivot `review_items`.
+     *
+     * @param  array{rating: int, comment?: string|null}  $data
+     */
+    public function submitForProduct(Product $product, User $client, array $data): Review
+    {
+        $existing = Review::query()
+            ->where('user_id', $client->id)
+            ->whereNull('order_id')
+            ->whereHas('items', fn ($items) => $items->where('product_id', $product->id))
+            ->first();
+
+        return DB::transaction(function () use ($product, $client, $data, $existing): Review {
+            if ($existing === null) {
+                /** @var Review $review */
+                $review = Review::create([
+                    'user_id' => $client->id,
+                    'rating' => $data['rating'],
+                    'comment' => $data['comment'] ?? null,
+                    'status' => 'new',
+                ]);
+
+                $review->items()->create(['product_id' => $product->id]);
+            } else {
+                $existing->update([
+                    'rating' => $data['rating'],
+                    'comment' => $data['comment'] ?? $existing->comment,
+                ]);
+
+                $review = $existing;
+            }
+
+            return $review->fresh(['user', 'items.product']);
         });
     }
 

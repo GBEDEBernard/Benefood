@@ -82,13 +82,13 @@ MockClient _mockBackend() {
   var subtotal = 0;
 
   Map<String, Object?> cart() => {
-        'id': 'cart-1',
-        'items': <Object?>[],
-        'subtotal': subtotal,
-        'items_count': itemsCount,
-        'currency': 'XOF',
-        'vendor': null,
-      };
+    'id': 'cart-1',
+    'items': <Object?>[],
+    'subtotal': subtotal,
+    'items_count': itemsCount,
+    'currency': 'XOF',
+    'vendor': null,
+  };
 
   return MockClient((request) async {
     const json = {'content-type': 'application/json'};
@@ -96,6 +96,39 @@ MockClient _mockBackend() {
 
     if (path.endsWith('/vendors/v1')) {
       return http.Response(jsonEncode({'data': shop}), 200, headers: json);
+    }
+    if (request.method == 'GET' && path.endsWith('/me/favorites')) {
+      return http.Response(
+        jsonEncode({'data': <Object?>[]}),
+        200,
+        headers: json,
+      );
+    }
+    if (request.method == 'POST' && path.endsWith('/me/favorites')) {
+      return http.Response(
+        jsonEncode({
+          'data': {'id': 'f1', 'product_id': 'p1'},
+        }),
+        201,
+        headers: json,
+      );
+    }
+    if (request.method == 'DELETE' && path.contains('/me/favorites/')) {
+      return http.Response('', 204, headers: json);
+    }
+    if (request.method == 'POST' && path.endsWith('/review')) {
+      return http.Response(
+        jsonEncode({
+          'data': {
+            'id': 'r1',
+            'rating': 5,
+            'product_rating': 5.0,
+            'product_reviews_count': 1,
+          },
+        }),
+        201,
+        headers: json,
+      );
     }
     if (path.endsWith('/cart/items')) {
       itemsCount = 2;
@@ -153,8 +186,9 @@ Future<void> _pump(WidgetTester tester, {MockClient? client}) async {
 }
 
 void main() {
-  testWidgets('fiche boutique : couverture, infos, onglets et liste de plats',
-      (tester) async {
+  testWidgets('fiche boutique : couverture, infos, onglets et liste de plats', (
+    tester,
+  ) async {
     await _pump(tester);
 
     final exception = tester.takeException();
@@ -186,8 +220,9 @@ void main() {
     expect(find.byType(ListSkeleton), findsNothing);
   });
 
-  testWidgets('onglet Avis : note synthétique puis vide informatif',
-      (tester) async {
+  testWidgets('onglet Avis : note synthétique puis vide informatif', (
+    tester,
+  ) async {
     await _pump(tester);
 
     await tester.tap(find.text('Avis'));
@@ -198,8 +233,9 @@ void main() {
     expect(find.text('Aucun avis à afficher pour le moment'), findsOneWidget);
   });
 
-  testWidgets('onglet Infos : statut, à propos, coordonnées et horaires',
-      (tester) async {
+  testWidgets('onglet Infos : statut, à propos, coordonnées et horaires', (
+    tester,
+  ) async {
     await _pump(tester);
 
     await tester.tap(find.text('Infos'));
@@ -214,8 +250,9 @@ void main() {
     expect(find.text('+229 97 00 00 00'), findsOneWidget);
   });
 
-  testWidgets('ajout au panier : pastille du header et barre en bas à jour',
-      (tester) async {
+  testWidgets('ajout au panier : pastille du header et barre en bas à jour', (
+    tester,
+  ) async {
     await _pump(tester);
 
     // Ajout du premier plat via le bouton rond « + ».
@@ -227,8 +264,53 @@ void main() {
     expect(find.text('6 000 FCFA'), findsOneWidget);
 
     // Taper une carte de plat ouvre sa fiche.
+    await tester.ensureVisible(find.text('Poulet braisé'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Poulet braisé'));
     await tester.pumpAndSettle();
     expect(find.text('produit'), findsOneWidget);
+  });
+
+  testWidgets('aimer un plat : le cœur et le compteur se mettent à jour', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1080, 2340);
+    tester.view.devicePixelRatio = 3.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await _pump(tester);
+
+    // Aucun j'aime au départ.
+    expect(find.text('0'), findsWidgets);
+
+    await tester.tap(find.byIcon(Icons.favorite_border).first);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Ajouté à vos favoris'), findsOneWidget);
+    expect(find.byIcon(Icons.favorite), findsWidgets);
+    expect(find.text('1'), findsOneWidget);
+  });
+
+  testWidgets("noter un plat : la note et le nombre d'avis se mettent à jour", (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1080, 2340);
+    tester.view.devicePixelRatio = 3.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await _pump(tester);
+
+    await tester.tap(find.text('Noter').first);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Envoyer mon avis'), findsOneWidget);
+
+    await tester.tap(find.text('Envoyer mon avis'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Merci pour votre avis !'), findsOneWidget);
+    expect(find.text('5,0 (1)'), findsOneWidget);
   });
 }
