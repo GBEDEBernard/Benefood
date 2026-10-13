@@ -262,6 +262,7 @@ class Order {
     required this.reference,
     required this.status,
     required this.paymentStatus,
+    this.paymentMethod,
     required this.items,
     required this.subtotal,
     required this.deliveryFee,
@@ -294,6 +295,10 @@ class Order {
   final String reference;
   final String status;
   final String paymentStatus;
+
+  /// Mode de règlement de la commande : `online` (Mobile Money) ou `cash`
+  /// (espèces remises au livreur, cahier de conception v1.0).
+  final String? paymentMethod;
   final List<OrderItem> items;
   final int subtotal;
   final int deliveryFee;
@@ -336,6 +341,7 @@ class Order {
   bool get hasReview => review != null;
 
   bool get isAwaitingPayment => status == 'awaiting_payment';
+  bool get isCash => paymentMethod == 'cash';
   bool get isPaid => status == 'paid';
   bool get isCancelled => status == 'cancelled';
   bool get isDelivered => status == 'delivered';
@@ -360,6 +366,7 @@ class Order {
         reference: reference,
         status: status,
         paymentStatus: paymentStatus,
+        paymentMethod: paymentMethod,
         items: items,
         subtotal: subtotal,
         deliveryFee: deliveryFee,
@@ -436,6 +443,7 @@ class Order {
       reference: _s(json['reference']),
       status: _s(json['status']),
       paymentStatus: _s(json['payment_status']),
+      paymentMethod: _stringOrNull(json['payment_method']),
       items: items,
       subtotal: _i(json['subtotal']),
       deliveryFee: _i(json['delivery_fee']),

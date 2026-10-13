@@ -153,9 +153,18 @@ class MarketplaceApi {
     return OrderSummary.fromJson(_dataObject(response) ?? {});
   }
 
-  Future<Order> createOrder(String addressId, {String? notes}) async {
+  /// Crée la commande du panier ouvert.
+  ///
+  /// [paymentMethod] : `online` (Mobile Money) ou `cash` (paiement à la
+  /// livraison) — cahier de conception v1.0.
+  Future<Order> createOrder(
+    String addressId, {
+    String? notes,
+    String paymentMethod = 'online',
+  }) async {
     final response = await _api.post('/orders', body: {
       'address_id': addressId,
+      'payment_method': paymentMethod,
       if (notes != null && notes.isNotEmpty) 'notes': notes,
     });
     return Order.fromJson(_dataObject(response) ?? {});

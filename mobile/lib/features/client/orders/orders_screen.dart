@@ -732,6 +732,10 @@ class _OrderCard extends StatelessWidget {
   (String, Color, String) _statusInfo() {
     switch (order.status) {
       case 'awaiting_payment':
+        // Commande en espèces : rien à régler en ligne (cahier v1.0).
+        if (order.isCash) {
+          return ('À la livraison', AppColors.goldDark, 'Paiement en espèces à la livraison');
+        }
         return ('À payer', AppColors.goldDark, 'Paiement en attente');
       case 'paid':
       case 'accepted':
@@ -794,6 +798,10 @@ class _OrderProgress extends StatelessWidget {
   bool _done(int index) {
     switch (index) {
       case 0:
+        // Une commande en espèces est déjà confirmée même sans paiement en ligne.
+        if (order.isCash && order.status == 'awaiting_payment') {
+          return true;
+        }
         return order.status != 'awaiting_payment' && order.status != 'draft';
       case 1:
         return const {

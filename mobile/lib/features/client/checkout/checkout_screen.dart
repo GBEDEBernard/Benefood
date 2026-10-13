@@ -42,6 +42,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   bool _creating = false;
   bool _verifying = false;
 
+  /// Mode de règlement choisi au checkout : `online` (Mobile Money) ou `cash`
+  /// (espèces remises au livreur — cahier de conception v1.0).
+  String _paymentMethod = 'online';
+
   @override
   void initState() {
     super.initState();
@@ -115,7 +119,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     }
     setState(() => _creating = true);
     try {
-      final order = await widget.marketplace.createOrder(address.id);
+      final order = await widget.marketplace.createOrder(
+        address.id,
+        paymentMethod: _paymentMethod,
+      );
       if (!mounted) {
         return;
       }
@@ -123,6 +130,12 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         _order = order;
         _creating = false;
       });
+      if (order.isCash) {
+        // Paiement à la livraison : aucun règlement en ligne, la commande part
+        // chez le vendeur et sera encaissée par le livreur.
+        _goToTracking(order, success: true);
+        return;
+      }
       _startPayment(order);
     } on ApiException catch (e) {
       if (mounted) {
@@ -133,6 +146,11 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   }
 
   Future<void> _startPayment(Order order) async {
+    if (order.isCash) {
+      // Les commandes en espèces ne passent pas par la passerelle de paiement.
+      _goToTracking(order, success: true);
+      return;
+    }
     if (order.isAwaitingPayment) {
       setState(() => _creating = true);
       try {
@@ -397,8 +415,55 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   ),
                 ),
                 const SizedBox(height: 20),
+                _SectionTitle(
+                  icon: Icons.account_balance_wallet_outlined,
+                  title: 'Mode de paiement',
+                ),
+                const SizedBox(height: 12),
+                Card(
+                  child: RadioGroup<String>(
+                    groupValue: _paymentMethod,
+                    onChanged: (value) => setState(() => _paymentMethod = value ?? 'online'),
+                    child: Column(
+                      children: [
+                        const RadioListTile<String>(
+                          value: 'online',
+                          activeColor: AppColors.orange,
+                          title: Text('Mobile Money (en ligne)'),
+                          subtitle: Text('Réglez maintenant, la commande part aussitôt'),
+                          secondary: Icon(Icons.phone_android, color: AppColors.orange),
+                        ),
+                        const RadioListTile<String>(
+                          value: 'cash',
+                          activeColor: AppColors.orange,
+                          title: Text('Paiement à la livraison'),
+                          subtitle: Text('Vous payez le livreur en espèces'),
+                          secondary: Icon(Icons.payments_outlined, color: AppColors.orange),
+                        ),
+                        if (_paymentMethod == 'cash')
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Icon(Icons.info_outline, size: 16, color: AppColors.textSecondary),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    'Prévoyez ${formatAmount(_summary!.total)} en espèces pour le livreur.',
+                                    style: Theme.of(context).textTheme.bodySmall,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
                 AppButton(
-                  label: 'Commander',
+                  label: _paymentMethod == 'cash' ? 'Commander et payer à la livraison' : 'Commander',
                   icon: Icons.shopping_bag_outlined,
                   onPressed: _creating ? null : _createOrder,
                   loading: _creating,

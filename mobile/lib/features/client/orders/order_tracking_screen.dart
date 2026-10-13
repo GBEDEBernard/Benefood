@@ -295,8 +295,13 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
     );
   }
 
-  String _statusLabel(String status) {
-    return switch (status) {
+  String _statusLabel(Order order) {
+    if (order.isCash && order.isAwaitingPayment) {
+      // Commande en espèces : rien à régler en ligne, le livreur encaisse.
+      return 'Paiement à la livraison';
+    }
+
+    return switch (order.status) {
       'awaiting_payment' => 'En attente de paiement',
       'paid' => 'En préparation',
       'accepted' => 'Confirmée',
@@ -307,7 +312,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
       'delivered' => 'Livrée',
       'cancelled' => 'Annulée',
       'refunded' => 'Remboursée',
-      _ => status.replaceAll('_', ' '),
+      _ => order.status.replaceAll('_', ' '),
     };
   }
 
@@ -552,7 +557,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
           _StatusHero(
             order: order,
             accent: accent,
-            label: _statusLabel(order.status),
+            label: _statusLabel(order),
             onCancel: order.canCancel ? _cancel : null,
           ),
           const SizedBox(height: 16),
@@ -906,16 +911,30 @@ class _PaymentStatusRow extends StatelessWidget {
         order.isDelivered;
     final cancelled = order.isCancelled;
 
-    final Color color = cancelled
-        ? AppColors.red
-        : paid
-            ? AppColors.green
-            : AppColors.goldDark;
-    final label = cancelled
-        ? 'Paiement annulé'
-        : paid
-            ? 'Paiement confirmé'
-            : 'En attente de paiement';
+    final Color color;
+    final String label;
+    final IconData icon;
+
+    if (cancelled) {
+      color = AppColors.red;
+      label = 'Paiement annulé';
+      icon = Icons.cancel;
+    } else if (order.isCash) {
+      // Paiement à la livraison : encaissé par le livreur à la remise.
+      color = order.isDelivered ? AppColors.green : AppColors.goldDark;
+      label = order.isDelivered
+          ? 'Paiement encaissé à la livraison'
+          : 'Paiement en espèces à la livraison';
+      icon = order.isDelivered ? Icons.check_circle : Icons.payments_outlined;
+    } else if (paid) {
+      color = AppColors.green;
+      label = 'Paiement confirmé';
+      icon = Icons.check_circle;
+    } else {
+      color = AppColors.goldDark;
+      label = 'En attente de paiement';
+      icon = Icons.schedule;
+    }
 
     return Row(
       children: [
@@ -926,11 +945,7 @@ class _PaymentStatusRow extends StatelessWidget {
             color: color.withValues(alpha: 0.12),
             borderRadius: BorderRadius.circular(8),
           ),
-          child: Icon(
-            paid ? Icons.check_circle : cancelled ? Icons.cancel : Icons.schedule,
-            size: 16,
-            color: color,
-          ),
+          child: Icon(icon, size: 16, color: color),
         ),
         const SizedBox(width: 10),
         Text(
@@ -958,6 +973,8 @@ class TrackingResultScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    // Commande en espèces : aucun règlement en ligne, tout se fait à la remise.
+    final isCash = order.isCash;
     return Scaffold(
       body: SafeArea(
         child: Padding(
@@ -966,20 +983,26 @@ class TrackingResultScreen extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(
-                success ? Icons.check_circle : Icons.hourglass_top,
+                success
+                    ? (isCash ? Icons.payments_outlined : Icons.check_circle)
+                    : Icons.hourglass_top,
                 size: 72,
                 color: success ? Colors.green : theme.colorScheme.tertiary,
               ),
               const SizedBox(height: 20),
               Text(
-                success ? 'Paiement confirmé !' : 'Commande créée',
+                success
+                    ? (isCash ? 'Commande enregistrée !' : 'Paiement confirmé !')
+                    : 'Commande créée',
                 style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 8),
               Text(
                 success
-                    ? 'Votre commande ${order.reference} a été réglée et est en préparation.'
+                    ? (isCash
+                        ? 'Votre commande ${order.reference} part en préparation. Vous réglerez ${formatAmount(order.total)} en espèces au livreur.'
+                        : 'Votre commande ${order.reference} a été réglée et est en préparation.')
                     : 'Votre commande ${order.reference} est en attente de paiement.',
                 style: theme.textTheme.bodyMedium,
                 textAlign: TextAlign.center,
