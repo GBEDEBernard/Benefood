@@ -9,6 +9,7 @@ import '../../../core/theme/app_dimens.dart';
 import '../../../shared/models/product.dart';
 import '../../../shared/models/vendor.dart';
 import '../../../shared/widgets/app_search_field.dart';
+import '../../../shared/widgets/beninfood_header.dart';
 import '../../../shared/widgets/feedback_widgets.dart';
 import '../../../shared/widgets/product_cards.dart';
 import '../../../shared/widgets/state_widgets.dart';
@@ -93,9 +94,18 @@ class _SearchScreenState extends State<SearchScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Rechercher')),
       body: Column(
         children: [
+          BeninfoodAppBar(
+            onMenu: () {
+              if (context.canPop()) {
+                context.pop();
+              } else {
+                context.go('/client');
+              }
+            },
+            api: widget.marketplace,
+          ),
           Padding(
             padding: const EdgeInsets.fromLTRB(
               AppDimens.pagePadding,
