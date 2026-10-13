@@ -19,6 +19,8 @@ class Vendor {
     this.approvedAt,
     this.createdAt,
     this.maxPreparationMinutes,
+    this.rating,
+    this.reviewsCount = 0,
   });
 
   final String id;
@@ -40,9 +42,20 @@ class Vendor {
   final String? approvedAt;
   final String? createdAt;
   final int? maxPreparationMinutes;
+  final double? rating;
+  final int reviewsCount;
 
   bool get isActive => status == 'active';
   bool get isOpenResolved => isOpen ?? false;
+
+  /// Délai estimé de livraison, ex. « 30-45 min » (même convention que /home).
+  String? get etaLabel {
+    final minutes = maxPreparationMinutes;
+    if (minutes == null) {
+      return null;
+    }
+    return '$minutes-${minutes + 15} min';
+  }
 
   factory Vendor.fromJson(Map<String, dynamic> json) => Vendor(
         id: _s(json['id']),
@@ -65,6 +78,8 @@ class Vendor {
         createdAt: json['created_at'] is String ? json['created_at'] as String : null,
         maxPreparationMinutes:
             json['max_preparation_minutes'] is int ? json['max_preparation_minutes'] as int : null,
+        rating: _d(json['rating']),
+        reviewsCount: json['reviews_count'] is int ? json['reviews_count'] as int : 0,
       );
 }
 

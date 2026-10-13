@@ -9,6 +9,7 @@ use App\Http\Resources\ComplaintResource;
 use App\Http\Resources\ProductResource;
 use App\Http\Resources\VendorResource;
 use App\Models\Order;
+use App\Models\Review;
 use App\Models\Vendor;
 use App\Models\VendorDocument;
 use App\Services\ComplaintService;
@@ -541,6 +542,15 @@ class VendorController extends Controller
      */
     private function shopPayload(Vendor $vendor): array
     {
+        // Note moyenne et nombre d'avis : les avis sont rattachés aux commandes,
+        // on agrège donc via orders.vendor_id (même logique que /home).
+        $stats = Review::query()
+            ->join('orders', 'orders.id', '=', 'reviews.order_id')
+            ->where('orders.vendor_id', $vendor->id)
+            ->selectRaw('AVG(reviews.rating) as average_rating')
+            ->selectRaw('COUNT(reviews.id) as reviews_count')
+            ->first();
+
         return [
             'id' => $vendor->id,
             'business_name' => $vendor->business_name,
@@ -553,6 +563,8 @@ class VendorController extends Controller
             'latitude' => $vendor->latitude,
             'longitude' => $vendor->longitude,
             'is_open' => $vendor->isOpenNow(),
+            'rating' => $stats?->average_rating !== null ? round((float) $stats->average_rating, 1) : null,
+            'reviews_count' => $stats !== null ? (int) $stats->reviews_count : 0,
             'delivery_fee_share' => $vendor->settings?->delivery_fee_share,
             'max_preparation_minutes' => $vendor->settings?->max_preparation_minutes ?? 30,
             'hours' => $vendor->hours->map(fn ($hour) => [

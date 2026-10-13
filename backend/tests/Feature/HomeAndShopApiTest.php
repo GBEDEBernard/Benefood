@@ -103,6 +103,33 @@ class HomeAndShopApiTest extends TestCase
             ->assertJsonPath('data.vendors.0.prep_minutes', 30);
     }
 
+    public function test_vendor_shop_exposes_rating_reviews_and_prep_time(): void
+    {
+        $vendor = Vendor::factory()->create(['status' => VendorStatus::Active->value]);
+        Category::factory()->create();
+
+        $client = User::factory()->create();
+        foreach ([5, 4] as $index => $rating) {
+            $order = Order::create([
+                'reference' => 'REF-SHOP-'.$index,
+                'user_id' => $client->id,
+                'vendor_id' => $vendor->id,
+                'status' => OrderStatus::Delivered->value,
+            ]);
+            Review::create([
+                'order_id' => $order->id,
+                'user_id' => $client->id,
+                'rating' => $rating,
+            ]);
+        }
+
+        $this->getJson("/api/v1/vendors/{$vendor->id}")
+            ->assertOk()
+            ->assertJsonPath('data.rating', 4.5)
+            ->assertJsonPath('data.reviews_count', 2)
+            ->assertJsonPath('data.max_preparation_minutes', 30);
+    }
+
     public function test_vendor_shop_returns_products_and_hours(): void
     {
         $vendor = Vendor::factory()->create(['status' => VendorStatus::Active->value]);
@@ -123,6 +150,8 @@ class HomeAndShopApiTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.id', $vendor->id)
             ->assertJsonPath('data.is_open', true)
+            ->assertJsonPath('data.rating', null)
+            ->assertJsonPath('data.reviews_count', 0)
             ->assertJsonCount(1, 'data.products')
             ->assertJsonPath('data.products.0.id', $product->id)
             ->assertJsonPath('data.products.0.is_orderable', true)
