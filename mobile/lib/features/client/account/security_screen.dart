@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/data/marketplace_api.dart';
 import '../../../core/errors/api_exception.dart';
@@ -6,6 +7,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_dimens.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/formatters.dart';
+import '../../../shared/widgets/beninfood_header.dart';
 import '../../../shared/widgets/feedback_widgets.dart';
 
 /// Sécurité du compte : changement de mot de passe et appareils connectés.
@@ -73,8 +75,26 @@ class _SecurityScreenState extends State<SecurityScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(title: const Text('Sécurité')),
-      body: ListView(
+      body: Column(
+        children: [
+          BeninfoodAppBar(
+            onMenu: () {
+              if (context.canPop()) {
+                context.pop();
+              } else {
+                context.go('/client');
+              }
+            },
+            api: widget.marketplace,
+          ),
+          Expanded(child: _buildBody()),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBody() {
+    return ListView(
         padding: const EdgeInsets.all(AppDimens.pagePadding),
         children: [
           DecoratedBox(
@@ -241,7 +261,6 @@ class _SecurityScreenState extends State<SecurityScreen> {
           ),
           const SizedBox(height: AppDimens.xl),
         ],
-      ),
     );
   }
 }

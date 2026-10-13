@@ -8,6 +8,7 @@ import '../../../core/theme/app_dimens.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../shared/widgets/app_network_image.dart';
+import '../../../shared/widgets/beninfood_header.dart';
 import '../../../shared/widgets/feedback_widgets.dart';
 
 /// Favoris du client : produits enregistrés, retrait et ouverture fiche.
@@ -64,9 +65,10 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return BeninfoodPageScaffold(
+      title: 'Mes favoris',
+      api: widget.marketplace,
       backgroundColor: AppColors.background,
-      appBar: AppBar(title: const Text('Mes favoris')),
       body: FutureBuilder<List<Map<String, dynamic>>>(
         future: _future,
         builder: (context, snapshot) {

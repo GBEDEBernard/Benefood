@@ -209,10 +209,12 @@ void main() {
     expect(find.text('Logo'), findsOneWidget);
     expect(find.text('Couverture'), findsOneWidget);
 
-    // Menu « Mon compte » : 4 entrées communes.
+    // Menu « Mon compte » : entrées communes + colis (la boutique peut
+    // elle aussi envoyer des colis).
     await _scrollTo(tester, find.text('Se déconnecter'));
     const titles = [
       'Informations personnelles',
+      'Mes colis',
       'Notifications',
       'Sécurité',
       'Aide et support',

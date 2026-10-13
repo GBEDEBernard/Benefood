@@ -2,8 +2,11 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../../../core/data/marketplace_api.dart';
+import '../../../../core/navigation/notification_router.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../shared/models/order.dart';
+import '../../../../shared/widgets/notification_bell.dart';
 import '../../../../shared/widgets/feedback_widgets.dart';
 import '../restaurant_palette.dart';
 import '../widgets/order_status_tag.dart';
@@ -23,6 +26,7 @@ class OrderDetailsScreen extends StatefulWidget {
     this.onConfirmDelivery,
     this.onReportIncident,
     this.busy = false,
+    this.marketplace,
   });
 
   final Order order;
@@ -33,6 +37,9 @@ class OrderDetailsScreen extends StatefulWidget {
   final Future<bool> Function(Order order)? onConfirmDelivery;
   final Future<bool> Function(Order order, String subject, String description)? onReportIncident;
   final bool busy;
+
+  /// API de la cloche de notification (nullable : en-tête sans cloche).
+  final MarketplaceApi? marketplace;
 
   @override
   State<OrderDetailsScreen> createState() => _OrderDetailsScreenState();
@@ -179,6 +186,11 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
               ),
             ),
             OrderStatusTag(_order.status),
+            if (widget.marketplace != null)
+              NotificationBell(
+                api: widget.marketplace!,
+                audience: NotificationAudience.vendor,
+              ),
           ],
         ),
       ),

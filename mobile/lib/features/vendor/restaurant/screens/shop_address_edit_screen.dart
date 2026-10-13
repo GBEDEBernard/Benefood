@@ -74,7 +74,12 @@ class _ShopAddressEditScreenState extends State<ShopAddressEditScreen> {
         bottom: false,
         child: Column(
           children: [
-            ShopEditorAppBar(title: 'Adresse', onSave: _save, saving: _saving),
+            ShopEditorAppBar(
+              title: 'Adresse',
+              onSave: _save,
+              saving: _saving,
+              api: widget.marketplace,
+            ),
             Expanded(
               child: ListView(
                 padding: const EdgeInsets.all(16),

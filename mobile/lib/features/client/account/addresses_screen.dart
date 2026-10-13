@@ -7,6 +7,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../shared/models/address.dart';
 import '../../../shared/widgets/app_button.dart';
 import '../../../shared/widgets/app_text_field.dart';
+import '../../../shared/widgets/beninfood_header.dart';
 import '../../../shared/widgets/feedback_widgets.dart';
 import '../../../shared/widgets/state_widgets.dart';
 
@@ -73,8 +74,9 @@ class _AddressesScreenState extends State<AddressesScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text(widget.selectMode ? 'Choisir une adresse' : 'Mes adresses')),
+    return BeninfoodPageScaffold(
+      title: widget.selectMode ? 'Choisir une adresse' : 'Mes adresses',
+      api: widget.marketplace,
       body: _buildBody(),
       floatingActionButton: widget.selectMode
           ? null

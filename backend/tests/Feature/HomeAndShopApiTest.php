@@ -11,6 +11,7 @@ use App\Models\Review;
 use App\Models\ReviewItem;
 use App\Models\User;
 use App\Models\Vendor;
+use Carbon\Carbon;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
@@ -130,6 +131,25 @@ class HomeAndShopApiTest extends TestCase
             ->assertJsonPath('data.rating', 4.5)
             ->assertJsonPath('data.reviews_count', 2)
             ->assertJsonPath('data.max_preparation_minutes', 30);
+    }
+
+    public function test_vendor_opening_hours_handle_windows_crossing_midnight(): void
+    {
+        $vendor = Vendor::factory()->create(['status' => VendorStatus::Active->value]);
+        $vendor->hours()->create([
+            'day_of_week' => 2, // mardi (2026-10-13)
+            'opens_at' => '20:00',
+            'closes_at' => '01:00',
+        ]);
+
+        // Ouverte pendant la plage du soir, y compris après minuit : sans le
+        // traitement « plage qui traverse minuit », 23:30 serait fermée.
+        $this->assertTrue($vendor->isOpenNow(Carbon::parse('2026-10-13 20:30:00')));
+        $this->assertTrue($vendor->isOpenNow(Carbon::parse('2026-10-13 23:30:00')));
+        $this->assertTrue($vendor->isOpenNow(Carbon::parse('2026-10-14 00:30:00')));
+
+        // Fermée avant l'ouverture.
+        $this->assertFalse($vendor->isOpenNow(Carbon::parse('2026-10-13 19:00:00')));
     }
 
     public function test_vendor_shop_returns_products_and_hours(): void

@@ -18,6 +18,7 @@ import '../../../shared/models/route_plan.dart';
 import '../../../shared/widgets/app_button.dart';
 import '../../../shared/widgets/app_map.dart';
 import '../../../shared/widgets/amount_widgets.dart';
+import '../../../shared/widgets/beninfood_header.dart';
 import '../../../shared/widgets/call_button.dart';
 import '../../../shared/widgets/feedback_widgets.dart';
 import '../../../shared/widgets/package_item_tile.dart';
@@ -289,8 +290,9 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Suivi de commande')),
+    return BeninfoodPageScaffold(
+      title: 'Suivi de commande',
+      api: widget.marketplace,
       body: _buildBody(),
     );
   }

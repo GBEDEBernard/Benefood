@@ -1,15 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../../../core/data/marketplace_api.dart';
+import '../../../../core/navigation/notification_router.dart';
 import '../../../../core/utils/formatters.dart';
+import '../../../../shared/widgets/notification_bell.dart';
 import '../restaurant_palette.dart';
 
 /// Historique complet des revenus du vendeur (J21 §3.5) : toutes les écritures
 /// de la période, les reversements (payouts) et l'export CSV du relevé courant.
 class RevenueHistoryScreen extends StatelessWidget {
-  const RevenueHistoryScreen({super.key, required this.revenue});
+  const RevenueHistoryScreen({super.key, required this.revenue, this.marketplace});
 
   final Map<String, dynamic> revenue;
+
+  /// API de la cloche de notification (nullable : en-tête sans cloche).
+  final MarketplaceApi? marketplace;
 
   @override
   Widget build(BuildContext context) {
@@ -72,6 +78,11 @@ class RevenueHistoryScreen extends StatelessWidget {
                 ),
               ),
             ),
+            if (marketplace != null)
+              NotificationBell(
+                api: marketplace!,
+                audience: NotificationAudience.vendor,
+              ),
             IconButton(
               tooltip: 'Exporter en CSV',
               onPressed: () => _exportCsv(context, transactions: revenue['transactions']),

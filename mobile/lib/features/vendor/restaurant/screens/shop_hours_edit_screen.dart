@@ -154,7 +154,12 @@ class _ShopHoursEditScreenState extends State<ShopHoursEditScreen> {
         bottom: false,
         child: Column(
           children: [
-            ShopEditorAppBar(title: 'Horaires', onSave: _save, saving: _saving),
+            ShopEditorAppBar(
+              title: 'Horaires',
+              onSave: _save,
+              saving: _saving,
+              api: widget.marketplace,
+            ),
             Expanded(
               child: ListView(
                 padding: const EdgeInsets.all(16),

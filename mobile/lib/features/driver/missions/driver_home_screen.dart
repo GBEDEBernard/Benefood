@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/data/marketplace_api.dart';
+import '../../../core/navigation/notification_router.dart';
 import '../../../core/errors/api_exception.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_dimens.dart';
@@ -227,6 +228,7 @@ class DriverHomeScreenState extends State<DriverHomeScreen>
           BeninfoodAppBar(
             onMenu: widget.onOpenMenu,
             api: widget.marketplace,
+            audience: NotificationAudience.driver,
           ),
           const SizedBox(height: 120),
           const Center(child: CircularProgressIndicator()),
@@ -251,6 +253,7 @@ class DriverHomeScreenState extends State<DriverHomeScreen>
         BeninfoodAppBar(
           onMenu: widget.onOpenMenu,
           api: widget.marketplace,
+          audience: NotificationAudience.driver,
         ),
         Padding(
           padding: const EdgeInsets.fromLTRB(

@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/data/marketplace_api.dart';
+import '../../../../core/navigation/notification_router.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/app_button.dart';
+import '../../../../shared/widgets/notification_bell.dart';
 
 /// Gabarit des étapes du parcours vendeur : en-tête (retour + indice « n/4 »),
 /// titre, sous-titre, contenu défilant et bouton pleine largeur en bas.
@@ -16,6 +19,7 @@ class OnboardingScaffold extends StatelessWidget {
     required this.child,
     this.loading = false,
     this.onBack,
+    this.api,
   });
 
   /// Numéro d'étape affiché (1 à 4).
@@ -27,6 +31,9 @@ class OnboardingScaffold extends StatelessWidget {
   final Widget child;
   final bool loading;
   final VoidCallback? onBack;
+
+  /// API de la cloche de notification (nullable : en-tête sans cloche).
+  final MarketplaceApi? api;
 
   @override
   Widget build(BuildContext context) {
@@ -55,6 +62,11 @@ class OnboardingScaffold extends StatelessWidget {
                   color: AppColors.textFaint,
                 ),
               ),
+              if (api != null)
+                NotificationBell(
+                  api: api!,
+                  audience: NotificationAudience.vendor,
+                ),
             ],
           ),
         ),

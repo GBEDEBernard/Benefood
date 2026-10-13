@@ -410,6 +410,7 @@ class _RestaurantShellScreenState extends State<RestaurantShellScreen> {
       MaterialPageRoute<void>(
         builder: (context) => OrderDetailsScreen(
           order: order,
+          marketplace: widget.marketplace,
           busy: _busyOrders.contains(order.id),
           onAccept: _accept,
           onRefuse: _refuse,
@@ -427,7 +428,10 @@ class _RestaurantShellScreenState extends State<RestaurantShellScreen> {
     if (revenue == null) return;
     Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) => RevenueHistoryScreen(revenue: revenue),
+        builder: (_) => RevenueHistoryScreen(
+          revenue: revenue,
+          marketplace: widget.marketplace,
+        ),
       ),
     );
   }

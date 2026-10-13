@@ -187,13 +187,14 @@ Route::middleware('auth:sanctum')->group(function (): void {
     // Avis direct sur un produit (sans commande).
     Route::post('products/{product}/review', [ReviewController::class, 'storeForProduct'])->name('api.v1.products.review')->middleware('permission:client.reviews.create');
 
-    // Service colis (cahier v1.0, phase 3).
+    // Service colis (cahier v1.0, phase 3) : l'expéditeur est le compte
+    // connecté — client ou boutique vendeuse (permis par rôle).
     Route::prefix('parcels')->group(function (): void {
-        Route::post('/quote', [ParcelController::class, 'quote'])->name('api.v1.parcels.quote')->middleware('permission:client.parcels.manage');
-        Route::post('/', [ParcelController::class, 'store'])->name('api.v1.parcels.store')->middleware('permission:client.parcels.manage');
-        Route::get('/', [ParcelController::class, 'index'])->name('api.v1.parcels.index')->middleware('permission:client.parcels.manage');
-        Route::get('/{parcel}', [ParcelController::class, 'show'])->name('api.v1.parcels.show')->middleware('permission:client.parcels.manage');
-        Route::post('/{parcel}/cancel', [ParcelController::class, 'cancel'])->name('api.v1.parcels.cancel')->middleware('permission:client.parcels.manage');
+        Route::post('/quote', [ParcelController::class, 'quote'])->name('api.v1.parcels.quote')->middleware('permission:client.parcels.manage|vendor.parcels.manage');
+        Route::post('/', [ParcelController::class, 'store'])->name('api.v1.parcels.store')->middleware('permission:client.parcels.manage|vendor.parcels.manage');
+        Route::get('/', [ParcelController::class, 'index'])->name('api.v1.parcels.index')->middleware('permission:client.parcels.manage|vendor.parcels.manage');
+        Route::get('/{parcel}', [ParcelController::class, 'show'])->name('api.v1.parcels.show')->middleware('permission:client.parcels.manage|vendor.parcels.manage');
+        Route::post('/{parcel}/cancel', [ParcelController::class, 'cancel'])->name('api.v1.parcels.cancel')->middleware('permission:client.parcels.manage|vendor.parcels.manage');
     });
 
     Route::prefix('complaints')->middleware('permission:client.complaints.manage')->group(function (): void {
@@ -237,8 +238,8 @@ Route::middleware('auth:sanctum')->group(function (): void {
 
     // Payments (client)
     Route::prefix('payments')->group(function (): void {
-        Route::post('/create', [PaymentController::class, 'create'])->name('api.v1.payments.create')->middleware('permission:client.orders.manage');
-        Route::post('/verify', [PaymentController::class, 'verify'])->name('api.v1.payments.verify')->middleware('permission:client.orders.manage');
+        Route::post('/create', [PaymentController::class, 'create'])->name('api.v1.payments.create')->middleware('permission:client.orders.manage|vendor.parcels.manage');
+        Route::post('/verify', [PaymentController::class, 'verify'])->name('api.v1.payments.verify')->middleware('permission:client.orders.manage|vendor.parcels.manage');
         Route::post('/orders/{order}/retry', [PaymentController::class, 'retry'])->name('api.v1.payments.retry')->middleware('permission:client.orders.manage');
     });
 });

@@ -4,6 +4,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 
 import '../../core/auth/session_provider.dart';
 import '../../core/data/marketplace_api.dart';
+import '../../core/navigation/notification_router.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_dimens.dart';
 import '../../core/theme/app_theme.dart';
@@ -21,10 +22,14 @@ class ProfileHeader extends StatelessWidget {
     required this.marketplace,
     this.uploadingAvatar = false,
     this.onMenu,
+    this.audience = NotificationAudience.client,
   });
 
   final MarketplaceApi marketplace;
   final bool uploadingAvatar;
+
+  /// Espace courant, pour router les notifications vers le bon détail.
+  final NotificationAudience audience;
 
   /// Ouvre le tiroir latéral (menu hamburger).
   final VoidCallback? onMenu;
@@ -34,6 +39,7 @@ class ProfileHeader extends StatelessWidget {
     return BeninfoodAppBar(
       onMenu: onMenu,
       api: marketplace,
+      audience: audience,
       trailing: uploadingAvatar
           ? const SizedBox(
               width: 44,

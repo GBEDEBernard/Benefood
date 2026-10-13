@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../core/auth/session_provider.dart';
 import '../core/data/marketplace_api.dart';
+import '../core/navigation/notification_router.dart';
 import '../core/push/push_service.dart';
 import '../core/theme/app_theme.dart';
 import '../router/app_router.dart';
@@ -46,18 +47,21 @@ class _BeninfoodAppState extends State<BeninfoodApp> {
     if (user == null || widget.session.restoring) {
       return;
     }
+
+    // L'espace actif peut changer sans nouvelle session : le deep-link des
+    // notifications doit suivre (suivi client ↔ commande vendeur ↔ mission).
+    PushService.audience = notificationAudienceFromRole(
+      widget.session.activeRole,
+    );
+
     if (_pushReady && _pushUserId == user.id) {
       return;
     }
     _pushReady = true;
     _pushUserId = user.id;
 
-    final role = widget.session.activeRole;
     PushService.rootContext = context;
-    PushService.initialize(
-      marketplace: widget.marketplace,
-      isVendor: role == 'vendor',
-    );
+    PushService.initialize(marketplace: widget.marketplace);
   }
 
   @override

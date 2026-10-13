@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/data/marketplace_api.dart';
+import '../../../../core/navigation/notification_router.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../shared/models/order.dart';
 import '../../../../shared/widgets/beninfood_header.dart';
@@ -45,7 +46,11 @@ class RevenusScreen extends StatelessWidget {
       color: RestaurantPalette.background,
       child: Column(
         children: [
-          BeninfoodAppBar(onMenu: onOpenDrawer, api: marketplace),
+          BeninfoodAppBar(
+            onMenu: onOpenDrawer,
+            api: marketplace,
+            audience: NotificationAudience.vendor,
+          ),
           Expanded(
             child: RefreshIndicator(
               onRefresh: () async => onRefresh?.call(),

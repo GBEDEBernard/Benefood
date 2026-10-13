@@ -4,11 +4,13 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../../core/data/marketplace_api.dart';
+import '../../../core/navigation/notification_router.dart';
 import '../../../core/errors/api_exception.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../shared/models/category.dart';
 import '../../../shared/models/product.dart';
 import '../../../shared/widgets/app_button.dart';
+import '../../../shared/widgets/beninfood_header.dart';
 import '../../../shared/widgets/app_network_image.dart';
 import '../../../shared/widgets/app_text_field.dart';
 import '../../../shared/widgets/feedback_widgets.dart';
@@ -320,10 +322,10 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(_isEditing ? 'Modifier le produit' : 'Nouveau produit'),
-      ),
+    return BeninfoodPageScaffold(
+      title: _isEditing ? 'Modifier le produit' : 'Nouveau produit',
+      api: widget.marketplace,
+      audience: NotificationAudience.vendor,
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),

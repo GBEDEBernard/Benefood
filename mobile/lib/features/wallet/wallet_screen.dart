@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../core/data/marketplace_api.dart';
 import '../../core/errors/api_exception.dart';
@@ -7,6 +8,7 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_dimens.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/formatters.dart';
+import '../../shared/widgets/beninfood_header.dart';
 import '../../shared/widgets/feedback_widgets.dart';
 import '../../shared/widgets/state_widgets.dart';
 
@@ -170,20 +172,27 @@ class _WalletScreenState extends State<WalletScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final title = widget.role == WalletRole.vendor ? 'Portefeuille' : 'Mes gains';
+    final home = widget.role == WalletRole.vendor ? '/vendor' : '/driver';
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: SafeArea(
-        bottom: false,
-        child: Column(
-          children: [
-            _Header(title: title, onOpenDrawer: widget.onOpenDrawer),
-            Expanded(
-              child: _buildBody(),
-            ),
-          ],
-        ),
+      body: Column(
+        children: [
+          BeninfoodAppBar(
+            onMenu: widget.onOpenDrawer ??
+                () {
+                  if (context.canPop()) {
+                    context.pop();
+                  } else {
+                    context.go(home);
+                  }
+                },
+            api: widget.marketplace,
+          ),
+          Expanded(
+            child: _buildBody(),
+          ),
+        ],
       ),
     );
   }
@@ -254,43 +263,6 @@ class _WalletScreenState extends State<WalletScreen> {
 }
 
 // ---------------------------------------------------------------- Header
-
-class _Header extends StatelessWidget {
-  const _Header({required this.title, this.onOpenDrawer});
-
-  final String title;
-  final VoidCallback? onOpenDrawer;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(left: 6, right: AppDimens.lg, top: AppDimens.sm, bottom: AppDimens.sm),
-      child: Row(
-        children: [
-          if (onOpenDrawer != null)
-            IconButton(
-              onPressed: onOpenDrawer,
-              icon: const Icon(Icons.menu, color: AppColors.text),
-              tooltip: 'Ouvrir le menu',
-            )
-          else
-            const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              title,
-              style: const TextStyle(
-                color: AppColors.text,
-                fontSize: 20,
-                fontWeight: FontWeight.w800,
-                letterSpacing: -0.3,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
 
 // ------------------------------------------------------------ Balance card
 

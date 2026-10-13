@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/data/marketplace_api.dart';
+import '../../../../core/navigation/notification_router.dart';
 import '../../../../core/errors/api_exception.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../shared/widgets/beninfood_header.dart';
@@ -75,6 +76,7 @@ class _ActivityScreenState extends State<ActivityScreen> {
           MaterialPageRoute<void>(
             builder: (_) => OrderDetailsScreen(
               order: order,
+              marketplace: api,
               onAccept: (o) async {
                 try { await api.vendorAccept(o.id); return true; } catch (_) { return false; }
               },
@@ -110,7 +112,11 @@ class _ActivityScreenState extends State<ActivityScreen> {
       color: RestaurantPalette.background,
       child: Column(
         children: [
-          BeninfoodAppBar(onMenu: widget.onOpenDrawer, api: widget.marketplace),
+          BeninfoodAppBar(
+            onMenu: widget.onOpenDrawer,
+            api: widget.marketplace,
+            audience: NotificationAudience.vendor,
+          ),
           Expanded(child: _buildBody()),
         ],
       ),

@@ -1,15 +1,27 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/data/marketplace_api.dart';
+import '../../../../core/navigation/notification_router.dart';
+import '../../../../shared/widgets/notification_bell.dart';
 import '../restaurant_palette.dart';
 
-/// Barre d'édition commune aux écrans « Ma boutique » : retour, titre et
-/// bouton Enregistrer avec indicateur de chargement.
+/// Barre d'édition commune aux écrans « Ma boutique » : retour, titre,
+/// cloche de notification et bouton Enregistrer avec indicateur de chargement.
 class ShopEditorAppBar extends StatelessWidget {
-  const ShopEditorAppBar({super.key, required this.title, required this.onSave, required this.saving});
+  const ShopEditorAppBar({
+    super.key,
+    required this.title,
+    required this.onSave,
+    required this.saving,
+    this.api,
+  });
 
   final String title;
   final VoidCallback onSave;
   final bool saving;
+
+  /// API de la cloche de notification (nullable : sans cloche).
+  final MarketplaceApi? api;
 
   @override
   Widget build(BuildContext context) {
@@ -38,6 +50,11 @@ class ShopEditorAppBar extends StatelessWidget {
                   ),
                 ),
               ),
+              if (api != null)
+                NotificationBell(
+                  api: api!,
+                  audience: NotificationAudience.vendor,
+                ),
               FilledButton(
                 onPressed: saving ? null : onSave,
                 style: FilledButton.styleFrom(

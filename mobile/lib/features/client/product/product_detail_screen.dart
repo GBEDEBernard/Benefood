@@ -9,6 +9,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../shared/models/product.dart';
 import '../../../shared/widgets/app_button.dart';
+import '../../../shared/widgets/beninfood_header.dart';
 import '../../../shared/widgets/feedback_widgets.dart';
 import '../../../shared/widgets/product_media_gallery.dart';
 import '../../../shared/widgets/product_review_sheet.dart';
@@ -126,22 +127,21 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Produit'),
-        actions: [
-          IconButton(
-            onPressed: _toggleFavorite,
-            tooltip: _isFavorite
-                ? 'Retirer des favoris'
-                : 'Ajouter aux favoris',
-            icon: Icon(
-              _isFavorite ? Icons.favorite : Icons.favorite_border,
-              color: _isFavorite ? AppColors.red : AppColors.text,
-            ),
+    return BeninfoodPageScaffold(
+      title: 'Produit',
+      api: widget.marketplace,
+      actions: [
+        IconButton(
+          onPressed: _toggleFavorite,
+          tooltip: _isFavorite
+              ? 'Retirer des favoris'
+              : 'Ajouter aux favoris',
+          icon: Icon(
+            _isFavorite ? Icons.favorite : Icons.favorite_border,
+            color: _isFavorite ? AppColors.red : AppColors.text,
           ),
-        ],
-      ),
+        ),
+      ],
       body: FutureBuilder<Product>(
         future: _future,
         builder: (context, snapshot) {

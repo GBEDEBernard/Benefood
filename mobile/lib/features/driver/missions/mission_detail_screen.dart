@@ -1,10 +1,12 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:latlong2/latlong.dart';
 
 import '../../../core/data/marketplace_api.dart';
 import '../../../core/errors/api_exception.dart';
+import '../../../core/navigation/notification_router.dart';
 import '../../../core/services/location_service.dart';
 import '../../../core/services/route_planner.dart';
 import '../../../core/theme/app_colors.dart';
@@ -16,6 +18,7 @@ import '../../../shared/models/route_plan.dart';
 import '../../../shared/widgets/app_button.dart';
 import '../../../shared/widgets/app_map.dart';
 import '../../../shared/widgets/amount_widgets.dart';
+import '../../../shared/widgets/beninfood_header.dart';
 import '../../../shared/widgets/call_button.dart';
 import '../../../shared/widgets/feedback_widgets.dart';
 import '../../../shared/widgets/package_item_tile.dart';
@@ -398,13 +401,23 @@ class _MissionDetailScreenState extends State<MissionDetailScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Détail de la mission'),
-        centerTitle: true,
-        foregroundColor: Colors.white,
-        backgroundColor: AppColors.orange,
+      body: Column(
+        children: [
+          BeninfoodAppBar(
+            onMenu: () {
+              final navigator = Navigator.of(context);
+              if (navigator.canPop()) {
+                navigator.pop();
+              } else {
+                context.go('/driver');
+              }
+            },
+            api: widget.marketplace,
+            audience: NotificationAudience.driver,
+          ),
+          Expanded(child: _buildBody()),
+        ],
       ),
-      body: _buildBody(),
     );
   }
 

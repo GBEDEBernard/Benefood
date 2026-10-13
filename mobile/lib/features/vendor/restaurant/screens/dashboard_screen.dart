@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/data/marketplace_api.dart';
+import '../../../../core/navigation/notification_router.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../shared/models/order.dart';
 import '../../../../shared/widgets/beninfood_header.dart';
@@ -130,6 +131,7 @@ class DashboardScreen extends StatelessWidget {
     return BeninfoodAppBar(
       onMenu: onOpenDrawer,
       api: marketplace,
+      audience: NotificationAudience.vendor,
     );
   }
 

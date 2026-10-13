@@ -111,6 +111,21 @@ Future<void> _pumpFlow(WidgetTester tester, List<String> log) async {
 }
 
 Future<void> _uploadDocument(WidgetTester tester, String title) async {
+  // La page des documents est longue et l'en-tête BÉN INFOOD occupe le haut :
+  // on défile jusqu'à la carte avant de la manipuler.
+  final verticalScrollable = find
+      .byWidgetPredicate(
+        (widget) => widget is Scrollable && widget.axis == Axis.vertical,
+        skipOffstage: false,
+      )
+      .first;
+  await tester.scrollUntilVisible(
+    find.text(title),
+    300,
+    scrollable: verticalScrollable,
+  );
+  await tester.pumpAndSettle();
+
   final tile = find.ancestor(
     of: find.text(title),
     matching: find.byType(Card),

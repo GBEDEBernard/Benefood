@@ -133,7 +133,12 @@ class _ShopInfoEditScreenState extends State<ShopInfoEditScreen> {
         bottom: false,
         child: Column(
           children: [
-            ShopEditorAppBar(title: 'Informations', onSave: _save, saving: _saving),
+            ShopEditorAppBar(
+              title: 'Informations',
+              onSave: _save,
+              saving: _saving,
+              api: widget.marketplace,
+            ),
             Expanded(
               child: Form(
                 key: _formKey,

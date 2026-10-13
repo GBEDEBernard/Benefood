@@ -9,6 +9,7 @@ import '../../../shared/models/complaint.dart';
 import '../../../shared/models/order.dart';
 import '../../../shared/widgets/app_button.dart';
 import '../../../shared/widgets/app_text_field.dart';
+import '../../../shared/widgets/beninfood_header.dart';
 import '../../../shared/widgets/feedback_widgets.dart';
 import '../../../shared/widgets/state_widgets.dart';
 import '../../../shared/widgets/status_badge.dart';
@@ -60,8 +61,21 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Mes réclamations')),
-      body: _buildBody(),
+      body: Column(
+        children: [
+          BeninfoodAppBar(
+            onMenu: () {
+              if (context.canPop()) {
+                context.pop();
+              } else {
+                context.go('/client');
+              }
+            },
+            api: widget.marketplace,
+          ),
+          Expanded(child: _buildBody()),
+        ],
+      ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => context.push('/client/complaints/new'),
         backgroundColor: AppColors.green,
@@ -238,8 +252,21 @@ class _ComplaintDetailScreenState extends State<ComplaintDetailScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Réclamation')),
-      body: _buildBody(),
+      body: Column(
+        children: [
+          BeninfoodAppBar(
+            onMenu: () {
+              if (context.canPop()) {
+                context.pop();
+              } else {
+                context.go('/client');
+              }
+            },
+            api: widget.marketplace,
+          ),
+          Expanded(child: _buildBody()),
+        ],
+      ),
     );
   }
 
@@ -522,12 +549,24 @@ class _ComplaintCreateScreenState extends State<ComplaintCreateScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Nouvelle réclamation')),
-      body: Form(
-        key: _formKey,
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
+      body: Column(
+        children: [
+          BeninfoodAppBar(
+            onMenu: () {
+              if (context.canPop()) {
+                context.pop();
+              } else {
+                context.go('/client');
+              }
+            },
+            api: widget.marketplace,
+          ),
+          Expanded(
+            child: Form(
+              key: _formKey,
+              child: ListView(
+                padding: const EdgeInsets.all(16),
+                children: [
             Card(
               color: AppColors.goldLight,
               elevation: 0,
@@ -606,7 +645,10 @@ class _ComplaintCreateScreenState extends State<ComplaintCreateScreen> {
               loading: _saving,
             ),
           ],
-        ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

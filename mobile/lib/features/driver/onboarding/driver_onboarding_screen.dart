@@ -4,11 +4,13 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../../core/data/marketplace_api.dart';
+import '../../../core/navigation/notification_router.dart';
 import '../../../core/errors/api_exception.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../shared/widgets/app_button.dart';
 import '../../../shared/widgets/app_text_field.dart';
+import '../../../shared/widgets/beninfood_header.dart';
 import '../../../shared/widgets/brand_logo.dart';
 import '../../../shared/widgets/feedback_widgets.dart';
 import '../../../shared/widgets/status_badge.dart';
@@ -28,6 +30,7 @@ class DriverOnboardingScreen extends StatefulWidget {
     required this.profile,
     required this.documents,
     required this.onRefresh,
+    this.onOpenMenu,
     this.imagePicker,
   });
 
@@ -35,6 +38,7 @@ class DriverOnboardingScreen extends StatefulWidget {
   final Map<String, dynamic>? profile;
   final List<Map<String, dynamic>> documents;
   final Future<void> Function() onRefresh;
+  final VoidCallback? onOpenMenu;
   final DriverImagePicker? imagePicker;
 
   @override
@@ -195,25 +199,36 @@ class _DriverOnboardingScreenState extends State<DriverOnboardingScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return PageView(
-      controller: _pageController,
-      physics: const NeverScrollableScrollPhysics(),
+    return Column(
       children: [
-        _WelcomePage(onStart: () => _goTo(1)),
-        _DocumentsPage(
-          profile: widget.profile,
-          documents: widget.documents,
-          onRefresh: widget.onRefresh,
-          vehicle: _vehicle,
-          docTypes: _docTypes,
-          hasProfile: _hasProfile,
-          submitting: _submitting,
-          uploadingType: _uploadingType,
-          uploadedTypes: _uploadedTypes,
-          previews: _previews,
-          onSubmitVehicle: _submitVehicle,
-          onPickDocument: _pickDocument,
-          docLabel: _docLabel,
+        BeninfoodAppBar(
+          onMenu: widget.onOpenMenu,
+          api: widget.marketplace,
+          audience: NotificationAudience.driver,
+        ),
+        Expanded(
+          child: PageView(
+            controller: _pageController,
+            physics: const NeverScrollableScrollPhysics(),
+            children: [
+              _WelcomePage(onStart: () => _goTo(1)),
+              _DocumentsPage(
+                profile: widget.profile,
+                documents: widget.documents,
+                onRefresh: widget.onRefresh,
+                vehicle: _vehicle,
+                docTypes: _docTypes,
+                hasProfile: _hasProfile,
+                submitting: _submitting,
+                uploadingType: _uploadingType,
+                uploadedTypes: _uploadedTypes,
+                previews: _previews,
+                onSubmitVehicle: _submitVehicle,
+                onPickDocument: _pickDocument,
+                docLabel: _docLabel,
+              ),
+            ],
+          ),
         ),
       ],
     );

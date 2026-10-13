@@ -9,6 +9,8 @@ import 'package:beninfood/core/data/marketplace_api.dart';
 import 'package:beninfood/core/http/api_client.dart';
 import 'package:beninfood/core/utils/formatters.dart';
 import 'package:beninfood/features/wallet/wallet_screen.dart';
+import 'package:beninfood/shared/widgets/beninfood_header.dart';
+import 'package:beninfood/shared/widgets/notification_bell.dart';
 
 class _NoopTokenStore implements TokenStore {
   @override
@@ -108,7 +110,9 @@ void main() {
   testWidgets('wallet vendeur : soldes et journal affichés', (tester) async {
     await _pump(tester, _mockBackend());
 
-    expect(find.text('Portefeuille'), findsOneWidget);
+    expect(find.byType(BeninfoodAppBar), findsOneWidget);
+    expect(find.byType(BeninfoodBrand), findsOneWidget);
+    expect(find.byType(NotificationBell), findsOneWidget);
     expect(find.text('Solde disponible'), findsOneWidget);
     expect(find.text(formatAmount(4500)), findsWidgets);
     expect(find.text('En attente de livraison'), findsOneWidget);

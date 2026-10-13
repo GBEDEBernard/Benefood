@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/data/marketplace_api.dart';
 import '../../../core/errors/api_exception.dart';
+import '../../../core/navigation/notification_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_dimens.dart';
 import '../../../core/utils/formatters.dart';
@@ -10,16 +12,26 @@ import '../../../shared/models/parcel.dart';
 import '../../../shared/widgets/amount_widgets.dart';
 import '../../../shared/widgets/app_button.dart';
 import '../../../shared/widgets/app_map.dart';
+import '../../../shared/widgets/beninfood_header.dart';
 import '../../../shared/widgets/feedback_widgets.dart';
 import '../../../shared/widgets/status_badge.dart';
 import '../../../shared/widgets/state_widgets.dart';
 
-/// Suivi détaillé d'un colis (client) : carte, livreur, paiement et journal.
+/// Suivi détaillé d'un colis (client ou boutique vendeuse) :
+/// carte, livreur, paiement et journal.
 class ParcelDetailScreen extends StatefulWidget {
-  const ParcelDetailScreen({super.key, required this.marketplace, required this.parcelId});
+  const ParcelDetailScreen({
+    super.key,
+    required this.marketplace,
+    required this.parcelId,
+    this.audience = NotificationAudience.client,
+  });
 
   final MarketplaceApi marketplace;
   final String parcelId;
+
+  /// Espace qui consulte le colis (client ou vendeur expéditeur).
+  final NotificationAudience audience;
 
   @override
   State<ParcelDetailScreen> createState() => _ParcelDetailScreenState();
@@ -207,13 +219,22 @@ class _ParcelDetailScreenState extends State<ParcelDetailScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Colis'),
-        backgroundColor: Colors.transparent,
-        foregroundColor: AppColors.text,
-        elevation: 0,
+      body: Column(
+        children: [
+          BeninfoodAppBar(
+            onMenu: () {
+              if (context.canPop()) {
+                context.pop();
+              } else {
+                context.go('/${widget.audience.name}/parcels');
+              }
+            },
+            api: widget.marketplace,
+            audience: widget.audience,
+          ),
+          Expanded(child: _buildBody()),
+        ],
       ),
-      body: _buildBody(),
     );
   }
 

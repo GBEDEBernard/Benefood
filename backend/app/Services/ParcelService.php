@@ -164,9 +164,11 @@ class ParcelService
             );
         }
 
-        $this->notifications->notifyEvent('order.delivered', [$parcel->user], [
+        // Notification « colis » dédiée : le mobile ouvre le suivi du colis
+        // (et non une commande) via `parcel_id`.
+        $this->notifications->notifyEvent('parcel.delivered', [$parcel->user], [
             'reference' => $parcel->reference,
-            'order_id' => $parcel->id,
+            'parcel_id' => $parcel->id,
         ]);
 
         return $parcel->fresh(['driverProfile.user', 'statusHistory']);

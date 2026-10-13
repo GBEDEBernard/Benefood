@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/data/marketplace_api.dart';
+import '../../../core/navigation/notification_router.dart';
 import '../../../core/errors/api_exception.dart';
 import '../../../shared/models/product.dart';
 import '../../../shared/widgets/amount_widgets.dart';
@@ -219,6 +220,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
           BeninfoodAppBar(
             onMenu: widget.onOpenDrawer,
             api: widget.marketplace,
+            audience: NotificationAudience.vendor,
           ),
           Expanded(child: _buildBody()),
         ],

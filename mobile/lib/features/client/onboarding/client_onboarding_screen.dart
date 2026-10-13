@@ -8,6 +8,7 @@ import '../../../core/errors/api_exception.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../shared/models/user.dart';
 import '../../../shared/widgets/app_button.dart';
+import '../../../shared/widgets/beninfood_header.dart';
 import '../../../shared/widgets/app_text_field.dart';
 import '../../../shared/widgets/brand_logo.dart';
 import '../../../shared/widgets/feedback_widgets.dart';
@@ -303,7 +304,11 @@ class _ClientOnboardingScreenState extends State<ClientOnboardingScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
-        child: PageView(
+        child: Column(
+          children: [
+            BeninfoodAppBar(api: widget.marketplace),
+            Expanded(
+              child: PageView(
           controller: _pageController,
           physics: const NeverScrollableScrollPhysics(),
           children: [
@@ -324,6 +329,9 @@ class _ClientOnboardingScreenState extends State<ClientOnboardingScreen> {
               onCreateProfile: _createProfile,
               onPickDocument: _pickDocument,
               onFinish: _finish,
+            ),
+          ],
+              ),
             ),
           ],
         ),

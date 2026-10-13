@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/data/marketplace_api.dart';
+import '../../../../core/navigation/notification_router.dart';
 import '../../../../core/errors/api_exception.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../shared/widgets/beninfood_header.dart';
@@ -155,7 +156,11 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
       color: RestaurantPalette.background,
       child: Column(
         children: [
-          BeninfoodAppBar(onMenu: widget.onOpenDrawer, api: widget.marketplace),
+          BeninfoodAppBar(
+            onMenu: widget.onOpenDrawer,
+            api: widget.marketplace,
+            audience: NotificationAudience.vendor,
+          ),
           Expanded(child: _buildBody()),
         ],
       ),

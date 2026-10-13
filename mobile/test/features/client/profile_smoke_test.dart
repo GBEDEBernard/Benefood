@@ -75,6 +75,12 @@ MockClient _mockBackend() {
   });
 }
 
+/// Message intégral de la feuille de détail : la tuile de la liste, elle,
+/// tronque le texte (`maxLines: 2`).
+Finder _fullBody(String value) => find.byWidgetPredicate(
+  (widget) => widget is Text && widget.data == value && widget.maxLines == null,
+);
+
 late int _selectedTab;
 
 GoRouter _router(SessionProvider session, MarketplaceApi api) {
@@ -200,11 +206,15 @@ void main() {
       expect(find.text('Commande acceptée'), findsOneWidget);
       expect(find.text('Commande livrée'), findsOneWidget);
 
-      // Marquage lu : POST /me/notifications/{id}/read (404 muet en test).
+      // Marquage lu : POST /me/notifications/{id}/read (404 muet en test),
+      // puis ouverture du contenu complet dans la feuille de détail.
       await tester.tap(find.text('Commande acceptée'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Commande acceptée'), findsOneWidget);
+      // Tuile de la liste + titre de la feuille de détail.
+      expect(find.text('Commande acceptée'), findsNWidgets(2));
+      expect(_fullBody('Chez Awalou prépare votre commande.'), findsOneWidget);
+      expect(find.text('Commande'), findsOneWidget);
       expect(tester.takeException(), isNull);
     },
   );

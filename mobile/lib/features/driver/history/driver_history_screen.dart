@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/data/marketplace_api.dart';
+import '../../../core/navigation/notification_router.dart';
 import '../../../core/errors/api_exception.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../shared/models/delivery.dart';
@@ -66,6 +67,7 @@ class _DriverHistoryScreenState extends State<DriverHistoryScreen> {
           BeninfoodAppBar(
             onMenu: widget.onOpenMenu,
             api: widget.marketplace,
+            audience: NotificationAudience.driver,
           ),
           Expanded(child: _buildBody()),
         ],

@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../../core/auth/session_provider.dart';
 import '../../../core/data/marketplace_api.dart';
+import '../../../core/navigation/notification_router.dart';
 import '../../../core/errors/api_exception.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_dimens.dart';
@@ -242,6 +243,7 @@ class _VendorAccountScreenState extends State<VendorAccountScreen> {
             marketplace: widget.marketplace,
             uploadingAvatar: _uploadingAvatar,
             onMenu: widget.onOpenMenu,
+            audience: NotificationAudience.vendor,
           ),
             Expanded(
               child: RefreshIndicator(
@@ -367,6 +369,14 @@ class _VendorAccountScreenState extends State<VendorAccountScreen> {
         title: 'Préférences boutique',
         subtitle: 'Reversement, notifications, langue...',
         onTap: () => _openRoute('/vendor/settings'),
+      ),
+      ProfileMenuEntry(
+        icon: Icons.inventory_2_outlined,
+        tint: AppColors.orangeLight,
+        accent: AppColors.orange,
+        title: 'Mes colis',
+        subtitle: 'Envoyer et suivre vos expéditions...',
+        onTap: () => _openRoute('/vendor/parcels'),
       ),
       ProfileMenuEntry(
         icon: Icons.notifications_none,

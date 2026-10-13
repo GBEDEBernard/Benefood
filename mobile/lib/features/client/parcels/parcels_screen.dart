@@ -3,22 +3,31 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/data/marketplace_api.dart';
 import '../../../core/errors/api_exception.dart';
+import '../../../core/navigation/notification_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_dimens.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../shared/models/parcel.dart';
 import '../../../shared/widgets/amount_widgets.dart';
+import '../../../shared/widgets/beninfood_header.dart';
+import '../../../shared/widgets/profile_widgets.dart';
 import '../../../shared/widgets/status_badge.dart';
 import '../../../shared/widgets/state_widgets.dart';
 
-/// Mes colis — expéditions du client (cahier v1.0, phase 3).
+/// Mes colis — expéditions de l'espace courant (cahier v1.0, phase 3).
 ///
 /// Liste des envois avec statut, trajet A → B et frais ; accès à la création
-/// d'une nouvelle expédition et au suivi détaillé.
+/// d'une nouvelle expédition et au suivi détaillé. Partagée par le client et
+/// la boutique vendeuse, qui peuvent tous deux envoyer des colis.
 class ParcelsScreen extends StatefulWidget {
-  const ParcelsScreen({super.key, required this.marketplace});
+  const ParcelsScreen({
+    super.key,
+    required this.marketplace,
+    this.audience = NotificationAudience.client,
+  });
 
   final MarketplaceApi marketplace;
+  final NotificationAudience audience;
 
   @override
   State<ParcelsScreen> createState() => _ParcelsScreenState();
@@ -58,8 +67,13 @@ class _ParcelsScreenState extends State<ParcelsScreen> {
     }
   }
 
+  /// Base des routes colis de l'espace courant.
+  String get _basePath => widget.audience == NotificationAudience.vendor
+      ? '/vendor/parcels'
+      : '/client/parcels';
+
   Future<void> _openDetail(Parcel parcel) async {
-    await context.push('/client/parcels/${parcel.id}');
+    await context.push('$_basePath/${parcel.id}');
     await _load();
   }
 
@@ -68,24 +82,34 @@ class _ParcelsScreenState extends State<ParcelsScreen> {
     final theme = Theme.of(context);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Mes colis'),
-        backgroundColor: Colors.transparent,
-        foregroundColor: AppColors.text,
-        elevation: 0,
-      ),
       floatingActionButton: FloatingActionButton.extended(
         heroTag: 'parcel-new',
         backgroundColor: AppColors.orange,
         foregroundColor: Colors.white,
         onPressed: () async {
-          await context.push('/client/parcels/new');
+          await context.push('$_basePath/new');
           await _load();
         },
         icon: const Icon(Icons.add),
         label: const Text('Envoyer un colis'),
       ),
-      body: _buildBody(theme),
+      body: Column(
+        children: [
+          BeninfoodAppBar(
+            onMenu: () {
+              if (context.canPop()) {
+                context.pop();
+              } else {
+                context.go('/${widget.audience.name}');
+              }
+            },
+            api: widget.marketplace,
+            audience: widget.audience,
+          ),
+          const ProfilePageTitle('Mes colis'),
+          Expanded(child: _buildBody(theme)),
+        ],
+      ),
     );
   }
 

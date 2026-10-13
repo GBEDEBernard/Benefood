@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 
 import '../../../core/data/marketplace_api.dart';
 import '../../../core/errors/api_exception.dart';
+import '../../../core/navigation/notification_router.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../shared/models/order.dart';
 import '../../../shared/widgets/amount_widgets.dart';
 import '../../../shared/widgets/app_button.dart';
+import '../../../shared/widgets/beninfood_header.dart';
 import '../../../shared/widgets/package_item_tile.dart';
 import '../../../shared/widgets/status_badge.dart';
 import '../../../shared/widgets/state_widgets.dart';
@@ -145,17 +147,17 @@ class _VendorOrderDetailScreenState extends State<VendorOrderDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Commande'),
-        actions: [
-          IconButton(
-            tooltip: 'Rafraîchir',
-            icon: const Icon(Icons.refresh),
-            onPressed: _actionLoading ? null : _load,
-          ),
-        ],
-      ),
+    return BeninfoodPageScaffold(
+      title: 'Commande',
+      api: widget.marketplace,
+      audience: NotificationAudience.vendor,
+      actions: [
+        IconButton(
+          tooltip: 'Rafraîchir',
+          icon: const Icon(Icons.refresh),
+          onPressed: _actionLoading ? null : _load,
+        ),
+      ],
       body: _buildBody(),
     );
   }

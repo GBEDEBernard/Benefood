@@ -8,7 +8,9 @@ import '../../../core/errors/api_exception.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_dimens.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/models/user.dart';
 import '../../../shared/widgets/app_network_image.dart';
+import '../../../shared/widgets/beninfood_header.dart';
 import '../../../shared/widgets/feedback_widgets.dart';
 
 /// Édition du profil client : photo (upload), nom et e-mail (J153).
@@ -106,8 +108,26 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(title: const Text('Informations personnelles')),
-      body: ListView(
+      body: Column(
+        children: [
+          BeninfoodAppBar(
+            onMenu: () {
+              if (context.canPop()) {
+                context.pop();
+              } else {
+                context.go('/client');
+              }
+            },
+            api: widget.marketplace,
+          ),
+          Expanded(child: _buildBody(user, initials)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBody(User? user, String initials) {
+    return ListView(
         padding: const EdgeInsets.all(AppDimens.pagePadding),
         children: [
           Center(
@@ -271,7 +291,6 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
           ),
           const SizedBox(height: AppDimens.lg),
         ],
-      ),
     );
   }
 

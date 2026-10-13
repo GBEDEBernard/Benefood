@@ -170,6 +170,7 @@ class _DriverShellState extends State<DriverShell> {
       profile: profile,
       documents: documents,
       onRefresh: _loadStatus,
+      onOpenMenu: onOpenMenu,
     );
   }
 }

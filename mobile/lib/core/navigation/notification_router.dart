@@ -1,22 +1,78 @@
 import 'package:flutter/material.dart';
 
 import '../../features/client/orders/order_tracking_screen.dart';
-import '../../features/vendor/restaurant/screens/order_details_screen.dart';
+import '../../features/client/parcels/parcel_detail_screen.dart';
+import '../../features/driver/missions/mission_detail_screen.dart';
+import '../../features/vendor/orders/vendor_order_detail_screen.dart';
+import '../../shared/models/user.dart';
 import '../data/marketplace_api.dart';
 import '../../shared/widgets/feedback_widgets.dart';
 
+/// Espace depuis lequel une notification est lue (cloche, écran de la liste,
+/// push FCM). Il détermine l'écran ouvert quand l'utilisateur touche la
+/// notification : suivi client, détail commande vendeur ou mission livreur.
+enum NotificationAudience { client, vendor, driver }
+
+/// Espace correspondant au contexte actif de la session (`client`, `vendor`,
+/// `driver`) ; le client est le repli.
+NotificationAudience notificationAudienceFromRole(String? role) {
+  if (role == AppContext.vendor) {
+    return NotificationAudience.vendor;
+  }
+  if (role == AppContext.driver) {
+    return NotificationAudience.driver;
+  }
+  return NotificationAudience.client;
+}
+
 /// Navigation « notification → détail » (J24) : à partir des données d'une
-/// notification, ouvre le bon écran (détail d'une commande vendeur/client…).
+/// notification, ouvre le bon écran pour l'espace courant.
 ///
 /// Renvoie `true` quand un écran a été poussé.
 Future<bool> openNotificationTarget(
   BuildContext context, {
   required MarketplaceApi marketplace,
   required Map<String, dynamic> data,
-  bool isVendor = false,
+  NotificationAudience audience = NotificationAudience.client,
 }) async {
-  final rawOrderId = data['order_id'];
-  final orderId = rawOrderId is String && rawOrderId.isNotEmpty ? rawOrderId : null;
+  // Livreur : la cible est la course (mission) portée par la notification.
+  // Tant qu'aucun identifiant de course n'est fourni, la notification reste
+  // lisible mais n'a pas de destination dédiée.
+  if (audience == NotificationAudience.driver) {
+    final deliveryId =
+        notificationString(data, 'delivery_id') ??
+        notificationString(data, 'course_id');
+    if (deliveryId == null) {
+      return false;
+    }
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => MissionDetailScreen(
+          marketplace: marketplace,
+          deliveryId: deliveryId,
+        ),
+      ),
+    );
+    return true;
+  }
+
+  // Colis : le suivi s'ouvre dans l'espace de lecture (client ou vendeur
+  // expéditeur). Le livreur garde ses courses dans son onglet Colis.
+  final parcelId = notificationString(data, 'parcel_id');
+  if (parcelId != null) {
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => ParcelDetailScreen(
+          marketplace: marketplace,
+          parcelId: parcelId,
+          audience: audience,
+        ),
+      ),
+    );
+    return true;
+  }
+
+  final orderId = notificationOrderId(data);
 
   if (orderId == null) {
     return false;
@@ -28,18 +84,11 @@ Future<bool> openNotificationTarget(
       return true;
     }
 
-    final vendorSide = isVendor || data['role'] == 'vendor' || data['type'] == 'order.paid';
-
-    if (vendorSide) {
+    if (audience == NotificationAudience.vendor) {
       await Navigator.of(context).push(
         MaterialPageRoute<void>(
-          builder: (_) => OrderDetailsScreen(
-            order: order,
-            onAccept: (o) => _vendorAction(() => marketplace.vendorAccept(o.id)),
-            onRefuse: (o) => _vendorAction(() => marketplace.vendorRefuse(o.id, reason: 'Refusé par le vendeur')),
-            onPrepare: (o) => _vendorAction(() => marketplace.vendorPreparing(o.id)),
-            onReady: (o) => _vendorAction(() => marketplace.vendorReady(o.id)),
-          ),
+          builder: (_) =>
+              VendorOrderDetailScreen(marketplace: marketplace, order: order),
         ),
       );
     } else {
@@ -63,14 +112,12 @@ Future<bool> openNotificationTarget(
   }
 }
 
-Future<bool> _vendorAction(Future<void> Function() call) async {
-  try {
-    await call();
-    return true;
-  } catch (_) {
-    return false;
-  }
-}
-
+/// Identifiant de commande porté par les données d'une notification.
 String? notificationOrderId(Map<String, dynamic> data) =>
-    data['order_id'] is String ? data['order_id'] as String : null;
+    notificationString(data, 'order_id');
+
+/// Lit une chaîne non vide dans le payload d'une notification.
+String? notificationString(Map<String, dynamic> data, String key) {
+  final value = data[key];
+  return value is String && value.isNotEmpty ? value : null;
+}

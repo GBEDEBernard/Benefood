@@ -13,6 +13,7 @@ import 'package:beninfood/features/client/account/favorites_screen.dart';
 import 'package:beninfood/features/client/account/notifications_screen.dart';
 import 'package:beninfood/features/client/account/payment_methods_screen.dart';
 import 'package:beninfood/features/client/account/security_screen.dart';
+import 'package:beninfood/shared/widgets/beninfood_header.dart';
 
 class _NoopTokenStore implements TokenStore {
   @override
@@ -36,6 +37,16 @@ const _notifications = [
     'body': 'Chez Awalou prépare votre commande.',
     'read_at': null,
     'created_at': '2026-10-06T10:00:00Z',
+  },
+  {
+    'id': 'n2',
+    'type': 'order.paid',
+    'title': 'Commande reçue',
+    'body': 'Nouvelle commande #BF-0107 : 3 articles à préparer.',
+    'order_id': 'o-1',
+    'data': {'order_id': 'o-1', 'reference': 'BF-0107'},
+    'read_at': null,
+    'created_at': '2026-10-07T08:30:00Z',
   },
 ];
 
@@ -133,6 +144,12 @@ MarketplaceApi _api({bool empty = false}) {
   return MarketplaceApi(api);
 }
 
+/// Message intégral de la feuille de détail : la tuile de la liste, elle,
+/// tronque le texte (`maxLines: 2`).
+Finder _fullBody(String value) => find.byWidgetPredicate(
+  (widget) => widget is Text && widget.data == value && widget.maxLines == null,
+);
+
 Future<void> _pump(
   WidgetTester tester,
   Widget Function(MarketplaceApi api) build, {
@@ -165,7 +182,7 @@ void main() {
   ) async {
     await _pump(tester, (api) => SecurityScreen(marketplace: api));
 
-    expect(find.text('Sécurité'), findsOneWidget);
+    expect(find.byType(BeninfoodAppBar), findsOneWidget);
     expect(find.text('Changer le mot de passe'), findsOneWidget);
     expect(find.text('Mot de passe actuel'), findsOneWidget);
     expect(
@@ -184,9 +201,27 @@ void main() {
   ) async {
     await _pump(tester, (api) => NotificationsScreen(marketplace: api));
 
-    expect(find.text('Notifications'), findsOneWidget);
+    expect(find.byType(BeninfoodAppBar), findsOneWidget);
     expect(find.text('Commande acceptée'), findsOneWidget);
     expect(find.text('Tout lire'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('notifications : un appui ouvre le contenu complet', (
+    tester,
+  ) async {
+    await _pump(tester, (api) => NotificationsScreen(marketplace: api));
+
+    await tester.tap(find.text('Commande reçue'));
+    await tester.pumpAndSettle();
+
+    // Feuille de détail : catégorie, message intégral et action de suivi.
+    expect(find.text('Commande'), findsOneWidget);
+    expect(
+      _fullBody('Nouvelle commande #BF-0107 : 3 articles à préparer.'),
+      findsOneWidget,
+    );
+    expect(find.text('Suivre la commande'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 

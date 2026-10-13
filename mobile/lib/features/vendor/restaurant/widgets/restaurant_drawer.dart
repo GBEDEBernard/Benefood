@@ -108,40 +108,19 @@ class RestaurantDrawer extends StatelessWidget {
                 itemBuilder: (context, index) => _buildItem(context, index, _items[index]),
               ),
             ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-              child: Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(RestaurantPalette.radius),
-                  onTap: () {
-                    Navigator.of(context).pop();
-                    context.push('/vendor/wallet');
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF4B83F).withValues(alpha: 0.16),
-                      borderRadius: BorderRadius.circular(RestaurantPalette.radius),
-                      border: Border.all(color: const Color(0xFFF4B83F).withValues(alpha: 0.35)),
-                    ),
-                    child: const Row(
-                      children: [
-                        Icon(Icons.account_balance_wallet_outlined, size: 22, color: Color(0xFFF4B83F)),
-                        SizedBox(width: 14),
-                        Expanded(
-                          child: Text(
-                            'Portefeuille',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w700),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
+            // Raccourcis hors onglets : la boutique peut aussi envoyer des
+            // colis, comme un client.
+            _buildShortcut(
+              context,
+              icon: Icons.inventory_2_outlined,
+              label: 'Mes colis',
+              route: '/vendor/parcels',
+            ),
+            _buildShortcut(
+              context,
+              icon: Icons.account_balance_wallet_outlined,
+              label: 'Portefeuille',
+              route: '/vendor/wallet',
             ),
             const Padding(
               padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
@@ -182,6 +161,56 @@ class RestaurantDrawer extends StatelessWidget {
             foreground: isOpen ? const Color(0xFF86EFAC) : const Color(0xFFFCA5A5),
           ),
         ],
+      ),
+    );
+  }
+
+  /// Raccourci du bas du menu : ouvre une page dédiée à l'espace vendeur.
+  Widget _buildShortcut(
+    BuildContext context, {
+    required IconData icon,
+    required String label,
+    required String route,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(RestaurantPalette.radius),
+          onTap: () {
+            Navigator.of(context).pop();
+            context.push(route);
+          },
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF4B83F).withValues(alpha: 0.16),
+              borderRadius: BorderRadius.circular(RestaurantPalette.radius),
+              border: Border.all(
+                color: const Color(0xFFF4B83F).withValues(alpha: 0.35),
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(icon, size: 22, color: const Color(0xFFF4B83F)),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

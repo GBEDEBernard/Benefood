@@ -4,19 +4,29 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/data/marketplace_api.dart';
 import '../../../core/errors/api_exception.dart';
+import '../../../core/navigation/notification_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_dimens.dart';
 import '../../../shared/models/parcel.dart';
 import '../../../shared/widgets/amount_widgets.dart';
 import '../../../shared/widgets/app_button.dart';
 import '../../../shared/widgets/app_text_field.dart';
+import '../../../shared/widgets/beninfood_header.dart';
 import '../../../shared/widgets/feedback_widgets.dart';
 
-/// Envoi d'un colis (client) : adresses → devis → création → paiement.
+/// Envoi d'un colis (client ou boutique vendeuse) :
+/// adresses → devis → création → paiement.
 class ParcelCreateScreen extends StatefulWidget {
-  const ParcelCreateScreen({super.key, required this.marketplace});
+  const ParcelCreateScreen({
+    super.key,
+    required this.marketplace,
+    this.audience = NotificationAudience.client,
+  });
 
   final MarketplaceApi marketplace;
+
+  /// Espace d'envoi : client ou boutique vendeuse.
+  final NotificationAudience audience;
 
   @override
   State<ParcelCreateScreen> createState() => _ParcelCreateScreenState();
@@ -220,20 +230,34 @@ class _ParcelCreateScreenState extends State<ParcelCreateScreen> {
     }
   }
 
+  /// Base des routes colis de l'espace courant.
+  String get _basePath => widget.audience == NotificationAudience.vendor
+      ? '/vendor/parcels'
+      : '/client/parcels';
+
   void _goToDetail(Parcel parcel) {
-    context.pushReplacement('/client/parcels/${parcel.id}');
+    context.pushReplacement('$_basePath/${parcel.id}');
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Envoyer un colis'),
-        backgroundColor: Colors.transparent,
-        foregroundColor: AppColors.text,
-        elevation: 0,
+      body: Column(
+        children: [
+          BeninfoodAppBar(
+            onMenu: () {
+              if (context.canPop()) {
+                context.pop();
+              } else {
+                context.go(_basePath);
+              }
+            },
+            api: widget.marketplace,
+            audience: widget.audience,
+          ),
+          Expanded(child: _buildBody()),
+        ],
       ),
-      body: _buildBody(),
     );
   }
 

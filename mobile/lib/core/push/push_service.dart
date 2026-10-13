@@ -26,11 +26,12 @@ class PushService {
   /// Contexte racine fourni par l'app pour ouvrir les écrans du deep-link.
   static BuildContext? rootContext;
 
+  /// Espace courant (client, vendeur, livreur) : oriente le détail ouvert au
+  /// tap. Tenu à jour par l'app à chaque changement de contexte de session.
+  static NotificationAudience audience = NotificationAudience.client;
+
   /// Initialise FCM et abonne les écouteurs. Idempotent.
-  static Future<void> initialize({
-    required MarketplaceApi marketplace,
-    required bool isVendor,
-  }) async {
+  static Future<void> initialize({required MarketplaceApi marketplace}) async {
     if (_initialized) {
       return;
     }
@@ -65,20 +66,12 @@ class PushService {
     // Notification tapée alors que l'app est terminée.
     final initialMessage = await FirebaseMessaging.instance.getInitialMessage();
     if (initialMessage != null) {
-      _handleTap(
-        marketplace,
-        _dataOf(initialMessage),
-        isVendor: isVendor,
-      );
+      _handleTap(marketplace, _dataOf(initialMessage));
     }
 
     // Notification tapée depuis l'arrière-plan.
     FirebaseMessaging.onMessageOpenedApp.listen((message) {
-      _handleTap(
-        marketplace,
-        _dataOf(message),
-        isVendor: isVendor,
-      );
+      _handleTap(marketplace, _dataOf(message));
     });
 
     // Premier plan : le backend envoie des messages « notification » ; on
@@ -92,9 +85,8 @@ class PushService {
   /// Anti-doublon : FCM délivre parfois le même tap deux fois.
   static void _handleTap(
     MarketplaceApi marketplace,
-    Map<String, dynamic> data, {
-    required bool isVendor,
-  }) {
+    Map<String, dynamic> data,
+  ) {
     final key = '${data['type']}|${data['order_id']}';
     if (key == _lastPayloadKey) {
       return;
@@ -110,7 +102,7 @@ class PushService {
       context,
       marketplace: marketplace,
       data: data,
-      isVendor: isVendor,
+      audience: audience,
     );
   }
 

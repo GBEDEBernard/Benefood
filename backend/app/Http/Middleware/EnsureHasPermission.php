@@ -20,10 +20,15 @@ class EnsureHasPermission
             return Api::error('Vous devez être authentifié.', 'unauthenticated', 401);
         }
 
-        if (! $user->hasPermission($permission)) {
-            return Api::error('Accès refusé.', 'forbidden', 403);
+        // Une ou plusieurs permissions acceptées, séparées par « | »
+        // (ex. `permission:client.parcels.manage|vendor.parcels.manage`) :
+        // il suffit que le compte possède l'une d'elles.
+        foreach (explode('|', $permission) as $slug) {
+            if ($user->hasPermission(trim($slug))) {
+                return $next($request);
+            }
         }
 
-        return $next($request);
+        return Api::error('Accès refusé.', 'forbidden', 403);
     }
 }

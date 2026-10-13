@@ -57,6 +57,12 @@ class NotificationTemplatesSeeder extends Seeder
                 'body' => 'Votre commande #{reference} a été remboursée ({amount} FCFA).',
             ],
             [
+                'event' => 'parcel.delivered',
+                'channel' => NotificationTemplateChannel::Push->value,
+                'subject' => 'Colis livré',
+                'body' => 'Votre colis #{reference} a été livré.',
+            ],
+            [
                 'event' => 'complaint.opened',
                 'channel' => NotificationTemplateChannel::Push->value,
                 'subject' => 'Nouvelle réclamation',

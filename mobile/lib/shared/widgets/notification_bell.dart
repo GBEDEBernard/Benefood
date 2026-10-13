@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../core/data/marketplace_api.dart';
@@ -5,25 +7,81 @@ import '../../core/navigation/notification_router.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_dimens.dart';
 import '../../core/utils/formatters.dart';
+import 'notification_detail_sheet.dart';
+
+/// Anti-doublon des bandeaux : plusieurs cloches peuvent être montées en même
+/// temps (onglets d'un même shell). La première qui détecte l'arrivée affiche
+/// le bandeau, les suivantes l'ignorent.
+class _AnnouncedNotifications {
+  static const _window = Duration(minutes: 2);
+
+  static String? _lastId;
+  static DateTime? _lastAt;
+
+  static bool shouldAnnounce(String id) {
+    final lastAt = _lastAt;
+    final already =
+        _lastId == id &&
+        lastAt != null &&
+        DateTime.now().difference(lastAt) < _window;
+    if (already) {
+      return false;
+    }
+    _lastId = id;
+    _lastAt = DateTime.now();
+    return true;
+  }
+}
 
 /// Cloche de notification partagée : pastille = nombre de notifications
 /// non lues (GET /me/stats), ouverture = feuille des notifications réelles.
+///
+/// [audience] indique l'espace courant : les notifications ouvertes depuis la
+/// cloche mènent alors au détail de l'espace correspondant (suivi client,
+/// commande vendeur, mission livreur).
 class NotificationBell extends StatefulWidget {
-  const NotificationBell({super.key, required this.api});
+  const NotificationBell({
+    super.key,
+    required this.api,
+    this.audience = NotificationAudience.client,
+  });
 
   final MarketplaceApi api;
+  final NotificationAudience audience;
 
   @override
   State<NotificationBell> createState() => _NotificationBellState();
 }
 
-class _NotificationBellState extends State<NotificationBell> {
+class _NotificationBellState extends State<NotificationBell>
+    with WidgetsBindingObserver {
+  static const _pollInterval = Duration(seconds: 30);
+
   int? _unread;
+  Timer? _pollTimer;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadUnread();
+    _pollTimer = Timer.periodic(_pollInterval, (_) => _loadUnread());
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _pollTimer?.cancel();
+    super.dispose();
+  }
+
+  /// Une notification peut être arrivée pendant que l'app était en veille : on
+  /// relit le compteur dès le retour au premier plan.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _loadUnread();
+    }
   }
 
   Future<void> _loadUnread() async {
@@ -32,15 +90,99 @@ class _NotificationBellState extends State<NotificationBell> {
       if (!mounted) {
         return;
       }
-      setState(() {
-        _unread = (stats['unread_notifications'] as num?)?.toInt() ?? 0;
-      });
+      final unread = (stats['unread_notifications'] as num?)?.toInt() ?? 0;
+      final previous = _unread;
+      if (unread != previous) {
+        setState(() => _unread = unread);
+      }
+      // Le compteur monte pendant la session : une notification vient
+      // d'arriver, on la signale tout de suite par un bandeau cliquable.
+      if (previous != null && unread > previous) {
+        await _announceLatest();
+      }
     } catch (_) {
       if (!mounted) {
         return;
       }
       setState(() => _unread = null);
     }
+  }
+
+  /// Bandeau « nouvelle notification » : titre + message, avec une action qui
+  /// ouvre le contenu complet (même feuille que la cloche).
+  Future<void> _announceLatest() async {
+    final List<Map<String, dynamic>> items;
+    try {
+      items = await widget.api.myNotifications();
+    } catch (_) {
+      return;
+    }
+    if (!mounted || items.isEmpty) {
+      return;
+    }
+
+    final latest = items.firstWhere(
+      (item) => item['read_at'] == null,
+      orElse: () => items.first,
+    );
+    final id = latest['id'] is String ? latest['id'] as String : '';
+    if (id.isEmpty || !_AnnouncedNotifications.shouldAnnounce(id)) {
+      return;
+    }
+
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    if (messenger == null) {
+      return;
+    }
+
+    final title = latest['title'] is String
+        ? latest['title'] as String
+        : 'Nouvelle notification';
+    final body = latest['body'] is String ? latest['body'] as String : '';
+
+    messenger.showSnackBar(
+      SnackBar(
+        duration: const Duration(seconds: 8),
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: AppColors.text,
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: AppColors.surface,
+                fontSize: 14,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            if (body.isNotEmpty)
+              Text(
+                body,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: AppColors.surface,
+                  fontSize: 12.5,
+                ),
+              ),
+          ],
+        ),
+        action: SnackBarAction(
+          label: 'Voir',
+          textColor: AppColors.orangeLight,
+          onPressed: () => showNotificationDetail(
+            context,
+            item: latest,
+            marketplace: widget.api,
+            audience: widget.audience,
+          ),
+        ),
+      ),
+    );
   }
 
   Future<void> _openSheet() async {
@@ -52,7 +194,8 @@ class _NotificationBellState extends State<NotificationBell> {
           top: Radius.circular(AppDimens.radiusXl),
         ),
       ),
-      builder: (_) => _NotificationsSheet(api: widget.api),
+      builder: (_) =>
+          _NotificationsSheet(api: widget.api, audience: widget.audience),
     );
     if (mounted) {
       await _loadUnread();
@@ -113,10 +256,11 @@ class _NotificationBellState extends State<NotificationBell> {
 /// Feuille des notifications : liste réelle (GET /me/notifications),
 /// marquage lu à l'ouverture d'un élément et « Tout lire » groupé.
 class _NotificationsSheet extends StatefulWidget {
-  // `_openItem` : marquer lu puis naviguer vers la cible (détail commande…).
-  const _NotificationsSheet({required this.api});
+  // `_openItem` : marquer lu puis ouvrir le contenu complet.
+  const _NotificationsSheet({required this.api, required this.audience});
 
   final MarketplaceApi api;
+  final NotificationAudience audience;
 
   @override
   State<_NotificationsSheet> createState() => _NotificationsSheetState();
@@ -133,8 +277,7 @@ class _NotificationsSheetState extends State<_NotificationsSheet> {
 
   bool _isUnread(Map<String, dynamic> item) => item['read_at'] == null;
 
-  /// Marque lu puis ouvre la cible (détail commande pour les commandes).
-  /// Un élément déjà lu s'ouvre aussi : seul le marquage est conditionné.
+  /// Marque lue puis ouvre le détail complet de la notification.
   Future<void> _openItem(BuildContext context, Map<String, dynamic> item) async {
     final id = item['id'];
     if (_isUnread(item) && id is String) {
@@ -145,12 +288,15 @@ class _NotificationsSheetState extends State<_NotificationsSheet> {
         // Le retour visuel (pastille) prime : l'échec réseau reste muet.
       }
     }
-    final data = item['data'];
-    if (data is Map<String, dynamic> && data.isNotEmpty) {
-      if (context.mounted) {
-        await openNotificationTarget(context, marketplace: widget.api, data: data);
-      }
+    if (!context.mounted) {
+      return;
     }
+    await showNotificationDetail(
+      context,
+      item: item,
+      marketplace: widget.api,
+      audience: widget.audience,
+    );
   }
 
   Future<void> _markAllRead() async {
@@ -261,19 +407,6 @@ class _NotificationTile extends StatelessWidget {
   final Map<String, dynamic> item;
   final VoidCallback onTap;
 
-  static IconData _iconFor(String type) {
-    if (type.startsWith('order.')) {
-      return Icons.receipt_long_outlined;
-    }
-    if (type.startsWith('complaint.')) {
-      return Icons.support_agent;
-    }
-    if (type.startsWith('delivery.')) {
-      return Icons.delivery_dining_outlined;
-    }
-    return Icons.notifications_none;
-  }
-
   @override
   Widget build(BuildContext context) {
     final type = item['type'] is String ? item['type'] as String : '';
@@ -295,7 +428,7 @@ class _NotificationTile extends StatelessWidget {
           shape: BoxShape.circle,
         ),
         child: Icon(
-          _iconFor(type),
+          notificationIcon(type),
           size: 20,
           color: unread ? AppColors.orange : AppColors.green,
         ),

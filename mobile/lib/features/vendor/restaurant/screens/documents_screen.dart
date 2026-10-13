@@ -3,6 +3,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/data/marketplace_api.dart';
+import '../../../../core/navigation/notification_router.dart';
 import '../../../../core/errors/api_exception.dart';
 import '../../../../shared/widgets/beninfood_header.dart';
 import '../../../../shared/widgets/feedback_widgets.dart';
@@ -142,7 +143,11 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
       color: RestaurantPalette.background,
       child: Column(
         children: [
-          BeninfoodAppBar(onMenu: widget.onOpenDrawer, api: widget.marketplace),
+          BeninfoodAppBar(
+            onMenu: widget.onOpenDrawer,
+            api: widget.marketplace,
+            audience: NotificationAudience.vendor,
+          ),
           Expanded(child: _buildBody()),
         ],
       ),

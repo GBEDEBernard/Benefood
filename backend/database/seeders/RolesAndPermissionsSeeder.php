@@ -51,6 +51,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'vendor.orders.manage' => ['name' => 'Suivre ses commandes', 'module' => 'vendor'],
             'vendor.finance.earnings' => ['name' => 'Consulter ses gains', 'module' => 'vendor'],
             'vendor.delivery.rates.manage' => ['name' => 'Gérer ses tarifs de livraison', 'module' => 'vendor'],
+            'vendor.parcels.manage' => ['name' => 'Envoyer et suivre des colis', 'module' => 'vendor'],
             'client.cart.manage' => ['name' => 'Gérer son panier', 'module' => 'client'],
             'client.orders.manage' => ['name' => 'Gérer ses commandes', 'module' => 'client'],
             'client.parcels.manage' => ['name' => 'Envoyer et suivre des colis', 'module' => 'client'],

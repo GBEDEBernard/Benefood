@@ -13,6 +13,7 @@ import '../../../shared/models/checkout.dart';
 import '../../../shared/models/order.dart';
 import '../../../shared/widgets/app_button.dart';
 import '../../../shared/widgets/amount_widgets.dart';
+import '../../../shared/widgets/beninfood_header.dart';
 import '../../../shared/widgets/feedback_widgets.dart';
 import '../../../shared/widgets/state_widgets.dart';
 import '../orders/order_tracking_screen.dart';
@@ -276,8 +277,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Valider la commande')),
+    return BeninfoodPageScaffold(
+      title: 'Valider la commande',
+      api: widget.marketplace,
       body: _order != null ? _buildPaymentStep() : _buildAddressStep(),
     );
   }

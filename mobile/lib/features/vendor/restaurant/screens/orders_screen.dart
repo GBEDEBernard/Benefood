@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/data/marketplace_api.dart';
+import '../../../../core/navigation/notification_router.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../shared/models/order.dart';
 import '../../../../shared/widgets/beninfood_header.dart';
@@ -91,6 +92,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
           BeninfoodAppBar(
             onMenu: widget.onOpenDrawer,
             api: widget.marketplace,
+            audience: NotificationAudience.vendor,
           ),
           Expanded(
             child: RefreshIndicator(
@@ -136,6 +138,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
       MaterialPageRoute<void>(
         builder: (context) => OrderDetailsScreen(
           order: order,
+          marketplace: widget.marketplace,
           busy: widget.busyOrderIds.contains(order.id),
           onAccept: widget.onAccept,
           onRefuse: widget.onRefuse,

@@ -5,6 +5,7 @@ import '../../../core/errors/api_exception.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_dimens.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/widgets/beninfood_header.dart';
 import '../../../shared/widgets/feedback_widgets.dart';
 
 /// Moyens de paiement du client : liste, ajout, défaut, suppression (J153).
@@ -128,9 +129,10 @@ class _PaymentMethodsScreenState extends State<PaymentMethodsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return BeninfoodPageScaffold(
+      title: 'Méthodes de paiement',
+      api: widget.marketplace,
       backgroundColor: AppColors.background,
-      appBar: AppBar(title: const Text('Méthodes de paiement')),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _openAddSheet,
         icon: const Icon(Icons.add),

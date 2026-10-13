@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/data/marketplace_api.dart';
+import '../../../core/navigation/notification_router.dart';
 import '../../../core/errors/api_exception.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_dimens.dart';
+import '../../../shared/widgets/beninfood_header.dart';
 import '../../../shared/widgets/feedback_widgets.dart';
 
 /// Préférences de la boutique (J21 §3.6) : mode de reversement, préférences de
@@ -93,13 +95,11 @@ class _VendorSettingsScreenState extends State<VendorSettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return BeninfoodPageScaffold(
+      title: 'Préférences boutique',
+      api: widget.marketplace,
+      audience: NotificationAudience.vendor,
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        backgroundColor: AppColors.background,
-        foregroundColor: AppColors.text,
-        title: const Text('Préférences boutique'),
-      ),
       body: _buildBody(),
     );
   }

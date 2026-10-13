@@ -100,6 +100,12 @@ class Vendor extends Model
         $opensAt = $hour->opens_at?->format('H:i:s');
         $closesAt = $hour->closes_at?->format('H:i:s');
 
+        if ($opensAt !== null && $closesAt !== null && $closesAt < $opensAt) {
+            // Plage qui traverse minuit (ex. 20:00 → 01:00) : encore ouverte
+            // après l'ouverture, ou déjà ouverte avant la fermeture.
+            return $time >= $opensAt || $time <= $closesAt;
+        }
+
         return ($opensAt === null || $time >= $opensAt)
             && ($closesAt === null || $time <= $closesAt);
     }

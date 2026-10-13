@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/data/marketplace_api.dart';
+import '../../../core/navigation/notification_router.dart';
 import '../../../core/errors/api_exception.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_dimens.dart';
@@ -99,6 +100,7 @@ class _DriverParcelsScreenState extends State<DriverParcelsScreen> {
           BeninfoodAppBar(
             onMenu: widget.onOpenMenu,
             api: widget.marketplace,
+            audience: NotificationAudience.driver,
           ),
           Expanded(child: _buildBody()),
         ],

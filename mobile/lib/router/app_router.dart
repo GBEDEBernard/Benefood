@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import '../core/auth/session_provider.dart';
 import '../core/data/marketplace_api.dart';
+import '../core/navigation/notification_router.dart';
 import '../features/auth/presentation/landing_screen.dart';
 import '../features/auth/presentation/login_screen.dart';
 import '../features/auth/presentation/register_screen.dart';
@@ -269,7 +270,32 @@ GoRouter buildAppRouter(SessionProvider session, MarketplaceApi marketplace) {
       ),
       GoRoute(
         path: '/vendor/notifications',
-        builder: (context, state) => NotificationsScreen(marketplace: marketplace),
+        builder: (context, state) => NotificationsScreen(
+          marketplace: marketplace,
+          audience: NotificationAudience.vendor,
+        ),
+      ),
+      GoRoute(
+        path: '/vendor/parcels',
+        builder: (context, state) => ParcelsScreen(
+          marketplace: marketplace,
+          audience: NotificationAudience.vendor,
+        ),
+      ),
+      GoRoute(
+        path: '/vendor/parcels/new',
+        builder: (context, state) => ParcelCreateScreen(
+          marketplace: marketplace,
+          audience: NotificationAudience.vendor,
+        ),
+      ),
+      GoRoute(
+        path: '/vendor/parcels/:id',
+        builder: (context, state) => ParcelDetailScreen(
+          marketplace: marketplace,
+          parcelId: state.pathParameters['id']!,
+          audience: NotificationAudience.vendor,
+        ),
       ),
       GoRoute(
         path: '/vendor/security',
@@ -296,7 +322,10 @@ GoRouter buildAppRouter(SessionProvider session, MarketplaceApi marketplace) {
       ),
       GoRoute(
         path: '/driver/notifications',
-        builder: (context, state) => NotificationsScreen(marketplace: marketplace),
+        builder: (context, state) => NotificationsScreen(
+          marketplace: marketplace,
+          audience: NotificationAudience.driver,
+        ),
       ),
       GoRoute(
         path: '/driver/security',

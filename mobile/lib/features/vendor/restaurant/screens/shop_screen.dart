@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/data/marketplace_api.dart';
+import '../../../../core/navigation/notification_router.dart';
+import '../../../../shared/widgets/notification_bell.dart';
 import '../../../../shared/models/vendor.dart';
 import '../../../../shared/widgets/app_network_image.dart';
 import '../restaurant_palette.dart';
@@ -134,17 +136,38 @@ class ShopScreen extends StatelessWidget {
               ),
               Align(
                 alignment: Alignment.centerRight,
-                child: FilledButton(
-                  onPressed: () => _openEditor(
-                    context,
-                    ShopInfoEditScreen(vendor: _vendor, marketplace: marketplace),
-                  ),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: RestaurantPalette.orange,
-                    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                  ),
-                  child: const Text('Modifier', style: TextStyle(fontWeight: FontWeight.w700)),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (marketplace != null)
+                      NotificationBell(
+                        api: marketplace!,
+                        audience: NotificationAudience.vendor,
+                      ),
+                    FilledButton(
+                      onPressed: () => _openEditor(
+                        context,
+                        ShopInfoEditScreen(
+                          vendor: _vendor,
+                          marketplace: marketplace,
+                        ),
+                      ),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: RestaurantPalette.orange,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 18,
+                          vertical: 10,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                      child: const Text(
+                        'Modifier',
+                        style: TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],

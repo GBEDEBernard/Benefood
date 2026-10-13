@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/data/marketplace_api.dart';
+import '../../../../core/navigation/notification_router.dart';
 import '../../../../core/errors/api_exception.dart';
+import '../../../../shared/widgets/beninfood_header.dart';
 import '../../../../shared/widgets/feedback_widgets.dart';
 import '../restaurant_palette.dart';
 
@@ -104,16 +106,11 @@ class _ShopZonesEditScreenState extends State<ShopZonesEditScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return BeninfoodPageScaffold(
+      title: 'Zones desservies',
+      api: widget.marketplace,
+      audience: NotificationAudience.vendor,
       backgroundColor: RestaurantPalette.background,
-      appBar: AppBar(
-        backgroundColor: RestaurantPalette.white,
-        foregroundColor: RestaurantPalette.darkText,
-        title: const Text(
-          'Zones desservies',
-          style: TextStyle(fontWeight: FontWeight.w800),
-        ),
-      ),
       body: _buildBody(),
       bottomNavigationBar: _options.isEmpty || _error != null
           ? null

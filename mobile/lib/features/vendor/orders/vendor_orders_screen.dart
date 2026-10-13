@@ -3,9 +3,11 @@ import 'package:flutter/material.dart';
 import '../../../core/data/marketplace_api.dart';
 import '../../../core/errors/api_exception.dart';
 import '../../../core/utils/formatters.dart';
+import '../../../core/navigation/notification_router.dart';
 import '../../../shared/models/order.dart';
 import '../../../shared/widgets/app_network_image.dart';
 import '../../../shared/widgets/amount_widgets.dart';
+import '../../../shared/widgets/beninfood_header.dart';
 import '../../../shared/widgets/status_badge.dart';
 import '../../../shared/widgets/state_widgets.dart';
 import 'vendor_order_detail_screen.dart';
@@ -154,8 +156,10 @@ class _VendorOrdersScreenState extends State<VendorOrdersScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Commandes')),
+    return BeninfoodPageScaffold(
+      title: 'Commandes',
+      api: widget.marketplace,
+      audience: NotificationAudience.vendor,
       body: _buildBody(),
     );
   }

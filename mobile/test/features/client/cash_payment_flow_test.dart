@@ -152,7 +152,16 @@ void main() {
     await _pumpCheckout(tester, backend);
 
     expect(find.text('Mode de paiement'), findsOneWidget);
-    expect(find.text('Mobile Money (en ligne)'), findsOneWidget);
+
+    // L'en-tête BÉN INFOOD occupe le haut de l'écran : les options de
+    // paiement se trouvent plus bas dans la liste, on défile jusqu'à elles.
+    final onlineOption = find.text('Mobile Money (en ligne)');
+    await tester.scrollUntilVisible(
+      onlineOption,
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(onlineOption, findsOneWidget);
 
     final cashOption = find.text('Paiement à la livraison');
     await tester.scrollUntilVisible(

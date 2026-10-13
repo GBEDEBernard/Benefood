@@ -6,6 +6,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_dimens.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/formatters.dart';
+import '../../../shared/widgets/beninfood_header.dart';
 import '../../../shared/widgets/feedback_widgets.dart';
 
 /// Coupons du client : liste réelle (GET /me/coupons), copie du code.
@@ -47,9 +48,10 @@ class _CouponsScreenState extends State<CouponsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return BeninfoodPageScaffold(
+      title: 'Mes coupons',
+      api: widget.marketplace,
       backgroundColor: AppColors.background,
-      appBar: AppBar(title: const Text('Mes coupons')),
       body: FutureBuilder<List<Map<String, dynamic>>>(
         future: _future,
         builder: (context, snapshot) {

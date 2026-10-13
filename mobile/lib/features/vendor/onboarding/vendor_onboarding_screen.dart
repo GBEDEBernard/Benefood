@@ -442,6 +442,7 @@ class _VendorOnboardingScreenState extends State<VendorOnboardingScreen> {
               ),
               OnboardingScaffold(
                 stepIndex: 1,
+                api: widget.marketplace,
                 title: 'Informations légales',
                 subtitle: 'Renseignez les informations légales de votre entreprise.',
                 nextLabel: 'Suivant',
@@ -459,6 +460,7 @@ class _VendorOnboardingScreenState extends State<VendorOnboardingScreen> {
               ),
               OnboardingScaffold(
                 stepIndex: 2,
+                api: widget.marketplace,
                 title: 'Documents requis',
                 subtitle: 'Envoyez les justificatifs demandés pour la vérification.',
                 nextLabel: 'Suivant',
@@ -473,6 +475,7 @@ class _VendorOnboardingScreenState extends State<VendorOnboardingScreen> {
               ),
               OnboardingScaffold(
                 stepIndex: 3,
+                api: widget.marketplace,
                 title: 'Configuration de la boutique',
                 subtitle: 'Personnalisez la vitrine de votre boutique.',
                 nextLabel: 'Suivant',

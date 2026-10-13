@@ -6,11 +6,14 @@ use App\Enums\ParcelStatus;
 use App\Enums\PaymentStatus;
 use App\Exceptions\DomainException;
 use App\Models\DriverProfile;
+use App\Models\Notification;
+use App\Models\Parcel;
 use App\Models\Role;
 use App\Models\User;
 use App\Services\FinanceService;
 use App\Services\ParcelPricingService;
 use App\Services\ParcelService;
+use Database\Seeders\NotificationTemplatesSeeder;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
@@ -31,6 +34,17 @@ class ParcelFeatureTest extends TestCase
     {
         $user = User::factory()->create(['phone' => fake()->unique()->numerify('+22997######')]);
         $user->roles()->attach(Role::where('slug', 'client')->firstOrFail(), ['is_active' => true]);
+
+        Sanctum::actingAs($user);
+
+        return $user;
+    }
+
+    /** Une boutique vendeuse peut elle aussi expédier des colis. */
+    private function vendor(): User
+    {
+        $user = User::factory()->create(['phone' => fake()->unique()->numerify('+22995######')]);
+        $user->roles()->attach(Role::where('slug', 'vendor')->firstOrFail(), ['is_active' => true]);
 
         Sanctum::actingAs($user);
 
@@ -181,6 +195,58 @@ class ParcelFeatureTest extends TestCase
 
         $wallet = app(FinanceService::class)->walletFor($driver);
         $this->assertSame(0, (int) $wallet->fresh()->pending_balance);
+    }
+
+    public function test_vendor_can_create_list_and_pay_parcel(): void
+    {
+        $vendor = $this->vendor();
+
+        $this->postJson('/api/v1/parcels', [
+            'pickup' => $this->pickup(),
+            'dropoff' => $this->dropoff(),
+            'description' => 'Colis boutique',
+        ])
+            ->assertCreated()
+            ->assertJsonPath('data.status', 'awaiting_payment');
+
+        $parcel = Parcel::firstOrFail();
+        $this->assertSame($vendor->id, $parcel->user_id);
+
+        $this->getJson('/api/v1/parcels')
+            ->assertOk()
+            ->assertJsonPath('data.0.id', $parcel->id);
+
+        $this->getJson("/api/v1/parcels/{$parcel->id}")
+            ->assertOk()
+            ->assertJsonPath('data.reference', $parcel->reference);
+
+        $this->postJson('/api/v1/payments/create', ['parcel_id' => $parcel->id])
+            ->assertOk();
+    }
+
+    public function test_delivered_parcel_notifies_sender_with_parcel_template(): void
+    {
+        $this->seed(NotificationTemplatesSeeder::class);
+
+        $client = $this->client();
+        $parcels = app(ParcelService::class);
+        $parcel = $parcels->create($client, $this->pickup(), $this->dropoff());
+        $parcels->confirmPayment($parcel->fresh(), (int) $parcel->delivery_fee);
+
+        $driver = $this->driver();
+        Sanctum::actingAs($driver->user);
+        $this->postJson("/api/v1/driver/me/parcels/{$parcel->id}/accept")->assertOk();
+        $this->postJson("/api/v1/driver/me/parcels/{$parcel->id}/pickup")->assertOk();
+        $this->postJson("/api/v1/driver/me/parcels/{$parcel->id}/start")->assertOk();
+        $this->postJson("/api/v1/driver/me/parcels/{$parcel->id}/deliver")->assertOk();
+
+        $notification = Notification::where('type', 'parcel.delivered')
+            ->where('user_id', $client->id)
+            ->firstOrFail();
+
+        $this->assertSame('Colis livré', $notification->title);
+        $this->assertStringContainsString($parcel->reference, $notification->body);
+        $this->assertSame($parcel->id, data_get($notification->data, 'parcel_id'));
     }
 
     public function test_parcel_service_blocks_invalid_transitions(): void
