@@ -10,6 +10,7 @@ import 'package:beninfood/core/auth/session_provider.dart';
 import 'package:beninfood/core/http/api_client.dart';
 import 'package:beninfood/features/auth/presentation/login_screen.dart';
 import 'package:beninfood/features/auth/presentation/register_screen.dart';
+import 'package:beninfood/features/auth/presentation/reset_password_screen.dart';
 
 class _NoopTokenStore implements TokenStore {
   @override
@@ -39,8 +40,12 @@ SessionProvider _session() => SessionProvider(
       ),
     );
 
-GoRouter _router(bool login) => GoRouter(
-      initialLocation: login ? '/login' : '/register',
+GoRouter _router({required bool login, required bool reset}) => GoRouter(
+      initialLocation: reset
+          ? '/reset-password'
+          : login
+              ? '/login'
+              : '/register',
       routes: [
         GoRoute(
           path: '/login',
@@ -51,12 +56,12 @@ GoRouter _router(bool login) => GoRouter(
           builder: (context, state) => RegisterScreen(session: _session()),
         ),
         GoRoute(
-          path: '/',
-          builder: (context, state) => const Scaffold(body: Text('ACCUEIL')),
+          path: '/reset-password',
+          builder: (context, state) => ResetPasswordScreen(session: _session()),
         ),
         GoRoute(
-          path: '/reset-password',
-          builder: (context, state) => const Scaffold(body: Text('RESET')),
+          path: '/',
+          builder: (context, state) => const Scaffold(body: Text('ACCUEIL')),
         ),
       ],
     );
@@ -66,13 +71,14 @@ GoRouter _router(bool login) => GoRouter(
 Future<void> _pump(
   WidgetTester tester, {
   required bool login,
+  bool reset = false,
   Size size = const Size(1170, 2532),
 }) async {
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 3.0;
   addTearDown(tester.view.reset);
 
-  await tester.pumpWidget(MaterialApp.router(routerConfig: _router(login)));
+  await tester.pumpWidget(MaterialApp.router(routerConfig: _router(login: login, reset: reset)));
   await tester.pumpAndSettle();
 }
 
@@ -111,6 +117,23 @@ void main() {
 
     expect(find.text('Créer un compte'), findsOneWidget);
     expect(find.text('Créer mon compte'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('mot de passe oublié : rendu fixe sans débordement', (tester) async {
+    await _pump(tester, login: false, reset: true);
+
+    expect(find.text('Mot de passe oublié'), findsOneWidget);
+    expect(find.text('Envoyer le code'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('mot de passe oublié : aucun débordement sur un petit écran',
+      (tester) async {
+    await _pump(tester, login: false, reset: true, size: const Size(960, 1704));
+
+    expect(find.text('Mot de passe oublié'), findsOneWidget);
+    expect(find.text('Envoyer le code'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }
