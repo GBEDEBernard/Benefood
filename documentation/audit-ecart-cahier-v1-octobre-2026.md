@@ -9,6 +9,14 @@ l'état réel du backend Laravel et de l'app Flutter.
 > service colis, des avis client, du paiement cash + flottant livreur, de
 > l'auto-confirmation des livraisons et de la 2FA back-office. Les écarts
 > restants sont signalés explicitement.
+>
+> **Mise à jour du 13 octobre 2026** : nouvelle passe de vérification dans le
+> code. Trois écarts de la synthèse sont en fait déjà traités (statut « en
+> litige », barème de livraison par distance) ou le sont désormais (choix du
+> paiement à la livraison au checkout mobile). Les vérifications s'appuient sur
+> les tests exécutés : `DeliveryConfirmationAndDisputeTest`,
+> `DeliveryDistancePricingTest`, `DeliveryPricingDistanceTest`,
+> `CashPaymentTest` (backend) et `cash_payment_flow_test.dart` (mobile).
 
 Légende : ✅ conforme · 🟡 partiel / divergent · ❌ absent
 
@@ -69,7 +77,7 @@ Autres paramètres fixés : **retrait minimum ≈ 1 000 F** (exemple), solde wal
 | Livreur 20 % sur la livraison | ✅ calculée et figée (`FinanceService::breakdown`, `order_financials.delivery_partner_amount`), créditée au livreur à l'assignation | ✅ |
 | Client 5 % de frais de service | ✅ calculé (`FinanceService::breakdown`), inclus dans le total et affiché au récapitulatif mobile | ✅ |
 | Montants/commissions calculés serveur, figés | ✅ snapshot `order_financials` + `delivery_rate_snapshot` | ✅ |
-| Grille de livraison 500 / 1 000 / 2 000 F selon distance | 🟡 livraison nourriture = **prix fixe par zone** (`delivery_rates`) ; **colis** appliquent des paliers par distance 500/1 000/2 000 F (`beninfood.parcels.tiers`) | 🟡 |
+| Grille de livraison 500 / 1 000 / 2 000 F selon distance | ✅ nourriture : barème **progressif selon la distance** boutique → client (`DeliveryPricingService`, `beninfood.delivery_pricing` : 500 F jusqu'à 3 km, 1 000 F à 8 km, +125 F/km au-delà de 10 km, repli sur le tarif de zone si les coordonnées manquent) ; colis : paliers 500/1 000/2 000 F (`beninfood.parcels.tiers`). Testé (`DeliveryDistancePricingTest`) | ✅ |
 
 ## 3. Le parcours de l'argent (séquestre → wallets)
 
@@ -95,9 +103,11 @@ Autres paramètres fixés : **retrait minimum ≈ 1 000 F** (exemple), solde wal
 | **Paiement à la livraison (cash)** + wallet livreur prépayé | ✅ backend : `PaymentMethod::Cash`, `CashService` (`topUp`, `settle`), `DriverFloatController`, solde `driver_profiles.prepaid_balance` | ✅ |
 | Blocage si solde livreur négatif | ✅ `OrderService::assignDriver` et `CashService::settle` refusent si la couverture est insuffisante (`cash.insufficient_float`, 409) | ✅ |
 
-> Le choix « paiement à la livraison » n'est pas encore exposé dans le tunnel
-> d'achat mobile : le backend le supporte (`payment_method`), l'UI crée
-> aujourd'hui des commandes en ligne.
+> Le choix « paiement à la livraison » est désormais exposé au checkout mobile :
+> le client sélectionne son mode de règlement, `payment_method=cash` est transmis
+> à `POST /orders` et la commande part chez le vendeur sans passer par la
+> passerelle (montant à prévoir affiché au client, écrans de suivi et
+> d'historique adaptés).
 
 ## 5. Pages par acteur
 
@@ -108,7 +118,7 @@ Autres paramètres fixés : **retrait minimum ≈ 1 000 F** (exemple), solde wal
 | Accueil (catégories, proches, recherche, promos) | ✅ | ✅ |
 | Page vendeur / détail plat / panier | ✅ | ✅ |
 | Panier avec frais de service 5 % | ✅ calculés serveur + affichés au récapitulatif mobile | ✅ |
-| Paiement Mobile Money / à la livraison | 🟡 Mobile Money ✅ ; **cash backend ✅ mais non proposé dans le tunnel mobile** | 🟡 |
+| Paiement Mobile Money / à la livraison | ✅ choix exposé au checkout mobile (« Mobile Money (en ligne) » / « Paiement à la livraison ») : `payment_method=cash` transmis à `POST /orders`, aucun appel à la passerelle, suivi et historique adaptés au cash (`cash_payment_flow_test.dart`) | ✅ |
 | Suivi de commande en direct + contact livreur | ✅ | ✅ |
 | **Envoyer un colis** (A→B, tarif distance) | ✅ client (`/parcels/*`) + livreur (onglet Colis) | ✅ |
 | Historique & reçus / recommander | ✅ | ✅ |
@@ -130,7 +140,7 @@ Wallet désormais alimenté (séquestre → disponible) et retrait possible (§4
 | Course en cours (statuts, appel) | ✅ | ✅ |
 | Confirmation : code de livraison / photo | ✅ `deliveries.proof_code`, `proof_photo_path` | ✅ |
 | **Wallet livreur** (en attente/dispo, prépayé, retirer) | ✅ écran wallet (solde disponible + flottant prépayé) + retrait | ✅ |
-| Historique & gains | 🟡 historique ✅ ; gains par jour/semaine toujours partiels | 🟡 |
+| Historique & gains | 🟡 historique ✅ ; **gains par jour/semaine toujours partiels** (pas d'agrégation dédiée) | 🟡 |
 
 ### 5.4 Back-office administrateur
 | Page du cahier | État | Verdict |
@@ -152,7 +162,7 @@ Wallet désormais alimenté (séquestre → disponible) et retrait possible (§4
 | Statut cahier | Enum code | Verdict |
 |---|---|---|
 | En attente de paiement / Payée / Acceptée / En préparation / Prête / En livraison / Livrée / Annulée | ✅ (`OrderStatus`) + `assigned`, `picked_up` en plus | ✅ |
-| **En litige** (solde bloqué) | 🟡 pas de statut commande dédié — géré via `complaints` séparés | 🟡 |
+| **En litige** (solde bloqué) | ✅ `OrderStatus::Disputed` + `orders.disputed_at` / `dispute_reason` : `OrderService::openDispute` (client ou porteuse), `resolveDispute` (libération des fonds ou remboursement), et `confirmDelivery` refusé tant que le litige est ouvert (`DeliveryConfirmationAndDisputeTest`) | ✅ |
 | Confirmation livraison par code client + délai auto 30 min | ✅ code livraison + auto-confirmation (`orders:auto-confirm-deliveries`) qui libère le séquestre | ✅ |
 | Annulation auto si non payée (15 min) | ✅ `orders:expire-payments` (planifié chaque minute) | ✅ |
 
@@ -193,13 +203,21 @@ Wallet désormais alimenté (séquestre → disponible) et retrait possible (§4
 7. Dépôt d'avis client (vendeur + livreur).
 8. Wallet livreur (mobile + back-office) et écran admin « wallets & retraits ».
 
+**Écarts clos le 13 octobre 2026**
+9. ✅ **Paiement à la livraison** exposé dans le tunnel d'achat client (§5.1).
+10. ✅ **Statut « en litige »** de commande, avec blocage des soldes et arbitrage.
+11. ✅ **Barème de livraison par distance** pour la nourriture (§2).
+
 **Écarts restants**
-9. **Choix de la passerelle** : FedaPay (cahier) vs Kkiapay (code).
-10. **Tunnel de paiement mobile** : option « à la livraison » non exposée côté client (backend prêt).
-11. **Exports PDF** des rapports admin.
-12. **Statut « en litige »** de commande (blocage de solde) — aujourd'hui via réclamations.
-13. **Grille de livraison par distance** pour la nourriture (aujourd'hui prix fixe par zone).
-14. **Gains livreur par jour/semaine** encore partiels.
+12. **Choix de la passerelle** : FedaPay (cahier) vs Kkiapay (code) — décision à trancher,
+    le reste du code ne dépend que de l'abstraction `PaymentGateway`.
+13. **Exports PDF** des rapports admin (aucune dépendance PDF n'est installée ;
+    l'ajout d'un paquet est une décision à valider).
+14. **Gains livreur par jour et par semaine** : l'historique liste les missions,
+    mais aucune agrégation journalière/hebdomadaire n'est exposée (ni API ni écran).
+15. **Commande en espèces** : `vendor_acceptance_deadline_at` reste nul, aucune
+    confirmation de paiement ne le renseigne — le suivi du délai d'acceptation
+    vendeur reste donc à définir pour ce mode de règlement.
 
 > Les **taux ne sont pas une décision** : ils sont fixés par le cahier (§0).
 > Seul taux à confirmer hors document : les **1,2 % FedaPay** (voir §0),
