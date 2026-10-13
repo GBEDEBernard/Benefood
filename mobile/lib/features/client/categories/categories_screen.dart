@@ -2,25 +2,29 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/data/marketplace_api.dart';
+import '../../../core/errors/api_exception.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_dimens.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/models/category.dart';
-import '../../../shared/models/product.dart';
 import '../../../shared/widgets/app_network_image.dart';
 import '../../../shared/widgets/app_search_field.dart';
 import '../../../shared/widgets/beninfood_header.dart';
+import '../../../shared/widgets/state_widgets.dart';
+import '../home/home_screen.dart' show categoryIcon;
 
 /// Catégories (J151) : grille 2 colonnes d'exploration visuelle.
 ///
-/// En-tête branded, recherche, grille de 8 cartes (icône colorée, titre,
-/// nombre de restaurants, visuel) et bannière promotionnelle.
-///
-/// Les visuels sont dynamiques : à l'ouverture, le catalogue est chargé et
-/// chaque carte affiche la première photo produit de la catégorie mappée
-/// (repli emoji tant qu'aucune photo n'existe).
+/// Les catégories proviennent du catalogue (`GET /categories`) : chaque carte
+/// affiche le libellé réel, le nombre de produits associés et un visuel
+/// (première photo produit de la catégorie, sinon l'icône). Un appui ouvre la
+/// recherche filtrée sur cette catégorie.
 class CategoriesScreen extends StatefulWidget {
-  const CategoriesScreen({super.key, required this.marketplace, this.onOpenMenu});
+  const CategoriesScreen({
+    super.key,
+    required this.marketplace,
+    this.onOpenMenu,
+  });
 
   final MarketplaceApi marketplace;
 
@@ -32,94 +36,50 @@ class CategoriesScreen extends StatefulWidget {
 }
 
 class _CategoriesScreenState extends State<CategoriesScreen> {
-  /// Slugs des catégories API → visuel résolu (photo produit ou icon_path).
-  Map<String, String> _visualsBySlug = const {};
+  late Future<_CategoriesData> _future;
 
   @override
   void initState() {
     super.initState();
-    _loadVisuals();
+    _future = _load();
   }
 
-  Future<void> _loadVisuals() async {
+  Future<_CategoriesData> _load() async {
+    final categories = await widget.marketplace.categories();
+
+    final visuals = <String, String>{};
     try {
-      final results = await Future.wait<dynamic>([
-        widget.marketplace.categories(),
-        widget.marketplace.products(perPage: 100),
-      ]);
-      final categories = results[0] as List<Category>;
-      final products = results[1] as List<Product>;
-
-      final idBySlug = <String, String>{};
-      final iconPathById = <String, String>{};
-      void collect(List<Category> nodes) {
-        for (final category in nodes) {
-          idBySlug[category.slug] = category.id;
-          final iconPath = category.iconPath;
-          if (iconPath != null && iconPath.isNotEmpty) {
-            iconPathById[category.id] = iconPath;
-          }
-          collect(category.children);
-        }
-      }
-
-      collect(categories);
-
-      final productImageByCategoryId = <String, String>{};
+      final products = await widget.marketplace.products(perPage: 100);
       for (final product in products) {
         final url = product.imageUrl;
         if (url == null || url.isEmpty) {
           continue;
         }
-        productImageByCategoryId.putIfAbsent(product.categoryId, () => url);
+        visuals.putIfAbsent(product.categoryId, () => url);
       }
-
-      final visuals = <String, String>{};
-      for (final entry in idBySlug.entries) {
-        final image =
-            productImageByCategoryId[entry.value] ?? iconPathById[entry.value];
-        if (image != null) {
-          visuals[entry.key] = image;
-        }
-      }
-
-      if (!mounted) {
-        return;
-      }
-      setState(() => _visualsBySlug = visuals);
     } catch (_) {
-      // Visuels optionnels : la grille reste affichée avec les emojis.
+      // Visuels optionnels : on retombe sur l'icône de la catégorie.
     }
+
+    return _CategoriesData(categories: categories, visualByCategoryId: visuals);
   }
 
-  /// Premier visuel disponible parmi les catégories mappées de la carte.
-  String? _visualFor(_CategoryData card) {
-    for (final slug in card.slugs) {
-      final visual = _visualsBySlug[slug];
-      if (visual != null) {
-        return visual;
-      }
-    }
-    return null;
-  }
+  void _reload() => setState(() => _future = _load());
 
   void _openSearch(BuildContext context) => context.push('/client/search');
 
+  void _openCategory(BuildContext context, Category category) {
+    context.push('/client/search', extra: {'category': category.id});
+  }
+
   @override
   Widget build(BuildContext context) {
-    final visuals = {
-      for (final card in _categories) card.title: _visualFor(card),
-    };
-
     return Material(
       color: AppColors.surface,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          BeninfoodAppBar(
-            onMenu: widget.onOpenMenu,
-            api: widget.marketplace,
-          ),
+          BeninfoodAppBar(onMenu: widget.onOpenMenu, api: widget.marketplace),
           Padding(
             padding: const EdgeInsets.fromLTRB(
               AppDimens.pagePadding,
@@ -134,23 +94,55 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
             ),
           ),
           Expanded(
-            child: ListView(
-              padding: EdgeInsets.zero,
-              children: [
-                _SectionHeader(onSeeAll: () => _openSearch(context)),
-                _CategoryGrid(
-                  visuals: visuals,
-                  onOpen: () => _openSearch(context),
-                ),
-                _PromoBanner(onExplore: () => _openSearch(context)),
-                const SizedBox(height: AppDimens.xl),
-              ],
+            child: FutureBuilder<_CategoriesData>(
+              future: _future,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState != ConnectionState.done) {
+                  return const ListSkeleton();
+                }
+                if (snapshot.hasError) {
+                  return ErrorState(
+                    message: snapshot.error is ApiException
+                        ? (snapshot.error as ApiException).message
+                        : 'Catégories indisponibles.',
+                    onRetry: _reload,
+                  );
+                }
+                final data = snapshot.data!;
+                return ListView(
+                  padding: EdgeInsets.zero,
+                  children: [
+                    _SectionHeader(onSeeAll: () => _openSearch(context)),
+                    if (data.categories.isEmpty)
+                      const _EmptyCategories()
+                    else
+                      _CategoryGrid(
+                        categories: data.categories,
+                        visuals: data.visualByCategoryId,
+                        onOpen: (category) => _openCategory(context, category),
+                      ),
+                    _PromoBanner(onExplore: () => _openSearch(context)),
+                    const SizedBox(height: AppDimens.xl),
+                  ],
+                );
+              },
             ),
           ),
         ],
       ),
     );
   }
+}
+
+/// Catégories chargées + visuel (URL photo) par identifiant de catégorie.
+class _CategoriesData {
+  const _CategoriesData({
+    required this.categories,
+    required this.visualByCategoryId,
+  });
+
+  final List<Category> categories;
+  final Map<String, String> visualByCategoryId;
 }
 
 /// Titre de section + lien « Voir tout → ».
@@ -209,117 +201,28 @@ class _SectionHeader extends StatelessWidget {
   }
 }
 
-/// Données d'une carte de la grille (spec J151).
-///
-/// [slugs] : catégories réelles de l'API vers lesquelles la carte est
-/// mappée (la spec et la base de données n'ont pas les mêmes libellés) ;
-/// le premier slug avec un visuel disponible est retenu.
-class _CategoryData {
-  const _CategoryData({
-    required this.title,
-    required this.restaurants,
-    required this.emoji,
-    required this.icon,
-    required this.tint,
-    required this.accent,
-    required this.slugs,
-  });
-
-  final String title;
-  final String restaurants;
-  final String emoji;
-  final IconData icon;
-  final List<String> slugs;
-
-  /// Fond du cercle / du visuel.
-  final Color tint;
-
-  /// Couleur de l'icône.
-  final Color accent;
-}
-
-const _categories = <_CategoryData>[
-  _CategoryData(
-    title: 'Plats locaux',
-    restaurants: '124 restaurants',
-    emoji: '🍚',
-    icon: Icons.local_dining,
-    tint: AppColors.orangeLight,
-    accent: AppColors.orange,
-    slugs: ['snacks-et-restauration'],
-  ),
-  _CategoryData(
-    title: 'Fast-food',
-    restaurants: '98 restaurants',
-    emoji: '🍔',
-    icon: Icons.fastfood,
-    tint: AppColors.greenLight,
-    accent: AppColors.green,
-    slugs: ['snacks-et-restauration', 'boulangerie'],
-  ),
-  _CategoryData(
-    title: 'Maquis',
-    restaurants: '156 restaurants',
-    emoji: '🍢',
-    icon: Icons.room_service,
-    tint: AppColors.goldLight,
-    accent: AppColors.goldDark,
-    slugs: ['snacks-et-restauration'],
-  ),
-  _CategoryData(
-    title: 'Poulet',
-    restaurants: '87 restaurants',
-    emoji: '🍗',
-    icon: Icons.lunch_dining,
-    tint: AppColors.redLight,
-    accent: AppColors.red,
-    slugs: ['viandes-et-poissons', 'snacks-et-restauration'],
-  ),
-  _CategoryData(
-    title: 'Soupes & Sauce',
-    restaurants: '63 restaurants',
-    emoji: '🍲',
-    icon: Icons.soup_kitchen,
-    tint: AppColors.greenLight,
-    accent: AppColors.green,
-    slugs: ['epicerie', 'snacks-et-restauration'],
-  ),
-  _CategoryData(
-    title: 'Riz & Accompagnements',
-    restaurants: '72 restaurants',
-    emoji: '🍛',
-    icon: Icons.rice_bowl,
-    tint: AppColors.goldLight,
-    accent: AppColors.goldDark,
-    slugs: ['snacks-et-restauration'],
-  ),
-  _CategoryData(
-    title: 'Boissons',
-    restaurants: '54 restaurants',
-    emoji: '🥤',
-    icon: Icons.local_bar,
-    tint: AppColors.orangeLight,
-    accent: AppColors.orange,
-    slugs: ['boissons-et-frais', 'snacks-et-restauration'],
-  ),
-  _CategoryData(
-    title: 'Desserts',
-    restaurants: '29 restaurants',
-    emoji: '🍰',
-    icon: Icons.cake,
-    tint: AppColors.greenLight,
-    accent: AppColors.green,
-    slugs: ['boulangerie', 'snacks-et-restauration'],
-  ),
+/// Palette de repli appliquée cycliquement aux cartes.
+const _cardPalette = <(Color, Color)>[
+  (AppColors.orangeLight, AppColors.orange),
+  (AppColors.greenLight, AppColors.green),
+  (AppColors.goldLight, AppColors.goldDark),
+  (AppColors.redLight, AppColors.red),
 ];
 
 /// Grille 2 colonnes des catégories.
 class _CategoryGrid extends StatelessWidget {
-  const _CategoryGrid({required this.visuals, required this.onOpen});
+  const _CategoryGrid({
+    required this.categories,
+    required this.visuals,
+    required this.onOpen,
+  });
 
-  /// Titre de carte → visuel dynamique (null = repli emoji).
-  final Map<String, String?> visuals;
-  final VoidCallback onOpen;
+  final List<Category> categories;
+
+  /// Identifiant de catégorie → visuel dynamique (null = repli icône).
+  final Map<String, String> visuals;
+
+  final ValueChanged<Category> onOpen;
 
   @override
   Widget build(BuildContext context) {
@@ -333,11 +236,13 @@ class _CategoryGrid extends StatelessWidget {
         mainAxisSpacing: AppDimens.md,
         childAspectRatio: 1.12,
         children: [
-          for (final category in _categories)
+          for (var i = 0; i < categories.length; i++)
             _CategoryCard(
-              category: category,
-              imageUrl: visuals[category.title],
-              onTap: onOpen,
+              category: categories[i],
+              imageUrl: visuals[categories[i].id],
+              tint: _cardPalette[i % _cardPalette.length].$1,
+              accent: _cardPalette[i % _cardPalette.length].$2,
+              onTap: () => onOpen(categories[i]),
             ),
         ],
       ),
@@ -345,20 +250,30 @@ class _CategoryGrid extends StatelessWidget {
   }
 }
 
-/// Carte catégorie : icône ronde, visuel, titre et nombre de restaurants.
+/// Carte catégorie : icône ronde, visuel, titre et nombre de produits.
 class _CategoryCard extends StatelessWidget {
   const _CategoryCard({
     required this.category,
     required this.imageUrl,
+    required this.tint,
+    required this.accent,
     required this.onTap,
   });
 
-  final _CategoryData category;
+  final Category category;
   final String? imageUrl;
+  final Color tint;
+  final Color accent;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
+    final icon = categoryIcon(category.name);
+    final count = category.productsCount;
+    final countLabel = count == null
+        ? 'Explorer'
+        : '$count ${count > 1 ? 'produits' : 'produit'}';
+
     return Material(
       color: AppColors.surface,
       borderRadius: BorderRadius.circular(AppDimens.radiusLg),
@@ -378,48 +293,39 @@ class _CategoryCard extends StatelessWidget {
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Cercle coloré + icône (haut gauche).
                   Container(
                     width: 42,
                     height: 42,
                     decoration: BoxDecoration(
-                      color: category.tint,
+                      color: tint,
                       shape: BoxShape.circle,
                     ),
-                    child: Icon(
-                      category.icon,
-                      size: 21,
-                      color: category.accent,
-                    ),
+                    child: Icon(icon, size: 21, color: accent),
                   ),
                   const Spacer(),
-                  // Visuel (haut droit) : photo dynamique ou emoji.
                   Container(
                     width: 54,
                     height: 54,
                     clipBehavior: Clip.antiAlias,
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
-                      color: category.tint,
+                      color: tint,
                       borderRadius: BorderRadius.circular(AppDimens.radiusMd),
                     ),
                     child: imageUrl == null
-                        ? Text(
-                            category.emoji,
-                            style: const TextStyle(fontSize: 28, height: 1),
-                          )
+                        ? Icon(icon, size: 26, color: accent)
                         : AppNetworkImage(
                             url: imageUrl,
-                            icon: category.icon,
-                            iconColor: category.accent,
-                            iconBackground: category.tint,
+                            icon: icon,
+                            iconColor: accent,
+                            iconBackground: tint,
                           ),
                   ),
                 ],
               ),
               const SizedBox(height: 10),
               Text(
-                category.title,
+                category.name,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
@@ -431,7 +337,7 @@ class _CategoryCard extends StatelessWidget {
               ),
               const SizedBox(height: 3),
               Text(
-                category.restaurants,
+                countLabel,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
@@ -442,6 +348,25 @@ class _CategoryCard extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Message affiché lorsqu'aucune catégorie n'est disponible.
+class _EmptyCategories extends StatelessWidget {
+  const _EmptyCategories();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Padding(
+      padding: EdgeInsets.symmetric(
+        horizontal: AppDimens.pagePadding,
+        vertical: 40,
+      ),
+      child: Text(
+        'Aucune catégorie disponible pour le moment.',
+        style: TextStyle(fontSize: 13.5, color: AppColors.textSecondary),
       ),
     );
   }
@@ -544,15 +469,12 @@ class _PromoIllustration extends StatelessWidget {
       height: 120,
       child: Stack(
         children: [
-          // Tracé pointillé orange (itinéraire).
           Positioned.fill(child: CustomPaint(painter: _DashedCurvePainter())),
-          // Repère de localisation vert.
           const Positioned(
             left: 0,
             top: 0,
             child: Icon(Icons.location_on, size: 30, color: AppColors.green),
           ),
-          // Visuel du plat.
           Positioned(
             right: 0,
             bottom: 0,

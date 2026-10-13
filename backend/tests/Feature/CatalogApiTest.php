@@ -32,11 +32,17 @@ class CatalogApiTest extends TestCase
         $child = Category::factory()->create(['name' => 'Légumes frais', 'parent_id' => $root->id]);
         Category::factory()->create(['name' => 'Cachée', 'is_active' => false]);
 
+        $vendor = $this->activeVendor();
+        Product::factory()->count(2)->create(['vendor_id' => $vendor->id, 'category_id' => $root->id, 'stock_qty' => 3]);
+        Product::factory()->create(['vendor_id' => $vendor->id, 'category_id' => $child->id, 'stock_qty' => 3]);
+
         $this->getJson(route('api.v1.categories.index'))
             ->assertOk()
             ->assertJsonPath('data.0.name', 'Fruits et légumes')
             ->assertJsonPath('data.0.is_active', true)
+            ->assertJsonPath('data.0.products_count', 2)
             ->assertJsonPath('data.0.children.0.name', 'Légumes frais')
+            ->assertJsonPath('data.0.children.0.products_count', 1)
             ->assertJsonMissing(['name' => 'Cachée']);
     }
 

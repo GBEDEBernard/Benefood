@@ -21,6 +21,7 @@ class CatalogController extends Controller
     public function categories(): JsonResponse
     {
         $roots = Category::query()
+            ->withCount('products')
             ->orderBy('sort_order')
             ->orderBy('name')
             ->get();
@@ -107,7 +108,7 @@ class CatalogController extends Controller
 
     /**
      * @param  Collection<int, Category>  $categories
-     * @return array<int, array{id: string, name: string, slug: string, icon_path: ?string, children: array<mixed>}>
+     * @return array<int, array{id: string, name: string, slug: string, icon_path: ?string, products_count: int, children: array<mixed>}>
      */
     private function buildTree($categories): array
     {
@@ -125,6 +126,7 @@ class CatalogController extends Controller
                     'icon_path' => $category->icon_path,
                     'is_active' => $category->is_active,
                     'sort_order' => $category->sort_order,
+                    'products_count' => (int) ($category->products_count ?? 0),
                     'children' => $build($category->id),
                 ])
                 ->values()

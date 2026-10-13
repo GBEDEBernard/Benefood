@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 
@@ -9,6 +10,7 @@ import 'package:beninfood/core/data/marketplace_api.dart';
 import 'package:beninfood/core/http/api_client.dart';
 import 'package:beninfood/features/client/categories/categories_screen.dart';
 import 'package:beninfood/shared/widgets/app_search_field.dart';
+import 'package:beninfood/shared/widgets/state_widgets.dart';
 
 class _NoopTokenStore implements TokenStore {
   @override
@@ -24,20 +26,26 @@ class _NoopTokenStore implements TokenStore {
   Future<void> clear() async {}
 }
 
-/// Catalogue minimal : la boulangerie a une photo produit, les autres
-/// catégories non (repli emoji attendu).
+/// Catalogue minimal : la boulangerie a une photo produit, les autres non.
 MockClient _mockBackend() {
   const categories = [
     {
       'id': 'c-snack',
       'name': 'Snacks et restauration',
       'slug': 'snacks-et-restauration',
+      'products_count': 2,
     },
-    {'id': 'c-bakery', 'name': 'Boulangerie', 'slug': 'boulangerie'},
+    {
+      'id': 'c-bakery',
+      'name': 'Boulangerie',
+      'slug': 'boulangerie',
+      'products_count': 1,
+    },
     {
       'id': 'c-meat',
       'name': 'Viandes et poissons',
       'slug': 'viandes-et-poissons',
+      'products_count': 0,
     },
   ];
   const products = [
@@ -98,22 +106,6 @@ MockClient _mockBackend() {
               'read_at': null,
               'created_at': '2026-10-06T10:00:00Z',
             },
-            {
-              'id': 'n2',
-              'type': 'order.accepted',
-              'title': 'Votre commande est en préparation',
-              'body': 'Le restaurant prépare votre repas.',
-              'read_at': null,
-              'created_at': '2026-10-06T09:00:00Z',
-            },
-            {
-              'id': 'n3',
-              'type': 'promo.new',
-              'title': 'Offre du jour',
-              'body': '10 % sur les plats locaux jusqu’à 18 h.',
-              'read_at': null,
-              'created_at': '2026-10-06T08:00:00Z',
-            },
           ],
         }),
         200,
@@ -128,14 +120,19 @@ MockClient _mockBackend() {
   });
 }
 
-Future<void> _pumpScreen(WidgetTester tester) async {
-  final api = ApiClient(
-    tokenStore: _NoopTokenStore(),
-    httpClient: _mockBackend(),
-    baseUrl: 'http://api.test',
+MarketplaceApi _api({MockClient? client}) {
+  return MarketplaceApi(
+    ApiClient(
+      tokenStore: _NoopTokenStore(),
+      httpClient: client ?? _mockBackend(),
+      baseUrl: 'http://api.test',
+    ),
   );
+}
+
+Future<void> _pumpScreen(WidgetTester tester) async {
   await tester.pumpWidget(
-    MaterialApp(home: CategoriesScreen(marketplace: MarketplaceApi(api))),
+    MaterialApp(home: CategoriesScreen(marketplace: _api())),
   );
   await tester.pump();
   await tester.pump(const Duration(milliseconds: 300));
@@ -150,7 +147,7 @@ int _networkImageCount(WidgetTester tester) => find
     .length;
 
 void main() {
-  testWidgets('catégories : en-tête, recherche, grille et bannière', (
+  testWidgets('catégories : en-tête, recherche, catégories dynamiques', (
     tester,
   ) async {
     await _pumpScreen(tester);
@@ -161,23 +158,14 @@ void main() {
     expect(find.text('Catégories'), findsOneWidget);
     expect(find.text('Voir tout'), findsOneWidget);
 
-    // Les 8 cartes de la spec.
-    const titles = [
-      'Plats locaux',
-      'Fast-food',
-      'Maquis',
-      'Poulet',
-      'Soupes & Sauce',
-      'Riz & Accompagnements',
-      'Boissons',
-      'Desserts',
-    ];
-    for (final title in titles) {
-      expect(find.text(title), findsOneWidget, reason: 'carte $title');
-    }
-    expect(find.text('124 restaurants'), findsOneWidget);
-    expect(find.text('156 restaurants'), findsOneWidget);
-    expect(find.text('29 restaurants'), findsOneWidget);
+    // Catégories renvoyées par l'API (plus de liste codée en dur).
+    expect(find.text('Snacks et restauration'), findsOneWidget);
+    expect(find.text('Boulangerie'), findsOneWidget);
+    expect(find.text('Viandes et poissons'), findsOneWidget);
+
+    // Nombre de produits réels.
+    expect(find.text('2 produits'), findsOneWidget);
+    expect(find.text('1 produit'), findsOneWidget);
 
     // Bannière promotionnelle (plus bas que le premier écran).
     final verticalScrollable = find
@@ -192,55 +180,45 @@ void main() {
       scrollable: verticalScrollable,
     );
     expect(find.text('Envie de découvrir de nouveaux plats ?'), findsOneWidget);
-    expect(
-      find.text('Explorez nos meilleures adresses à Cotonou.'),
-      findsOneWidget,
-    );
     expect(find.text('Explorer'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('catégories : visuels dynamiques (photo si dispo, sinon emoji)', (
+  testWidgets('catégories : visuel photo si dispo, sinon icône de repli', (
     tester,
   ) async {
     await _pumpScreen(tester);
     await tester.pump(const Duration(milliseconds: 300));
 
-    // Desserts et Fast-food pointent vers « boulangerie » (photo dispo).
-    expect(
-      _networkImageCount(tester),
-      2,
-      reason: 'les 2 cartes mappées sur boulangerie ont une image',
-    );
+    // Seule la boulangerie a une photo produit.
+    expect(_networkImageCount(tester), 1);
 
-    // Maquis (snacks, sans photo) garde l'emoji de repli.
-    expect(find.text('🍢'), findsOneWidget);
+    // Repli icône (pas d'emoji) selon le libellé : cercle + visuel.
+    expect(find.byIcon(Icons.kebab_dining), findsNWidgets(2));
+    expect(find.byIcon(Icons.fastfood), findsNWidgets(2));
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('catégories : échec réseau silencieux (repli emoji)', (
+  testWidgets('catégories : erreur réseau affiche un état d’erreur', (
     tester,
   ) async {
-    final api = ApiClient(
-      tokenStore: _NoopTokenStore(),
-      httpClient: MockClient(
+    final api = _api(
+      client: MockClient(
         (request) async => http.Response(
           jsonEncode({'message': 'Server error'}),
           500,
           headers: {'content-type': 'application/json'},
         ),
       ),
-      baseUrl: 'http://api.test',
     );
     await tester.pumpWidget(
-      MaterialApp(home: CategoriesScreen(marketplace: MarketplaceApi(api))),
+      MaterialApp(home: CategoriesScreen(marketplace: api)),
     );
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
+    expect(find.byType(ErrorState), findsOneWidget);
     expect(_networkImageCount(tester), 0);
-    expect(find.text('🍚'), findsOneWidget);
-    expect(find.text('Plats locaux'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -257,8 +235,42 @@ void main() {
 
     expect(find.text('Notifications'), findsOneWidget);
     expect(find.text('Livraison en cours'), findsOneWidget);
-    expect(find.text('Offre du jour'), findsOneWidget);
-    expect(find.byType(ListTile), findsNWidgets(3));
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('catégories : un appui ouvre la recherche filtrée', (
+    tester,
+  ) async {
+    final marketplace = _api();
+    final router = GoRouter(
+      initialLocation: '/categories',
+      routes: [
+        GoRoute(
+          path: '/categories',
+          builder: (context, state) =>
+              CategoriesScreen(marketplace: marketplace),
+        ),
+        GoRoute(
+          path: '/client/search',
+          builder: (context, state) {
+            final extra = state.extra;
+            final category = extra is Map<String, dynamic>
+                ? extra['category']
+                : null;
+            return Scaffold(body: Center(child: Text('recherche:$category')));
+          },
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    await tester.tap(find.text('Boulangerie'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('recherche:c-bakery'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }
