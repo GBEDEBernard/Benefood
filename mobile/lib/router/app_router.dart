@@ -10,6 +10,7 @@ import '../features/auth/presentation/reset_password_screen.dart';
 import '../features/auth/presentation/choose_account_screen.dart';
 import '../features/auth/presentation/context_selector_screen.dart';
 import '../features/client/presentation/client_shell.dart';
+import '../features/client/presentation/client_sub_shell.dart';
 import '../features/client/product/product_detail_screen.dart';
 import '../features/client/shop/shop_detail_screen.dart';
 import '../features/client/search/search_screen.dart';
@@ -121,109 +122,138 @@ GoRouter buildAppRouter(SessionProvider session, MarketplaceApi marketplace) {
         path: '/client',
         builder: (context, state) => ClientShell(session: session, marketplace: marketplace),
       ),
-      GoRoute(
-        path: '/client/product/:id',
-        builder: (context, state) => ProductDetailScreen(
-          marketplace: marketplace,
-          productId: state.pathParameters['id']!,
-        ),
-      ),
-      GoRoute(
-        path: '/client/shop/:id',
-        builder: (context, state) => ShopDetailScreen(
-          marketplace: marketplace,
-          vendorId: state.pathParameters['id']!,
-        ),
-      ),
-      GoRoute(
-        path: '/client/search',
-        builder: (context, state) {
-          final extra = state.extra;
-          String? category;
-          if (extra is Map<String, dynamic> && extra['category'] is String) {
-            category = extra['category'] as String;
-          }
-          return SearchScreen(marketplace: marketplace, initialCategory: category);
-        },
+      ShellRoute(
+        builder: (context, state, child) =>
+            ClientSubShell(marketplace: marketplace, child: child),
+        routes: [
+          GoRoute(
+            path: '/client/product/:id',
+            builder: (context, state) => ProductDetailScreen(
+              marketplace: marketplace,
+              productId: state.pathParameters['id']!,
+            ),
+          ),
+          GoRoute(
+            path: '/client/shop/:id',
+            builder: (context, state) => ShopDetailScreen(
+              marketplace: marketplace,
+              vendorId: state.pathParameters['id']!,
+            ),
+          ),
+          GoRoute(
+            path: '/client/search',
+            builder: (context, state) {
+              final extra = state.extra;
+              String? category;
+              if (extra is Map<String, dynamic> &&
+                  extra['category'] is String) {
+                category = extra['category'] as String;
+              }
+              return SearchScreen(
+                marketplace: marketplace,
+                initialCategory: category,
+              );
+            },
+          ),
+        ],
       ),
       GoRoute(
         path: '/client/checkout',
         builder: (context, state) => CheckoutScreen(marketplace: marketplace),
       ),
-      GoRoute(
-        path: '/client/addresses',
-        builder: (context, state) {
-          final select = state.uri.queryParameters['select'] == '1';
-          return AddressesScreen(marketplace: marketplace, selectMode: select);
-        },
-      ),
-      GoRoute(
-        path: '/client/orders',
-        builder: (context, state) => OrdersScreen(marketplace: marketplace),
-      ),
-      GoRoute(
-        path: '/client/parcels',
-        builder: (context, state) => ParcelsScreen(marketplace: marketplace),
-      ),
-      GoRoute(
-        path: '/client/parcels/new',
-        builder: (context, state) => ParcelCreateScreen(marketplace: marketplace),
-      ),
-      GoRoute(
-        path: '/client/parcels/:id',
-        builder: (context, state) => ParcelDetailScreen(
-          marketplace: marketplace,
-          parcelId: state.pathParameters['id']!,
-        ),
-      ),
-      GoRoute(
-        path: '/client/complaints',
-        builder: (context, state) => ComplaintsScreen(marketplace: marketplace),
-      ),
-      GoRoute(
-        path: '/client/complaints/new',
-        builder: (context, state) {
-          final extra = state.extra;
-          String? orderId;
-          if (extra is Map<String, dynamic> && extra['order_id'] is String) {
-            orderId = extra['order_id'] as String;
-          }
-          return ComplaintCreateScreen(marketplace: marketplace, orderId: orderId);
-        },
-      ),
-      GoRoute(
-        path: '/client/complaints/:id',
-        builder: (context, state) => ComplaintDetailScreen(
-          marketplace: marketplace,
-          complaintId: state.pathParameters['id']!,
-        ),
-      ),
-      GoRoute(
-        path: '/client/profile/edit',
-        builder: (context, state) => ProfileEditScreen(
-          marketplace: marketplace,
-          session: session,
-        ),
-      ),
-      GoRoute(
-        path: '/client/payment-methods',
-        builder: (context, state) => PaymentMethodsScreen(marketplace: marketplace),
-      ),
-      GoRoute(
-        path: '/client/security',
-        builder: (context, state) => SecurityScreen(marketplace: marketplace),
-      ),
-      GoRoute(
-        path: '/client/notifications',
-        builder: (context, state) => NotificationsScreen(marketplace: marketplace),
-      ),
-      GoRoute(
-        path: '/client/favorites',
-        builder: (context, state) => FavoritesScreen(marketplace: marketplace),
-      ),
-      GoRoute(
-        path: '/client/coupons',
-        builder: (context, state) => CouponsScreen(marketplace: marketplace),
+      ShellRoute(
+        builder: (context, state, child) =>
+            ClientSubShell(marketplace: marketplace, child: child),
+        routes: [
+          GoRoute(
+            path: '/client/addresses',
+            builder: (context, state) {
+              final select = state.uri.queryParameters['select'] == '1';
+              return AddressesScreen(
+                marketplace: marketplace,
+                selectMode: select,
+              );
+            },
+          ),
+          GoRoute(
+            path: '/client/orders',
+            builder: (context, state) => OrdersScreen(marketplace: marketplace),
+          ),
+          GoRoute(
+            path: '/client/parcels',
+            builder: (context, state) => ParcelsScreen(marketplace: marketplace),
+          ),
+          GoRoute(
+            path: '/client/parcels/new',
+            builder: (context, state) =>
+                ParcelCreateScreen(marketplace: marketplace),
+          ),
+          GoRoute(
+            path: '/client/parcels/:id',
+            builder: (context, state) => ParcelDetailScreen(
+              marketplace: marketplace,
+              parcelId: state.pathParameters['id']!,
+            ),
+          ),
+          GoRoute(
+            path: '/client/complaints',
+            builder: (context, state) =>
+                ComplaintsScreen(marketplace: marketplace),
+          ),
+          GoRoute(
+            path: '/client/complaints/new',
+            builder: (context, state) {
+              final extra = state.extra;
+              String? orderId;
+              if (extra is Map<String, dynamic> &&
+                  extra['order_id'] is String) {
+                orderId = extra['order_id'] as String;
+              }
+              return ComplaintCreateScreen(
+                marketplace: marketplace,
+                orderId: orderId,
+              );
+            },
+          ),
+          GoRoute(
+            path: '/client/complaints/:id',
+            builder: (context, state) => ComplaintDetailScreen(
+              marketplace: marketplace,
+              complaintId: state.pathParameters['id']!,
+            ),
+          ),
+          GoRoute(
+            path: '/client/profile/edit',
+            builder: (context, state) => ProfileEditScreen(
+              marketplace: marketplace,
+              session: session,
+            ),
+          ),
+          GoRoute(
+            path: '/client/payment-methods',
+            builder: (context, state) =>
+                PaymentMethodsScreen(marketplace: marketplace),
+          ),
+          GoRoute(
+            path: '/client/security',
+            builder: (context, state) =>
+                SecurityScreen(marketplace: marketplace),
+          ),
+          GoRoute(
+            path: '/client/notifications',
+            builder: (context, state) =>
+                NotificationsScreen(marketplace: marketplace),
+          ),
+          GoRoute(
+            path: '/client/favorites',
+            builder: (context, state) =>
+                FavoritesScreen(marketplace: marketplace),
+          ),
+          GoRoute(
+            path: '/client/coupons',
+            builder: (context, state) => CouponsScreen(marketplace: marketplace),
+          ),
+        ],
       ),
       GoRoute(
         path: '/vendor',

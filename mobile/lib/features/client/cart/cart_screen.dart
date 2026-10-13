@@ -7,15 +7,21 @@ import '../../../core/theme/app_colors.dart';
 import '../../../shared/models/cart.dart';
 import '../../../shared/widgets/app_button.dart';
 import '../../../shared/widgets/app_network_image.dart';
+import '../../../shared/widgets/beninfood_header.dart';
 import '../../../shared/widgets/feedback_widgets.dart';
 import '../../../shared/widgets/quantity_stepper.dart';
 import '../../../shared/widgets/state_widgets.dart';
 
 /// Panier client (J150) : quantités, suppression, récapitulatif.
 class CartScreen extends StatefulWidget {
-  const CartScreen({super.key, required this.marketplace});
+  const CartScreen({
+    super.key,
+    required this.marketplace,
+    required this.onOpenMenu,
+  });
 
   final MarketplaceApi marketplace;
+  final VoidCallback onOpenMenu;
 
   @override
   State<CartScreen> createState() => _CartScreenState();
@@ -102,8 +108,13 @@ class _CartScreenState extends State<CartScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Mon panier')),
-      body: _buildBody(),
+      backgroundColor: AppColors.surfaceVariant,
+      body: Column(
+        children: [
+          BeninfoodAppBar(onMenu: widget.onOpenMenu, api: widget.marketplace),
+          Expanded(child: _buildBody()),
+        ],
+      ),
     );
   }
 

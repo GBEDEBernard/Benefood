@@ -14,6 +14,15 @@ import '../home/home_screen.dart';
 import '../onboarding/client_onboarding_screen.dart';
 import '../orders/orders_screen.dart';
 
+/// Passerelle de navigation vers les onglets de l'espace client depuis une
+/// page secondaire (produit, boutique, recherche…). Une page demandant un
+/// onglet y dépose son index puis revient sur `/client`.
+class ClientNavigation {
+  ClientNavigation._();
+
+  static final ValueNotifier<int?> requestedTab = ValueNotifier<int?>(null);
+}
+
 /// Espace Client (J148+) : accueil, catégories, panier, commandes, profil.
 ///
 /// Barre de navigation inférieure sur mesure avec bouton panier flottant,
@@ -49,8 +58,29 @@ class _ClientShellState extends State<ClientShell> {
   @override
   void initState() {
     super.initState();
+    final requested = ClientNavigation.requestedTab.value;
+    if (requested != null) {
+      _index = requested;
+      ClientNavigation.requestedTab.value = null;
+    }
+    ClientNavigation.requestedTab.addListener(_onRequestedTab);
     _refreshCartCount();
     _loadStatus();
+  }
+
+  @override
+  void dispose() {
+    ClientNavigation.requestedTab.removeListener(_onRequestedTab);
+    super.dispose();
+  }
+
+  void _onRequestedTab() {
+    final requested = ClientNavigation.requestedTab.value;
+    if (requested == null || !mounted) {
+      return;
+    }
+    ClientNavigation.requestedTab.value = null;
+    _selectTab(requested);
   }
 
   /// Vérifie l'activation du compte client : tant que le dossier
@@ -135,7 +165,10 @@ class _ClientShellState extends State<ClientShell> {
             marketplace: widget.marketplace,
             onOpenMenu: () => _scaffoldKey.currentState?.openDrawer(),
           ),
-          CartScreen(marketplace: widget.marketplace),
+          CartScreen(
+            marketplace: widget.marketplace,
+            onOpenMenu: () => _scaffoldKey.currentState?.openDrawer(),
+          ),
           OrdersScreen(
             marketplace: widget.marketplace,
             onOpenMenu: () => _scaffoldKey.currentState?.openDrawer(),
@@ -148,12 +181,36 @@ class _ClientShellState extends State<ClientShell> {
           ),
         ],
       ),
-      bottomNavigationBar: _buildBottomBar(),
+      bottomNavigationBar: ClientBottomBar(
+        cartCount: _cartCount,
+        activeIndex: _index,
+        onSelect: _selectTab,
+      ),
     );
   }
+}
 
-  /// Barre blanche + bouton panier circulaire surélevé (badge rouge).
-  Widget _buildBottomBar() {
+/// Barre blanche + bouton panier circulaire surélevé (badge rouge).
+///
+/// Partagée entre l'accueil (onglets) et les pages secondaires afin que les
+/// accès panier / commandes restent visibles partout dans l'espace client.
+class ClientBottomBar extends StatelessWidget {
+  const ClientBottomBar({
+    super.key,
+    required this.cartCount,
+    required this.activeIndex,
+    required this.onSelect,
+  });
+
+  final int cartCount;
+
+  /// Onglet actif, ou `null` depuis une page secondaire (aucun surligné).
+  final int? activeIndex;
+
+  final ValueChanged<int> onSelect;
+
+  @override
+  Widget build(BuildContext context) {
     return SizedBox(
       height: 90,
       child: Stack(
@@ -184,8 +241,8 @@ class _ClientShellState extends State<ClientShell> {
                         icon: Icons.home_outlined,
                         activeIcon: Icons.home,
                         label: 'Accueil',
-                        active: _index == 0,
-                        onTap: () => _selectTab(0),
+                        active: activeIndex == 0,
+                        onTap: () => onSelect(0),
                       ),
                     ),
                     Expanded(
@@ -193,8 +250,8 @@ class _ClientShellState extends State<ClientShell> {
                         icon: Icons.grid_view_outlined,
                         activeIcon: Icons.grid_view,
                         label: 'Catégories',
-                        active: _index == 1,
-                        onTap: () => _selectTab(1),
+                        active: activeIndex == 1,
+                        onTap: () => onSelect(1),
                       ),
                     ),
                     const SizedBox(width: 76),
@@ -203,8 +260,8 @@ class _ClientShellState extends State<ClientShell> {
                         icon: Icons.shopping_bag_outlined,
                         activeIcon: Icons.shopping_bag,
                         label: 'Commandes',
-                        active: _index == 3,
-                        onTap: () => _selectTab(3),
+                        active: activeIndex == 3,
+                        onTap: () => onSelect(3),
                       ),
                     ),
                     Expanded(
@@ -212,8 +269,8 @@ class _ClientShellState extends State<ClientShell> {
                         icon: Icons.person_outline,
                         activeIcon: Icons.person,
                         label: 'Profil',
-                        active: _index == 4,
-                        onTap: () => _selectTab(4),
+                        active: activeIndex == 4,
+                        onTap: () => onSelect(4),
                       ),
                     ),
                   ],
@@ -226,7 +283,7 @@ class _ClientShellState extends State<ClientShell> {
             left: 0,
             right: 0,
             child: Center(
-              child: _CartButton(count: _cartCount, onTap: () => _selectTab(2)),
+              child: _CartButton(count: cartCount, onTap: () => onSelect(2)),
             ),
           ),
         ],
