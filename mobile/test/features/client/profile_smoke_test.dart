@@ -181,6 +181,7 @@ void main() {
     const titles = [
       'Informations personnelles',
       'Adresses enregistrées',
+      'Mes livreurs',
       'Méthodes de paiement',
       'Notifications',
       'Sécurité',
@@ -256,7 +257,8 @@ void main() {
 
   testWidgets('profil : le menu ouvre les sections dédiées', (tester) async {
     await _pumpScreen(tester);
-    await _scrollTo(tester, find.text('Méthodes de paiement'));
+    await tester.ensureVisible(find.text('Méthodes de paiement'));
+    await tester.pumpAndSettle();
 
     await tester.tap(find.text('Méthodes de paiement'));
     await tester.pumpAndSettle();
@@ -265,7 +267,8 @@ void main() {
     await tester.pageBack();
     await tester.pumpAndSettle();
 
-    await _scrollTo(tester, find.text('Informations personnelles'));
+    await tester.ensureVisible(find.text('Informations personnelles'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Informations personnelles'));
     await tester.pumpAndSettle();
     expect(find.text('/client/profile/edit'), findsOneWidget);

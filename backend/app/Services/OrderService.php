@@ -36,6 +36,7 @@ class OrderService
         private readonly NotificationService $notifications,
         private readonly FinanceService $finance,
         private readonly CashService $cash,
+        private readonly FavoriteDriverService $favoriteDrivers,
     ) {}
 
     // ------------------------------------------------------------------ J82
@@ -110,7 +111,7 @@ class OrderService
      *
      * @throws DomainException order.*  si une contrainte n'est pas satisfaite
      */
-    public function createFromCart(Cart $cart, Address $address, ?string $notes = null, string $paymentMethod = 'online'): Order
+    public function createFromCart(Cart $cart, Address $address, ?string $notes = null, string $paymentMethod = 'online', ?string $preferredDriverProfileId = null): Order
     {
         $this->assertCartOpen($cart);
 
@@ -121,6 +122,13 @@ class OrderService
         $this->assertVendorSellable($vendor);
         $this->assertItemsOrderable($cart->items);
         $this->assertItemsStocked($cart->items);
+
+        $preferredDriver = null;
+
+        if ($preferredDriverProfileId !== null) {
+            $cart->loadMissing('user');
+            $preferredDriver = $this->favoriteDrivers->acceptedDriverFor($cart->user, $preferredDriverProfileId);
+        }
 
         $delivery = $this->deliveryQuote($cart, ['address' => $address]);
         $paymentMethod = $this->normalizePaymentMethod($paymentMethod);
@@ -150,13 +158,14 @@ class OrderService
 
         $paymentDeadline = $paymentMethod->isCash() ? null : now()->addMinutes((int) config('beninfood.orders.payment_deadline_minutes', 15));
 
-        return DB::transaction(function () use ($cart, $address, $notes, $delivery, $lines, $subtotal, $commissionRate, $breakdown, $deliveryFee, $total, $reference, $paymentMethod, $paymentDeadline) {
+        return DB::transaction(function () use ($cart, $address, $notes, $delivery, $lines, $subtotal, $commissionRate, $breakdown, $deliveryFee, $total, $reference, $paymentMethod, $paymentDeadline, $preferredDriver) {
             $order = Order::create([
                 'reference' => $reference,
                 'user_id' => $cart->user_id,
                 'vendor_id' => $cart->vendor_id,
                 'cart_id' => $cart->id,
                 'zone_id' => $delivery['zone_id'],
+                'preferred_driver_profile_id' => $preferredDriver?->id,
                 'status' => OrderStatus::AwaitingPayment->value,
                 'payment_method' => $paymentMethod->isCash()
                     ? PaymentMethod::Cash->value
@@ -360,13 +369,15 @@ class OrderService
     }
 
     /** Le vendeur signale la commande prête (preparing → ready) et ouvre une course. */
-    public function markReady(Order $order, ?string $actorId = null): Order
+    public function markReady(Order $order, ?string $actorId = null, ?string $targetDriverProfileId = null, bool $overrideDriver = false): Order
     {
         $this->assertTransition($order, OrderStatus::Ready);
 
         $from = $order->status;
 
-        DB::transaction(function () use ($order, $from, $actorId): void {
+        $target = $this->resolveTargetDriver($order, $targetDriverProfileId, $overrideDriver);
+
+        DB::transaction(function () use ($order, $from, $actorId, $target): void {
             $order->update(['status' => OrderStatus::Ready->value]);
 
             $this->logTransition($order, $from, OrderStatus::Ready, 'vendor', $actorId, null);
@@ -374,6 +385,7 @@ class OrderService
             if ($order->delivery()->doesntExist()) {
                 $order->delivery()->create([
                     'driver_profile_id' => null,
+                    'targeted_driver_profile_id' => $target?->id,
                     'vendor_id' => $order->vendor_id,
                     'zone_id' => $order->zone_id,
                     'status' => DeliveryStatus::Assigned->value,
@@ -384,7 +396,40 @@ class OrderService
             }
         });
 
+        if ($target?->user !== null) {
+            $this->notifications->notifyEvent('delivery.offered', [$target->user], [
+                'reference' => $order->reference,
+                'order_id' => $order->id,
+                'delivery_id' => $order->delivery()->value('id'),
+            ]);
+        }
+
         return $order->fresh(['statusHistory', 'delivery']);
+    }
+
+    /**
+     * Détermine le livreur visé pour la course : choix vendeur (override) sinon
+     * le favori exprimé par le client à la commande.
+     */
+    private function resolveTargetDriver(Order $order, ?string $targetDriverProfileId, bool $overrideDriver): ?DriverProfile
+    {
+        if (! $overrideDriver) {
+            return $order->preferred_driver_profile_id !== null
+                ? DriverProfile::find($order->preferred_driver_profile_id)
+                : null;
+        }
+
+        if ($targetDriverProfileId === null) {
+            return null;
+        }
+
+        $order->loadMissing('vendor.user');
+
+        if ($order->vendor?->user === null) {
+            throw new DomainException('order.vendor_missing', 'Boutique introuvable.', 404);
+        }
+
+        return $this->favoriteDrivers->acceptedDriverFor($order->vendor->user, $targetDriverProfileId);
     }
 
     /** Un livreur accepte la course (ready → assigned). */
@@ -411,6 +456,7 @@ class OrderService
         if ($order->delivery->exists()) {
             $order->delivery->update([
                 'driver_profile_id' => $driverProfileId,
+                'targeted_driver_profile_id' => null,
                 'status' => DeliveryStatus::Assigned->value,
                 'assigned_at' => now(),
             ]);

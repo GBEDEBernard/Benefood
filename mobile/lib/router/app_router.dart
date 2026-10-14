@@ -20,6 +20,7 @@ import '../features/client/account/addresses_screen.dart';
 import '../features/client/account/complaints_screen.dart';
 import '../features/client/account/coupons_screen.dart';
 import '../features/client/account/favorites_screen.dart';
+import '../features/client/account/favorite_drivers_screen.dart';
 import '../features/client/account/notifications_screen.dart';
 import '../features/client/account/payment_methods_screen.dart';
 import '../features/client/account/profile_edit_screen.dart';
@@ -32,6 +33,7 @@ import '../features/client/parcels/parcels_screen.dart';
 import '../features/vendor/account/vendor_settings_screen.dart';
 import '../features/vendor/presentation/vendor_shell.dart';
 import '../features/driver/presentation/driver_shell.dart';
+import '../features/driver/account/favorite_clients_screen.dart';
 import '../features/wallet/wallet_screen.dart';
 import '../shared/models/user.dart';
 
@@ -251,6 +253,11 @@ GoRouter buildAppRouter(SessionProvider session, MarketplaceApi marketplace) {
                 FavoritesScreen(marketplace: marketplace),
           ),
           GoRoute(
+            path: '/client/favorite-drivers',
+            builder: (context, state) =>
+                FavoriteDriversScreen(marketplace: marketplace),
+          ),
+          GoRoute(
             path: '/client/coupons',
             builder: (context, state) => CouponsScreen(marketplace: marketplace),
           ),
@@ -313,8 +320,19 @@ GoRouter buildAppRouter(SessionProvider session, MarketplaceApi marketplace) {
         ),
       ),
       GoRoute(
+        path: '/vendor/favorite-drivers',
+        builder: (context, state) => FavoriteDriversScreen(
+          marketplace: marketplace,
+          audience: NotificationAudience.vendor,
+        ),
+      ),
+      GoRoute(
         path: '/driver',
         builder: (context, state) => DriverShell(session: session, marketplace: marketplace),
+      ),
+      GoRoute(
+        path: '/driver/favorite-clients',
+        builder: (context, state) => FavoriteClientsScreen(marketplace: marketplace),
       ),
       GoRoute(
         path: '/driver/profile/edit',

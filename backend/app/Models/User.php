@@ -107,6 +107,11 @@ class User extends Authenticatable
         return $this->hasMany(Favorite::class);
     }
 
+    public function favoriteDrivers(): HasMany
+    {
+        return $this->hasMany(FavoriteDriver::class, 'owner_user_id');
+    }
+
     public function paymentMethods(): HasMany
     {
         return $this->hasMany(PaymentMethod::class);

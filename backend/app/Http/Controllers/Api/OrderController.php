@@ -54,6 +54,7 @@ class OrderController extends Controller
             'address_id' => ['required', 'uuid', 'exists:addresses,id'],
             'notes' => ['sometimes', 'nullable', 'string', 'max:1000'],
             'payment_method' => ['sometimes', 'string', 'in:online,cash'],
+            'favorite_driver_id' => ['sometimes', 'nullable', 'uuid', 'exists:driver_profiles,id'],
         ]);
 
         $address = $this->userAddress($request, $data['address_id']);
@@ -67,7 +68,13 @@ class OrderController extends Controller
             return Api::error('Votre panier est vide.', 'order.empty_cart', 422);
         }
 
-        $order = $this->orders->createFromCart($cart, $address, $data['notes'] ?? null, $data['payment_method'] ?? 'online');
+        $order = $this->orders->createFromCart(
+            $cart,
+            $address,
+            $data['notes'] ?? null,
+            $data['payment_method'] ?? 'online',
+            $data['favorite_driver_id'] ?? null,
+        );
 
         return Api::created(new OrderResource($order));
     }
@@ -196,7 +203,16 @@ class OrderController extends Controller
             return Api::error('Ressource introuvable.', 'not_found', 404);
         }
 
-        $order = $this->orders->markReady($order, $request->user()->id);
+        $data = $request->validate([
+            'favorite_driver_id' => ['sometimes', 'nullable', 'uuid', 'exists:driver_profiles,id'],
+        ]);
+
+        $order = $this->orders->markReady(
+            $order,
+            $request->user()->id,
+            $data['favorite_driver_id'] ?? null,
+            $request->has('favorite_driver_id'),
+        );
 
         return Api::ok(new OrderResource($order->load(['statusHistory', 'delivery'])));
     }

@@ -374,8 +374,6 @@ class _RouteCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(AppDimens.lg),
@@ -403,14 +401,6 @@ class _RouteCard extends StatelessWidget {
                 AmountText(parcel.deliveryFee, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900)),
               ],
             ),
-            if (parcel.partnerAmount > 0 || parcel.platformAmount > 0) ...[
-              const SizedBox(height: 4),
-              Text(
-                'Part livreur ${formatAmount(parcel.partnerAmount)} · Part plateforme ${formatAmount(parcel.platformAmount)}',
-                style: theme.textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
-                textAlign: TextAlign.right,
-              ),
-            ],
           ],
         ),
       ),

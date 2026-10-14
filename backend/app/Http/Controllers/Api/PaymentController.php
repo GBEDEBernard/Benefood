@@ -70,6 +70,10 @@ class PaymentController extends Controller
             return Api::error('Ressource introuvable.', 'not_found', 404);
         }
 
+        if ($parcel->isCash()) {
+            return Api::error('Ce colis est payé en espèces à la livraison.', 'payment.cash_not_online', 422);
+        }
+
         if (! $parcel->status->isAwaitingPayment()) {
             return Api::error('Ce colis ne peut plus être payé.', 'payment.invalid_state', 422);
         }

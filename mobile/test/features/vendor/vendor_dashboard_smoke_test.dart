@@ -404,6 +404,41 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('ma boutique : carte adresse → éditeur « Mes adresses » → PATCH', (tester) async {
+    final log = <String>[];
+    await _pumpShell(tester, log, size: const Size(390, 844));
+
+    await tester.tap(find.byIcon(Icons.menu));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Boutique'));
+    await tester.pumpAndSettle();
+
+    await tester.scrollUntilVisible(
+      find.text('Adresse'),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Adresse'));
+    await tester.pumpAndSettle();
+
+    // Trois sections : boutique, retrait livreurs et informations.
+    expect(find.text('Mes adresses'), findsOneWidget);
+    expect(find.text('Adresse de la boutique'), findsOneWidget);
+    expect(find.text('Adresse de retrait (livreurs)'), findsOneWidget);
+    expect(find.text('Informations supplémentaires'), findsOneWidget);
+    expect(find.text('Instructions pour le livreur'), findsOneWidget);
+
+    // Édition de l'adresse de la boutique puis enregistrement.
+    await tester.enterText(find.byType(TextFormField).at(1), 'Rue des Palmiers');
+    await tester.tap(find.text('Enregistrer'));
+    await tester.pump();
+    await tester.pumpAndSettle();
+
+    expect(log, contains('PATCH /vendors/me'));
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('produits : hamburger → tiroir, recherche et onglets', (tester) async {
     final log = <String>[];
     await _pumpShell(tester, log, size: const Size(390, 844));

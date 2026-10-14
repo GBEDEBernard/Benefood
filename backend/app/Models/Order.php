@@ -66,6 +66,11 @@ class Order extends Model
         return $this->belongsTo(DeliveryZone::class);
     }
 
+    public function preferredDriverProfile(): BelongsTo
+    {
+        return $this->belongsTo(DriverProfile::class, 'preferred_driver_profile_id');
+    }
+
     public function items(): HasMany
     {
         return $this->hasMany(OrderItem::class);

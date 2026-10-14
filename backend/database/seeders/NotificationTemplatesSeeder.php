@@ -80,6 +80,24 @@ class NotificationTemplatesSeeder extends Seeder
                 'subject' => 'Réclamation traitée',
                 'body' => 'Votre réclamation « {subject} » a été traitée.',
             ],
+            [
+                'event' => 'driver.favorite.requested',
+                'channel' => NotificationTemplateChannel::Push->value,
+                'subject' => 'Nouvelle demande de favori',
+                'body' => '{reference} souhaite vous ajouter à ses livreurs favoris.',
+            ],
+            [
+                'event' => 'driver.favorite.accepted',
+                'channel' => NotificationTemplateChannel::Push->value,
+                'subject' => 'Livreur favori ajouté',
+                'body' => '{reference} a accepté de devenir votre livreur favori.',
+            ],
+            [
+                'event' => 'parcel.offered',
+                'channel' => NotificationTemplateChannel::Push->value,
+                'subject' => 'Colis proposé',
+                'body' => 'Un colis #{reference} vous est réservé.',
+            ],
         ];
 
         foreach ($templates as $template) {

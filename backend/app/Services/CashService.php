@@ -28,7 +28,13 @@ class CashService
     /** Le livreur peut-il porter cette commande cash (flottant suffisant) ? */
     public function hasCoverage(DriverProfile $driver, Order $order): bool
     {
-        return (int) $driver->prepaid_balance >= (int) $order->total;
+        return $this->hasFloat($driver, (int) $order->total);
+    }
+
+    /** Le flottant du livreur couvre-t-il un montant donné ? */
+    public function hasFloat(DriverProfile $driver, int $amount): bool
+    {
+        return (int) $driver->prepaid_balance >= $amount;
     }
 
     /** Recharge le flottant du livreur (entrée d'argent dédiée). */
@@ -48,6 +54,32 @@ class CashService
                 'reference_type' => $referenceType,
                 'reference_id' => $referenceId,
                 'description' => 'Recharge du flottant ('.$actorId.')',
+                'created_at' => now(),
+            ]);
+
+            return $driver;
+        });
+
+        return $driver->fresh('floatTransactions');
+    }
+
+    /** Débite le flottant du livreur (ex. commission colis en espèces). */
+    public function debitFloat(DriverProfile $driver, int $amount, ?string $referenceType = null, ?string $referenceId = null, ?string $description = null): DriverProfile
+    {
+        if ($amount <= 0) {
+            return $driver;
+        }
+
+        $driver = DB::transaction(function () use ($driver, $amount, $referenceType, $referenceId, $description) {
+            $driver->refresh();
+            $driver->decrement('prepaid_balance', $amount);
+
+            $driver->floatTransactions()->create([
+                'type' => 'debit',
+                'amount' => $amount,
+                'reference_type' => $referenceType,
+                'reference_id' => $referenceId,
+                'description' => $description,
                 'created_at' => now(),
             ]);
 

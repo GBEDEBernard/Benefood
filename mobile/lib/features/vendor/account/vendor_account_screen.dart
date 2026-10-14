@@ -379,6 +379,14 @@ class _VendorAccountScreenState extends State<VendorAccountScreen> {
         onTap: () => _openRoute('/vendor/parcels'),
       ),
       ProfileMenuEntry(
+        icon: Icons.delivery_dining_outlined,
+        tint: AppColors.greenLight,
+        accent: AppColors.green,
+        title: 'Mes livreurs',
+        subtitle: 'Livreurs favoris pour vos commandes et colis...',
+        onTap: () => _openRoute('/vendor/favorite-drivers'),
+      ),
+      ProfileMenuEntry(
         icon: Icons.notifications_none,
         tint: AppColors.orangeLight,
         accent: AppColors.orange,

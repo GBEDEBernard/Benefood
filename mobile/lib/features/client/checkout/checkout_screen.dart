@@ -15,6 +15,7 @@ import '../../../shared/widgets/app_button.dart';
 import '../../../shared/widgets/amount_widgets.dart';
 import '../../../shared/widgets/beninfood_header.dart';
 import '../../../shared/widgets/feedback_widgets.dart';
+import '../../../shared/widgets/favorite_driver_picker.dart';
 import '../../../shared/widgets/state_widgets.dart';
 import '../orders/order_tracking_screen.dart';
 
@@ -46,6 +47,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   /// Mode de règlement choisi au checkout : `online` (Mobile Money) ou `cash`
   /// (espèces remises au livreur — cahier de conception v1.0).
   String _paymentMethod = 'online';
+
+  /// Livreur favori visé (optionnel) : l'offre lui sera réservée en priorité.
+  String? _favoriteDriverId;
+  String? _favoriteDriverName;
 
   @override
   void initState() {
@@ -123,6 +128,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       final order = await widget.marketplace.createOrder(
         address.id,
         paymentMethod: _paymentMethod,
+        favoriteDriverId: _favoriteDriverId,
       );
       if (!mounted) {
         return;
@@ -144,6 +150,22 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         showToast(context, e.message, isError: true);
       }
     }
+  }
+
+  Future<void> _pickFavoriteDriver() async {
+    final choice = await showFavoriteDriverPicker(
+      context,
+      widget.marketplace,
+      title: 'Livreur favori (optionnel)',
+      selectedId: _favoriteDriverId,
+    );
+    if (choice == null || !mounted) {
+      return;
+    }
+    setState(() {
+      _favoriteDriverId = choice.driverId;
+      _favoriteDriverName = choice.isNone ? null : choice.label;
+    });
   }
 
   Future<void> _startPayment(Order order) async {
@@ -461,6 +483,26 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                           ),
                       ],
                     ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                _SectionTitle(
+                  icon: Icons.delivery_dining_outlined,
+                  title: 'Livreur favori (optionnel)',
+                ),
+                const SizedBox(height: 8),
+                Card(
+                  margin: EdgeInsets.zero,
+                  child: ListTile(
+                    onTap: _pickFavoriteDriver,
+                    leading: const Icon(Icons.delivery_dining_outlined, color: AppColors.orange),
+                    title: Text(_favoriteDriverName ?? 'Aucun livreur'),
+                    subtitle: Text(
+                      _favoriteDriverName == null
+                          ? 'L\'offre sera visible par tous les livreurs disponibles'
+                          : 'Ce livreur recevra l\'offre en priorité',
+                    ),
+                    trailing: const Icon(Icons.chevron_right),
                   ),
                 ),
                 const SizedBox(height: 20),

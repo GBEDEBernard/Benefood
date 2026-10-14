@@ -279,6 +279,35 @@ class VendorOnboardingTest extends TestCase
         ]);
     }
 
+    public function test_update_profile_sets_pickup_details(): void
+    {
+        $user = User::factory()->create(['phone' => '+22997000010']);
+        Sanctum::actingAs($user);
+
+        $this->postJson('/api/v1/vendors/me/onboarding', [
+            'business_name' => 'Resto Chez Awa',
+            'phone' => '97000011',
+        ])->assertCreated();
+
+        $this->patchJson('/api/v1/vendors/me', [
+            'city' => 'Cotonou',
+            'address' => 'Cadjèhoun, carrefour des 3 collèges',
+            'pickup_address' => 'Entrepôt Fidjrossè, porte bleue',
+            'pickup_landmark' => 'Face au marché de nuit',
+            'delivery_instructions' => 'Appeler en arrivant, colis fragile.',
+        ])->assertOk()
+            ->assertJsonPath('data.pickup_address', 'Entrepôt Fidjrossè, porte bleue')
+            ->assertJsonPath('data.pickup_landmark', 'Face au marché de nuit')
+            ->assertJsonPath('data.delivery_instructions', 'Appeler en arrivant, colis fragile.');
+
+        $this->assertDatabaseHas('vendors', [
+            'user_id' => $user->id,
+            'pickup_address' => 'Entrepôt Fidjrossè, porte bleue',
+            'pickup_landmark' => 'Face au marché de nuit',
+            'delivery_instructions' => 'Appeler en arrivant, colis fragile.',
+        ]);
+    }
+
     public function test_update_profile_closes_and_reopens_shop(): void
     {
         $user = User::factory()->create(['phone' => '+22997000010']);

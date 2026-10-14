@@ -10,6 +10,7 @@ class Parcel {
     required this.reference,
     this.status = '',
     this.paymentStatus = '',
+    this.paymentMethod = '',
     this.description,
     this.currency = 'XOF',
     this.pickup,
@@ -37,6 +38,7 @@ class Parcel {
   final String reference;
   final String status;
   final String paymentStatus;
+  final String paymentMethod;
   final String? description;
   final String currency;
   final ParcelAddress? pickup;
@@ -60,6 +62,7 @@ class Parcel {
   final String? createdAt;
 
   bool get isAwaitingPayment => status == 'awaiting_payment';
+  bool get isCash => paymentMethod == 'cash';
   bool get isPaid => status == 'paid' || paymentStatus == 'confirmed' || paymentStatus == 'paid';
   bool get isDelivered => status == 'delivered';
   bool get isCancelled => status == 'cancelled';
@@ -93,6 +96,7 @@ class Parcel {
       reference: _s(json['reference']),
       status: _s(json['status']),
       paymentStatus: _s(json['payment_status']),
+      paymentMethod: _s(json['payment_method']),
       description: json['description'] is String ? json['description'] as String : null,
       currency: _s(json['currency'], 'XOF'),
       pickup: rawPickup is Map<String, dynamic> ? ParcelAddress.fromJson(rawPickup) : null,
@@ -125,6 +129,7 @@ class ParcelAddress {
   const ParcelAddress({
     this.label,
     this.addressText,
+    this.landmark,
     this.area,
     this.city,
     this.latitude,
@@ -133,6 +138,7 @@ class ParcelAddress {
 
   final String? label;
   final String? addressText;
+  final String? landmark;
   final String? area;
   final String? city;
   final double? latitude;
@@ -147,6 +153,7 @@ class ParcelAddress {
       label,
       area,
       addressText,
+      if (landmark != null && landmark!.trim().isNotEmpty) 'près de ${landmark!.trim()}',
       city,
     ].whereType<String>().where((p) => p.trim().isNotEmpty).toList();
     return parts.isEmpty ? 'Adresse non précisée' : parts.join(' · ');
@@ -155,6 +162,7 @@ class ParcelAddress {
   factory ParcelAddress.fromJson(Map<String, dynamic> json) => ParcelAddress(
         label: json['label'] is String ? json['label'] as String : null,
         addressText: json['address_text'] is String ? json['address_text'] as String : null,
+        landmark: json['landmark'] is String ? json['landmark'] as String : null,
         area: json['area'] is String ? json['area'] as String : null,
         city: json['city'] is String ? json['city'] as String : null,
         latitude: _d(json['latitude']),

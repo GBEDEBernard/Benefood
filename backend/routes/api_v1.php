@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\DeliveryQuoteController;
 use App\Http\Controllers\Api\DeliveryZoneController;
 use App\Http\Controllers\Api\DriverController;
 use App\Http\Controllers\Api\DriverFloatController;
+use App\Http\Controllers\Api\FavoriteDriverController;
 use App\Http\Controllers\Api\HealthController;
 use App\Http\Controllers\Api\HomeController;
 use App\Http\Controllers\Api\MeController;
@@ -67,6 +68,14 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::patch('/me/payment-methods/{paymentMethod}', [MeController::class, 'updatePaymentMethod'])->name('api.v1.me.payment-methods.update');
     Route::delete('/me/payment-methods/{paymentMethod}', [MeController::class, 'destroyPaymentMethod'])->name('api.v1.me.payment-methods.destroy');
     Route::get('/me/coupons', [MeController::class, 'coupons'])->name('api.v1.me.coupons.index');
+
+    // ---------- Livreurs favoris (client / vendeur) ----------
+    Route::prefix('me/favorite-drivers')->middleware('permission:client.orders.manage|vendor.orders.manage')->group(function (): void {
+        Route::get('/', [FavoriteDriverController::class, 'index'])->name('api.v1.me.favorite-drivers.index');
+        Route::get('/candidates', [FavoriteDriverController::class, 'candidates'])->name('api.v1.me.favorite-drivers.candidates');
+        Route::post('/', [FavoriteDriverController::class, 'store'])->name('api.v1.me.favorite-drivers.store');
+        Route::delete('/{driver}', [FavoriteDriverController::class, 'destroy'])->name('api.v1.me.favorite-drivers.destroy');
+    });
 
     // ---------- Calcul d'itinéraire routier (navigation livreur / suivi) ----------
     Route::post('/routes', [RouteController::class, 'plan'])->name('api.v1.routes.plan');
@@ -153,6 +162,12 @@ Route::middleware('auth:sanctum')->group(function (): void {
             Route::post('/{parcel}/pickup', [ParcelController::class, 'pickup'])->name('api.v1.driver.me.parcels.pickup');
             Route::post('/{parcel}/start', [ParcelController::class, 'start'])->name('api.v1.driver.me.parcels.start');
             Route::post('/{parcel}/deliver', [ParcelController::class, 'deliver'])->name('api.v1.driver.me.parcels.deliver');
+        });
+
+        Route::prefix('favorite-clients')->middleware('permission:driver.deliveries.manage')->group(function (): void {
+            Route::get('/', [FavoriteDriverController::class, 'driverIndex'])->name('api.v1.driver.me.favorite-clients.index');
+            Route::post('/{favorite}/accept', [FavoriteDriverController::class, 'accept'])->name('api.v1.driver.me.favorite-clients.accept');
+            Route::post('/{favorite}/decline', [FavoriteDriverController::class, 'decline'])->name('api.v1.driver.me.favorite-clients.decline');
         });
     });
 

@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\ParcelStatus;
+use App\Enums\PaymentMethod;
 use App\Enums\PaymentStatus;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
@@ -25,6 +26,7 @@ class Parcel extends Model
         return [
             'status' => ParcelStatus::class,
             'payment_status' => PaymentStatus::class,
+            'payment_method' => PaymentMethod::class,
             'pickup_snapshot' => 'array',
             'dropoff_snapshot' => 'array',
             'distance_km' => 'decimal:2',
@@ -51,6 +53,11 @@ class Parcel extends Model
         return $this->belongsTo(DriverProfile::class);
     }
 
+    public function targetedDriverProfile(): BelongsTo
+    {
+        return $this->belongsTo(DriverProfile::class, 'targeted_driver_profile_id');
+    }
+
     public function payment(): HasOne
     {
         return $this->hasOne(Payment::class);
@@ -64,5 +71,10 @@ class Parcel extends Model
     public function isPaid(): bool
     {
         return $this->payment_status === PaymentStatus::Confirmed;
+    }
+
+    public function isCash(): bool
+    {
+        return $this->payment_method?->isCash() ?? false;
     }
 }

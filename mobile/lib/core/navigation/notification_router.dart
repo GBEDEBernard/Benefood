@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../features/client/orders/order_tracking_screen.dart';
 import '../../features/client/parcels/parcel_detail_screen.dart';
@@ -34,7 +35,19 @@ Future<bool> openNotificationTarget(
   required MarketplaceApi marketplace,
   required Map<String, dynamic> data,
   NotificationAudience audience = NotificationAudience.client,
+  String? type,
 }) async {
+  // Livreurs favoris : la demande reçue par le livreur (à accepter/refuser) et
+  // l'acceptation reçue par le client/vendeur ouvrent la liste correspondante.
+  if (type != null && type.startsWith('driver.favorite.')) {
+    context.push(switch (audience) {
+      NotificationAudience.driver => '/driver/favorite-clients',
+      NotificationAudience.vendor => '/vendor/favorite-drivers',
+      NotificationAudience.client => '/client/favorite-drivers',
+    });
+    return true;
+  }
+
   // Livreur : la cible est la course (mission) portée par la notification.
   // Tant qu'aucun identifiant de course n'est fourni, la notification reste
   // lisible mais n'a pas de destination dédiée.
@@ -42,18 +55,17 @@ Future<bool> openNotificationTarget(
     final deliveryId =
         notificationString(data, 'delivery_id') ??
         notificationString(data, 'course_id');
-    if (deliveryId == null) {
-      return false;
-    }
-    await Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => MissionDetailScreen(
-          marketplace: marketplace,
-          deliveryId: deliveryId,
+    if (deliveryId != null) {
+      await Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => MissionDetailScreen(
+            marketplace: marketplace,
+            deliveryId: deliveryId,
+          ),
         ),
-      ),
-    );
-    return true;
+      );
+      return true;
+    }
   }
 
   // Colis : le suivi s'ouvre dans l'espace de lecture (client ou vendeur
@@ -70,6 +82,12 @@ Future<bool> openNotificationTarget(
       ),
     );
     return true;
+  }
+
+  // Sans course ni colis, une notification livreur n'a pas de cible dédiée
+  // (le livreur suit ses offres depuis son onglet).
+  if (audience == NotificationAudience.driver) {
+    return false;
   }
 
   final orderId = notificationOrderId(data);

@@ -30,6 +30,7 @@ class OrderResource extends JsonResource
             'status' => $this->status?->value,
             'payment_status' => $this->payment_status?->value,
             'payment_method' => $this->payment_method?->value,
+            'preferred_driver_id' => $this->preferred_driver_profile_id,
             'vendor' => $this->whenLoaded('vendor', fn () => [
                 'id' => $this->vendor->id,
                 'business_name' => $this->vendor->business_name,

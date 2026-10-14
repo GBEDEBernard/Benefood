@@ -36,6 +36,11 @@ class Delivery extends Model
         return $this->belongsTo(DriverProfile::class);
     }
 
+    public function targetedDriverProfile(): BelongsTo
+    {
+        return $this->belongsTo(DriverProfile::class, 'targeted_driver_profile_id');
+    }
+
     public function vendor(): BelongsTo
     {
         return $this->belongsTo(Vendor::class);

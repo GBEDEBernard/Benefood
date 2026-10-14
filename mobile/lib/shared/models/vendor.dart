@@ -10,6 +10,9 @@ class Vendor {
     this.email,
     this.city,
     this.address,
+    this.pickupAddress,
+    this.pickupLandmark,
+    this.deliveryInstructions,
     this.status = 'active',
     this.logoUrl,
     this.coverUrl,
@@ -33,6 +36,9 @@ class Vendor {
   final String? email;
   final String? city;
   final String? address;
+  final String? pickupAddress;
+  final String? pickupLandmark;
+  final String? deliveryInstructions;
   final String status;
   final String? logoUrl;
   final String? coverUrl;
@@ -68,6 +74,10 @@ class Vendor {
         email: json['email'] is String ? json['email'] as String : null,
         city: json['city'] is String ? json['city'] as String : null,
         address: json['address'] is String ? json['address'] as String : null,
+        pickupAddress: json['pickup_address'] is String ? json['pickup_address'] as String : null,
+        pickupLandmark: json['pickup_landmark'] is String ? json['pickup_landmark'] as String : null,
+        deliveryInstructions:
+            json['delivery_instructions'] is String ? json['delivery_instructions'] as String : null,
         status: _s(json['status'], 'active'),
         logoUrl: json['logo_url'] is String ? json['logo_url'] as String : null,
         coverUrl: json['cover_url'] is String ? json['cover_url'] as String : null,

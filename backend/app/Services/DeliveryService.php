@@ -77,12 +77,16 @@ class DeliveryService
      *
      * @return Collection<int, Delivery>
      */
-    public function availableOffers(): Collection
+    public function availableOffers(?DriverProfile $driver = null): Collection
     {
         return Delivery::query()
             ->whereNull('driver_profile_id')
             ->where('status', DeliveryStatus::Assigned->value)
             ->whereHas('order', fn ($query) => $query->where('status', OrderStatus::Ready->value))
+            ->when($driver !== null, fn ($query) => $query->where(function ($inner) use ($driver): void {
+                $inner->whereNull('targeted_driver_profile_id')
+                    ->orWhere('targeted_driver_profile_id', $driver->id);
+            }))
             ->with(['order.vendor', 'order.user', 'order.financials', 'vendor', 'zone'])
             ->orderByDesc('created_at')
             ->get();
@@ -93,7 +97,7 @@ class DeliveryService
      */
     public function acceptOffer(Delivery $delivery, DriverProfile $driver): Delivery
     {
-        $this->assertOfferOpen($delivery);
+        $this->assertOfferOpen($delivery, $driver);
 
         $this->assertDriverAvailable($driver);
 
@@ -118,7 +122,7 @@ class DeliveryService
      */
     public function declineOffer(Delivery $delivery, DriverProfile $driver, ?string $reason = null): Delivery
     {
-        $this->assertOfferOpen($delivery);
+        $this->assertOfferOpen($delivery, $driver);
 
         $delivery->statusHistory()->create([
             'from_status' => DeliveryStatus::Assigned->value,
@@ -248,10 +252,14 @@ class DeliveryService
             ->get();
     }
 
-    private function assertOfferOpen(Delivery $delivery): void
+    private function assertOfferOpen(Delivery $delivery, ?DriverProfile $driver = null): void
     {
         if ($delivery->driver_profile_id !== null) {
             throw new DomainException('delivery.already_taken', 'Cette course a déjà été prise.', 409);
+        }
+
+        if ($delivery->targeted_driver_profile_id !== null && $driver !== null && $delivery->targeted_driver_profile_id !== $driver->id) {
+            throw new DomainException('delivery.reserved', 'Cette course est réservée à un autre livreur.', 409);
         }
 
         if ($delivery->status !== DeliveryStatus::Assigned || ! $delivery->order?->isReady()) {

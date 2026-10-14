@@ -31,11 +31,18 @@ class ParcelController extends Controller
     {
         $data = $this->validateAddresses($request);
 
+        $data = array_merge($data, $request->validate([
+            'favorite_driver_id' => ['sometimes', 'nullable', 'uuid', 'exists:driver_profiles,id'],
+            'payment_method' => ['sometimes', 'nullable', 'in:online,cash'],
+        ]));
+
         $parcel = $this->parcels->create(
             $request->user(),
             $data['pickup'],
             $data['dropoff'],
             $data['description'] ?? null,
+            $data['favorite_driver_id'] ?? null,
+            $data['payment_method'] ?? 'online',
         );
 
         return Api::created(new ParcelResource($parcel->load('payment')));
@@ -86,10 +93,10 @@ class ParcelController extends Controller
 
     public function offers(Request $request): JsonResponse
     {
-        $this->driverProfile($request);
+        $driver = $this->driverProfile($request);
 
         return Api::ok(ParcelResource::collection(
-            $this->parcels->availableOffers()->load('user')
+            $this->parcels->availableOffers($driver)->load('user')
         )->resolve());
     }
 
@@ -106,7 +113,10 @@ class ParcelController extends Controller
     {
         $driver = $this->driverProfile($request);
 
-        if ($parcel->driver_profile_id !== null || $parcel->status->value !== 'paid') {
+        $reservedForOther = $parcel->targeted_driver_profile_id !== null
+            && $parcel->targeted_driver_profile_id !== $driver->id;
+
+        if ($parcel->driver_profile_id !== null || $parcel->status->value !== 'paid' || $reservedForOther) {
             return Api::error('Ce colis n\'est plus disponible.', 'parcel.not_available', 409);
         }
 
@@ -147,6 +157,7 @@ class ParcelController extends Controller
             'pickup' => ['required', 'array'],
             'pickup.label' => ['sometimes', 'nullable', 'string', 'max:100'],
             'pickup.address_text' => ['sometimes', 'nullable', 'string', 'max:255'],
+            'pickup.landmark' => ['sometimes', 'nullable', 'string', 'max:255'],
             'pickup.area' => ['sometimes', 'nullable', 'string', 'max:120'],
             'pickup.city' => ['sometimes', 'nullable', 'string', 'max:120'],
             'pickup.latitude' => ['sometimes', 'nullable', 'numeric', 'between:-90,90'],
@@ -154,6 +165,7 @@ class ParcelController extends Controller
             'dropoff' => ['required', 'array'],
             'dropoff.label' => ['sometimes', 'nullable', 'string', 'max:100'],
             'dropoff.address_text' => ['sometimes', 'nullable', 'string', 'max:255'],
+            'dropoff.landmark' => ['sometimes', 'nullable', 'string', 'max:255'],
             'dropoff.area' => ['sometimes', 'nullable', 'string', 'max:120'],
             'dropoff.city' => ['sometimes', 'nullable', 'string', 'max:120'],
             'dropoff.latitude' => ['sometimes', 'nullable', 'numeric', 'between:-90,90'],

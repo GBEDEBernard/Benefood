@@ -8,6 +8,7 @@ import '../../../shared/models/order.dart';
 import '../../../shared/widgets/app_network_image.dart';
 import '../../../shared/widgets/amount_widgets.dart';
 import '../../../shared/widgets/beninfood_header.dart';
+import '../../../shared/widgets/favorite_driver_picker.dart';
 import '../../../shared/widgets/status_badge.dart';
 import '../../../shared/widgets/state_widgets.dart';
 import 'vendor_order_detail_screen.dart';
@@ -147,10 +148,20 @@ class _VendorOrdersScreenState extends State<VendorOrdersScreen> {
   }
 
   Future<void> _ready(Order order) async {
+    final choice = await showFavoriteDriverPicker(
+      context,
+      widget.marketplace,
+      title: 'Livreur favori (optionnel)',
+    );
+    if (choice == null || !mounted) {
+      return;
+    }
     await _runAction(
       order,
-      () => widget.marketplace.vendorReady(order.id),
-      successLabel: 'Commande marquée prête',
+      () => widget.marketplace.vendorReady(order.id, favoriteDriverId: choice.driverId),
+      successLabel: choice.isNone
+          ? 'Commande marquée prête'
+          : 'Commande prête — offre réservée à ${choice.label}',
     );
   }
 

@@ -62,10 +62,10 @@ class DeliveryController extends Controller
 
     public function availableOffers(Request $request): JsonResponse
     {
-        $this->driverProfile($request);
+        $driver = $this->driverProfile($request);
 
         return Api::ok(DeliveryResource::collection(
-            $this->deliveryService->availableOffers()
+            $this->deliveryService->availableOffers($driver)
                 ->map(fn (Delivery $delivery) => $delivery->load(['order.vendor', 'order.user', 'order.items.product', 'order.financials', 'vendor', 'zone']))
         )->resolve());
     }

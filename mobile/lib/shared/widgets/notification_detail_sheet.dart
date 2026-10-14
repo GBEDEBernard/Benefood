@@ -21,6 +21,9 @@ IconData notificationIcon(String type) {
   if (type.startsWith('parcel.')) {
     return Icons.inventory_2_outlined;
   }
+  if (type.startsWith('driver.favorite.')) {
+    return Icons.handshake_outlined;
+  }
   if (type.startsWith('promo') || type.startsWith('coupon')) {
     return Icons.local_offer_outlined;
   }
@@ -40,6 +43,9 @@ Color notificationAccent(String type) {
   if (type.startsWith('parcel.')) {
     return AppColors.info;
   }
+  if (type.startsWith('driver.favorite.')) {
+    return AppColors.green;
+  }
   return AppColors.orange;
 }
 
@@ -55,6 +61,9 @@ String notificationCategory(String type) {
   }
   if (type.startsWith('parcel.')) {
     return 'Colis';
+  }
+  if (type.startsWith('driver.favorite.')) {
+    return 'Livreurs favoris';
   }
   if (type.startsWith('promo') || type.startsWith('coupon')) {
     return 'Offre';
@@ -105,9 +114,15 @@ Future<void> showNotificationDetail(
       // Cible réelle selon l'espace : suivi client, commande vendeur, mission
       // livreur ou réclamation. L'action n'apparaît que si la notification
       // porte un identifiant exploitable dans l'espace courant.
+      final isFavorite = type.startsWith('driver.favorite.');
       final IconData? actionIcon;
       final String? actionLabel;
-      if (audience == NotificationAudience.driver) {
+      if (isFavorite) {
+        actionIcon = Icons.people_outline;
+        actionLabel = audience == NotificationAudience.driver
+            ? 'Voir la demande'
+            : 'Voir mes livreurs';
+      } else if (audience == NotificationAudience.driver) {
         actionIcon = deliveryId != null ? Icons.delivery_dining_outlined : null;
         actionLabel = deliveryId != null ? 'Ouvrir la mission' : null;
       } else if (orderId != null) {
@@ -130,7 +145,10 @@ Future<void> showNotificationDetail(
 
       void openTarget() {
         Navigator.of(sheetContext).pop();
-        if (orderId != null || deliveryId != null || parcelId != null) {
+        if (orderId != null ||
+            deliveryId != null ||
+            parcelId != null ||
+            isFavorite) {
           openNotificationTarget(
             outerContext,
             marketplace: marketplace,
@@ -140,6 +158,7 @@ Future<void> showNotificationDetail(
               'parcel_id': ?parcelId,
             },
             audience: audience,
+            type: type,
           );
         } else if (complaintId != null) {
           // Seul l'espace client dispose d'une route de détail ; côté vendeur

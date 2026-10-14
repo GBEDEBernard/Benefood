@@ -14,6 +14,7 @@ class ParcelResource extends JsonResource
             'reference' => $this->reference,
             'status' => $this->status?->value,
             'payment_status' => $this->payment_status?->value,
+            'payment_method' => $this->payment_method?->value,
             'description' => $this->description,
             'currency' => $this->currency,
             'pickup' => $this->pickup_snapshot,
@@ -25,6 +26,12 @@ class ParcelResource extends JsonResource
             'partner_amount' => (int) $this->partner_amount,
             'platform_amount' => (int) $this->platform_amount,
             'proof_code' => $this->proof_code,
+            'targeted_driver_id' => $this->targeted_driver_profile_id,
+            'targeted_driver' => $this->whenLoaded('targetedDriverProfile', fn () => $this->targetedDriverProfile === null ? null : [
+                'id' => $this->targetedDriverProfile->id,
+                'name' => $this->targetedDriverProfile->user?->name,
+                'phone' => $this->targetedDriverProfile->user?->phone,
+            ]),
             'driver' => $this->whenLoaded('driverProfile', fn () => $this->driverProfile === null ? null : [
                 'id' => $this->driverProfile->id,
                 'name' => $this->driverProfile->user?->name,

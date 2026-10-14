@@ -103,6 +103,7 @@ class PushService {
       marketplace: marketplace,
       data: data,
       audience: audience,
+      type: data['type'] is String ? data['type'] as String : null,
     );
   }
 

@@ -2,13 +2,15 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/data/marketplace_api.dart';
 import '../../../../core/errors/api_exception.dart';
+import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/models/vendor.dart';
 import '../../../../shared/widgets/feedback_widgets.dart';
 import '../../onboarding/widgets/custom_text_field.dart';
 import '../restaurant_palette.dart';
 import 'shop_edit_shell.dart';
 
-/// Édition de l'adresse et de la ville de la boutique.
+/// Gestion des adresses de la boutique : adresse publique, point de retrait
+/// utilisé par les livreurs et informations complémentaires.
 class ShopAddressEditScreen extends StatefulWidget {
   const ShopAddressEditScreen({super.key, required this.vendor, this.marketplace});
 
@@ -22,6 +24,9 @@ class ShopAddressEditScreen extends StatefulWidget {
 class _ShopAddressEditScreenState extends State<ShopAddressEditScreen> {
   late final TextEditingController _city;
   late final TextEditingController _address;
+  late final TextEditingController _pickupLandmark;
+  late final TextEditingController _pickupAddress;
+  late final TextEditingController _deliveryInstructions;
   bool _saving = false;
 
   @override
@@ -29,12 +34,18 @@ class _ShopAddressEditScreenState extends State<ShopAddressEditScreen> {
     super.initState();
     _city = TextEditingController(text: widget.vendor.city ?? '');
     _address = TextEditingController(text: widget.vendor.address ?? '');
+    _pickupLandmark = TextEditingController(text: widget.vendor.pickupLandmark ?? '');
+    _pickupAddress = TextEditingController(text: widget.vendor.pickupAddress ?? '');
+    _deliveryInstructions = TextEditingController(text: widget.vendor.deliveryInstructions ?? '');
   }
 
   @override
   void dispose() {
     _city.dispose();
     _address.dispose();
+    _pickupLandmark.dispose();
+    _pickupAddress.dispose();
+    _deliveryInstructions.dispose();
     super.dispose();
   }
 
@@ -43,12 +54,18 @@ class _ShopAddressEditScreenState extends State<ShopAddressEditScreen> {
     try {
       final api = widget.marketplace;
       if (api != null) {
-        await api.updateVendorShop(city: _city.text, address: _address.text);
+        await api.updateVendorShop(
+          city: _city.text,
+          address: _address.text,
+          pickupAddress: _pickupAddress.text,
+          pickupLandmark: _pickupLandmark.text,
+          deliveryInstructions: _deliveryInstructions.text,
+        );
       } else {
         showToast(context, 'Aperçu démo — lancez le serveur pour enregistrer.');
       }
       if (mounted) {
-        showToast(context, 'Adresse mise à jour.');
+        showToast(context, 'Adresses mises à jour.');
         Navigator.of(context).pop(true);
       }
     } on ApiException catch (e) {
@@ -75,7 +92,7 @@ class _ShopAddressEditScreenState extends State<ShopAddressEditScreen> {
         child: Column(
           children: [
             ShopEditorAppBar(
-              title: 'Adresse',
+              title: 'Mes adresses',
               onSave: _save,
               saving: _saving,
               api: widget.marketplace,
@@ -84,28 +101,12 @@ class _ShopAddressEditScreenState extends State<ShopAddressEditScreen> {
               child: ListView(
                 padding: const EdgeInsets.all(16),
                 children: [
-                  Container(
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
-                      color: RestaurantPalette.orange.withValues(alpha: 0.08),
-                      borderRadius: BorderRadius.circular(RestaurantPalette.radius),
-                      border: Border.all(color: RestaurantPalette.orange.withValues(alpha: 0.3)),
-                    ),
-                    child: const Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Icon(Icons.place_outlined, color: RestaurantPalette.orange, size: 20),
-                        SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            'Cette adresse est affichée aux clients sur votre fiche boutique et sert au calcul de la livraison.',
-                            style: TextStyle(color: RestaurantPalette.grayText, fontSize: 13, height: 1.35),
-                          ),
-                        ),
-                      ],
-                    ),
+                  const _SectionTitle(
+                    icon: Icons.storefront_outlined,
+                    title: 'Adresse de la boutique',
+                    color: AppColors.green,
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 12),
                   CustomTextField(
                     label: 'Ville',
                     controller: _city,
@@ -114,18 +115,95 @@ class _ShopAddressEditScreenState extends State<ShopAddressEditScreen> {
                   ),
                   const SizedBox(height: 14),
                   CustomTextField(
-                    label: 'Adresse',
+                    label: 'Adresse exacte',
+                    required: true,
                     controller: _address,
                     hint: 'Cadjèhoun, carrefour des 3 collèges',
                     maxLines: 3,
-                    textInputAction: TextInputAction.done,
+                    textInputAction: TextInputAction.next,
                   ),
+                  const SizedBox(height: 26),
+                  const _SectionTitle(
+                    icon: Icons.local_shipping_outlined,
+                    title: 'Adresse de retrait (livreurs)',
+                    color: AppColors.orange,
+                  ),
+                  const SizedBox(height: 12),
+                  CustomTextField(
+                    label: 'Point de repère',
+                    controller: _pickupLandmark,
+                    hint: 'Ex : face au marché de nuit',
+                    textInputAction: TextInputAction.next,
+                  ),
+                  const SizedBox(height: 14),
+                  CustomTextField(
+                    label: 'Adresse de retrait',
+                    required: true,
+                    controller: _pickupAddress,
+                    hint: 'Entrepôt, porte bleue…',
+                    maxLines: 3,
+                    textInputAction: TextInputAction.next,
+                  ),
+                  const SizedBox(height: 26),
+                  const _SectionTitle(
+                    icon: Icons.notes_outlined,
+                    title: 'Informations supplémentaires',
+                    color: AppColors.orange,
+                  ),
+                  const SizedBox(height: 12),
+                  CustomTextField(
+                    label: 'Instructions pour le livreur',
+                    controller: _deliveryInstructions,
+                    hint: 'Ex : sonner à l’entrée, appeler en arrivant…',
+                    maxLines: 3,
+                  ),
+                  const SizedBox(height: 24),
                 ],
               ),
             ),
           ],
         ),
       ),
+    );
+  }
+}
+
+class _SectionTitle extends StatelessWidget {
+  const _SectionTitle({
+    required this.icon,
+    required this.title,
+    required this.color,
+  });
+
+  final IconData icon;
+  final String title;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Container(
+          width: 32,
+          height: 32,
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(9),
+          ),
+          child: Icon(icon, size: 18, color: color),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            title,
+            style: const TextStyle(
+              color: RestaurantPalette.darkText,
+              fontSize: 16,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

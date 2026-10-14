@@ -5,6 +5,7 @@ import '../../shared/models/cart.dart';
 import '../../shared/models/checkout.dart';
 import '../../shared/models/complaint.dart';
 import '../../shared/models/delivery.dart';
+import '../../shared/models/favorite_driver.dart';
 import '../../shared/models/order.dart';
 import '../../shared/models/geo_point.dart';
 import '../../shared/models/parcel.dart';
@@ -192,6 +193,7 @@ class MarketplaceApi {
     String addressId, {
     String? notes,
     String paymentMethod = 'online',
+    String? favoriteDriverId,
   }) async {
     final response = await _api.post(
       '/orders',
@@ -199,6 +201,7 @@ class MarketplaceApi {
         'address_id': addressId,
         'payment_method': paymentMethod,
         if (notes != null && notes.isNotEmpty) 'notes': notes,
+        'favorite_driver_id': ?favoriteDriverId,
       },
     );
     return Order.fromJson(_dataObject(response) ?? {});
@@ -300,6 +303,45 @@ class MarketplaceApi {
       body: {if (reason != null) 'reason': reason},
     );
     return Delivery.fromJson(_dataObject(response) ?? {});
+  }
+
+  // ------------------------------------------------------------- Livreurs favoris
+
+  Future<List<FavoriteDriver>> favoriteDrivers() async {
+    final response = await _api.get('/me/favorite-drivers');
+    return _dataList(response).map(FavoriteDriver.fromJson).toList();
+  }
+
+  Future<List<DriverSummary>> favoriteDriverCandidates() async {
+    final response = await _api.get('/me/favorite-drivers/candidates');
+    return _dataList(response).map(DriverSummary.fromJson).toList();
+  }
+
+  Future<FavoriteDriver> addFavoriteDriver(String driverProfileId) async {
+    final response = await _api.post(
+      '/me/favorite-drivers',
+      body: {'driver_profile_id': driverProfileId},
+    );
+    return FavoriteDriver.fromJson(_dataObject(response) ?? {});
+  }
+
+  Future<void> removeFavoriteDriver(String driverProfileId) async {
+    await _api.delete('/me/favorite-drivers/$driverProfileId');
+  }
+
+  Future<List<FavoriteDriver>> favoriteClients() async {
+    final response = await _api.get('/driver/me/favorite-clients');
+    return _dataList(response).map(FavoriteDriver.fromJson).toList();
+  }
+
+  Future<FavoriteDriver> acceptFavoriteClient(String favoriteId) async {
+    final response = await _api.post('/driver/me/favorite-clients/$favoriteId/accept');
+    return FavoriteDriver.fromJson(_dataObject(response) ?? {});
+  }
+
+  Future<FavoriteDriver> declineFavoriteClient(String favoriteId) async {
+    final response = await _api.post('/driver/me/favorite-clients/$favoriteId/decline');
+    return FavoriteDriver.fromJson(_dataObject(response) ?? {});
   }
 
   Future<Delivery> markPickedUp(String id) async {
@@ -462,6 +504,9 @@ class MarketplaceApi {
     String? email,
     String? city,
     String? address,
+    String? pickupAddress,
+    String? pickupLandmark,
+    String? deliveryInstructions,
     List<OpeningHour>? hours,
   }) async {
     await _api.patch(
@@ -476,6 +521,15 @@ class MarketplaceApi {
         if (city != null) 'city': city.trim().isEmpty ? null : city.trim(),
         if (address != null)
           'address': address.trim().isEmpty ? null : address.trim(),
+        if (pickupAddress != null) 'pickup_address': pickupAddress.trim(),
+        if (pickupLandmark != null)
+          'pickup_landmark': pickupLandmark.trim().isEmpty
+              ? null
+              : pickupLandmark.trim(),
+        if (deliveryInstructions != null)
+          'delivery_instructions': deliveryInstructions.trim().isEmpty
+              ? null
+              : deliveryInstructions.trim(),
         if (hours != null) 'hours': hours.map((h) => h.toJson()).toList(),
       },
     );
@@ -824,8 +878,11 @@ class MarketplaceApi {
     return Order.fromJson(_dataObject(response) ?? {});
   }
 
-  Future<Order> vendorReady(String orderId) async {
-    final response = await _api.post('/vendors/me/orders/$orderId/ready');
+  Future<Order> vendorReady(String orderId, {String? favoriteDriverId}) async {
+    final response = await _api.post(
+      '/vendors/me/orders/$orderId/ready',
+      body: {'favorite_driver_id': ?favoriteDriverId},
+    );
     return Order.fromJson(_dataObject(response) ?? {});
   }
 
@@ -956,11 +1013,13 @@ class MarketplaceApi {
     return _dataObject(response) ?? {};
   }
 
-  /// Crée un colis en attente de paiement.
+  /// Crée un colis (en attente de paiement en ligne, ou payable en espèces).
   Future<Parcel> createParcel({
     required Map<String, dynamic> pickup,
     required Map<String, dynamic> dropoff,
     String? description,
+    String? favoriteDriverId,
+    String paymentMethod = 'online',
   }) async {
     final response = await _api.post(
       '/parcels',
@@ -969,6 +1028,8 @@ class MarketplaceApi {
         'dropoff': dropoff,
         if (description != null && description.trim().isNotEmpty)
           'description': description.trim(),
+        'favorite_driver_id': ?favoriteDriverId,
+        'payment_method': paymentMethod,
       },
     );
     return Parcel.fromJson(_dataObject(response) ?? {});

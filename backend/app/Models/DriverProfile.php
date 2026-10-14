@@ -55,4 +55,9 @@ class DriverProfile extends Model
     {
         return $this->hasMany(Delivery::class, 'driver_profile_id');
     }
+
+    public function favoriteRequests(): HasMany
+    {
+        return $this->hasMany(FavoriteDriver::class, 'driver_profile_id');
+    }
 }

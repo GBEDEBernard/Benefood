@@ -314,6 +314,14 @@ class _DriverAccountScreenState extends State<DriverAccountScreen> {
         onTap: () => _openRoute('/driver/profile/edit'),
       ),
       ProfileMenuEntry(
+        icon: Icons.people_outline,
+        tint: AppColors.orangeLight,
+        accent: AppColors.orange,
+        title: 'Mes clients',
+        subtitle: 'Demandes de favori à accepter...',
+        onTap: () => _openRoute('/driver/favorite-clients'),
+      ),
+      ProfileMenuEntry(
         icon: Icons.notifications_none,
         tint: AppColors.orangeLight,
         accent: AppColors.orange,

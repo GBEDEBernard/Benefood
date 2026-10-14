@@ -51,22 +51,27 @@ class ParcelFeatureTest extends TestCase
         return $user;
     }
 
-    private function driver(): DriverProfile
+    private function driver(int $prepaidBalance = 0): DriverProfile
     {
         $user = User::factory()->create(['phone' => fake()->unique()->numerify('+22996######')]);
         $user->roles()->attach(Role::where('slug', 'driver-independent')->firstOrFail(), ['is_active' => true]);
 
-        return DriverProfile::factory()->create(['user_id' => $user->id, 'status' => 'active', 'available' => true]);
+        return DriverProfile::factory()->create([
+            'user_id' => $user->id,
+            'status' => 'active',
+            'available' => true,
+            'prepaid_balance' => $prepaidBalance,
+        ]);
     }
 
     private function pickup(): array
     {
-        return ['label' => 'Carrefour Jericho', 'city' => 'Cotonou', 'latitude' => 6.37, 'longitude' => 2.42];
+        return ['label' => 'Carrefour Jericho', 'city' => 'Cotonou', 'landmark' => 'Face à la pharmacie', 'latitude' => 6.37, 'longitude' => 2.42];
     }
 
     private function dropoff(): array
     {
-        return ['label' => 'Ganhi', 'city' => 'Cotonou', 'latitude' => 6.35, 'longitude' => 2.44];
+        return ['label' => 'Ganhi', 'city' => 'Cotonou', 'landmark' => 'Derrière le marché', 'latitude' => 6.35, 'longitude' => 2.44];
     }
 
     public function test_pricing_tiers_by_distance(): void
@@ -102,6 +107,18 @@ class ParcelFeatureTest extends TestCase
 
         $this->assertDatabaseCount('parcels', 1);
         $this->assertDatabaseCount('payments', 1);
+    }
+
+    public function test_parcel_snapshots_keep_landmark(): void
+    {
+        $this->client();
+
+        $this->postJson('/api/v1/parcels', [
+            'pickup' => $this->pickup(),
+            'dropoff' => $this->dropoff(),
+        ])->assertCreated()
+            ->assertJsonPath('data.pickup.landmark', 'Face à la pharmacie')
+            ->assertJsonPath('data.dropoff.landmark', 'Derrière le marché');
     }
 
     public function test_webhook_confirms_parcel_payment(): void
@@ -175,6 +192,86 @@ class ParcelFeatureTest extends TestCase
         $wallet = app(FinanceService::class)->walletFor($driver);
         $this->assertSame(800, (int) $wallet->fresh()->available_balance);
         $this->assertNotNull($parcel->fresh()->delivered_at);
+    }
+
+    public function test_cash_parcel_creates_paid_without_payment_record(): void
+    {
+        $this->client();
+
+        $this->postJson('/api/v1/parcels', [
+            'pickup' => $this->pickup(),
+            'dropoff' => $this->dropoff(),
+            'payment_method' => 'cash',
+        ])
+            ->assertCreated()
+            ->assertJsonPath('data.payment_method', 'cash')
+            ->assertJsonPath('data.status', 'paid')
+            ->assertJsonPath('data.payment_status', 'pending')
+            ->assertJsonPath('data.payment', null);
+
+        $this->assertDatabaseCount('parcels', 1);
+        $this->assertDatabaseCount('payments', 0);
+    }
+
+    public function test_cash_parcel_cannot_be_paid_online(): void
+    {
+        $client = $this->client();
+        $parcel = app(ParcelService::class)->create($client, $this->pickup(), $this->dropoff(), 'Colis cash', paymentMethod: 'cash');
+
+        $this->postJson('/api/v1/payments/create', ['parcel_id' => $parcel->id])
+            ->assertStatus(422)
+            ->assertJsonPath('errors.0.code', 'payment.cash_not_online');
+    }
+
+    public function test_accepting_cash_parcel_requires_platform_float(): void
+    {
+        $client = $this->client();
+        $parcel = app(ParcelService::class)->create($client, $this->pickup(), $this->dropoff(), 'Colis cash', paymentMethod: 'cash');
+
+        $poor = $this->driver(0);
+        Sanctum::actingAs($poor->user);
+        $this->postJson("/api/v1/driver/me/parcels/{$parcel->id}/accept")
+            ->assertStatus(409)
+            ->assertJsonPath('errors.0.code', 'parcel.cash_insufficient_float');
+
+        $rich = $this->driver(1000);
+        Sanctum::actingAs($rich->user);
+        $this->postJson("/api/v1/driver/me/parcels/{$parcel->id}/accept")
+            ->assertOk()
+            ->assertJsonPath('data.status', 'assigned')
+            ->assertJsonPath('data.driver.id', $rich->id);
+
+        $wallet = app(FinanceService::class)->walletFor($rich);
+        $this->assertSame(0, (int) $wallet->fresh()->pending_balance);
+    }
+
+    public function test_cash_parcel_delivery_debits_platform_amount(): void
+    {
+        $client = $this->client();
+        $parcels = app(ParcelService::class);
+        $parcel = $parcels->create($client, $this->pickup(), $this->dropoff(), paymentMethod: 'cash');
+
+        $driver = $this->driver(1000);
+        Sanctum::actingAs($driver->user);
+        $this->postJson("/api/v1/driver/me/parcels/{$parcel->id}/accept")->assertOk();
+        $this->postJson("/api/v1/driver/me/parcels/{$parcel->id}/pickup")->assertOk();
+        $this->postJson("/api/v1/driver/me/parcels/{$parcel->id}/start")->assertOk();
+        $this->postJson("/api/v1/driver/me/parcels/{$parcel->id}/deliver")->assertOk();
+
+        $this->assertSame(1000 - (int) $parcel->platform_amount, (int) $driver->fresh()->prepaid_balance);
+        $this->assertSame(1, $driver->fresh()->floatTransactions()->where('type', 'debit')->where('reference_type', 'parcel_cash_settle')->count());
+
+        $wallet = app(FinanceService::class)->walletFor($driver);
+        $this->assertSame((int) $parcel->partner_amount, (int) $wallet->fresh()->available_balance);
+    }
+
+    public function test_online_parcel_is_default_method(): void
+    {
+        $client = $this->client();
+        $parcel = app(ParcelService::class)->create($client, $this->pickup(), $this->dropoff());
+
+        $this->assertSame('online', $parcel->payment_method?->value);
+        $this->assertFalse($parcel->isCash());
     }
 
     public function test_cancel_paid_and_assigned_parcel_reverses_pending(): void

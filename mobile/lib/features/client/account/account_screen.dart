@@ -328,6 +328,8 @@ class _AccountScreenState extends State<AccountScreen> {
                     user: user,
                     onPersonalInfo: () => _openRoute('/client/profile/edit'),
                     onAddresses: () => _openRoute('/client/addresses'),
+                    onFavoriteDrivers: () =>
+                        _openRoute('/client/favorite-drivers'),
                     onPaymentMethods: () =>
                         _openRoute('/client/payment-methods'),
                     onNotifications: () => _openRoute('/client/notifications'),
@@ -962,6 +964,7 @@ class _AccountMenu extends StatelessWidget {
     required this.user,
     required this.onPersonalInfo,
     required this.onAddresses,
+    required this.onFavoriteDrivers,
     required this.onPaymentMethods,
     required this.onNotifications,
     required this.onSecurity,
@@ -971,6 +974,7 @@ class _AccountMenu extends StatelessWidget {
   final User? user;
   final VoidCallback onPersonalInfo;
   final VoidCallback onAddresses;
+  final VoidCallback onFavoriteDrivers;
   final VoidCallback onPaymentMethods;
   final VoidCallback onNotifications;
   final VoidCallback onSecurity;
@@ -990,6 +994,13 @@ class _AccountMenu extends StatelessWidget {
       AppColors.orange,
       'Adresses enregistrées',
       'Maison, travail, autres...',
+    ),
+    (
+      Icons.delivery_dining_outlined,
+      AppColors.greenLight,
+      AppColors.green,
+      'Mes livreurs',
+      'Vos livreurs favoris, contactables...',
     ),
     (
       Icons.credit_card,
@@ -1025,9 +1036,10 @@ class _AccountMenu extends StatelessWidget {
     return switch (index) {
       0 => onPersonalInfo,
       1 => onAddresses,
-      2 => onPaymentMethods,
-      3 => onNotifications,
-      4 => onSecurity,
+      2 => onFavoriteDrivers,
+      3 => onPaymentMethods,
+      4 => onNotifications,
+      5 => onSecurity,
       _ => onSupport,
     };
   }
