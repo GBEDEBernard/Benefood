@@ -5,10 +5,12 @@ namespace App\Services;
 use App\Enums\PayoutBatchStatus;
 use App\Enums\PayoutStatus;
 use App\Exceptions\DomainException;
+use App\Models\DriverProfile;
 use App\Models\Payout;
 use App\Models\PayoutBatch;
 use App\Models\Vendor;
-use App\Models\Wallet;
+use App\Services\Payments\PaymentGateway;
+use App\Support\Phone;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -17,11 +19,18 @@ use Illuminate\Support\Str;
  * Retraits des wallets (cahier de conception v1.0, J21 §8).
  *
  * Le solde disponible est débité au moment de la demande (mise de côté) puis
- * le virement est exécuté vers le Mobile Money du vendeur/livreur.
+ * le virement est exécuté vers le Mobile Money du vendeur/livreur — via FedaPay
+ * lorsque la passerelle est configurée, sinon manuellement en back-office.
  */
 class PayoutService
 {
-    public function __construct(private readonly FinanceService $finance) {}
+    /** Réseaux Mobile Money Bénin acceptés par FedaPay. */
+    public const NETWORKS = ['mtn_open', 'moov', 'sbin'];
+
+    public function __construct(
+        private readonly FinanceService $finance,
+        private readonly PaymentGateway $gateway,
+    ) {}
 
     /**
      * Crée une demande de retrait depuis le solde disponible.
@@ -44,11 +53,15 @@ class PayoutService
             throw new DomainException('payout.insufficient_funds', 'Solde disponible insuffisant.', 422);
         }
 
-        return DB::transaction(function () use ($wallet, $amount, $method, $details): Payout {
+        $network = $this->resolveNetwork($owner, $method);
+        $destination = $this->resolveDestination($owner, $details);
+
+        return DB::transaction(function () use ($wallet, $amount, $network, $destination): Payout {
             $payout = Payout::create([
                 'wallet_id' => $wallet->id,
                 'amount' => $amount,
-                'method' => $method ?? $this->defaultMethod($wallet, $details),
+                'method' => $network,
+                'destination' => $destination,
                 'status' => PayoutStatus::Pending->value,
             ]);
 
@@ -81,6 +94,35 @@ class PayoutService
         return $payout->fresh();
     }
 
+    /**
+     * Envoie le retrait vers la passerelle (FedaPay) puis marque le statut.
+     *
+     * Sans passerelle configurée (ou sans destinataire), on retombe sur la
+     * validation manuelle afin de ne jamais bloquer le back-office.
+     */
+    public function sendToGateway(Payout $payout, ?string $actorId = null): Payout
+    {
+        if ($payout->status === PayoutStatus::Executed) {
+            return $payout->fresh();
+        }
+
+        if (! $this->gateway->configured() || ! $payout->destination) {
+            return $this->execute($payout, $actorId);
+        }
+
+        if (! Phone::isValid((string) $payout->destination)) {
+            return $this->fail($payout, 'Numéro Mobile Money du bénéficiaire invalide.');
+        }
+
+        $result = $this->gateway->sendPayout($payout, Phone::normalize((string) $payout->destination), (string) $payout->method);
+
+        if ($result['ok'] ?? false) {
+            return $this->execute($payout, $actorId, $result['payout_id'] ?? $result['reference'] ?? null);
+        }
+
+        return $this->fail($payout, $result['message'] ?? 'Échec du virement FedaPay.');
+    }
+
     /** Marque un retrait en échec et re-crédite le solde disponible. */
     public function fail(Payout $payout, ?string $reason = null): Payout
     {
@@ -107,15 +149,38 @@ class PayoutService
         });
     }
 
-    private function defaultMethod(Wallet $wallet, ?string $details): string
+    private function resolveNetwork(Model $owner, ?string $method): string
     {
-        $owner = $wallet->owner;
+        $candidates = [$method];
 
-        if ($owner instanceof Vendor && $owner->settings?->payout_method !== null) {
-            return $owner->settings->payout_method;
+        if ($owner instanceof Vendor) {
+            $candidates[] = $owner->settings?->payout_method;
         }
 
-        return 'mobile_money';
+        foreach ($candidates as $candidate) {
+            if (is_string($candidate) && in_array($candidate, self::NETWORKS, true)) {
+                return $candidate;
+            }
+        }
+
+        return (string) config('fedapay.default_payout_mode', 'mtn_open');
+    }
+
+    private function resolveDestination(Model $owner, ?string $details): ?string
+    {
+        if (is_string($details) && trim($details) !== '') {
+            return trim($details);
+        }
+
+        if ($owner instanceof Vendor) {
+            return $owner->phone ?: null;
+        }
+
+        if ($owner instanceof DriverProfile) {
+            return $owner->user?->phone ?: null;
+        }
+
+        return null;
     }
 
     // ------------------------------------------------------------------- B

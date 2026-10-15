@@ -31,5 +31,8 @@
         <env name="PULSE_ENABLED" value="false"/>
         <env name="TELESCOPE_ENABLED" value="false"/>
         <env name="NIGHTWATCH_ENABLED" value="false"/>
+        <env name="FEDAPAY_ENABLED" value="false"/>
+        <env name="FEDAPAY_SECRET_KEY" value=""/>
+        <env name="FEDAPAY_WEBHOOK_SECRET" value=""/>
     </php>
 </phpunit>

@@ -35,7 +35,7 @@ Valider la cohérence interne de la Phase 04 : architecture (J26), modules (J27)
 - [ ] Le cumul de rôles et contexte actif ne change jamais l'authorization
 
 ### 2.5 Cohérence Paiements ↔ Machine à états
-- [ ] Le webhook Kkiapay confirmé → transition `paid` uniquement si statut `awaiting_payment` et montant == attendu
+- [ ] Le webhook FedaPay confirmé → transition `paid` uniquement si statut `awaiting_payment` et montant == attendu
 - [ ] Late webhook ignoré (J16/J33)
 - [ ] Refund seulement déclenché sur statuts éligibles (J30)
 
@@ -68,7 +68,7 @@ Valider la cohérence interne de la Phase 04 : architecture (J26), modules (J27)
 1. Client s'inscrit, se connecte (`POST /auth/login`).
 2. Client parcourt le catalogue (catégorie → produits).
 3. Client crée un panier mono-vendeur, ajoute des articles.
-4. Client passe commande → `awaiting_payment` + initie paiement Kkiapay.
+4. Client passe commande → `awaiting_payment` + initie paiement FedaPay.
 5. Webhook confirmé → `paid` + notifications livraison.
 6. Vendeur accepte → `accepted`.
 7. Vendeur marque `ready` → offre de course au(x) livreur(s).
@@ -96,6 +96,6 @@ Ce récit doit passer de bout en bout avec l'API réelle (tests d'intégration) 
 |----|----------|---------------|
 | Q1 | Livreur Béninfood : salarié vs indépendant (part delivery_fee) | Phase 02 déjà travaillée — à confirmer porteuse |
 | Q2 | Affectation de course : manuel vs auto (géolocation) | Phase 06/13 |
-| Q3 | Reversements wallet : réel décaissement incluant Kkiapay | Phase 10 (finance) |
+| Q3 | Reversements wallet : réel décaissement incluant FedaPay | Phase 10 (finance) |
 | Q4 | Notification SMS (via agrégateur ?) | Phase 13 |
 | Q5 | Période de grâce avant `ready` (cuisine) — délai acceptation | Phase 07+ |

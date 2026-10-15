@@ -21,7 +21,7 @@ Header commun : barre de recherche (Accueil), notifications (cloche), sélecteur
 
 ```
 Accueil ──▶ Recherche / Catégories ➜ Boutique ➜ Produit ➜ Panier
-   └──────────▶ Adresse ➜ Livraison (zone) ➜ Récap + Paiement ➜ Paiement Kkiapay
+   └──────────▶ Adresse ➜ Livraison (zone) ➜ Récap + Paiement ➜ Paiement FedaPay
                                                                    │
         Suivi (statuts) ◀── Confirmation ─────────────────────────┘
         Historique ➜ Réclamation / avis
@@ -99,8 +99,8 @@ Règles panier (J15/J80) : **panier mono-vendeur** — ajouter un produit d'un a
 - **Aucun calcul client** : montants récupérés via `POST /checkout/quote` (serveur)
 - CTA « Payer » → ouvre le paiement
 
-### 3.10 Paiement (Kkiapay)
-- Webview/flow Kkiapay (lien serveur — J16/J17)
+### 3.10 Paiement (FedaPay)
+- Webview/flow FedaPay (lien serveur — J16/J17)
 - États : pending, succès, échec, expiration, annulation
 - Succès → écran confirmation + push
 - Échec → retour récap, possibilité de réessayer (deadline 15 min)

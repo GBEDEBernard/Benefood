@@ -1,7 +1,4 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/data/marketplace_api.dart';
@@ -14,8 +11,9 @@ import '../../../shared/models/order.dart';
 import '../../../shared/widgets/app_button.dart';
 import '../../../shared/widgets/amount_widgets.dart';
 import '../../../shared/widgets/beninfood_header.dart';
-import '../../../shared/widgets/feedback_widgets.dart';
 import '../../../shared/widgets/favorite_driver_picker.dart';
+import '../../../shared/widgets/fedapay_checkout_screen.dart';
+import '../../../shared/widgets/feedback_widgets.dart';
 import '../../../shared/widgets/state_widgets.dart';
 import '../orders/order_tracking_screen.dart';
 
@@ -40,9 +38,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   String? _summaryError;
 
   Order? _order;
-  Map<String, dynamic>? _paymentPayload;
   bool _creating = false;
-  bool _verifying = false;
 
   /// Mode de règlement choisi au checkout : `online` (Mobile Money) ou `cash`
   /// (espèces remises au livreur — cahier de conception v1.0).
@@ -174,111 +170,62 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       _goToTracking(order, success: true);
       return;
     }
-    if (order.isAwaitingPayment) {
-      setState(() => _creating = true);
-      try {
-        final payload = await widget.marketplace.createPayment(order.id);
-        if (mounted) {
-          setState(() {
-            _paymentPayload = payload;
-            _creating = false;
-          });
-          _showPaymentDialog(order);
-        }
-      } on ApiException catch (e) {
-        if (mounted) {
-          setState(() => _creating = false);
-          showToast(context, e.message, isError: true);
-        }
-      }
-    }
-  }
-
-  void _showPaymentDialog(Order order) {
-    final payload = _paymentPayload;
-    final widgetConfig = payload?['widget'];
-    if (widgetConfig is! Map<String, dynamic>) {
-      _goToTracking(order, success: false);
+    if (!order.isAwaitingPayment) {
+      _goToTracking(order, success: order.isPaid);
       return;
     }
 
-    final key = widgetConfig['key'];
-    if (key is! String || key.isEmpty) {
-      // Mode sandbox sans clé : basculer en attente (démo).
-      _goToTracking(order, success: false);
-      return;
-    }
-
-    final amount = widgetConfig['amount'];
-    final amountValue = amount is num ? '${amount.toInt()}' : '${amount ?? 0}';
-    final orderId = widgetConfig['order_id'];
-    final callback = widgetConfig['callback'];
-    final url = 'https://kkiapay.me/fr/mobilepay/${Uri(queryParameters: {
-          'key': key,
-          'amount': amountValue,
-          'order_id': orderId?.toString() ?? order.id,
-          if (callback is String) 'callback': callback,
-        }).query}';
-
-    showDialog<void>(
-      context: context,
-      barrierDismissible: false,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Paiement Kkiapay'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Ouvrez le lien de paiement ci-dessous pour régler votre commande via Kkiapay :',
-            ),
-            const SizedBox(height: 12),
-            SelectableText(url, style: const TextStyle(fontSize: 12)),
-            const SizedBox(height: 8),
-            IconButton(
-              tooltip: 'Copier le lien',
-              onPressed: () => Clipboard.setData(ClipboardData(text: url)),
-              icon: const Icon(Icons.copy),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.of(dialogContext).pop();
-              _goToTracking(order, success: false);
-            },
-            child: const Text('Plus tard'),
-          ),
-          FilledButton(
-            onPressed: () {
-              Navigator.of(dialogContext).pop();
-              _verifyPayment(order);
-            },
-            child: const Text('J\'ai payé'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _verifyPayment(Order order) async {
-    setState(() => _verifying = true);
+    setState(() => _creating = true);
     try {
-      final latest = await widget.marketplace.order(order.id);
+      final payload = await widget.marketplace.createPayment(order.id);
       if (!mounted) {
         return;
       }
-      setState(() => _verifying = false);
-      final paid = latest.status == 'paid' ||
-          latest.paymentStatus == 'confirmed' ||
-          latest.paymentStatus == 'paid';
-      _goToTracking(latest, success: paid);
+      setState(() => _creating = false);
+
+      final checkoutUrl = payload['checkout_url'];
+      if (checkoutUrl is! String || checkoutUrl.isEmpty) {
+        // Passerelle injoignable ou non configurée : on informe le client au
+        // lieu d'enchaîner silencieusement vers le suivi.
+        final message = payload['message']?.toString();
+        if (message != null && message.isNotEmpty) {
+          showToast(context, message, isError: false);
+        }
+        _goToTracking(order, success: false);
+        return;
+      }
+
+      final paid = await Navigator.of(context).push<bool>(
+        MaterialPageRoute<bool>(
+          builder: (_) => FedaPayCheckoutScreen(
+            marketplace: widget.marketplace,
+            checkoutUrl: checkoutUrl,
+            transactionId: payload['transaction_id']?.toString(),
+          ),
+        ),
+      );
+      if (!mounted) {
+        return;
+      }
+
+      final fresh = await _refreshOrder(order);
+      if (!mounted) {
+        return;
+      }
+      _goToTracking(fresh, success: paid == true || fresh.isPaid);
     } on ApiException catch (e) {
       if (mounted) {
-        setState(() => _verifying = false);
+        setState(() => _creating = false);
         showToast(context, e.message, isError: true);
       }
+    }
+  }
+
+  Future<Order> _refreshOrder(Order order) async {
+    try {
+      return await widget.marketplace.order(order.id);
+    } on ApiException {
+      return order;
     }
   }
 
@@ -560,24 +507,12 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           ),
         ),
         const SizedBox(height: 24),
-        if (_paymentPayload != null) ...[
-          _PaymentWidgetInfo(payload: _paymentPayload!),
-          const SizedBox(height: 12),
-        ],
-        if (_verifying)
-          const Center(child: CircularProgressIndicator())
-        else
-          AppButton(
-            label: order.isAwaitingPayment ? 'Payer maintenant' : 'Voir la commande',
-            icon: Icons.payment,
-            onPressed: order.isAwaitingPayment
-                ? () {
-                    setState(() => _paymentPayload = null);
-                    _startPayment(order);
-                  }
-                : () => _goToTracking(order, success: order.isPaid),
-            loading: _creating,
-          ),
+        AppButton(
+          label: order.isAwaitingPayment ? 'Payer maintenant' : 'Voir la commande',
+          icon: Icons.payment,
+          onPressed: () => _startPayment(order),
+          loading: _creating,
+        ),
       ],
     );
   }
@@ -739,38 +674,6 @@ class _SummaryRow extends StatelessWidget {
           else
             Text('—', style: style),
         ],
-      ),
-    );
-  }
-}
-
-class _PaymentWidgetInfo extends StatelessWidget {
-  const _PaymentWidgetInfo({required this.payload});
-
-  final Map<String, dynamic> payload;
-
-  @override
-  Widget build(BuildContext context) {
-    final widget = payload['widget'];
-    String info = 'Paiement via ${payload['provider'] ?? 'kkiapay'}';
-    if (widget is Map<String, dynamic>) {
-      info += '\nMontant : ${formatAmount((widget['amount'] as num?)?.toInt() ?? 0)}';
-    }
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Row(
-          children: [
-            const Icon(Icons.security, size: 20),
-            const SizedBox(width: 8),
-            Expanded(child: Text(info, style: Theme.of(context).textTheme.bodySmall)),
-            IconButton(
-              icon: const Icon(Icons.copy, size: 18),
-              tooltip: 'Copier la configuration paiement (démo)',
-              onPressed: () => Clipboard.setData(ClipboardData(text: jsonEncode(widget))),
-            ),
-          ],
-        ),
       ),
     );
   }

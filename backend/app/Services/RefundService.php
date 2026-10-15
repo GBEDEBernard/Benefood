@@ -16,7 +16,7 @@ use Illuminate\Support\Facades\Log;
  * Détermination et exécution des remboursements (J120, J121, J16 §4.6).
  *
  * Un remboursement est déterminé automatiquement lors d'une annulation
- * après paiement, puis exécuté via la passerelle Kkiapay quand elle est
+ * après paiement, puis exécuté via la passerelle FedaPay quand elle est
  * configurée en mode automatique (sinon trace manuelle par la porteuse).
  */
 class RefundService
@@ -106,7 +106,7 @@ class RefundService
         $this->journal->recordReversalForCancellation($order, $actorId);
 
         $auto = config('beninfood.refunds.automatic_execution', false)
-            && config('beninfood.kkiapay.enabled', false)
+            && config('fedapay.enabled', false)
             && $order->payment !== null
             && $order->payment->status === PaymentStatus::Confirmed;
 
@@ -133,7 +133,7 @@ class RefundService
             $payment = $refund->payment;
             $providerRefundId = null;
 
-            $useGateway = $forceGateway || (config('beninfood.refunds.automatic_execution', false) && config('beninfood.kkiapay.enabled', false));
+            $useGateway = $forceGateway || (config('beninfood.refunds.automatic_execution', false) && config('fedapay.enabled', false));
 
             if ($useGateway) {
                 try {

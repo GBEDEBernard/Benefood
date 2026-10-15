@@ -16,9 +16,11 @@ use App\Models\Role;
 use App\Models\User;
 use App\Models\Vendor;
 use App\Models\Wallet;
+use App\Services\Payments\PaymentGateway;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
+use Tests\Fakes\PaymentGatewayFake;
 use Tests\TestCase;
 
 class PaymentApiTest extends TestCase
@@ -94,8 +96,8 @@ class PaymentApiTest extends TestCase
 
         $this->postJson('/api/v1/payments/create', ['order_id' => $order->id])
             ->assertOk()
-            ->assertJsonPath('data.provider', 'kkiapay')
-            ->assertJsonStructure(['data' => ['provider' => [], 'widget' => []]]);
+            ->assertJsonPath('data.provider', 'fedapay')
+            ->assertJsonStructure(['data' => ['provider', 'amount', 'status', 'checkout_url']]);
     }
 
     public function test_create_payment_rejects_other_user_order(): void
@@ -139,6 +141,41 @@ class PaymentApiTest extends TestCase
             ->assertJsonPath('errors.0.code', 'payment.expired');
     }
 
+    public function test_create_payment_surfaces_gateway_failure(): void
+    {
+        $fake = new PaymentGatewayFake;
+        $fake->collectResult = [
+            'provider' => 'fedapay',
+            'mode' => 'live',
+            'status' => 'failed',
+            'amount' => 0,
+            'currency' => 'XOF',
+            'transaction_id' => null,
+            'checkout_url' => null,
+            'message' => 'Le paiement n\'a pas pu être préparé. Réessayez.',
+        ];
+        $this->app->instance(PaymentGateway::class, $fake);
+
+        $client = $this->actingUser('client');
+        $order = $this->createOrderWithPayment($client);
+
+        $this->postJson('/api/v1/payments/create', ['order_id' => $order->id])
+            ->assertStatus(422)
+            ->assertJsonPath('errors.0.code', 'payment.gateway_error');
+    }
+
+    public function test_create_payment_persists_gateway_transaction_id(): void
+    {
+        $this->app->instance(PaymentGateway::class, new PaymentGatewayFake('TX-PERSIST-1'));
+
+        $client = $this->actingUser('client');
+        $order = $this->createOrderWithPayment($client);
+
+        $this->postJson('/api/v1/payments/create', ['order_id' => $order->id])->assertOk();
+
+        $this->assertSame('TX-PERSIST-1', $order->payment->fresh()->gateway_txn_id);
+    }
+
     // ---------------------------------------------------------------
     // J93 — Retry de paiement
     // ---------------------------------------------------------------
@@ -151,7 +188,7 @@ class PaymentApiTest extends TestCase
 
         $this->postJson("/api/v1/payments/orders/{$order->id}/retry")
             ->assertOk()
-            ->assertJsonPath('data.provider', 'kkiapay');
+            ->assertJsonPath('data.provider', 'fedapay');
     }
 
     public function test_client_can_retry_expired_payment_and_deadline_is_extended(): void
@@ -208,6 +245,54 @@ class PaymentApiTest extends TestCase
 
         $this->postJson('/api/v1/payments/verify', [])
             ->assertStatus(422);
+    }
+
+    public function test_verify_settles_a_paid_order_when_webhook_is_unreachable(): void
+    {
+        $client = $this->actingUser('client');
+        $order = $this->createOrderWithPayment($client);
+        $order->payment->update(['gateway_txn_id' => 'TX-VERIFY-1', 'status' => PaymentStatus::Initiated]);
+
+        $fake = new PaymentGatewayFake;
+        $fake->verifyResult = [
+            'ok' => true,
+            'status' => 'approved',
+            'paid' => true,
+            'amount' => $order->total,
+            'data' => ['id' => 'TX-VERIFY-1', 'status' => 'approved'],
+        ];
+        $this->app->instance(PaymentGateway::class, $fake);
+
+        $this->postJson('/api/v1/payments/verify', ['transaction_id' => 'TX-VERIFY-1'])
+            ->assertOk();
+
+        $order->refresh();
+        $this->assertSame(OrderStatus::Paid->value, $order->status->value);
+        $this->assertNotNull($order->payment->fresh()->paid_at);
+        $this->assertDatabaseHas('financial_transactions', ['order_id' => $order->id, 'type' => 'payment']);
+    }
+
+    public function test_verify_does_not_settle_another_users_payment(): void
+    {
+        $client = $this->actingUser('client');
+        $order = $this->createOrderWithPayment($client);
+        $order->payment->update(['gateway_txn_id' => 'TX-VERIFY-2', 'status' => PaymentStatus::Initiated]);
+
+        $fake = new PaymentGatewayFake;
+        $fake->verifyResult = [
+            'ok' => true,
+            'status' => 'approved',
+            'paid' => true,
+            'amount' => $order->total,
+        ];
+        $this->app->instance(PaymentGateway::class, $fake);
+
+        $this->actingUser('client');
+
+        $this->postJson('/api/v1/payments/verify', ['transaction_id' => 'TX-VERIFY-2'])
+            ->assertOk();
+
+        $this->assertSame(OrderStatus::AwaitingPayment->value, $order->fresh()->status->value);
     }
 
     // ---------------------------------------------------------------
@@ -357,7 +442,7 @@ class PaymentApiTest extends TestCase
 
     public function test_webhook_rejects_invalid_signature_when_secret_configured(): void
     {
-        config(['kkiapay.webhook_secret' => 'my-secret']);
+        config(['fedapay.webhook_secret' => 'my-secret']);
 
         $this->postJson('/api/v1/payments/webhook', ['event' => 'success'])
             ->assertStatus(400);
@@ -365,7 +450,7 @@ class PaymentApiTest extends TestCase
 
     public function test_webhook_accepts_valid_signature(): void
     {
-        config(['kkiapay.webhook_secret' => 'my-secret']);
+        config(['fedapay.webhook_secret' => 'my-secret']);
 
         $client = $this->actingUser('client');
         $order = $this->createOrderWithPayment($client);
@@ -383,9 +468,10 @@ class PaymentApiTest extends TestCase
             ],
         ];
 
-        $signature = hash_hmac('sha256', json_encode($payload), 'my-secret');
+        $timestamp = time();
+        $signature = hash_hmac('sha256', $timestamp.'.'.json_encode($payload), 'my-secret');
 
-        $this->postJson('/api/v1/payments/webhook', $payload, ['X-Kkiapay-Signature' => $signature])
+        $this->postJson('/api/v1/payments/webhook', $payload, ['X-FEDAPAY-SIGNATURE' => "t={$timestamp},s={$signature}"])
             ->assertOk();
     }
 
@@ -400,7 +486,7 @@ class PaymentApiTest extends TestCase
 
         $this->postJson('/api/v1/payments/create', ['order_id' => $order->id])
             ->assertOk()
-            ->assertJsonPath('data.widget.amount', $order->total * 100);
+            ->assertJsonPath('data.amount', $order->total);
     }
 
     // ---------------------------------------------------------------
@@ -457,7 +543,7 @@ class PaymentApiTest extends TestCase
         $this->postJson('/api/v1/payments/webhook', $payload)->assertOk();
 
         $this->assertDatabaseHas('payment_events', [
-            'provider' => 'kkiapay',
+            'provider' => 'fedapay',
             'provider_transaction_id' => 'txn-orphan-001',
         ]);
     }

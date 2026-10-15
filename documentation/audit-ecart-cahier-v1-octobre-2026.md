@@ -61,7 +61,7 @@ Autres paramètres fixés : **retrait minimum ≈ 1 000 F** (exemple), solde wal
 
 | Point du cahier | État code | Verdict |
 |---|---|---|
-| **FedaPay** retenue comme passerelle | Implémenté avec **Kkiapay** (`backend/app/Services/Payments/KkiapayConnector.php`, `config/kkiapay.php`, webhook `POST /api/v1/payments/webhook`) | 🟡 divergence de prestataire (décision en attente) |
+| **FedaPay** retenue comme passerelle | Implémenté avec **FedaPay** (`backend/app/Services/Payments/FedaPayConnector.php`, `config/fedapay.php`, webhook `POST /api/v1/payments/webhook`) | 🟡 divergence de prestataire (décision en attente) |
 | Abstraction `PaymentGateway` | ✅ présente (`PaymentGateway.php`) — réversibilité possible | ✅ |
 | Webhook vérifié côté serveur + idempotence | ✅ signature HMAC + `payment_events` (déduplication) | ✅ |
 | Frais FedaPay 1,2 % | ✅ calculé (`FinanceService::breakdown`, `payment_gateway.fee_rate_basis_points`) et figé dans `order_financials.payment_fee` | ✅ |
@@ -83,7 +83,7 @@ Autres paramètres fixés : **retrait minimum ≈ 1 000 F** (exemple), solde wal
 
 | Étape du cahier | État code | Verdict |
 |---|---|---|
-| Client paie vers le compte plateforme | ✅ (Kkiapay) | ✅ |
+| Client paie vers le compte plateforme | ✅ (FedaPay) | ✅ |
 | Confirmation webhook → statut `paid` | ✅ `PaymentController::webhook` délègue à `OrderService::confirmPayment` | ✅ |
 | **Répartition système** : wallet vendeur + wallet livreur + plateforme | ✅ `FinanceService::distributeOrderPayment` (part vendeur en attente) + `creditDriverForDelivery` (à l'assignation) ; plateforme journalisée | ✅ |
 | **Séquestre** : crédité « en attente », libéré après livraison | ✅ `Wallet.pending_balance` / `available_balance`, `FinanceService::releasePending` appelé à la livraison | ✅ |
@@ -185,7 +185,7 @@ Wallet désormais alimenté (séquestre → disponible) et retrait possible (§4
 | 1 — Base (comptes, produits, commandes, paiement, wallets, back-office minimal) | ✅ comptes, produits, commandes, paiement, wallets (séquestre) et frais 5 % | ✅ |
 | 2 — Livraison (app livreur, attribution, code, cash + wallet prépayé) | ✅ app livreur, code, cash + wallet prépayé, blocage flottant | ✅ |
 | 3 — Colis | ✅ service colis A→B (client + livreur, tarif par distance) | ✅ |
-| 4 — Croissance (promos, notes, rapports, retraits groupés, Kkiapay) | 🟡 promos/notes partiels ; retraits groupés ✅ ; rapports PDF ❌ ; Kkiapay (vs FedaPay) | 🟡 |
+| 4 — Croissance (promos, notes, rapports, retraits groupés, FedaPay) | 🟡 promos/notes partiels ; retraits groupés ✅ ; rapports PDF ❌ ; FedaPay (vs FedaPay) | 🟡 |
 
 ---
 
@@ -209,7 +209,7 @@ Wallet désormais alimenté (séquestre → disponible) et retrait possible (§4
 11. ✅ **Barème de livraison par distance** pour la nourriture (§2).
 
 **Écarts restants**
-12. **Choix de la passerelle** : FedaPay (cahier) vs Kkiapay (code) — décision à trancher,
+12. **Choix de la passerelle** : FedaPay (cahier) vs FedaPay (code) — décision à trancher,
     le reste du code ne dépend que de l'abstraction `PaymentGateway`.
 13. **Exports PDF** des rapports admin (aucune dépendance PDF n'est installée ;
     l'ajout d'un paquet est une décision à valider).

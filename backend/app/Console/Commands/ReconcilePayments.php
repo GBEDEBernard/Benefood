@@ -4,7 +4,7 @@ namespace App\Console\Commands;
 
 use App\Enums\PaymentStatus;
 use App\Models\Payment;
-use App\Services\Payments\KkiapayConnector;
+use App\Services\Payments\PaymentGateway;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
 
@@ -12,12 +12,12 @@ class ReconcilePayments extends Command
 {
     protected $signature = 'payments:reconcile';
 
-    protected $description = 'Rapproche les paiements en attente avec Kkiapay (J95).';
+    protected $description = 'Rapproche les paiements en attente avec FedaPay (J95).';
 
-    public function handle(): int
+    public function handle(PaymentGateway $gateway): int
     {
         $pending = Payment::query()
-            ->where('gateway', 'kkiapay')
+            ->where('gateway', 'fedapay')
             ->whereIn('status', [PaymentStatus::Initiated, PaymentStatus::Pending])
             ->whereNotNull('gateway_txn_id')
             ->where('created_at', '<', now()->subMinutes(5))
@@ -25,13 +25,14 @@ class ReconcilePayments extends Command
 
         $reconciled = 0;
 
-        $connector = new KkiapayConnector;
-
         foreach ($pending as $payment) {
             try {
-                $result = $connector->verifyTransaction($payment->gateway_txn_id);
+                $result = $gateway->verifyTransaction($payment->gateway_txn_id);
 
-                if ($result['ok'] && in_array($result['status'] ?? '', ['successful', 'completed', 'paid'])) {
+                $paid = (bool) ($result['paid'] ?? false)
+                    || in_array($result['status'] ?? '', ['successful', 'completed', 'paid', 'approved'], true);
+
+                if ($result['ok'] && $paid) {
                     $payment->update([
                         'status' => PaymentStatus::Confirmed,
                         'paid_at' => now(),

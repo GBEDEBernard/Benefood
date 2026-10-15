@@ -134,13 +134,13 @@ void main() {
 
     await tester.tap(find.text('Retirer'));
     await tester.pumpAndSettle();
-
     expect(find.text('Demander un retrait'), findsOneWidget);
 
+    await tester.enterText(find.byType(TextField).at(1), '+22996000000');
     await tester.tap(find.text('Confirmer la demande'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Demande de retrait envoyée.'), findsOneWidget);
+    expect(find.text('Demande de retrait enregistrée.'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -149,6 +149,8 @@ void main() {
 
     await tester.tap(find.text('Retirer'));
     await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextField).at(1), '+22996000000');
     await tester.tap(find.text('Confirmer la demande'));
     await tester.pumpAndSettle();
 

@@ -9,12 +9,12 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('payment_events', function (Blueprint $table) {
-            $table->string('provider', 30)->default('kkiapay')->after('event_type');
+            $table->string('provider', 30)->default('fedapay')->after('event_type');
             $table->string('provider_transaction_id')->nullable()->after('provider');
             $table->timestamp('processed_at')->nullable()->after('payload');
         });
 
-        DB::statement('UPDATE payment_events SET provider = event_type WHERE provider = "kkiapay"');
+        DB::statement('UPDATE payment_events SET provider = event_type WHERE provider = "fedapay"');
 
         Schema::table('payment_events', function (Blueprint $table) {
             $table->unique(['provider', 'provider_transaction_id']);

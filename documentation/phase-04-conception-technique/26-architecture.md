@@ -27,7 +27,7 @@
                  ▼                       ▼                     ▼
         ┌───────────────┐     ┌────────────────┐    ┌────────────────────┐
         │ Back-office   │     │ Queue/Jobs     │    │ Services externes  │
-        │ web (porteuse)│     │ (DB driver)    │    │ Kkiapay · FCM · SMS│
+        │ web (porteuse)│     │ (DB driver)    │    │ FedaPay · FCM · SMS│
         └───────┬───────┘     └────────────────┘    └────────────────────┘
                 │                        │
                 ▼                        ▼
@@ -46,7 +46,7 @@
 | **Stateless API** | Sessions mobiles sans état côté serveur : tokens Sanctum. |
 | **Serveur = vérité** | Montants, permissions, statuts : toujours calculés/appliqués côté Laravel. |
 | **Policies** | Authorization via Policies + Gates (RBAC), jamais via le rôle déclaré par le mobile. |
-| **Externalités isolées** | Kkiapay, FCM, stockage derrière des interfaces/adapters (réversibilité). |
+| **Externalités isolées** | FedaPay, FCM, stockage derrière des interfaces/adapters (réversibilité). |
 | **Asynchrone** | Jobs/queues DB par défaut pour webhooks, notifications, mails, recalculs. |
 
 ## 3. Structure backend Laravel (dossier de référence)

@@ -66,7 +66,7 @@ Statuts (`orders.status`) — enum `OrderStatus` :
 | T11 | Livreur `active`+`online` ; une course = une commande |
 | T14 | Preuve de livraison saisie valide |
 | T15 | Conforme matrice J12 (acteur × statut) |
-| T16 | Refund demandé + exécuté (Kkiapay) ; écriture journal |
+| T16 | Refund demandé + exécuté (FedaPay) ; écriture journal |
 
 ## 6. Deadlines configurables (config/beninfood)
 
@@ -85,7 +85,7 @@ orders.driver_acceptance_seconds = 45
 | Statut | Client voit | Vendeur voit | Livreur voit |
 |--------|-------------|--------------|--------------|
 | draft | brouillon | — | — |
-| awaiting_payment | payer (lien Kkiapay) | — | — |
+| awaiting_payment | payer (lien FedaPay) | — | — |
 | paid | en cours | Accepter / Refuser (motif) | — |
 | accepted | préparé ✓ | Démarrer préparation | — |
 | preparing | en préparation | Marquer prête | — |

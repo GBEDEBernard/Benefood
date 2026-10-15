@@ -15,7 +15,7 @@ return new class extends Migration
             $table->uuid('id')->primary();
             $table->foreignUuid('order_id')->constrained('orders');
             $table->string('reference')->unique();
-            $table->string('gateway', 30)->default('kkiapay');
+            $table->string('gateway', 30)->default('fedapay');
             $table->string('gateway_txn_id')->nullable()->unique();
             $table->unsignedInteger('amount');
             $table->string('currency', 3)->default('XOF');

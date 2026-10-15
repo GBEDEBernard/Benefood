@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.0.0+6
+version: 1.0.0+12
 
 environment:
   sdk: ^3.12.2
@@ -45,6 +45,9 @@ dependencies:
 
   # Appels téléphoniques (client -> livreur, livreur -> client/vendeur)
   url_launcher: ^6.3.0
+
+  # Paiement en ligne (page hébergée FedaPay dans l'app)
+  flutter_inappwebview: ^6.1.5
 
   # Push FCM + deep-link « nouvelle commande » (J24, infra J126)
   firebase_core: ^4.2.0

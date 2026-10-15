@@ -63,7 +63,7 @@ draft ──▶ awaiting_payment ──▶ paid ──▶ accepted ──▶ pre
 |----|------|-------------|--------|
 | — | `draft` | Création depuis le panier (panier validé mono-vendeur) | Client |
 | `draft` | `awaiting_payment` | Confirmation du récapitulatif + choix de paiement | Client |
-| `awaiting_payment` | `paid` | Confirmation de paiement (webhook Kkiapay vérifié) | Système |
+| `awaiting_payment` | `paid` | Confirmation de paiement (webhook FedaPay vérifié) | Système |
 | `awaiting_payment` | `cancelled` | Abandon par le client avant paiement | Client |
 | `awaiting_payment` | `cancelled` | Expiration du délai de paiement (durée configurable) | Système |
 | `paid` | `accepted` | Acceptation par le vendeur | Vendeur |

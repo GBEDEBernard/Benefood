@@ -44,12 +44,14 @@ class WalletController extends Controller
     {
         $vendor = $this->vendorFor($request);
 
-        $data = $request->validate([
-            'amount' => ['required', 'integer', 'min:1'],
-            'method' => ['sometimes', 'nullable', 'string', 'max:20'],
-        ]);
+        $data = $this->validatePayout($request);
 
-        $payout = $this->payouts->request($vendor, (int) $data['amount'], $data['method'] ?? null);
+        $payout = $this->payouts->request(
+            $vendor,
+            (int) $data['amount'],
+            $data['method'] ?? null,
+            $data['destination'] ?? null,
+        );
 
         return Api::created($this->payoutPayload($payout));
     }
@@ -67,14 +69,30 @@ class WalletController extends Controller
     {
         $driver = $this->driverFor($request);
 
-        $data = $request->validate([
-            'amount' => ['required', 'integer', 'min:1'],
-            'method' => ['sometimes', 'nullable', 'string', 'max:20'],
-        ]);
+        $data = $this->validatePayout($request);
 
-        $payout = $this->payouts->request($driver, (int) $data['amount'], $data['method'] ?? null);
+        $payout = $this->payouts->request(
+            $driver,
+            (int) $data['amount'],
+            $data['method'] ?? null,
+            $data['destination'] ?? null,
+        );
 
         return Api::created($this->payoutPayload($payout));
+    }
+
+    // --------------------------------------------------------------- Helpers
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function validatePayout(Request $request): array
+    {
+        return $request->validate([
+            'amount' => ['required', 'integer', 'min:1'],
+            'method' => ['sometimes', 'nullable', 'string', 'in:'.implode(',', PayoutService::NETWORKS)],
+            'destination' => ['sometimes', 'nullable', 'string', 'max:40', 'regex:/^(?:\+?229)?0?\d{8}$/'],
+        ]);
     }
 
     // --------------------------------------------------------------- Helpers
@@ -143,6 +161,7 @@ class WalletController extends Controller
             'id' => $payout->id,
             'amount' => (int) $payout->amount,
             'method' => $payout->method,
+            'destination' => $payout->destination,
             'status' => $payout->status->value,
             'gateway_ref' => $payout->gateway_ref,
             'executed_at' => $payout->executed_at?->toIso8601String(),

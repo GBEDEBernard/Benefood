@@ -198,20 +198,6 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Kkiapay (passerelle de paiement mobile money)
-    |--------------------------------------------------------------------------
-    */
-    'kkiapay' => [
-        'enabled' => (bool) env('KKIAPAY_ENABLED', false),
-        'base_url' => env('KKIAPAY_BASE_URL', 'https://api.kkiapay.me'),
-        'sandbox' => (bool) env('KKIAPAY_SANDBOX', true),
-        'public_key' => env('KKIAPAY_PUBLIC_KEY'),
-        'private_key' => env('KKIAPAY_PRIVATE_KEY'),
-        'secret' => env('KKIAPAY_SECRET'),
-    ],
-
-    /*
-    |--------------------------------------------------------------------------
     | Calcul d'itinéraires (navigation GPS livreur / suivi client)
     |--------------------------------------------------------------------------
     | Le tracé routier est calculé côté serveur puis renvoyé à l'app sous forme

@@ -153,7 +153,9 @@ class ParcelFeatureTest extends TestCase
 
         $this->postJson('/api/v1/payments/create', ['parcel_id' => $parcel->id])
             ->assertOk()
-            ->assertJsonPath('data.widget.order_id', $parcel->id);
+            ->assertJsonPath('data.provider', 'fedapay')
+            ->assertJsonPath('data.amount', (int) $parcel->delivery_fee)
+            ->assertJsonPath('data.status', 'pending');
     }
 
     public function test_driver_accept_assigns_and_credits_pending(): void

@@ -15,7 +15,7 @@
 | M4 | **Catalog** | Catégories, produits, images, disponibilité, prix |
 | M5 | **Cart** | Panier mono-vendeur, lignes, quote, contraintes |
 | M6 | **Orders** | Commande, machine à états, snapshot `order_items`, historique |
-| M7 | **Payments** | Transactions, gateway Kkiapay, webhooks, refunds, rapprochement |
+| M7 | **Payments** | Transactions, gateway FedaPay, webhooks, refunds, rapprochement |
 | M8 | **Finance** | Commission, `order_financials`, wallet, journal immuable, payouts |
 | M9 | **Delivery** | Zones, tarifs, livreurs, affectation, courses, preuve |
 | M10 | **Notifications** | FCM, tokens appareils, templates, événements, deep-links |
@@ -56,7 +56,7 @@ M14 Audit ──► tous (side-effect passif)
 | `CartService` | M5 | Gère panier + quote (serveur) |
 | `OrderService` | M6 | Création commande, transitions, snapshot |
 | `PaymentService` | M7 | Initie/confirme/refund, filtre webhooks |
-| `PaymentGateway` | M7 | Interface abstraite (Kkiapay impl) |
+| `PaymentGateway` | M7 | Interface abstraite (FedaPay impl) |
 | `CommissionService` | M8 | Calcule et figure commission |
 | `FinanceService` | M8 | Journal immuable, wallet, payouts |
 | `DeliveryZoneService` | M9 | Zones/tarifs, sélection de zone |
@@ -92,4 +92,4 @@ M14 Audit ──► tous (side-effect passif)
 - [ ] Dépendances acycliques (graphe §2)
 - [ ] Services typés par contexte dans `app/Services`
 - [ ] Routage `/api/v1/<module>` cohérent
-- [ ] Réversibilité (gateways) pour externe (Kkiapay, FCM, stockage)
+- [ ] Réversibilité (gateways) pour externe (FedaPay, FCM, stockage)

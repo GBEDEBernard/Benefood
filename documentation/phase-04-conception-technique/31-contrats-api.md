@@ -147,7 +147,7 @@ POST   /orders/{id}/prepare          ; /ready
 ```
 POST   /orders/{id}/payment          → {payment_url, reference}
 GET    /payments/{id}
-POST   /webhooks/kkiapay             (public, signature vérifiée)
+POST   /webhooks/fedapay             (public, signature vérifiée)
 POST   /payments/{id}/refund         (porteuse)
 ```
 
@@ -209,7 +209,7 @@ GET    /admin/reports/{type}         (export)
 
 ### `POST /orders`
 → 201 `{ "data": { "id": "uuid", "reference": "BF-202609-0001", "status": "awaiting_payment",
-  "payment": { "reference": "pay_...", "url": "https://pay.kkiapay.me/...", "expires_at": "..." } } }`
+  "payment": { "reference": "pay_...", "url": "https://pay.fedapay.me/...", "expires_at": "..." } } }`
 
 ## 6. Versioning
 

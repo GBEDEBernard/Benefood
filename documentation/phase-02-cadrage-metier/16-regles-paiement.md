@@ -43,12 +43,12 @@ initiated ──▶ pending ──▶ confirmed (webhook OK) ──▶ settled
 ### 4.1 Initiation
 1. Le client valide sa commande (`awaiting_payment`).
 2. Le serveur crée une **transaction de paiement** : montant (total_client), référence unique (uuid interne), référence commerçante pour l'agrégateur, devise (XOF), métadonnées.
-3. Le serveur appelle l'interface `PaymentGateway` (Kkiapay) pour créer le paiement / obtenir le lien de paiement.
+3. Le serveur appelle l'interface `PaymentGateway` (FedaPay) pour créer le paiement / obtenir le lien de paiement.
 4. Le lien/flow est renvoyé au mobile pour que le client paie.
 5. La transaction passe `pending`.
 
 ### 4.2 Confirmation (webhook)
-1. L'agrégateur envoie un webhook sur l'URL dédiée (`POST /api/v1/webhooks/kkiapay`).
+1. L'agrégateur envoie un webhook sur l'URL dédiée (`POST /api/v1/webhooks/fedapay`).
 2. Le serveur : vérifie la **signature**, vérifie que la valeur n'est **pas déjà traitée** (idempotence), vérifie que la référence existe dans le système.
 3. La commande doit être en `awaiting_payment` (jamais déjà `paid` ni `cancelled`).
 4. On **recalcule le montant attendu** (total_client de la commande) et on le compare au montant reçu dans le webhook. Contrôle → on accepte ; sinon gestion d'écart (incident + audit, pas de passage à payé automatique).

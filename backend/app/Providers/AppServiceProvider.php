@@ -10,6 +10,8 @@ use App\Policies\AdminPolicy;
 use App\Policies\ClientProfilePolicy;
 use App\Policies\DriverProfilePolicy;
 use App\Policies\VendorPolicy;
+use App\Services\Payments\FedaPayConnector;
+use App\Services\Payments\PaymentGateway;
 use App\Services\Push\FirebasePushTransport;
 use App\Services\Push\PushTransport;
 use Illuminate\Cache\RateLimiting\Limit;
@@ -29,6 +31,8 @@ class AppServiceProvider extends ServiceProvider
         $this->app->singleton(PushTransport::class, function (): PushTransport {
             return new FirebasePushTransport(app(Messaging::class));
         });
+
+        $this->app->bind(PaymentGateway::class, FedaPayConnector::class);
     }
 
     /**

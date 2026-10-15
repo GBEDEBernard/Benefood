@@ -10,6 +10,7 @@ import '../../core/theme/app_theme.dart';
 import '../../core/utils/formatters.dart';
 import '../../shared/widgets/beninfood_header.dart';
 import '../../shared/widgets/feedback_widgets.dart';
+import '../../shared/widgets/fedapay_checkout_screen.dart';
 import '../../shared/widgets/state_widgets.dart';
 
 /// Rôle propriétaire du wallet : le libellé et les endpoints diffèrent.
@@ -127,12 +128,20 @@ class _WalletScreenState extends State<WalletScreen> {
     setState(() => _requesting = true);
     try {
       if (widget.role == WalletRole.vendor) {
-        await widget.marketplace.requestVendorPayout(result.amount, method: result.method);
+        await widget.marketplace.requestVendorPayout(
+          result.amount,
+          method: result.method,
+          destination: result.destination,
+        );
       } else {
-        await widget.marketplace.requestDriverPayout(result.amount, method: result.method);
+        await widget.marketplace.requestDriverPayout(
+          result.amount,
+          method: result.method,
+          destination: result.destination,
+        );
       }
       if (!mounted) return;
-      showToast(context, 'Demande de retrait envoyée.');
+      showToast(context, 'Demande de retrait enregistrée.');
       await _load();
     } on ApiException catch (e) {
       if (mounted) {
@@ -155,9 +164,26 @@ class _WalletScreenState extends State<WalletScreen> {
 
     setState(() => _floatBusy = true);
     try {
-      await widget.marketplace.topUpFloat(result);
-      if (!mounted) return;
-      showToast(context, 'Flottant rechargé (démo).');
+      final payload = await widget.marketplace.topUpFloat(result);
+      final checkoutUrl = payload['checkout_url'] as String?;
+
+      if (checkoutUrl != null && checkoutUrl.isNotEmpty) {
+        if (!mounted) return;
+        final paid = await startFedaPayCheckout(
+          context,
+          marketplace: widget.marketplace,
+          checkoutUrl: checkoutUrl,
+          transactionId: payload['transaction_id'] as String?,
+        );
+        if (!mounted) return;
+        showToast(
+          context,
+          paid ? 'Flottant rechargé.' : 'Paiement non confirmé.',
+          isError: !paid,
+        );
+      } else if (mounted) {
+        showToast(context, 'Flottant rechargé.');
+      }
       await _load();
     } on ApiException catch (e) {
       if (mounted) {
@@ -732,10 +758,15 @@ class _EmptyCard extends StatelessWidget {
 // ------------------------------------------------------------ Payout sheet
 
 class _PayoutRequest {
-  const _PayoutRequest({required this.amount, required this.method});
+  const _PayoutRequest({
+    required this.amount,
+    required this.method,
+    required this.destination,
+  });
 
   final int amount;
   final String method;
+  final String destination;
 }
 
 class _PayoutSheet extends StatefulWidget {
@@ -752,17 +783,27 @@ class _PayoutSheetState extends State<_PayoutSheet> {
   late final TextEditingController _amount = TextEditingController(
     text: widget.available.toString(),
   );
-  String _method = 'mobile_money';
+  final _destination = TextEditingController();
+  String _method = 'mtn_open';
   String? _error;
+  String? _phoneError;
 
   @override
   void dispose() {
     _amount.dispose();
+    _destination.dispose();
     super.dispose();
   }
 
   void _submit() {
     final value = int.tryParse(_amount.text.trim());
+    final phone = _destination.text.trim();
+
+    setState(() {
+      _error = null;
+      _phoneError = null;
+    });
+
     if (value == null || value < widget.minPayout) {
       setState(() => _error = 'Minimum ${formatAmount(widget.minPayout)}.');
       return;
@@ -771,7 +812,14 @@ class _PayoutSheetState extends State<_PayoutSheet> {
       setState(() => _error = 'Solde disponible insuffisant.');
       return;
     }
-    Navigator.of(context).pop(_PayoutRequest(amount: value, method: _method));
+    if (phone.isEmpty) {
+      setState(() => _phoneError = 'Numéro Mobile Money requis.');
+      return;
+    }
+
+    Navigator.of(context).pop(
+      _PayoutRequest(amount: value, method: _method, destination: phone),
+    );
   }
 
   @override
@@ -825,10 +873,23 @@ class _PayoutSheetState extends State<_PayoutSheet> {
           const SizedBox(height: AppDimens.sm),
           Row(
             children: [
-              Expanded(child: _MethodChip(label: 'Mobile Money', value: 'mobile_money', selected: _method, onTap: (v) => setState(() => _method = v))),
-              const SizedBox(width: AppDimens.md),
-              Expanded(child: _MethodChip(label: 'Banque', value: 'bank', selected: _method, onTap: (v) => setState(() => _method = v))),
+              Expanded(child: _MethodChip(label: 'MTN', value: 'mtn_open', selected: _method, onTap: (v) => setState(() => _method = v))),
+              const SizedBox(width: AppDimens.sm),
+              Expanded(child: _MethodChip(label: 'Moov', value: 'moov', selected: _method, onTap: (v) => setState(() => _method = v))),
+              const SizedBox(width: AppDimens.sm),
+              Expanded(child: _MethodChip(label: 'Celtiis', value: 'sbin', selected: _method, onTap: (v) => setState(() => _method = v))),
             ],
+          ),
+          const SizedBox(height: AppDimens.lg),
+          TextField(
+            controller: _destination,
+            keyboardType: TextInputType.phone,
+            decoration: InputDecoration(
+              labelText: 'Numéro Mobile Money',
+              prefixIcon: const Icon(Icons.phone_iphone),
+              hintText: 'Ex. +229 96 00 00 00',
+              errorText: _phoneError,
+            ),
           ),
           const SizedBox(height: AppDimens.xl),
           SizedBox(
@@ -1060,7 +1121,7 @@ class _FloatSheetState extends State<_FloatSheet> {
           ),
           const SizedBox(height: 4),
           const Text(
-            'Démo : le montant est crédité directement sur votre flottant.',
+            'Paiement sécurisé FedaPay : le montant est crédité sur votre flottant après confirmation.',
             style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
           ),
           const SizedBox(height: AppDimens.xl),

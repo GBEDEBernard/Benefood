@@ -74,7 +74,7 @@ Chaque commande `paid` enregistre (table `order_financials`) :
 - `platform_amount` — part Béninfood
 - `total_client` — total payé par le client
 - `currency` — devise (XOF)
-- `payment_reference` — référence kkiapay/txn id
+- `payment_reference` — référence fedapay/txn id
 
 ## 7. Cas d'arrondis
 

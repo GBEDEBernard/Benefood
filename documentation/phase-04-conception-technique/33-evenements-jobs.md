@@ -58,12 +58,12 @@
 |-----|-------|-----|
 | `SchedulePaymentDeadline` | default | donne le deadline paiement (deadline at) |
 | `ExpirePendingPayments` | default (scheduled) | passe `awaiting_payment` → cancelled si deadline atteinte — **idempotent** |
-| `ProcessKkiapayWebhook` | payments | vérifie + confirme paiement (idempotence) |
+| `ProcessFedaPayWebhook` | payments | vérifie + confirme paiement (idempotence) |
 | `HandlePaymentWebhookEvent` | payments | met à jour paiement |
 | `DispatchDeliveryAssignment` | delivery | cherche livreur online pour `ready` |
 | `NotifyDriverOfOffer` | notifications | push offre course |
 | `ProcessProofDelivery` | delivery | valide preuve (async) |
-| `DispatchRefund` | payments/finance | exécute refund Kkiapay |
+| `DispatchRefund` | payments/finance | exécute refund FedaPay |
 | `CalculateAndSnapshotFinancials` | finance | crée order_financials sur paid |
 | `ProcessPayout` | finance | exécute reversement wallet |
 | `SendPushNotification` | notifications | via FcmGateway |
@@ -82,13 +82,13 @@
 | quotidienne | `tokens:cleanup` | nettoyage tokens périmés |
 | hebdo | `log:cleanup` | purge système logs (rétention configurable) |
 
-## 6. Webhooks (entrants — Kkiapay)
+## 6. Webhooks (entrants — FedaPay)
 
 ### 6.1 Traitement
 1. **Validation de signature** (clé secrète, en-tête HTTP) — refus 401 si invalide.
 2. Enregistrement brut dans `webhook_events` (payload, signature, reçu à).
 3. Déduplication : clé d'idempotence = `gateway_txn_id` (index unique) → si déjà traité, retour 200 immédiatement.
-4. `ProcessKkiapayWebhook` : vérifie paiement existant, montant attendu, statut commande, puis transition `paid` (J30/T3) + journal.
+4. `ProcessFedaPayWebhook` : vérifie paiement existant, montant attendu, statut commande, puis transition `paid` (J30/T3) + journal.
 5. Réponse HTTP rapide (200) même si job async ; retry gemé par queue.
 
 ### 6.2 Erreurs

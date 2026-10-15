@@ -21,7 +21,9 @@ mobile/.flutter-plugins-dependencies
 mobile/*.iml
 mobile/lib/generated_plugin_registrant.dart
 mobile/android/.gradle/
+mobile/android/build/
 mobile/android/local.properties
+mobile/lib/core/config/app_config.dart.save
 mobile/ios/Pods/
 mobile/ios/.symlinks/
 

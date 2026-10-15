@@ -68,7 +68,7 @@ return new class extends Migration
             $table->uuid('id')->primary();
             $table->foreignUuid('wallet_id')->constrained('wallets');
             $table->unsignedInteger('amount');
-            $table->string('method', 20)->default('kkiapay');
+            $table->string('method', 20)->default('mobile_money');
             $table->string('status', 20)->default('pending')->index();
             $table->timestamp('executed_at')->nullable();
             $table->foreignUuid('executed_by')->nullable()->constrained('users')->nullOnDelete();

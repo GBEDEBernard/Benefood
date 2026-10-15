@@ -8,7 +8,7 @@ import 'amount_widgets.dart';
 import 'beninfood_header.dart';
 
 /// Choix du moyen de paiement (page dédiée) : paiement en ligne sécurisé via
-/// Kkiapay (mobile money / carte) ou espèces à la livraison. Renvoie
+/// FedaPay (mobile money / carte) ou espèces à la livraison. Renvoie
 /// `'online'` ou `'cash'` (ou `null` si l'utilisateur revient en arrière).
 class ParcelPaymentMethodScreen extends StatefulWidget {
   const ParcelPaymentMethodScreen({
@@ -87,7 +87,7 @@ class _ParcelPaymentMethodScreenState extends State<ParcelPaymentMethodScreen> {
                 _PaymentOption(
                   icon: Icons.smartphone,
                   title: 'Mobile money / Carte',
-                  subtitle: 'Paiement en ligne sécurisé via Kkiapay.',
+                  subtitle: 'Paiement en ligne sécurisé via FedaPay.',
                   selected: _selected == 'online',
                   onTap: () => setState(() => _selected = 'online'),
                 ),

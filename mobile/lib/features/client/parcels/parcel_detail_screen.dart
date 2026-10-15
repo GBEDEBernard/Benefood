@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/data/marketplace_api.dart';
@@ -14,6 +13,7 @@ import '../../../shared/widgets/app_button.dart';
 import '../../../shared/widgets/app_map.dart';
 import '../../../shared/widgets/beninfood_header.dart';
 import '../../../shared/widgets/feedback_widgets.dart';
+import '../../../shared/widgets/fedapay_checkout_screen.dart';
 import '../../../shared/widgets/status_badge.dart';
 import '../../../shared/widgets/state_widgets.dart';
 
@@ -142,78 +142,30 @@ class _ParcelDetailScreenState extends State<ParcelDetailScreen> {
       if (!mounted) {
         return;
       }
-      setState(() => _actionId = null);
-      _showPaymentDialog(parcel, payload);
+      final checkoutUrl = payload['checkout_url'];
+      if (checkoutUrl is String && checkoutUrl.isNotEmpty) {
+        await startFedaPayCheckout(
+          context,
+          marketplace: widget.marketplace,
+          checkoutUrl: checkoutUrl,
+          transactionId: payload['transaction_id']?.toString(),
+        );
+      } else {
+        final message = payload['message']?.toString();
+        if (message != null && message.isNotEmpty && mounted) {
+          showToast(context, message, isError: false);
+        }
+      }
     } on ApiException catch (e) {
       if (mounted) {
-        setState(() => _actionId = null);
         showToast(context, e.message, isError: true);
       }
     }
-  }
-
-  void _showPaymentDialog(Parcel parcel, Map<String, dynamic> payload) {
-    final widgetConfig = payload['widget'];
-    if (widgetConfig is! Map<String, dynamic>) {
+    if (!mounted) {
       return;
     }
-    final key = widgetConfig['key'];
-    if (key is! String || key.isEmpty) {
-      return;
-    }
-    final amount = widgetConfig['amount'];
-    final amountValue = amount is num ? '${amount.toInt()}' : '${amount ?? 0}';
-    final orderId = widgetConfig['order_id'];
-    final callback = widgetConfig['callback'];
-    final url = 'https://kkiapay.me/fr/mobilepay/${Uri(queryParameters: {
-          'key': key,
-          'amount': amountValue,
-          'order_id': orderId?.toString() ?? parcel.id,
-          if (callback is String) 'callback': callback,
-        }).query}';
-
-    showDialog<void>(
-      context: context,
-      barrierDismissible: false,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Paiement Kkiapay'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Réglez vos frais de livraison via Kkiapay :'),
-            const SizedBox(height: 12),
-            SelectableText(url, style: const TextStyle(fontSize: 12)),
-            const SizedBox(height: 8),
-            IconButton(
-              tooltip: 'Copier le lien',
-              onPressed: () => Clipboard.setData(ClipboardData(text: url)),
-              icon: const Icon(Icons.copy),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('Plus tard'),
-          ),
-          FilledButton(
-            onPressed: () {
-              Navigator.of(dialogContext).pop();
-              _verifyPayment();
-            },
-            child: const Text('J\'ai payé'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _verifyPayment() async {
+    setState(() => _actionId = null);
     await _load();
-    if (mounted) {
-      showToast(context, 'Vérification du paiement…');
-    }
   }
 
   @override

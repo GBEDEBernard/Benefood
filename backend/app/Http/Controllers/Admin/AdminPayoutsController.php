@@ -65,9 +65,9 @@ class AdminPayoutsController extends Controller
             return back()->with('error', 'Ce retrait est déjà exécuté.');
         }
 
-        $this->payouts->execute($payout, (string) Auth::id());
+        $this->payouts->sendToGateway($payout, (string) Auth::id());
 
-        return back()->with('success', 'Le retrait a été marqué comme versé.');
+        return back()->with('success', 'Retrait traité (virement FedaPay envoyé ou validé manuellement).');
     }
 
     public function fail(Request $request, Payout $payout): RedirectResponse

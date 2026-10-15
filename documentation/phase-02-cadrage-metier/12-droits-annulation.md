@@ -76,7 +76,7 @@ Définir les conditions, acteurs autorisés, délais, conséquences financières
 
 ### 5.3 Remboursement partiel
 - Le montant réellement remboursé est calculé côté serveur (jamais côté mobile).
-- Un remboursement partiel est appliqué par la passerelle (Kkiapay) si techniquement supporté, sinon par virement manuel tracé.
+- Un remboursement partiel est appliqué par la passerelle (FedaPay) si techniquement supporté, sinon par virement manuel tracé.
 
 ## 6. Workflow d'annulation
 
@@ -87,7 +87,7 @@ Définir les conditions, acteurs autorisés, délais, conséquences financières
 4. Détermination automatique du remboursement (total / partiel / nul)
 5. Si remboursement :
      - création d'une demande de remboursement
-     - exécution (Kkiapay si dispo, sinon manuel tracé)
+     - exécution (FedaPay si dispo, sinon manuel tracé)
      - passage à 'refunded' si succès
 6. Contre-passée commission / parts le cas échéant (J14)
 7. Libération des stocks réservés

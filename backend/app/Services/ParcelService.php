@@ -96,7 +96,7 @@ class ParcelService
             if (! $isCash) {
                 $parcel->payment()->create([
                     'reference' => 'PAY-'.Str::upper(Str::random(12)),
-                    'gateway' => 'kkiapay',
+                    'gateway' => 'fedapay',
                     'amount' => $breakdown['delivery_fee'],
                     'status' => PaymentStatus::Initiated->value,
                     'expires_at' => $parcel->payment_deadline_at,

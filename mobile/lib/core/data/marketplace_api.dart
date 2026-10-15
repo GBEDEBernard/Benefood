@@ -962,14 +962,15 @@ class MarketplaceApi {
     return _dataList(response);
   }
 
-  /// Demande un retrait vendeur vers son Mobile Money.
+  /// Demande un retrait vendeur vers son Mobile Money (réseau + numéro).
   Future<Map<String, dynamic>> requestVendorPayout(
     int amount, {
     String? method,
+    String? destination,
   }) async {
     final response = await _api.post(
       '/vendors/me/wallet/payouts',
-      body: {'amount': amount, 'method': ?method},
+      body: {'amount': amount, 'method': ?method, 'destination': ?destination},
     );
     return _dataObject(response) ?? {};
   }
@@ -980,14 +981,15 @@ class MarketplaceApi {
     return _dataObject(response) ?? {};
   }
 
-  /// Demande un retrait livreur vers son Mobile Money.
+  /// Demande un retrait livreur vers son Mobile Money (réseau + numéro).
   Future<Map<String, dynamic>> requestDriverPayout(
     int amount, {
     String? method,
+    String? destination,
   }) async {
     final response = await _api.post(
       '/driver/me/wallet/payouts',
-      body: {'amount': amount, 'method': ?method},
+      body: {'amount': amount, 'method': ?method, 'destination': ?destination},
     );
     return _dataObject(response) ?? {};
   }
@@ -1059,7 +1061,7 @@ class MarketplaceApi {
     return Parcel.fromJson(_dataObject(response) ?? {});
   }
 
-  /// Lance le paiement Kkiapay d'un colis (parallèle au paiement des commandes).
+  /// Prépare le paiement FedaPay d'un colis et renvoie l'URL de checkout.
   Future<Map<String, dynamic>> createParcelPayment(String parcelId) async {
     final response = await _api.post(
       '/payments/create',
@@ -1114,7 +1116,8 @@ class MarketplaceApi {
     return _dataObject(response) ?? {};
   }
 
-  /// Recharge le flottant (démo : crédit direct).
+  /// Recharge le flottant. Renvoie la charge utile FedaPay (`checkout_url`)
+  /// ou un crédit direct (`status: credited`) en développement.
   Future<Map<String, dynamic>> topUpFloat(int amount) async {
     final response = await _api.post(
       '/driver/me/float/topup',

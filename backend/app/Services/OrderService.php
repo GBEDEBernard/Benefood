@@ -216,7 +216,7 @@ class OrderService
             if (! $paymentMethod->isCash()) {
                 $order->payment()->create([
                     'reference' => 'PAY-'.Str::upper(Str::random(12)),
-                    'gateway' => 'kkiapay',
+                    'gateway' => 'fedapay',
                     'amount' => $total,
                     'status' => PaymentStatus::Initiated->value,
                     'expires_at' => $order->payment_deadline_at,

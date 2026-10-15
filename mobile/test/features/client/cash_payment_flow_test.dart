@@ -92,8 +92,11 @@ class _CheckoutBackend {
           return http.Response(
             jsonEncode({
               'data': {
-                'provider': 'kkiapay',
-                'widget': {'amount': 6300, 'order_id': 'o1'},
+                'provider': 'fedapay',
+                'status': 'pending',
+                'amount': 6300,
+                'checkout_url': null,
+                'transaction_id': null,
               },
             }),
             200,

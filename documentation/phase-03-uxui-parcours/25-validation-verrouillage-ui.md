@@ -19,7 +19,7 @@ Valider les maquettes (J19-J24) et **verrouiller la version UI** avant toute imp
 
 ### 2.2 Parcours Client (J20)
 - [ ] Accueil, recherche, boutique, produit, panier (mono-vendeur)
-- [ ] Adresse + zone + quote + paiement (machine à états Kkiapay)
+- [ ] Adresse + zone + quote + paiement (machine à états FedaPay)
 - [ ] Suivi/historique/reclamation/avis
 - [ ] Cas limites : zone non desservie, vendeur fermé, stock 0, multi-vendeur
 

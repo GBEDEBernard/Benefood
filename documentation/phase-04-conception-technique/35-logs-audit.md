@@ -8,7 +8,7 @@
 ## 1. Principes
 
 - Tout événement **financier et de mutation sensible** est journalisé **immuablement** (table `event_log` / `audit_logs`, append-only).
-- Aucune donnée sensible (jetons, mots de passe, clés Kkiapay) jamais loggée.
+- Aucune donnée sensible (jetons, mots de passe, clés FedaPay) jamais loggée.
 - Logs applicatifs (`laravel.log`) pour débug ; **audit log en base** pour la porteuse (J172 back-office audit view).
 
 ## 2. Journal d'audit (immuable)

@@ -30,7 +30,7 @@ class VendorRevenuesTest extends TestCase
         Payout::create([
             'wallet_id' => $wallet->id,
             'amount' => 500,
-            'method' => 'kkiapay',
+            'method' => 'mobile_money',
             'status' => 'executed',
             'executed_at' => now(),
         ]);

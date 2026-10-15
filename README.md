@@ -50,7 +50,7 @@ flutter run
 | Backend | Laravel API-first `/api/v1`, logique métier côté serveur |
 | Rôles | Un utilisateur peut cumuler plusieurs rôles ; contexte actif côté mobile |
 | Sécurité | RBAC + policies. Le rôle déclaré par le mobile n'est jamais une autorisation |
-| Paiement | FedaPay ou Kkiapay via abstraction `PaymentGateway` |
+| Paiement | FedaPay via abstraction `PaymentGateway` |
 | Commission | Taux configurable par la porteuse, historisé et figé par commande |
 | Livraison | Livreur indépendant ou Béninfood, zones et tarifs configurables |
 | Administration | Back-office web intégré au backend (Blade + template Mentor) sur `/admin` ; aucun accès direct à la base de données |

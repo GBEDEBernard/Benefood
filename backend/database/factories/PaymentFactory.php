@@ -19,7 +19,7 @@ class PaymentFactory extends Factory
         return [
             'order_id' => Order::factory(),
             'reference' => 'PAY-'.strtoupper(fake()->bothLetters(12)),
-            'gateway' => 'kkiapay',
+            'gateway' => 'fedapay',
             'gateway_txn_id' => null,
             'amount' => fake()->numberBetween(500, 50000),
             'currency' => 'XOF',

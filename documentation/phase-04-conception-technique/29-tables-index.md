@@ -104,7 +104,7 @@
 ## 6. Payments
 
 ### `payments`
-- id, order_id, reference (unique), gateway (kkiapay…), gateway_txn_id (nullable, unique index), amount (int), currency, status (enum J16), payload (json nullable), paid_at, expires_at
+- id, order_id, reference (unique), gateway (fedapay…), gateway_txn_id (nullable, unique index), amount (int), currency, status (enum J16), payload (json nullable), paid_at, expires_at
 - **Index** : `payments.order_id`, `payments.gateway_txn_id` unique, `payments.status`
 
 ### `payment_events`
@@ -134,7 +134,7 @@
 - **Index** : `wallet_transactions.wallet_id`, unique (reference_type, reference_id) partiel (anti-double écriture)
 
 ### `payouts`
-- id, wallet_id, amount, method (bank/mm/kkiapay), status (pending/processing/executed/failed), executed_at, executed_by, gateway_ref (nullable)
+- id, wallet_id, amount, method (bank/mm/fedapay), status (pending/processing/executed/failed), executed_at, executed_by, gateway_ref (nullable)
 - **Index** : `payouts.wallet_id`, `payouts.status`
 
 ### `financial_journal`

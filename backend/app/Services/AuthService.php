@@ -7,6 +7,7 @@ use App\Enums\UserStatus;
 use App\Exceptions\DomainException;
 use App\Models\Role;
 use App\Models\User;
+use App\Models\UserDevice;
 use App\Support\Phone;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Hash;

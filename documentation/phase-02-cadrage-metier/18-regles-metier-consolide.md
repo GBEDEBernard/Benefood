@@ -14,7 +14,7 @@
 | D1 | Architecture mobile | **1 app Flutter multi-rôles** (Client/Vendeur/Livreur) |
 | D2 | Backend | Laravel API `/api/v1` (source de vérité métier/financière/security) |
 | D3 | Rôles cumulables | **Oui** ; contexte actif ≠ autorisation (RBAC serveur) |
-| D4 | Prestataire paiement | **Kkiapay** (réversible via `PaymentGateway`) |
+| D4 | Prestataire paiement | **FedaPay** (réversible via `PaymentGateway`) |
 | D5 | Panier | **Un seul vendeur par commande** |
 | D6 | Accès porteuse | **Back-office uniquement, jamais d'accès direct DB** |
 
@@ -84,7 +84,7 @@ Statuts : `draft → awaiting_payment → paid → accepted → preparing → re
 ## F. Règles transversales de sécurité
 
 1. RBAC + policies ; le contexte mobile n'est jamais une autorisation.
-2. Aucune clé (Kkiapay, Firebase) dans Flutter/Git/réponses API.
+2. Aucune clé (FedaPay, Firebase) dans Flutter/Git/réponses API.
 3. Montants sensibles calculés uniquement côté Laravel.
 4. Actions sensibles auditées ; porteuse sans accès direct DB.
 

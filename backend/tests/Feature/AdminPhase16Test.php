@@ -93,7 +93,7 @@ class AdminPhase16Test extends TestCase
 
         $order->payment()->create([
             'reference' => 'PAY-'.uniqid(),
-            'gateway' => 'kkiapay',
+            'gateway' => 'fedapay',
             'amount' => 1000,
             'status' => PaymentStatus::Confirmed->value,
             'paid_at' => now(),

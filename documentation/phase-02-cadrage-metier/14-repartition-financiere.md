@@ -24,14 +24,14 @@ frais_livraison     = delivery_fee             → part livreur (selon modèle c
 frais_paiement      = payment_fee (si applicable, à la charge de qui ? → section 4)
 ```
 
-> **Recommandation V1.2** : les **frais de paiement** (frais prélevés par l'agrégateur Kkiapay) peuvent être soit inclus dans la commission Béninfood, soit refacturés au client/vendeur selon le modèle validé. Par défaut : **Béninfood absorbe les frais d'agrégateur**, ils sont internalisés dans la commission. (À préciser dans J17 après obtention de la grille tarifaire réelle.)
+> **Recommandation V1.2** : les **frais de paiement** (frais prélevés par l'agrégateur FedaPay) peuvent être soit inclus dans la commission Béninfood, soit refacturés au client/vendeur selon le modèle validé. Par défaut : **Béninfood absorbe les frais d'agrégateur**, ils sont internalisés dans la commission. (À préciser dans J17 après obtention de la grille tarifaire réelle.)
 
 ## 3. Répartition par type de commande
 
 ### 3.1 Commande livrée (flux nominal)
 | Poste | Qui reçoit | Mécanisme |
 |-------|-----------|-----------|
-| Paiement client (total) | Béninfood (compte collecteur Kkiapay) | encaissé via l'agrégateur |
+| Paiement client (total) | Béninfood (compte collecteur FedaPay) | encaissé via l'agrégateur |
 | - commission Béninfood | Béninfood | déduite du flux |
 | - part vendeur | Vendeur | crédit wallet vendeur (J103) / reversement |
 | - part livreur (frais livraison) | Livreur | crédit compte livreur selon modèle (J115) |
@@ -88,7 +88,7 @@ Règles :
 
 ### 6.1 Remboursement
 1. Initié via le workflow J12.
-2. Si Kkiapay supporte le refund : exécuté via l'API, référence de remboursement conservée.
+2. Si FedaPay supporte le refund : exécuté via l'API, référence de remboursement conservée.
 3. Sinon : remboursement manuel (virement/MM) tracé dans le journal avec statut `pending` → `executed`.
 
 ### 6.2 Ajustement
@@ -102,7 +102,7 @@ Voir J13 section 6 — la commande payée fige : subtotal, discount, delivery_fe
 ## 8. Rapprochement (J105)
 
 Comparaison régulière :
-- Flux côté agrégateur (relevés Kkiapay) ↔ paiements enregistrés ↔ écritures journal ↔ commandes.
+- Flux côté agrégateur (relevés FedaPay) ↔ paiements enregistrés ↔ écritures journal ↔ commandes.
 
 ## 9. Critères d'acceptation
 
