@@ -188,15 +188,16 @@ class ParcelService
             'assigned_at' => now(),
         ]);
 
-        // Colis en ligne : la part livreur est séquestrée ici. En espèces, aucune
-        // somme n'est prélevée en amont : elle sera portée par le flottant.
+        // Colis en ligne : la part livreur (prix de livraison brut) est séquestrée
+        // ici. En espèces, aucune somme n'est prélevée en amont : elle sera portée
+        // par le flottant.
         if (! $parcel->isCash()) {
             $this->finance->creditPending(
                 $this->finance->walletFor($driver),
-                (int) $parcel->partner_amount,
+                (int) $parcel->delivery_fee,
                 'parcel_driver_credit',
                 $parcel->id,
-                'Part livreur colis (en attente) — '.$parcel->reference,
+                'Prix de livraison colis (en attente) — '.$parcel->reference,
             );
         }
 
@@ -235,22 +236,24 @@ class ParcelService
                     'Commission colis espèces — '.$parcel->reference,
                 );
 
-                $this->finance->creditAvailable(
+                $this->finance->creditDriverEarning(
                     $this->finance->walletFor($driver),
-                    (int) $parcel->partner_amount,
+                    (int) $parcel->delivery_fee,
+                    (int) $parcel->commission_amount,
                     'parcel_driver_earning',
                     $parcel->id,
-                    'Gain colis espèces — '.$parcel->reference,
+                    $parcel->reference,
                 );
 
                 $parcel->update(['payment_status' => PaymentStatus::Confirmed->value]);
             } else {
-                $this->finance->releasePending(
+                $this->finance->releaseDriverEarning(
                     $this->finance->walletFor($driver),
-                    (int) $parcel->partner_amount,
+                    (int) $parcel->delivery_fee,
+                    (int) $parcel->commission_amount,
                     'parcel_driver_release',
                     $parcel->id,
-                    'Libération part livreur colis — '.$parcel->reference,
+                    $parcel->reference,
                 );
             }
 
@@ -289,10 +292,10 @@ class ParcelService
         // Colis en ligne déjà payé : contre-passe les séquestres internes puis
         // déclenche le remboursement client via la passerelle.
         if (! $parcel->isCash() && $parcel->isPaid()) {
-            if ($driver !== null && $parcel->partner_amount > 0) {
+            if ($driver !== null && $parcel->delivery_fee > 0) {
                 $this->finance->debitPending(
                     $this->finance->walletFor($driver),
-                    (int) $parcel->partner_amount,
+                    (int) $parcel->delivery_fee,
                     'parcel_driver_reversal',
                     $parcel->id,
                     'Annulation colis — '.$parcel->reference,

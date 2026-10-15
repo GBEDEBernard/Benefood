@@ -538,15 +538,11 @@ class _OfferCardState extends State<_OfferCard> {
                   ),
                   const SizedBox(width: 8),
                   AmountText(widget.offer.fee, style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.text)),
-                  if (widget.offer.partnerAmount != null) ...[
-                    const SizedBox(width: 8),
-                    Text(
-                      'Votre part :',
-                      style: theme.textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
-                    ),
-                    const SizedBox(width: 4),
-                    AmountText(widget.offer.partnerAmount, style: theme.textTheme.bodySmall),
-                  ],
+                  const SizedBox(width: 8),
+                  Text(
+                    'Prix de livraison',
+                    style: theme.textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+                  ),
                 ],
               ),
               const SizedBox(height: AppDimens.sm),

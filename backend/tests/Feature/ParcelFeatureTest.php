@@ -238,7 +238,7 @@ class ParcelFeatureTest extends TestCase
             ->assertJsonPath('data.driver.id', $driver->id);
 
         $wallet = app(FinanceService::class)->walletFor($driver);
-        $this->assertSame(800, (int) $wallet->fresh()->pending_balance);
+        $this->assertSame(1000, (int) $wallet->fresh()->pending_balance);
         $this->assertSame(0, (int) $wallet->fresh()->available_balance);
     }
 
@@ -260,6 +260,43 @@ class ParcelFeatureTest extends TestCase
         $wallet = app(FinanceService::class)->walletFor($driver);
         $this->assertSame(800, (int) $wallet->fresh()->available_balance);
         $this->assertNotNull($parcel->fresh()->delivered_at);
+    }
+
+    public function test_delivery_traces_gross_price_and_commission(): void
+    {
+        $client = $this->client();
+        $parcels = app(ParcelService::class);
+        $parcel = $parcels->create($client, $this->pickup(), $this->dropoff());
+        $parcels->confirmPayment($parcel->fresh(), (int) $parcel->delivery_fee);
+        $parcel->refresh();
+
+        $driver = $this->driver();
+        Sanctum::actingAs($driver->user);
+        $this->postJson("/api/v1/driver/me/parcels/{$parcel->id}/accept")->assertOk();
+        $this->postJson("/api/v1/driver/me/parcels/{$parcel->id}/pickup")->assertOk();
+        $this->postJson("/api/v1/driver/me/parcels/{$parcel->id}/start")->assertOk();
+        $this->postJson("/api/v1/driver/me/parcels/{$parcel->id}/deliver")->assertOk();
+
+        $wallet = app(FinanceService::class)->walletFor($driver)->fresh();
+
+        // Le solde net reste la part livreur (prix de livraison − commission).
+        $this->assertSame((int) $parcel->partner_amount, (int) $wallet->available_balance);
+
+        // La commission est tracée comme une ligne de débit dédiée.
+        $this->assertDatabaseHas('wallet_transactions', [
+            'wallet_id' => $wallet->id,
+            'type' => 'debit',
+            'reference_type' => 'driver_commission',
+            'reference_id' => $parcel->id,
+            'amount' => (int) $parcel->commission_amount,
+        ]);
+
+        // Le portefeuille expose le total et le nombre de commissions.
+        $this->getJson('/api/v1/driver/me/wallet')
+            ->assertOk()
+            ->assertJsonPath('data.commission_total', (int) $parcel->commission_amount)
+            ->assertJsonPath('data.commission_count', 1)
+            ->assertJsonPath('data.commission_rate', 20);
     }
 
     public function test_cash_parcel_creates_paid_without_payment_record(): void

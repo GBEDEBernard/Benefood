@@ -264,7 +264,7 @@ class _DriverAccountScreenState extends State<DriverAccountScreen> {
         accent: AppColors.green,
         value: _statsLoaded ? '${_deliveries.length}' : '…',
         label: 'Missions',
-        onTap: () => widget.onSelectTab(2),
+        onTap: () => widget.onSelectTab(0),
       ),
       ProfileStat(
         icon: Icons.check_circle_outline,
@@ -272,7 +272,7 @@ class _DriverAccountScreenState extends State<DriverAccountScreen> {
         accent: AppColors.orange,
         value: _statsLoaded ? '$_deliveredCount' : '…',
         label: 'Livrées',
-        onTap: () => widget.onSelectTab(2),
+        onTap: () => widget.onSelectTab(3),
       ),
       ProfileStat(
         icon: Icons.payments_outlined,
@@ -283,7 +283,7 @@ class _DriverAccountScreenState extends State<DriverAccountScreen> {
             : '…',
         suffix: 'FCFA',
         label: 'Gains',
-        onTap: () => widget.onSelectTab(2),
+        onTap: () => _openRoute('/driver/wallet'),
       ),
       ProfileStat(
         icon: Icons.star_rate,
@@ -291,8 +291,61 @@ class _DriverAccountScreenState extends State<DriverAccountScreen> {
         accent: AppColors.goldDark,
         value: _statsLoaded ? ratingLabel : '…',
         label: 'Note',
+        onTap: _showRatingSheet,
       ),
     ];
+  }
+
+  /// Feuille de détail de la note moyenne du livreur (pas d'écran d'avis
+  /// dédié côté livreur : la note provient du profil `GET /driver/me/status`).
+  void _showRatingSheet() {
+    final rawProfile = _status?['profile'];
+    final profile = rawProfile is Map<String, dynamic> ? rawProfile : null;
+    final rating = profile?['rating'];
+    final value = rating is num ? rating.toDouble() : null;
+
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(AppDimens.radiusXl),
+        ),
+      ),
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(AppDimens.xl),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.star_rate, size: 44, color: AppColors.goldDark),
+              const SizedBox(height: AppDimens.md),
+              Text(
+                value == null
+                    ? 'Aucune note'
+                    : value.toStringAsFixed(1).replaceAll('.', ','),
+                style: const TextStyle(
+                  fontSize: 30,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.text,
+                ),
+              ),
+              const SizedBox(height: 4),
+              const Text(
+                'Note moyenne attribuée par les clients.',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+              ),
+              const SizedBox(height: AppDimens.lg),
+              FilledButton.tonal(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Fermer'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   List<ProfileMenuEntry> _buildMenuEntries() {

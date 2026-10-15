@@ -284,8 +284,8 @@ class _RunCard extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Votre part', style: theme.textTheme.bodySmall?.copyWith(color: AppColors.textSecondary)),
-                      AmountText(parcel.partnerAmount, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+                      Text('Prix de livraison', style: theme.textTheme.bodySmall?.copyWith(color: AppColors.textSecondary)),
+                      AmountText(parcel.deliveryFee, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
                     ],
                   ),
                 ),
@@ -293,6 +293,7 @@ class _RunCard extends StatelessWidget {
                   AppButton(
                     label: actionLabel,
                     icon: Icons.arrow_forward,
+                    fullWidth: false,
                     onPressed: busy == null ? () => onAction(parcel) : null,
                     loading: busy == parcel.id,
                   ),
@@ -361,14 +362,15 @@ class _OfferCard extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Votre part', style: theme.textTheme.bodySmall?.copyWith(color: AppColors.textSecondary)),
-                      AmountText(parcel.partnerAmount, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+                      Text('Prix de livraison', style: theme.textTheme.bodySmall?.copyWith(color: AppColors.textSecondary)),
+                      AmountText(parcel.deliveryFee, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
                     ],
                   ),
                 ),
                 AppButton(
                   label: 'Accepter',
                   icon: Icons.check,
+                  fullWidth: false,
                   onPressed: busy == null ? () => onAccept(parcel) : null,
                   loading: busy == parcel.id,
                 ),

@@ -119,6 +119,12 @@ class _AppMapState extends State<AppMap> {
     }
   }
 
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
   void _centerOn(LatLng point) {
     if (!mounted) {
       return;

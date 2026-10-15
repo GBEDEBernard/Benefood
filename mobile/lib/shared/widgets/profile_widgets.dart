@@ -587,33 +587,34 @@ class _ProfileStatItem extends StatelessWidget {
             child: Icon(stat.icon, size: 18, color: stat.accent),
           ),
           const SizedBox(height: 6),
-          Text.rich(
-            TextSpan(
-              children: [
-                TextSpan(
-                  text: stat.value,
-                  style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.text,
-                    height: 1.1,
-                  ),
-                ),
-                if (stat.suffix != null)
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text.rich(
+              TextSpan(
+                children: [
                   TextSpan(
-                    text: ' ${stat.suffix}',
+                    text: stat.value,
                     style: const TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.textSecondary,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.text,
                       height: 1.1,
                     ),
                   ),
-              ],
+                  if (stat.suffix != null)
+                    TextSpan(
+                      text: ' ${stat.suffix}',
+                      style: const TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textSecondary,
+                        height: 1.1,
+                      ),
+                    ),
+                ],
+              ),
+              textAlign: TextAlign.center,
             ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            textAlign: TextAlign.center,
           ),
           const SizedBox(height: 2),
           Text(

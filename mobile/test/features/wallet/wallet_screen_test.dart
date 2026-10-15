@@ -92,7 +92,11 @@ MockClient _mockBackend({bool failPayout = false, String payoutStatus = 'pending
   });
 }
 
-Future<void> _pump(WidgetTester tester, MockClient client) async {
+Future<void> _pump(
+  WidgetTester tester,
+  MockClient client, {
+  WalletRole role = WalletRole.vendor,
+}) async {
   final api = ApiClient(
     tokenStore: _NoopTokenStore(),
     httpClient: client,
@@ -100,11 +104,60 @@ Future<void> _pump(WidgetTester tester, MockClient client) async {
   );
   await tester.pumpWidget(
     MaterialApp(
-      home: WalletScreen(marketplace: MarketplaceApi(api), role: WalletRole.vendor),
+      home: WalletScreen(marketplace: MarketplaceApi(api), role: role),
     ),
   );
   await tester.pump();
   await tester.pump(const Duration(milliseconds: 300));
+}
+
+/// Backend de test livreur : wallet avec commissions prélevées + flottant.
+MockClient _driverBackend() {
+  const wallet = {
+    'pending_balance': 1000,
+    'available_balance': 3200,
+    'balance': 4200,
+    'currency': 'XOF',
+    'min_payout': 1000,
+    'phone': '+22997000000',
+    'commission_rate': 20,
+    'commission_total': 800,
+    'commission_count': 4,
+    'transactions': [
+      {
+        'id': 't1',
+        'type': 'credit',
+        'amount': 1000,
+        'description': 'Prix de livraison — COL-001',
+        'balance_after': 4200,
+        'created_at': '2026-10-10T09:00:00Z',
+      },
+      {
+        'id': 't2',
+        'type': 'debit',
+        'amount': 200,
+        'description': 'Commission Béninfood — COL-001',
+        'balance_after': 4000,
+        'created_at': '2026-10-10T09:00:01Z',
+      },
+    ],
+  };
+  const float = {'prepaid_balance': 2500, 'transactions': []};
+
+  return MockClient((request) async {
+    final json = {'content-type': 'application/json'};
+    final path = request.url.path;
+    if (path.endsWith('/driver/me/float')) {
+      return http.Response(jsonEncode({'data': float}), 200, headers: json);
+    }
+    if (path.endsWith('/driver/me/wallet/payouts')) {
+      return http.Response(jsonEncode({'data': []}), 200, headers: json);
+    }
+    if (path.endsWith('/driver/me/wallet')) {
+      return http.Response(jsonEncode({'data': wallet}), 200, headers: json);
+    }
+    return http.Response(jsonEncode({'data': null}), 404, headers: json);
+  });
 }
 
 void main() {
@@ -181,6 +234,25 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Montant trop faible.'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('wallet livreur : carte commission (total + nombre)', (tester) async {
+    await _pump(tester, _driverBackend(), role: WalletRole.driver);
+
+    expect(find.text('Frais de commission'), findsOneWidget);
+    expect(find.text('20 %'), findsOneWidget);
+    expect(find.text(formatAmount(800)), findsWidgets); // total prélevé
+    expect(find.text('Total prélevé'), findsOneWidget);
+    expect(find.text('4'), findsWidgets); // nombre de commissions
+    expect(find.text('Commissions'), findsOneWidget);
+
+    await tester.scrollUntilVisible(
+      find.textContaining('Commission Béninfood'),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(find.textContaining('Commission Béninfood'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }

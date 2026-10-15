@@ -208,15 +208,21 @@ void main() {
 
     await tester.tap(find.text('Missions'));
     await tester.pump();
-    expect(_selectedTab, 2);
+    expect(_selectedTab, 0);
 
     await tester.tap(find.text('Livrées'));
     await tester.pump();
-    expect(_selectedTab, 2);
+    expect(_selectedTab, 3);
 
     await tester.tap(find.text('Gains'));
-    await tester.pump();
-    expect(_selectedTab, 2);
+    await tester.pumpAndSettle();
+    expect(find.text('/driver/wallet'), findsOneWidget);
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Note'));
+    await tester.pumpAndSettle();
+    expect(find.text('Note moyenne attribuée par les clients.'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 

@@ -179,6 +179,77 @@ class FinanceService
         });
     }
 
+    // ------------------------------------------------------- Part livreur
+
+    /**
+     * Libère le séquestre du livreur (montant brut = prix de livraison) puis
+     * prélève la commission plateforme : le disponible augmente du net. La ligne
+     * de débit « Commission » apparaît dans les mouvements du wallet.
+     */
+    public function releaseDriverEarning(Wallet $wallet, int $gross, int $commission, string $refType, ?string $refId, string $reference): ?WalletTransaction
+    {
+        if ($gross <= 0) {
+            return null;
+        }
+
+        return DB::transaction(function () use ($wallet, $gross, $commission, $refId, $reference) {
+            $wallet->refresh();
+            $release = min($gross, $wallet->pending_balance);
+            $wallet->pending_balance -= $release;
+            $wallet->available_balance += max(0, $release - $commission);
+            $wallet->balance = $wallet->pending_balance + $wallet->available_balance;
+            $wallet->save();
+
+            return $this->recordDriverCommission($wallet, $commission, $refId, $reference);
+        });
+    }
+
+    /**
+     * Crédite un gain livreur sans séquestre (colis/commande espèces) : le prix
+     * de livraison brut est crédité puis la commission est débitée.
+     */
+    public function creditDriverEarning(Wallet $wallet, int $gross, int $commission, string $refType, ?string $refId, string $reference): ?WalletTransaction
+    {
+        if ($gross <= 0) {
+            return null;
+        }
+
+        return DB::transaction(function () use ($wallet, $gross, $commission, $refType, $refId, $reference) {
+            $wallet->refresh();
+            $wallet->available_balance += max(0, $gross - $commission);
+            $wallet->balance = $wallet->pending_balance + $wallet->available_balance;
+            $wallet->save();
+
+            $this->writeTransaction(
+                $wallet,
+                WalletTransactionType::Credit,
+                $gross,
+                $refType,
+                $refId,
+                'Prix de livraison — '.$reference,
+            );
+
+            return $this->recordDriverCommission($wallet, $commission, $refId, $reference);
+        });
+    }
+
+    /** Ligne de débit « Commission » prélevée au livreur (idempotent par référence). */
+    private function recordDriverCommission(Wallet $wallet, int $commission, ?string $refId, string $reference): ?WalletTransaction
+    {
+        if ($commission <= 0 || $this->alreadyRecorded($wallet, 'driver_commission', $refId)) {
+            return null;
+        }
+
+        return $this->writeTransaction(
+            $wallet,
+            WalletTransactionType::Debit,
+            $commission,
+            'driver_commission',
+            $refId,
+            'Commission Béninfood — '.$reference,
+        );
+    }
+
     // ------------------------------------------------------- Cycle de commande
 
     /**
@@ -235,7 +306,7 @@ class FinanceService
     {
         $order->loadMissing('financials');
 
-        $amount = (int) ($order->financials->delivery_partner_amount ?? 0);
+        $amount = (int) ($order->financials->delivery_fee ?? 0);
 
         if ($amount <= 0) {
             return;
@@ -246,7 +317,7 @@ class FinanceService
             $amount,
             'order_driver_credit',
             $order->id,
-            'Part livreur (en attente) — '.$order->reference,
+            'Prix de livraison (en attente) — '.$order->reference,
         );
     }
 
@@ -290,12 +361,13 @@ class FinanceService
         if ($driver !== null) {
             $driverWallet = $this->walletFor($driver);
 
-            $this->releasePending(
+            $this->releaseDriverEarning(
                 $driverWallet,
-                (int) $financials->delivery_partner_amount,
+                (int) $financials->delivery_fee,
+                (int) $financials->delivery_commission_amount,
                 'order_driver_release',
                 $order->id,
-                'Libération part livreur — '.$order->reference,
+                $order->reference,
             );
 
             $this->journal->record([
@@ -336,10 +408,10 @@ class FinanceService
 
         $driver = $order->delivery?->driverProfile;
 
-        if ($driver !== null && $financials->delivery_partner_amount > 0) {
+        if ($driver !== null && $financials->delivery_fee > 0) {
             $this->debitPending(
                 $this->walletFor($driver),
-                (int) $financials->delivery_partner_amount,
+                (int) $financials->delivery_fee,
                 'order_driver_reversal',
                 $order->id,
                 'Annulation part livreur — '.$order->reference,

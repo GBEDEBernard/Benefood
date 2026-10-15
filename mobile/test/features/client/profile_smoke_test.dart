@@ -159,7 +159,7 @@ void main() {
     // En-tête + titre (utilisateur non connecté → repli « Utilisateur »).
     expect(find.text('Mon profil'), findsOneWidget);
     expect(find.text('Utilisateur'), findsOneWidget);
-    expect(find.text('⭐ 4,7'), findsOneWidget);
+    expect(find.text('Espace client'), findsOneWidget);
     expect(find.text('Client fidèle'), findsOneWidget);
 
     // Statistiques dynamiques (GET /me/stats).

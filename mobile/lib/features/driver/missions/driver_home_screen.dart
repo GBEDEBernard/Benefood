@@ -573,7 +573,7 @@ class _MissionCardState extends State<_MissionCard> {
     final reference = widget.delivery.order?.reference ?? 'Mission';
     final vendorName = widget.delivery.vendor?.businessName ?? 'Vendeur';
     final clientAddress = widget.delivery.order?.address;
-    final amount = widget.delivery.partnerAmount ?? widget.delivery.fee;
+    final amount = widget.delivery.fee;
 
     return MouseRegion(
       cursor: SystemMouseCursors.click,

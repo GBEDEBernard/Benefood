@@ -139,12 +139,13 @@ class CashService
                 );
             }
 
-            $this->finance->releasePending(
+            $this->finance->releaseDriverEarning(
                 $this->finance->walletFor($driver),
-                (int) ($order->financials?->delivery_partner_amount ?? 0),
+                (int) ($order->financials?->delivery_fee ?? 0),
+                (int) ($order->financials?->delivery_commission_amount ?? 0),
                 'order_driver_release',
                 $order->id,
-                'Paiement cash — part livreur '.$order->reference,
+                $order->reference,
             );
 
             $this->finance->recordCashOrderSettlement($order, $driver);

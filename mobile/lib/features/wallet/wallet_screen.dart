@@ -50,6 +50,9 @@ class _WalletScreenState extends State<WalletScreen> {
   int get _available => (_wallet['available_balance'] as num?)?.toInt() ?? 0;
   int get _minPayout => (_wallet['min_payout'] as num?)?.toInt() ?? 1000;
   int get _floatBalance => (_float['prepaid_balance'] as num?)?.toInt() ?? 0;
+  int get _commissionTotal => (_wallet['commission_total'] as num?)?.toInt() ?? 0;
+  int get _commissionCount => (_wallet['commission_count'] as num?)?.toInt() ?? 0;
+  int get _commissionRate => (_wallet['commission_rate'] as num?)?.toInt() ?? 20;
 
   String? get _phone {
     final phone = (_wallet['phone'] as String?)?.trim();
@@ -265,6 +268,12 @@ class _WalletScreenState extends State<WalletScreen> {
               transactions: _floatTransactions,
               busy: _floatBusy,
               onTopUp: _openFloatSheet,
+            ),
+            const SizedBox(height: AppDimens.lg),
+            _CommissionCard(
+              total: _commissionTotal,
+              count: _commissionCount,
+              rate: _commissionRate,
             ),
             const SizedBox(height: AppDimens.lg),
           ],
@@ -1079,6 +1088,107 @@ class _FloatCard extends StatelessWidget {
                 ),
               ),
           ],
+        ],
+      ),
+    );
+  }
+}
+
+/// Récapitulatif des commissions prélevées au livreur sur ses livraisons
+/// (prix de livraison brut − commission = part livreur).
+class _CommissionCard extends StatelessWidget {
+  const _CommissionCard({
+    required this.total,
+    required this.count,
+    required this.rate,
+  });
+
+  final int total;
+  final int count;
+  final int rate;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(AppDimens.lg),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppDimens.radiusLg),
+        border: Border.all(color: AppColors.border),
+        boxShadow: AppTheme.softShadow(),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: AppColors.orangeLight,
+                  borderRadius: BorderRadius.circular(11),
+                ),
+                alignment: Alignment.center,
+                child: const Icon(Icons.percent, size: 19, color: AppColors.orange),
+              ),
+              const SizedBox(width: AppDimens.md),
+              const Text(
+                'Frais de commission',
+                style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w800, color: AppColors.text),
+              ),
+              const Spacer(),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: AppColors.orangeLight,
+                  borderRadius: BorderRadius.circular(AppDimens.radiusPill),
+                ),
+                child: Text(
+                  '$rate %',
+                  style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800, color: AppColors.orangeDark),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppDimens.md),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      formatAmount(total),
+                      style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: AppColors.text),
+                    ),
+                    const SizedBox(height: 2),
+                    const Text(
+                      'Total prélevé',
+                      style: TextStyle(fontSize: 12, color: AppColors.textSecondary, fontWeight: FontWeight.w500),
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '$count',
+                      style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: AppColors.text),
+                    ),
+                    const SizedBox(height: 2),
+                    const Text(
+                      'Commissions',
+                      style: TextStyle(fontSize: 12, color: AppColors.textSecondary, fontWeight: FontWeight.w500),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );

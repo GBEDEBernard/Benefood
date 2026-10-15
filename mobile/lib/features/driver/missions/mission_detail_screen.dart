@@ -670,7 +670,7 @@ class _FeeCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                Text('Frais de livraison', style: theme.textTheme.bodyMedium),
+                Text('Prix de livraison', style: theme.textTheme.bodyMedium),
                 const Spacer(),
                 AmountText(
                   delivery.fee,
@@ -678,19 +678,6 @@ class _FeeCard extends StatelessWidget {
                 ),
               ],
             ),
-            if (delivery.partnerAmount != null) ...[
-              const SizedBox(height: AppDimens.xs),
-              Row(
-                children: [
-                  Text('Votre part', style: theme.textTheme.bodyMedium),
-                  const Spacer(),
-                  AmountText(
-                    delivery.partnerAmount,
-                    style: const TextStyle(fontWeight: FontWeight.w700, color: AppColors.gold),
-                  ),
-                ],
-              ),
-            ],
           ],
         ),
       ),

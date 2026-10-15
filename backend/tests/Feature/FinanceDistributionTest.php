@@ -97,7 +97,7 @@ class FinanceDistributionTest extends TestCase
 
         $finance->creditDriverForDelivery($order, $driver);
         $driverWallet = $finance->walletFor($driver);
-        $this->assertSame(800, (int) $driverWallet->pending_balance);
+        $this->assertSame(1000, (int) $driverWallet->pending_balance);
 
         Delivery::create([
             'order_id' => $order->id,

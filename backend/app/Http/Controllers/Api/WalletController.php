@@ -62,7 +62,7 @@ class WalletController extends Controller
     {
         $driver = $this->driverFor($request);
 
-        return Api::ok($this->summary($this->finance->walletFor($driver), $driver->user?->phone));
+        return Api::ok($this->summary($this->finance->walletFor($driver), $driver->user?->phone, true));
     }
 
     public function driverPayouts(Request $request): JsonResponse
@@ -127,9 +127,9 @@ class WalletController extends Controller
     }
 
     /** @return array<string, mixed> */
-    private function summary(Wallet $wallet, ?string $phone = null): array
+    private function summary(Wallet $wallet, ?string $phone = null, bool $withCommissions = false): array
     {
-        return [
+        $payload = [
             'pending_balance' => (int) $wallet->pending_balance,
             'available_balance' => (int) $wallet->available_balance,
             'balance' => (int) $wallet->balance,
@@ -149,6 +149,18 @@ class WalletController extends Controller
                     'created_at' => $transaction->created_at?->toIso8601String(),
                 ])->values(),
         ];
+
+        if ($withCommissions) {
+            $commissions = $wallet->transactions()
+                ->where('reference_type', 'driver_commission')
+                ->where('type', 'debit');
+
+            $payload['commission_rate'] = (int) config('beninfood.delivery_commission.rate', 20);
+            $payload['commission_total'] = (int) (clone $commissions)->sum('amount');
+            $payload['commission_count'] = (int) (clone $commissions)->distinct()->count('reference_id');
+        }
+
+        return $payload;
     }
 
     /** @return list<array<string, mixed>> */
