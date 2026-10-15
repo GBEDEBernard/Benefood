@@ -33,6 +33,11 @@ class Refund extends Model
         return $this->belongsTo(Order::class);
     }
 
+    public function parcel(): BelongsTo
+    {
+        return $this->belongsTo(Parcel::class);
+    }
+
     public function executor(): BelongsTo
     {
         return $this->belongsTo(User::class, 'executed_by');

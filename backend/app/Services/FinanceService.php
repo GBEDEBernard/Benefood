@@ -411,7 +411,7 @@ class FinanceService
      * Annulation d'un colis en ligne déjà payé : contre-passe la commission
      * plateforme et la part livreur (J12 §5.1 — J14 §3.2).
      */
-    public function recordParcelCancellation(Parcel $parcel, DriverProfile $driver, ?string $actor = null): void
+    public function recordParcelCancellation(Parcel $parcel, ?DriverProfile $driver, ?string $actor = null): void
     {
         if ((int) $parcel->platform_amount > 0) {
             $this->journal->record([
@@ -424,7 +424,7 @@ class FinanceService
             ]);
         }
 
-        if ((int) $parcel->partner_amount > 0) {
+        if ($driver !== null && (int) $parcel->partner_amount > 0) {
             $this->journal->record([
                 'entry_type' => JournalEntryType::Reversal,
                 'reference_type' => 'parcel',

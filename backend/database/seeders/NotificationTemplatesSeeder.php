@@ -63,6 +63,18 @@ class NotificationTemplatesSeeder extends Seeder
                 'body' => 'Votre colis #{reference} a été livré.',
             ],
             [
+                'event' => 'parcel.refund_initiated',
+                'channel' => NotificationTemplateChannel::Push->value,
+                'subject' => 'Remboursement du colis en cours',
+                'body' => 'Le remboursement de votre colis #{reference} ({amount} F CFA) est en cours.',
+            ],
+            [
+                'event' => 'parcel.refunded',
+                'channel' => NotificationTemplateChannel::Push->value,
+                'subject' => 'Colis remboursé',
+                'body' => 'Votre colis #{reference} a été remboursé ({amount} F CFA).',
+            ],
+            [
                 'event' => 'complaint.opened',
                 'channel' => NotificationTemplateChannel::Push->value,
                 'subject' => 'Nouvelle réclamation',

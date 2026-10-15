@@ -21,7 +21,7 @@ class RefundController extends Controller
     public function index(Request $request): JsonResponse
     {
         $refunds = Refund::query()
-            ->with('order', 'payment')
+            ->with('order', 'parcel', 'payment')
             ->orderByDesc('created_at')
             ->paginate((int) $request->query('per_page', config('beninfood.pagination.per_page')));
 
@@ -37,7 +37,7 @@ class RefundController extends Controller
 
     public function show(Refund $refund): JsonResponse
     {
-        return Api::ok(new RefundResource($refund->load('order')));
+        return Api::ok(new RefundResource($refund->load('order', 'parcel')));
     }
 
     public function execute(Request $request, Refund $refund): JsonResponse
@@ -46,8 +46,10 @@ class RefundController extends Controller
             return Api::error('Ce remboursement n\'est pas en attente.', 'refund.not_pending', 409);
         }
 
-        $refund = $this->refunds->executeRefund($refund, $request->user()->id);
+        $refund = $refund->parcel_id !== null
+            ? $this->refunds->executeParcelRefund($refund, $request->user()->id)
+            : $this->refunds->executeRefund($refund, $request->user()->id);
 
-        return Api::ok(new RefundResource($refund->load('order')));
+        return Api::ok(new RefundResource($refund->load('order', 'parcel')));
     }
 }

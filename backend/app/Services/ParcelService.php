@@ -27,6 +27,7 @@ class ParcelService
         private readonly NotificationService $notifications,
         private readonly FavoriteDriverService $favoriteDrivers,
         private readonly CashService $cash,
+        private readonly RefundService $refunds,
     ) {}
 
     /**
@@ -285,16 +286,21 @@ class ParcelService
 
         $driver = $parcel->driverProfile;
 
-        if (! $parcel->isCash() && $driver !== null && $parcel->partner_amount > 0) {
-            $this->finance->debitPending(
-                $this->finance->walletFor($driver),
-                (int) $parcel->partner_amount,
-                'parcel_driver_reversal',
-                $parcel->id,
-                'Annulation colis — '.$parcel->reference,
-            );
+        // Colis en ligne déjà payé : contre-passe les séquestres internes puis
+        // déclenche le remboursement client via la passerelle.
+        if (! $parcel->isCash() && $parcel->isPaid()) {
+            if ($driver !== null && $parcel->partner_amount > 0) {
+                $this->finance->debitPending(
+                    $this->finance->walletFor($driver),
+                    (int) $parcel->partner_amount,
+                    'parcel_driver_reversal',
+                    $parcel->id,
+                    'Annulation colis — '.$parcel->reference,
+                );
+            }
 
             $this->finance->recordParcelCancellation($parcel, $driver, $actorId);
+            $this->refunds->handleParcelCancellation($parcel->fresh('payment'), $actorType, $actorId, $reason);
         }
 
         $this->logTransition($parcel, $from, ParcelStatus::Cancelled, $actorType, $actorId, $reason);

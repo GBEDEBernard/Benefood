@@ -8,12 +8,14 @@ use App\Exceptions\DomainException;
 use App\Models\DriverProfile;
 use App\Models\Notification;
 use App\Models\Parcel;
+use App\Models\Refund;
 use App\Models\Role;
 use App\Models\User;
 use App\Services\FinanceService;
 use App\Services\ParcelPricingService;
 use App\Services\ParcelService;
 use App\Services\Payments\PaymentGateway;
+use App\Services\RefundService;
 use Database\Seeders\NotificationTemplatesSeeder;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -454,6 +456,64 @@ class ParcelFeatureTest extends TestCase
             'reference_id' => $parcel->id,
             'debit' => (int) $parcel->partner_amount,
         ]);
+    }
+
+    public function test_online_parcel_cancellation_creates_pending_refund(): void
+    {
+        $client = $this->client();
+        $parcels = app(ParcelService::class);
+        $parcel = $parcels->create($client, $this->pickup(), $this->dropoff());
+        $parcels->confirmPayment($parcel->fresh(), (int) $parcel->delivery_fee);
+        $parcels->cancel($parcel->fresh(), 'client', $client->id, 'Annulé');
+
+        $this->assertDatabaseHas('refunds', [
+            'parcel_id' => $parcel->id,
+            'amount' => (int) $parcel->delivery_fee,
+            'status' => 'pending',
+        ]);
+    }
+
+    public function test_online_parcel_cancellation_auto_refunds_via_gateway(): void
+    {
+        config()->set('beninfood.refunds.automatic_execution', true);
+        config()->set('fedapay.enabled', true);
+        $this->app->instance(PaymentGateway::class, new PaymentGatewayFake);
+
+        $client = $this->client();
+        $parcels = app(ParcelService::class);
+        $parcel = $parcels->create($client, $this->pickup(), $this->dropoff());
+        $parcels->confirmPayment($parcel->fresh(), (int) $parcel->delivery_fee);
+        $parcels->cancel($parcel->fresh(), 'client', $client->id, 'Annulé');
+
+        $refund = Refund::where('parcel_id', $parcel->id)->firstOrFail();
+        $this->assertSame('executed', $refund->status->value);
+        $this->assertSame('refunded', $parcel->fresh()->payment_status->value);
+        $this->assertSame('refunded', $parcel->payment->fresh()->status->value);
+    }
+
+    public function test_pending_parcel_refund_can_be_executed(): void
+    {
+        $client = $this->client();
+        $parcels = app(ParcelService::class);
+        $parcel = $parcels->create($client, $this->pickup(), $this->dropoff());
+        $parcels->confirmPayment($parcel->fresh(), (int) $parcel->delivery_fee);
+        $parcels->cancel($parcel->fresh(), 'client', $client->id, 'Annulé');
+
+        $refund = Refund::where('parcel_id', $parcel->id)->firstOrFail();
+        app(RefundService::class)->executeParcelRefund($refund, $client->id);
+
+        $this->assertSame('executed', $refund->fresh()->status->value);
+        $this->assertSame('refunded', $parcel->fresh()->payment_status->value);
+    }
+
+    public function test_unpaid_parcel_cancellation_creates_no_refund(): void
+    {
+        $client = $this->client();
+        $parcels = app(ParcelService::class);
+        $parcel = $parcels->create($client, $this->pickup(), $this->dropoff());
+        $parcels->cancel($parcel->fresh(), 'client', $client->id, 'Annulé');
+
+        $this->assertDatabaseMissing('refunds', ['parcel_id' => $parcel->id]);
     }
 
     public function test_vendor_can_create_list_and_pay_parcel(): void

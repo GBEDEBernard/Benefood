@@ -1,7 +1,13 @@
 @extends('layouts.app')
 
 @section('content')
-<x-admin.page-header title="Remboursement {{ $refund->order->reference }}" subtitle="Créé le {{ $refund->created_at?->format('d/m/Y H:i') ?? '—' }}" :back="route('admin.refunds.index')">
+@php
+    $order = $refund->order;
+    $parcel = $refund->parcel;
+    $reference = $order?->reference ?? $parcel?->reference ?? '—';
+    $customer = $order?->user?->name ?? $parcel?->user?->name ?? '—';
+@endphp
+<x-admin.page-header title="Remboursement {{ $reference }}" subtitle="Créé le {{ $refund->created_at?->format('d/m/Y H:i') ?? '—' }}" :back="route('admin.refunds.index')">
     {!! \App\Support\AdminLabels::refundStatusBadge($refund->status->value) !!}
 </x-admin.page-header>
 
@@ -24,10 +30,19 @@
             <div class="card-body">
                 <h6 class="font-weight-bold mb-3" style="color: var(--text-dark);">Détails</h6>
                 <ul class="list-unstyled mb-0" style="font-size: 14px;">
-                    <li class="d-flex justify-content-between py-1"><span style="color: var(--text-muted);">Commande</span>
-                        <strong><a href="{{ route('admin.orders.show', $refund->order) }}" style="color: var(--benin-green);">{{ $refund->order->reference }}</a></strong></li>
-                    <li class="d-flex justify-content-between py-1"><span style="color: var(--text-muted);">Client</span><strong>{{ $refund->order->user?->name ?? '—' }}</strong></li>
-                    <li class="d-flex justify-content-between py-1"><span style="color: var(--text-muted);">Boutique</span><strong>{{ $refund->order->vendor?->business_name ?? '—' }}</strong></li>
+                    <li class="d-flex justify-content-between py-1"><span style="color: var(--text-muted);">{{ $parcel && ! $order ? 'Colis' : 'Commande' }}</span>
+                        @if ($order)
+                            <strong><a href="{{ route('admin.orders.show', $order) }}" style="color: var(--benin-green);">{{ $order->reference }}</a></strong>
+                        @elseif ($parcel)
+                            <strong><a href="{{ route('admin.parcels.show', $parcel) }}" style="color: var(--benin-green);">{{ $parcel->reference }}</a></strong>
+                        @else
+                            <strong>—</strong>
+                        @endif
+                    </li>
+                    <li class="d-flex justify-content-between py-1"><span style="color: var(--text-muted);">Client</span><strong>{{ $customer }}</strong></li>
+                    @if ($order)
+                        <li class="d-flex justify-content-between py-1"><span style="color: var(--text-muted);">Boutique</span><strong>{{ $order->vendor?->business_name ?? '—' }}</strong></li>
+                    @endif
                     <li class="d-flex justify-content-between py-1"><span style="color: var(--text-muted);">Montant</span><strong style="color: var(--benin-green);">{{ \App\Support\AdminLabels::priceLabel($refund->amount) }}</strong></li>
                     <li class="d-flex justify-content-between py-1"><span style="color: var(--text-muted);">Raison</span><strong>{{ $refund->reason ?? '—' }}</strong></li>
                     @if ($refund->executed_at)

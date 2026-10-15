@@ -7,6 +7,7 @@ use App\Enums\OrderStatus;
 use App\Enums\PaymentStatus;
 use App\Enums\RefundStatus;
 use App\Models\Order;
+use App\Models\Parcel;
 use App\Models\Refund;
 use App\Services\Payments\PaymentGateway;
 use Illuminate\Support\Facades\DB;
@@ -105,8 +106,7 @@ class RefundService
 
         $this->journal->recordReversalForCancellation($order, $actorId);
 
-        $auto = config('beninfood.refunds.automatic_execution', false)
-            && config('fedapay.enabled', false)
+        $auto = $this->shouldAutoExecute()
             && $order->payment !== null
             && $order->payment->status === PaymentStatus::Confirmed;
 
@@ -133,7 +133,7 @@ class RefundService
             $payment = $refund->payment;
             $providerRefundId = null;
 
-            $useGateway = $forceGateway || (config('beninfood.refunds.automatic_execution', false) && config('fedapay.enabled', false));
+            $useGateway = $forceGateway || $this->shouldAutoExecute();
 
             if ($useGateway) {
                 try {
@@ -197,13 +197,115 @@ class RefundService
     private function createPendingRefund(Order $order, int $amount, string $reason, ?string $actorId): Refund
     {
         return Refund::create([
-            'payment_id' => $order->payment?->id,
             'order_id' => $order->id,
+            'payment_id' => $order->payment?->id,
             'amount' => $amount,
             'reason' => $reason,
             'status' => RefundStatus::Pending->value,
             'executed_by' => $actorId,
         ]);
+    }
+
+    // ------------------------------------------------------- J120/J121 (colis)
+
+    /**
+     * Annulation d'un colis payé en ligne : crée le remboursement client du
+     * montant encaissé et l'exécute automatiquement si la passerelle est en
+     * mode auto. Les séquestres internes sont contre-passés par ParcelService.
+     */
+    public function handleParcelCancellation(Parcel $parcel, string $actorType, ?string $actorId, string $reason): ?Refund
+    {
+        $payment = $parcel->payment;
+
+        if ($parcel->isCash()
+            || $payment === null
+            || $payment->status !== PaymentStatus::Confirmed
+            || $parcel->payment_status === PaymentStatus::Refunded) {
+            return null;
+        }
+
+        $refund = $this->createPendingParcelRefund($parcel, (int) $parcel->delivery_fee, $reason, $actorId);
+
+        if ($this->shouldAutoExecute()) {
+            return $this->executeParcelRefund($refund, $actorId);
+        }
+
+        $this->notifications->notifyEvent('parcel.refund_initiated', [$parcel->user], [
+            'reference' => $parcel->reference,
+            'amount' => $refund->amount,
+        ]);
+
+        return $refund;
+    }
+
+    /**
+     * Exécute le remboursement d'un colis (mode auto ou manuel par la porteuse).
+     */
+    public function executeParcelRefund(Refund $refund, ?string $actorId = null, bool $forceGateway = false): Refund
+    {
+        if ($refund->status === RefundStatus::Executed) {
+            return $refund->fresh();
+        }
+
+        return DB::transaction(function () use ($refund, $actorId, $forceGateway) {
+            $parcel = $refund->parcel;
+            $payment = $refund->payment;
+            $providerRefundId = null;
+
+            $useGateway = $forceGateway || $this->shouldAutoExecute();
+
+            if ($useGateway && $payment !== null) {
+                try {
+                    $result = app(PaymentGateway::class)->refund($payment, $refund->amount, $refund->reason);
+                    if ($result['ok'] ?? false) {
+                        $providerRefundId = $result['refund_id'] ?? null;
+                    }
+                } catch (\Throwable $e) {
+                    Log::warning('Parcel refund gateway failed', ['error' => $e->getMessage()]);
+                }
+            }
+
+            $refund->update([
+                'status' => RefundStatus::Executed->value,
+                'gateway_refund_id' => $providerRefundId,
+                'executed_at' => now(),
+                'executed_by' => $actorId,
+            ]);
+
+            if ($payment !== null) {
+                $payment->update(['status' => PaymentStatus::Refunded->value]);
+            }
+
+            if ($parcel !== null) {
+                $parcel->update(['payment_status' => PaymentStatus::Refunded->value]);
+
+                $this->notifications->notifyEvent('parcel.refunded', [$parcel->user], [
+                    'reference' => $parcel->reference,
+                    'amount' => $refund->amount,
+                ]);
+            }
+
+            return $refund->fresh();
+        });
+    }
+
+    private function createPendingParcelRefund(Parcel $parcel, int $amount, string $reason, ?string $actorId): Refund
+    {
+        return Refund::create([
+            'parcel_id' => $parcel->id,
+            'payment_id' => $parcel->payment?->id,
+            'amount' => $amount,
+            'reason' => $reason,
+            'status' => RefundStatus::Pending->value,
+            'executed_by' => $actorId,
+        ]);
+    }
+
+    /** Exécution automatique via la passerelle si activée et configurée. */
+    private function shouldAutoExecute(): bool
+    {
+        return (bool) config('beninfood.refunds.automatic_execution', false)
+            && (bool) config('fedapay.enabled', false);
     }
 
     private function notifyCancellation(Order $order, ?Refund $refund, string $actorType): void

@@ -12,10 +12,16 @@ class RefundResource extends JsonResource
         return [
             'id' => $this->id,
             'order_id' => $this->order_id,
-            'order' => $this->whenLoaded('order', fn () => [
+            'order' => $this->when($this->order_id !== null && $this->relationLoaded('order'), fn () => [
                 'id' => $this->order->id,
                 'reference' => $this->order->reference,
                 'status' => $this->order->status?->value,
+            ]),
+            'parcel_id' => $this->parcel_id,
+            'parcel' => $this->when($this->parcel_id !== null && $this->relationLoaded('parcel'), fn () => [
+                'id' => $this->parcel->id,
+                'reference' => $this->parcel->reference,
+                'status' => $this->parcel->status?->value,
             ]),
             'payment_id' => $this->payment_id,
             'amount' => $this->amount,

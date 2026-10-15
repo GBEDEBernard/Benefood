@@ -73,7 +73,7 @@
             <table class="table table-hover mb-0">
                 <thead style="background-color: #F9FAFB;">
                     <tr>
-                        <th class="border-0 py-3" style="color: var(--text-muted); font-weight: 600; font-size: 12px; text-transform: uppercase;">Commande</th>
+                        <th class="border-0 py-3" style="color: var(--text-muted); font-weight: 600; font-size: 12px; text-transform: uppercase;">Commande / Colis</th>
                         <th class="border-0 py-3" style="color: var(--text-muted); font-weight: 600; font-size: 12px; text-transform: uppercase;">Client</th>
                         <th class="border-0 py-3" style="color: var(--text-muted); font-weight: 600; font-size: 12px; text-transform: uppercase;">Montant</th>
                         <th class="border-0 py-3" style="color: var(--text-muted); font-weight: 600; font-size: 12px; text-transform: uppercase;">Statut</th>
@@ -84,8 +84,16 @@
                 <tbody>
                     @forelse ($refunds as $refund)
                         <tr>
-                            <td class="py-3"><a href="{{ route('admin.orders.show', $refund->order) }}" style="color: var(--benin-green); font-weight: 600; font-family: monospace;">{{ $refund->order->reference }}</a></td>
-                            <td class="py-3" style="color: var(--text-dark);">{{ $refund->order->user?->name ?? '—' }}</td>
+                            <td class="py-3">
+                                @if ($refund->order)
+                                    <a href="{{ route('admin.orders.show', $refund->order) }}" style="color: var(--benin-green); font-weight: 600; font-family: monospace;">{{ $refund->order->reference }}</a>
+                                @elseif ($refund->parcel)
+                                    <a href="{{ route('admin.parcels.show', $refund->parcel) }}" style="color: var(--benin-green); font-weight: 600; font-family: monospace;">{{ $refund->parcel->reference }}</a>
+                                @else
+                                    <span style="color: var(--text-muted);">—</span>
+                                @endif
+                            </td>
+                            <td class="py-3" style="color: var(--text-dark);">{{ $refund->order?->user?->name ?? $refund->parcel?->user?->name ?? '—' }}</td>
                             <td class="py-3" style="font-weight: 600;">{{ \App\Support\AdminLabels::priceLabel($refund->amount) }}</td>
                             <td class="py-3">{!! \App\Support\AdminLabels::refundStatusBadge($refund->status->value) !!}</td>
                             <td class="py-3" style="color: var(--text-muted);">{{ $refund->created_at?->format('d/m/Y H:i') ?? '—' }}</td>

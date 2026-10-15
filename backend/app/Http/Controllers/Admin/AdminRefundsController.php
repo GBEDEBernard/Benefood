@@ -27,7 +27,7 @@ class AdminRefundsController extends Controller
     {
         $this->authorize('manage', User::class);
 
-        $query = Refund::query()->with(['order.vendor', 'order.user', 'payment']);
+        $query = Refund::query()->with(['order.vendor', 'order.user', 'parcel.user', 'payment']);
 
         if ($status = $request->query('status')) {
             $query->where('status', $status);
@@ -36,7 +36,9 @@ class AdminRefundsController extends Controller
         if ($search = trim((string) $request->query('q'))) {
             $query->where(function ($q) use ($search) {
                 $q->whereHas('order', fn ($o) => $o->where('reference', 'like', "%{$search}%"))
-                    ->orWhereHas('order.user', fn ($u) => $u->where('name', 'like', "%{$search}%"));
+                    ->orWhereHas('parcel', fn ($p) => $p->where('reference', 'like', "%{$search}%"))
+                    ->orWhereHas('order.user', fn ($u) => $u->where('name', 'like', "%{$search}%"))
+                    ->orWhereHas('parcel.user', fn ($u) => $u->where('name', 'like', "%{$search}%"));
             });
         }
 
@@ -61,7 +63,7 @@ class AdminRefundsController extends Controller
     {
         $this->authorize('manage', User::class);
 
-        $refund->load(['order.vendor', 'order.user', 'order.items', 'payment', 'executor']);
+        $refund->load(['order.vendor', 'order.user', 'order.items', 'parcel.user', 'payment', 'executor']);
 
         return view('admin.refunds.show', [
             'refund' => $refund,
@@ -81,7 +83,11 @@ class AdminRefundsController extends Controller
             return back()->with('error', 'Ce remboursement est déjà exécuté.');
         }
 
-        $this->refunds->executeRefund($refund, (string) Auth::id());
+        if ($refund->parcel_id !== null) {
+            $this->refunds->executeParcelRefund($refund, (string) Auth::id());
+        } else {
+            $this->refunds->executeRefund($refund, (string) Auth::id());
+        }
 
         return back()->with('success', 'Le remboursement a été exécuté.');
     }
