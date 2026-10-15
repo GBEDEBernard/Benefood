@@ -13,10 +13,12 @@ use App\Models\User;
 use App\Services\FinanceService;
 use App\Services\ParcelPricingService;
 use App\Services\ParcelService;
+use App\Services\Payments\PaymentGateway;
 use Database\Seeders\NotificationTemplatesSeeder;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
+use Tests\Fakes\PaymentGatewayFake;
 use Tests\TestCase;
 
 class ParcelFeatureTest extends TestCase
@@ -156,6 +158,68 @@ class ParcelFeatureTest extends TestCase
             ->assertJsonPath('data.provider', 'fedapay')
             ->assertJsonPath('data.amount', (int) $parcel->delivery_fee)
             ->assertJsonPath('data.status', 'pending');
+    }
+
+    public function test_client_parcel_payment_returns_fedapay_checkout_url(): void
+    {
+        $this->app->instance(PaymentGateway::class, new PaymentGatewayFake('TX-PARCEL-CLIENT', 'https://checkout.fedapay.test/TX-PARCEL-CLIENT'));
+
+        $client = $this->client();
+        $parcel = app(ParcelService::class)->create($client, $this->pickup(), $this->dropoff());
+
+        $this->postJson('/api/v1/payments/create', ['parcel_id' => $parcel->id])
+            ->assertOk()
+            ->assertJsonPath('data.provider', 'fedapay')
+            ->assertJsonPath('data.checkout_url', 'https://checkout.fedapay.test/TX-PARCEL-CLIENT');
+
+        $this->assertSame('TX-PARCEL-CLIENT', $parcel->payment->fresh()->gateway_txn_id);
+    }
+
+    public function test_vendor_parcel_payment_returns_fedapay_checkout_url(): void
+    {
+        $this->app->instance(PaymentGateway::class, new PaymentGatewayFake('TX-PARCEL-VENDOR', 'https://checkout.fedapay.test/TX-PARCEL-VENDOR'));
+
+        $this->vendor();
+
+        $this->postJson('/api/v1/parcels', [
+            'pickup' => $this->pickup(),
+            'dropoff' => $this->dropoff(),
+            'description' => 'Colis boutique',
+        ])->assertCreated();
+
+        $parcel = Parcel::firstOrFail();
+
+        $this->postJson('/api/v1/payments/create', ['parcel_id' => $parcel->id])
+            ->assertOk()
+            ->assertJsonPath('data.provider', 'fedapay')
+            ->assertJsonPath('data.checkout_url', 'https://checkout.fedapay.test/TX-PARCEL-VENDOR');
+
+        $this->assertSame('TX-PARCEL-VENDOR', $parcel->payment->fresh()->gateway_txn_id);
+    }
+
+    public function test_verify_settles_a_paid_parcel_when_webhook_is_unreachable(): void
+    {
+        $client = $this->client();
+        $parcel = app(ParcelService::class)->create($client, $this->pickup(), $this->dropoff());
+        $parcel->payment->update(['gateway_txn_id' => 'TX-PARCEL-VERIFY', 'status' => PaymentStatus::Initiated]);
+
+        $fake = new PaymentGatewayFake;
+        $fake->verifyResult = [
+            'ok' => true,
+            'status' => 'approved',
+            'paid' => true,
+            'amount' => $parcel->delivery_fee,
+            'data' => ['id' => 'TX-PARCEL-VERIFY', 'status' => 'approved'],
+        ];
+        $this->app->instance(PaymentGateway::class, $fake);
+
+        $this->postJson('/api/v1/payments/verify', ['transaction_id' => 'TX-PARCEL-VERIFY'])
+            ->assertOk();
+
+        $parcel->refresh();
+        $this->assertSame(ParcelStatus::Paid, $parcel->status);
+        $this->assertSame(PaymentStatus::Confirmed, $parcel->payment_status);
+        $this->assertNotNull($parcel->payment->fresh()->paid_at);
     }
 
     public function test_driver_accept_assigns_and_credits_pending(): void
