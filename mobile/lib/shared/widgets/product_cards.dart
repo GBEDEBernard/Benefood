@@ -43,7 +43,7 @@ class ProductCardGrid extends StatelessWidget {
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  AppNetworkImage(url: product.imageUrl, icon: Icons.fastfood_outlined),
+                  AppNetworkImage(url: product.displayImageUrl ?? product.imageUrl, icon: Icons.fastfood_outlined),
                   if (!product.isOrderable || product.isOutOfStock)
                     Positioned(
                       top: 8,

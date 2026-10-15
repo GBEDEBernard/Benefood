@@ -221,7 +221,7 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
       showToast(context, 'Choisissez une catégorie', isError: true);
       return;
     }
-    final priceCents = (_parsePrice() * 100).round();
+    final priceCents = _parsePrice().round(); // FCFA entier
     final description = _description.text.trim().isEmpty
         ? null
         : _description.text.trim();
@@ -274,22 +274,44 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
 
   Future<void> _uploadMediaIfAny(String productId) async {
     for (var i = 0; i < _newImages.length; i++) {
-      await widget.marketplace.uploadProductImage(
-        productId,
-        _newImages[i],
-        fileName: _newImageNames[i],
-      );
+      try {
+        await widget.marketplace.uploadProductImage(
+          productId,
+          _newImages[i],
+          fileName: _newImageNames[i],
+        );
+      } catch (e) {
+        if (mounted) {
+          showToast(
+            context,
+            'Erreur lors de l\'envoi d\'une photo. Certaines images peuvent ne pas avoir été enregistrées.',
+            isError: true,
+          );
+        }
+      }
     }
 
     final video = _videoBytes;
     if (video != null) {
-      await widget.marketplace.uploadProductVideo(
-        productId,
-        video,
-        fileName: _videoName,
-      );
+      try {
+        await widget.marketplace.uploadProductVideo(
+          productId,
+          video,
+          fileName: _videoName,
+        );
+      } catch (e) {
+        if (mounted) {
+          showToast(
+            context,
+            'Erreur lors de l\'envoi de la vidéo. Elle n\'a pas été enregistrée.',
+            isError: true,
+          );
+        }
+      }
     } else if (_videoRemoved && _isEditing) {
-      await widget.marketplace.removeProductVideo(productId);
+      try {
+        await widget.marketplace.removeProductVideo(productId);
+      } catch (_) {}
     }
   }
 
@@ -634,9 +656,6 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
   }
 }
 
-String _priceToString(int cents) {
-  if (cents % 100 == 0) {
-    return (cents ~/ 100).toString();
-  }
-  return (cents / 100).toStringAsFixed(2);
+String _priceToString(int price) {
+  return price.toString();
 }
