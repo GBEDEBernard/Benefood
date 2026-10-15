@@ -147,6 +147,8 @@ class CashService
                 'Paiement cash — part livreur '.$order->reference,
             );
 
+            $this->finance->recordCashOrderSettlement($order, $driver);
+
             $order->update([
                 'payment_status' => PaymentStatus::Confirmed->value,
                 'delivery_confirmed_at' => now(),

@@ -3,8 +3,11 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Enums\OrderStatus;
+use App\Enums\ParcelStatus;
+use App\Enums\PaymentStatus;
 use App\Http\Controllers\Controller;
 use App\Models\Order;
+use App\Models\Parcel;
 use App\Models\Refund;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -68,20 +71,59 @@ class AdminReportsController extends Controller
             ->orderBy('created_at')
             ->get();
 
-        return $this->csv('commissions-', function ($handle) use ($orders): void {
-            fputcsv($handle, ['Référence', 'Date', 'Base commission', 'Taux (%)', 'Commission', 'Montant vendeur', 'Part livreur']);
-            foreach ($orders as $order) {
-                if ($order->financials === null) {
-                    continue;
-                }
+        // Colis : commission porteuse = part plateforme (20 % des frais).
+        $parcels = $this->period(Parcel::query(), $request)
+            ->where('payment_status', PaymentStatus::Confirmed->value)
+            ->where('status', '!=', ParcelStatus::Cancelled->value)
+            ->orderBy('created_at')
+            ->get();
+
+        $rows = collect();
+
+        foreach ($orders as $order) {
+            if ($order->financials === null) {
+                continue;
+            }
+
+            $rows->push([
+                'date' => $order->created_at,
+                'type' => 'Commande',
+                'reference' => $order->reference,
+                'base' => $order->financials->commission_base,
+                'rate' => $order->financials->commission_rate,
+                'commission' => $order->financials->commission_amount,
+                'vendor' => $order->financials->vendor_amount,
+                'partner' => $order->financials->delivery_partner_amount,
+            ]);
+        }
+
+        foreach ($parcels as $parcel) {
+            $rows->push([
+                'date' => $parcel->created_at,
+                'type' => 'Colis',
+                'reference' => $parcel->reference,
+                'base' => $parcel->delivery_fee,
+                'rate' => $parcel->commission_rate,
+                'commission' => $parcel->commission_amount,
+                'vendor' => null,
+                'partner' => $parcel->partner_amount,
+            ]);
+        }
+
+        $rows = $rows->sortBy('date')->values();
+
+        return $this->csv('commissions-', function ($handle) use ($rows): void {
+            fputcsv($handle, ['Type', 'Référence', 'Date', 'Base commission', 'Taux (%)', 'Commission', 'Montant vendeur', 'Part livreur']);
+            foreach ($rows as $row) {
                 fputcsv($handle, [
-                    $order->reference,
-                    $order->created_at?->format('Y-m-d H:i:s'),
-                    $order->financials->commission_base,
-                    $order->financials->commission_rate,
-                    $order->financials->commission_amount,
-                    $order->financials->vendor_amount,
-                    $order->financials->delivery_partner_amount,
+                    $row['type'],
+                    $row['reference'],
+                    $row['date']?->format('Y-m-d H:i:s'),
+                    $row['base'],
+                    $row['rate'],
+                    $row['commission'],
+                    $row['vendor'] ?? '',
+                    $row['partner'],
                 ]);
             }
         });

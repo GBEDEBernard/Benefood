@@ -148,6 +148,47 @@ class CashPaymentTest extends TestCase
         $this->assertSame(1, $driver->fresh()->floatTransactions()->where('type', 'debit')->where('reference_type', 'order_cash_settle')->count());
     }
 
+    public function test_cash_order_settlement_is_journalized(): void
+    {
+        $client = User::factory()->create();
+        $vendor = Vendor::factory()->create(['status' => 'active']);
+        $order = $this->cashOrder($client, $vendor);
+        $driver = $this->payableDriver(100000);
+
+        $orders = app(OrderService::class);
+
+        $orders->acceptVendorOrder($order->fresh(), $vendor->user_id);
+        $orders->markPreparing($order->fresh(), $vendor->user_id);
+        $orders->markReady($order->fresh(), $vendor->user_id);
+        $assigned = $orders->assignDriver($order->fresh(), $driver->id, $driver->user_id);
+        $orders->markPickedUp($assigned, $driver->user_id);
+        $orders->markInDelivery($assigned, $driver->user_id);
+        $orders->markDelivered($order->fresh('delivery', 'financials'), $driver->user_id);
+
+        $order->refresh()->load('financials');
+
+        $this->assertDatabaseHas('financial_journal', [
+            'entry_type' => 'commission',
+            'reference_type' => 'order',
+            'reference_id' => $order->id,
+            'credit' => (int) $order->financials->platform_amount,
+        ]);
+        $this->assertDatabaseHas('financial_journal', [
+            'entry_type' => 'transfer',
+            'reference_type' => 'order',
+            'reference_id' => $order->id,
+            'credit' => (int) $order->financials->vendor_amount,
+            'participant' => $vendor->user_id,
+        ]);
+        $this->assertDatabaseHas('financial_journal', [
+            'entry_type' => 'transfer',
+            'reference_type' => 'order',
+            'reference_id' => $order->id,
+            'credit' => (int) $order->financials->delivery_partner_amount,
+            'participant' => $driver->user_id,
+        ]);
+    }
+
     public function test_cash_settle_refuses_insufficient_float(): void
     {
         $client = User::factory()->create();

@@ -148,6 +148,8 @@ class ParcelService
 
         $this->logTransition($parcel, ParcelStatus::AwaitingPayment, ParcelStatus::Paid, 'system', null, 'Paiement confirmé');
 
+        $this->finance->recordParcelPayment($parcel->fresh());
+
         if ($parcel->targeted_driver_profile_id !== null) {
             $parcel->loadMissing('targetedDriverProfile.user');
             $driverUser = $parcel->targetedDriverProfile?->user;
@@ -250,6 +252,8 @@ class ParcelService
                     'Libération part livreur colis — '.$parcel->reference,
                 );
             }
+
+            $this->finance->recordParcelDelivery($parcel, $driver);
         }
 
         // Notification « colis » dédiée : le mobile ouvre le suivi du colis
@@ -289,6 +293,8 @@ class ParcelService
                 $parcel->id,
                 'Annulation colis — '.$parcel->reference,
             );
+
+            $this->finance->recordParcelCancellation($parcel, $driver, $actorId);
         }
 
         $this->logTransition($parcel, $from, ParcelStatus::Cancelled, $actorType, $actorId, $reason);

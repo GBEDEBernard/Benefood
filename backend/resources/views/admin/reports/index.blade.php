@@ -32,7 +32,7 @@
 @php
     $exports = [
         ['label' => 'Commandes', 'desc' => 'Référence, client, boutique, totaux et statut sur la période.', 'route' => route('admin.reports.export.orders', ['from' => $filters['from'], 'to' => $filters['to']]), 'icon' => 'ti-shopping-cart'],
-        ['label' => 'Commissions', 'desc' => 'Base, taux, commission perçue et répartition vendeur/livreur.', 'route' => route('admin.reports.export.commissions', ['from' => $filters['from'], 'to' => $filters['to']]), 'icon' => 'ti-wallet'],
+        ['label' => 'Commissions', 'desc' => 'Commandes et colis : base, taux, commission perçue et répartition vendeur/livreur.', 'route' => route('admin.reports.export.commissions', ['from' => $filters['from'], 'to' => $filters['to']]), 'icon' => 'ti-wallet'],
         ['label' => 'Remboursements', 'desc' => 'Montants, motifs, statuts et références passerelle.', 'route' => route('admin.reports.export.refunds', ['from' => $filters['from'], 'to' => $filters['to']]), 'icon' => 'ti-refresh'],
     ];
 @endphp

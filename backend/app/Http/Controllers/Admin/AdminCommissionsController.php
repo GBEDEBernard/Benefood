@@ -2,9 +2,12 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Enums\ParcelStatus;
+use App\Enums\PaymentStatus;
 use App\Http\Controllers\Controller;
 use App\Models\CommissionRate;
 use App\Models\Order;
+use App\Models\Parcel;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -32,16 +35,33 @@ class AdminCommissionsController extends Controller
 
         $rates = $query->orderByDesc('effective_from')->paginate(20)->withQueryString();
 
-        $monthlyRevenue = Order::query()
+        $orderRevenue = Order::query()
             ->whereHas('financials')
             ->join('order_financials', 'order_financials.order_id', '=', 'orders.id')
             ->where('orders.status', 'not like', 'cancelled')
             ->where('orders.status', 'not like', 'refunded')
             ->selectRaw('DATE_FORMAT(orders.created_at, "%Y-%m") as month, SUM(order_financials.commission_amount) as total')
             ->groupBy('month')
-            ->orderByDesc('month')
-            ->limit(12)
-            ->get();
+            ->pluck('total', 'month');
+
+        // Colis : la commission porteuse est la part plateforme (20 % des frais).
+        $parcelRevenue = Parcel::query()
+            ->where('payment_status', PaymentStatus::Confirmed->value)
+            ->where('status', '!=', ParcelStatus::Cancelled->value)
+            ->selectRaw('DATE_FORMAT(created_at, "%Y-%m") as month, SUM(platform_amount) as total')
+            ->groupBy('month')
+            ->pluck('total', 'month');
+
+        $monthlyRevenue = $orderRevenue->keys()
+            ->merge($parcelRevenue->keys())
+            ->unique()
+            ->sortDesc()
+            ->take(12)
+            ->map(fn (string $month): object => (object) [
+                'month' => $month,
+                'total' => (int) ($orderRevenue[$month] ?? 0) + (int) ($parcelRevenue[$month] ?? 0),
+            ])
+            ->values();
 
         return view('admin.commissions.index', [
             'rates' => $rates,

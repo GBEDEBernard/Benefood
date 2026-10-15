@@ -6,6 +6,7 @@ use App\Enums\JournalEntryType;
 use App\Enums\WalletTransactionType;
 use App\Models\DriverProfile;
 use App\Models\Order;
+use App\Models\Parcel;
 use App\Models\Wallet;
 use App\Models\WalletTransaction;
 use Illuminate\Database\Eloquent\Model;
@@ -343,6 +344,147 @@ class FinanceService
                 $order->id,
                 'Annulation part livreur — '.$order->reference,
             );
+        }
+    }
+
+    // ------------------------------------------------------------- Cycle colis
+
+    /**
+     * Encaissement en ligne d'un colis : journalise le paiement client et la
+     * commission retenue par la plateforme (part livreur séquestrée à part).
+     */
+    public function recordParcelPayment(Parcel $parcel): void
+    {
+        $this->journal->record([
+            'entry_type' => JournalEntryType::Payment,
+            'reference_type' => 'parcel',
+            'reference_id' => $parcel->id,
+            'credit' => (int) $parcel->delivery_fee,
+            'participant' => $parcel->user_id,
+            'balance_after' => (int) $parcel->delivery_fee,
+            'actor' => 'system',
+        ]);
+
+        if ((int) $parcel->platform_amount > 0) {
+            $this->journal->record([
+                'entry_type' => JournalEntryType::Commission,
+                'reference_type' => 'parcel',
+                'reference_id' => $parcel->id,
+                'credit' => (int) $parcel->platform_amount,
+                'participant' => null,
+                'actor' => 'system',
+            ]);
+        }
+    }
+
+    /**
+     * Livraison d'un colis : journalise la commission plateforme lorsqu'elle est
+     * retenue en espèces (sur le flottant) et le gain livreur devenu retirable.
+     */
+    public function recordParcelDelivery(Parcel $parcel, DriverProfile $driver): void
+    {
+        if ($parcel->isCash() && (int) $parcel->platform_amount > 0) {
+            $this->journal->record([
+                'entry_type' => JournalEntryType::Commission,
+                'reference_type' => 'parcel',
+                'reference_id' => $parcel->id,
+                'credit' => (int) $parcel->platform_amount,
+                'participant' => null,
+                'actor' => 'system',
+            ]);
+        }
+
+        if ((int) $parcel->partner_amount > 0) {
+            $this->journal->record([
+                'entry_type' => JournalEntryType::Transfer,
+                'reference_type' => 'parcel',
+                'reference_id' => $parcel->id,
+                'credit' => (int) $parcel->partner_amount,
+                'participant' => $driver->user_id,
+                'balance_after' => (int) $this->walletFor($driver)->fresh()->available_balance,
+                'actor' => 'system',
+            ]);
+        }
+    }
+
+    /**
+     * Annulation d'un colis en ligne déjà payé : contre-passe la commission
+     * plateforme et la part livreur (J12 §5.1 — J14 §3.2).
+     */
+    public function recordParcelCancellation(Parcel $parcel, DriverProfile $driver, ?string $actor = null): void
+    {
+        if ((int) $parcel->platform_amount > 0) {
+            $this->journal->record([
+                'entry_type' => JournalEntryType::Reversal,
+                'reference_type' => 'parcel',
+                'reference_id' => $parcel->id,
+                'debit' => (int) $parcel->platform_amount,
+                'participant' => $parcel->user_id,
+                'actor' => $actor,
+            ]);
+        }
+
+        if ((int) $parcel->partner_amount > 0) {
+            $this->journal->record([
+                'entry_type' => JournalEntryType::Reversal,
+                'reference_type' => 'parcel',
+                'reference_id' => $parcel->id,
+                'debit' => (int) $parcel->partner_amount,
+                'participant' => $driver->user_id,
+                'actor' => $actor,
+            ]);
+        }
+    }
+
+    // ------------------------------------------------------- Cycle espèces
+
+    /**
+     * Règlement d'une commande encaissée en espèces par le livreur : journalise
+     * les parts vendeur et livreur ainsi que la commission plateforme.
+     */
+    public function recordCashOrderSettlement(Order $order, DriverProfile $driver): void
+    {
+        $order->loadMissing('financials', 'vendor');
+
+        $financials = $order->financials;
+
+        if ($financials === null) {
+            return;
+        }
+
+        if ($order->vendor !== null && (int) $financials->vendor_amount > 0) {
+            $this->journal->record([
+                'entry_type' => JournalEntryType::Transfer,
+                'reference_type' => 'order',
+                'reference_id' => $order->id,
+                'credit' => (int) $financials->vendor_amount,
+                'participant' => $order->vendor->user_id,
+                'balance_after' => (int) $this->walletFor($order->vendor)->fresh()->available_balance,
+                'actor' => 'system',
+            ]);
+        }
+
+        if ((int) $financials->delivery_partner_amount > 0) {
+            $this->journal->record([
+                'entry_type' => JournalEntryType::Transfer,
+                'reference_type' => 'order',
+                'reference_id' => $order->id,
+                'credit' => (int) $financials->delivery_partner_amount,
+                'participant' => $driver->user_id,
+                'balance_after' => (int) $this->walletFor($driver)->fresh()->available_balance,
+                'actor' => 'system',
+            ]);
+        }
+
+        if ((int) $financials->platform_amount > 0) {
+            $this->journal->record([
+                'entry_type' => JournalEntryType::Commission,
+                'reference_type' => 'order',
+                'reference_id' => $order->id,
+                'credit' => (int) $financials->platform_amount,
+                'participant' => null,
+                'actor' => 'system',
+            ]);
         }
     }
 

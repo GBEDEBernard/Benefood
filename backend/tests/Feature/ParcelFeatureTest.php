@@ -360,6 +360,102 @@ class ParcelFeatureTest extends TestCase
         $this->assertSame(0, (int) $wallet->fresh()->pending_balance);
     }
 
+    public function test_online_parcel_payment_is_journalized_with_commission(): void
+    {
+        $client = $this->client();
+        $parcel = app(ParcelService::class)->create($client, $this->pickup(), $this->dropoff());
+        app(ParcelService::class)->confirmPayment($parcel->fresh(), (int) $parcel->delivery_fee);
+        $parcel->refresh();
+
+        $this->assertDatabaseHas('financial_journal', [
+            'entry_type' => 'payment',
+            'reference_type' => 'parcel',
+            'reference_id' => $parcel->id,
+            'credit' => (int) $parcel->delivery_fee,
+            'participant' => $client->id,
+        ]);
+        $this->assertDatabaseHas('financial_journal', [
+            'entry_type' => 'commission',
+            'reference_type' => 'parcel',
+            'reference_id' => $parcel->id,
+            'credit' => (int) $parcel->platform_amount,
+        ]);
+    }
+
+    public function test_online_parcel_delivery_journalizes_driver_earning(): void
+    {
+        $client = $this->client();
+        $parcels = app(ParcelService::class);
+        $parcel = $parcels->create($client, $this->pickup(), $this->dropoff());
+        $parcels->confirmPayment($parcel->fresh(), (int) $parcel->delivery_fee);
+
+        $driver = $this->driver();
+        $parcels->assignDriver($parcel->fresh(), $driver);
+        $parcels->markPickedUp($parcel->fresh());
+        $parcels->markInDelivery($parcel->fresh());
+        $parcels->markDelivered($parcel->fresh());
+
+        $this->assertDatabaseHas('financial_journal', [
+            'entry_type' => 'transfer',
+            'reference_type' => 'parcel',
+            'reference_id' => $parcel->id,
+            'credit' => (int) $parcel->partner_amount,
+            'participant' => $driver->user_id,
+        ]);
+    }
+
+    public function test_cash_parcel_delivery_journalizes_commission_and_earning(): void
+    {
+        $client = $this->client();
+        $parcels = app(ParcelService::class);
+        $parcel = $parcels->create($client, $this->pickup(), $this->dropoff(), paymentMethod: 'cash');
+
+        $driver = $this->driver(1000);
+        $parcels->assignDriver($parcel->fresh(), $driver);
+        $parcels->markPickedUp($parcel->fresh());
+        $parcels->markInDelivery($parcel->fresh());
+        $parcels->markDelivered($parcel->fresh());
+
+        $this->assertDatabaseHas('financial_journal', [
+            'entry_type' => 'commission',
+            'reference_type' => 'parcel',
+            'reference_id' => $parcel->id,
+            'credit' => (int) $parcel->platform_amount,
+        ]);
+        $this->assertDatabaseHas('financial_journal', [
+            'entry_type' => 'transfer',
+            'reference_type' => 'parcel',
+            'reference_id' => $parcel->id,
+            'credit' => (int) $parcel->partner_amount,
+            'participant' => $driver->user_id,
+        ]);
+    }
+
+    public function test_cancelled_online_parcel_records_reversal(): void
+    {
+        $client = $this->client();
+        $parcels = app(ParcelService::class);
+        $parcel = $parcels->create($client, $this->pickup(), $this->dropoff());
+        $parcels->confirmPayment($parcel->fresh(), (int) $parcel->delivery_fee);
+
+        $driver = $this->driver();
+        $parcels->assignDriver($parcel->fresh(), $driver);
+        $parcels->cancel($parcel->fresh(), 'client', $client->id, 'Livraison reportée');
+
+        $this->assertDatabaseHas('financial_journal', [
+            'entry_type' => 'reversal',
+            'reference_type' => 'parcel',
+            'reference_id' => $parcel->id,
+            'debit' => (int) $parcel->platform_amount,
+        ]);
+        $this->assertDatabaseHas('financial_journal', [
+            'entry_type' => 'reversal',
+            'reference_type' => 'parcel',
+            'reference_id' => $parcel->id,
+            'debit' => (int) $parcel->partner_amount,
+        ]);
+    }
+
     public function test_vendor_can_create_list_and_pay_parcel(): void
     {
         $vendor = $this->vendor();

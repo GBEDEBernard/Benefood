@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Enums\ComplaintStatus;
 use App\Enums\DriverStatus;
 use App\Enums\OrderStatus;
+use App\Enums\ParcelStatus;
 use App\Enums\PaymentStatus;
 use App\Enums\RefundStatus;
 use App\Enums\VendorStatus;
@@ -13,6 +14,7 @@ use App\Models\Complaint;
 use App\Models\DeliveryZone;
 use App\Models\DriverProfile;
 use App\Models\Order;
+use App\Models\Parcel;
 use App\Models\Product;
 use App\Models\Refund;
 use App\Models\User;
@@ -59,6 +61,13 @@ class AdminController extends Controller
             ->withSum('financials as commission_amount', 'commission_amount')
             ->get()
             ->sum('commission_amount');
+
+        // Colis : la commission porteuse est la part plateforme (20 % des frais),
+        // encaissée dès le paiement en ligne ou à la livraison en espèces.
+        $commissionsMonth += Parcel::where('created_at', '>=', $monthStart)
+            ->where('payment_status', PaymentStatus::Confirmed->value)
+            ->where('status', '!=', ParcelStatus::Cancelled->value)
+            ->sum('platform_amount');
 
         // KPIs structurés pour la vue.
         $kpis = [
