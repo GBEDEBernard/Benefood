@@ -131,6 +131,7 @@ Route::middleware('auth:sanctum')->group(function (): void {
 
         // ---------- Wallet & retraits livreur (cahier v1.0) ----------
         Route::get('/wallet', [WalletController::class, 'driverWallet'])->name('api.v1.driver.me.wallet');
+        Route::get('/wallet/payouts', [WalletController::class, 'driverPayouts'])->name('api.v1.driver.me.wallet.payouts.index');
         Route::post('/wallet/payouts', [WalletController::class, 'requestDriverPayout'])->name('api.v1.driver.me.wallet.payouts.store');
 
         // ---------- Flottant cash (cahier v1.0) ----------

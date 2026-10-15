@@ -28,13 +28,14 @@ class _NoopTokenStore implements TokenStore {
 
 /// Backend de test : wallet vendeur (4 500 dispo / 1 200 en attente) et un
 /// historique de retraits.
-MockClient _mockBackend({bool failPayout = false}) {
+MockClient _mockBackend({bool failPayout = false, String payoutStatus = 'pending'}) {
   const wallet = {
     'pending_balance': 1200,
     'available_balance': 4500,
     'balance': 5700,
     'currency': 'XOF',
     'min_payout': 1000,
+    'phone': '+22997000000',
     'transactions': [
       {
         'id': 't1',
@@ -55,11 +56,11 @@ MockClient _mockBackend({bool failPayout = false}) {
       'created_at': '2026-10-09T09:00:00Z',
     },
   ];
-  const created = {
+  final created = {
     'id': 'p2',
     'amount': 4500,
     'method': 'mobile_money',
-    'status': 'pending',
+    'status': payoutStatus,
     'created_at': '2026-10-10T10:00:00Z',
   };
 
@@ -140,7 +141,32 @@ void main() {
     await tester.tap(find.text('Confirmer la demande'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Demande de retrait enregistrée.'), findsOneWidget);
+    expect(find.text('Demande de retrait enregistrée, en cours de traitement.'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('wallet vendeur : numéro Mobile Money prérempli', (tester) async {
+    await _pump(tester, _mockBackend());
+
+    await tester.tap(find.text('Retirer'));
+    await tester.pumpAndSettle();
+
+    final destination = tester.widget<TextField>(find.byType(TextField).at(1));
+    expect(destination.controller?.text, '+22997000000');
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('wallet vendeur : retrait versé immédiatement', (tester) async {
+    await _pump(tester, _mockBackend(payoutStatus: 'executed'));
+
+    await tester.tap(find.text('Retirer'));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextField).at(1), '+22996000000');
+    await tester.tap(find.text('Confirmer la demande'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Retrait versé sur votre Mobile Money.'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 

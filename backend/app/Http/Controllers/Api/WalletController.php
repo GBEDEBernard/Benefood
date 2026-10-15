@@ -30,7 +30,7 @@ class WalletController extends Controller
     {
         $vendor = $this->vendorFor($request);
 
-        return Api::ok($this->summary($this->finance->walletFor($vendor)));
+        return Api::ok($this->summary($this->finance->walletFor($vendor), $vendor->phone));
     }
 
     public function vendorPayouts(Request $request): JsonResponse
@@ -62,7 +62,14 @@ class WalletController extends Controller
     {
         $driver = $this->driverFor($request);
 
-        return Api::ok($this->summary($this->finance->walletFor($driver)));
+        return Api::ok($this->summary($this->finance->walletFor($driver), $driver->user?->phone));
+    }
+
+    public function driverPayouts(Request $request): JsonResponse
+    {
+        $driver = $this->driverFor($request);
+
+        return Api::ok($this->payoutsFor($this->finance->walletFor($driver)));
     }
 
     public function requestDriverPayout(Request $request): JsonResponse
@@ -120,7 +127,7 @@ class WalletController extends Controller
     }
 
     /** @return array<string, mixed> */
-    private function summary(Wallet $wallet): array
+    private function summary(Wallet $wallet, ?string $phone = null): array
     {
         return [
             'pending_balance' => (int) $wallet->pending_balance,
@@ -128,6 +135,7 @@ class WalletController extends Controller
             'balance' => (int) $wallet->balance,
             'currency' => config('beninfood.currency', 'XOF'),
             'min_payout' => (int) config('beninfood.wallet.min_payout', 1000),
+            'phone' => $phone,
             'transactions' => $wallet->transactions()
                 ->orderByDesc('created_at')
                 ->limit(50)

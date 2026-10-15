@@ -981,6 +981,12 @@ class MarketplaceApi {
     return _dataObject(response) ?? {};
   }
 
+  /// Historique des retraits du livreur.
+  Future<List<Map<String, dynamic>>> driverPayouts() async {
+    final response = await _api.get('/driver/me/wallet/payouts');
+    return _dataList(response);
+  }
+
   /// Demande un retrait livreur vers son Mobile Money (réseau + numéro).
   Future<Map<String, dynamic>> requestDriverPayout(
     int amount, {

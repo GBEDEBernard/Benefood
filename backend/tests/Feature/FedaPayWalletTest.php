@@ -149,6 +149,40 @@ class FedaPayWalletTest extends TestCase
             ->assertJsonPath('data.destination', $user->phone);
     }
 
+    public function test_payout_request_executes_immediately_when_gateway_configured(): void
+    {
+        $fake = new PaymentGatewayFake;
+        $this->app->instance(PaymentGateway::class, $fake);
+
+        [, $profile] = $this->driver();
+        $wallet = $this->fundedWallet($profile);
+
+        $payout = app(PayoutService::class)->request($profile, 2000, 'moov', '+22996000000');
+
+        $this->assertSame(PayoutStatus::Executed, $payout->status);
+        $this->assertCount(1, $fake->payoutCalls);
+        $this->assertSame(3000, (int) $wallet->fresh()->available_balance);
+    }
+
+    public function test_driver_wallet_summary_exposes_phone_and_payouts(): void
+    {
+        [$user, $profile] = $this->driver();
+        $this->fundedWallet($profile);
+        Sanctum::actingAs($user);
+
+        app(PayoutService::class)->request($profile, 2000, 'moov', '+22996000000');
+
+        $this->getJson('/api/v1/driver/me/wallet')
+            ->assertOk()
+            ->assertJsonPath('data.phone', $user->phone);
+
+        $this->getJson('/api/v1/driver/me/wallet/payouts')
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.amount', 2000)
+            ->assertJsonPath('data.0.status', 'pending');
+    }
+
     public function test_send_to_gateway_executes_the_payout_with_a_reference(): void
     {
         $fake = new PaymentGatewayFake;

@@ -56,7 +56,7 @@ class PayoutService
         $network = $this->resolveNetwork($owner, $method);
         $destination = $this->resolveDestination($owner, $details);
 
-        return DB::transaction(function () use ($wallet, $amount, $network, $destination): Payout {
+        $payout = DB::transaction(function () use ($wallet, $amount, $network, $destination): Payout {
             $payout = Payout::create([
                 'wallet_id' => $wallet->id,
                 'amount' => $amount,
@@ -75,6 +75,22 @@ class PayoutService
 
             return $payout;
         });
+
+        return $this->settleImmediately($payout);
+    }
+
+    /**
+     * Tente d'exécuter le virement dès la demande (retrait « dynamique ») dès
+     * lors que la passerelle est configurée et qu'un numéro est disponible.
+     * À défaut, la demande reste en attente de validation manuelle.
+     */
+    private function settleImmediately(Payout $payout): Payout
+    {
+        if (! $this->gateway->configured() || ! $payout->destination) {
+            return $payout;
+        }
+
+        return $this->sendToGateway($payout);
     }
 
     /** Exécute un retrait (validation porteuse / virement). */
@@ -102,7 +118,7 @@ class PayoutService
      */
     public function sendToGateway(Payout $payout, ?string $actorId = null): Payout
     {
-        if ($payout->status === PayoutStatus::Executed) {
+        if (in_array($payout->status, [PayoutStatus::Executed, PayoutStatus::Failed], true)) {
             return $payout->fresh();
         }
 

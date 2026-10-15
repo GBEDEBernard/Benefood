@@ -51,6 +51,11 @@ class _WalletScreenState extends State<WalletScreen> {
   int get _minPayout => (_wallet['min_payout'] as num?)?.toInt() ?? 1000;
   int get _floatBalance => (_float['prepaid_balance'] as num?)?.toInt() ?? 0;
 
+  String? get _phone {
+    final phone = (_wallet['phone'] as String?)?.trim();
+    return (phone == null || phone.isEmpty) ? null : phone;
+  }
+
   List<Map<String, dynamic>> get _floatTransactions =>
       (_float['transactions'] as List?)?.whereType<Map<String, dynamic>>().toList() ?? const [];
 
@@ -81,12 +86,12 @@ class _WalletScreenState extends State<WalletScreen> {
         }
       }
       List<Map<String, dynamic>> payouts = const [];
-      if (widget.role == WalletRole.vendor) {
-        try {
-          payouts = await widget.marketplace.vendorPayouts();
-        } on ApiException {
-          payouts = const [];
-        }
+      try {
+        payouts = widget.role == WalletRole.vendor
+            ? await widget.marketplace.vendorPayouts()
+            : await widget.marketplace.driverPayouts();
+      } on ApiException {
+        payouts = const [];
       }
       if (!mounted) return;
       setState(() {
@@ -120,6 +125,7 @@ class _WalletScreenState extends State<WalletScreen> {
       builder: (context) => _PayoutSheet(
         available: _available,
         minPayout: _minPayout,
+        phone: _phone,
       ),
     );
 
@@ -127,21 +133,25 @@ class _WalletScreenState extends State<WalletScreen> {
 
     setState(() => _requesting = true);
     try {
-      if (widget.role == WalletRole.vendor) {
-        await widget.marketplace.requestVendorPayout(
-          result.amount,
-          method: result.method,
-          destination: result.destination,
-        );
-      } else {
-        await widget.marketplace.requestDriverPayout(
-          result.amount,
-          method: result.method,
-          destination: result.destination,
-        );
-      }
+      final payout = widget.role == WalletRole.vendor
+          ? await widget.marketplace.requestVendorPayout(
+              result.amount,
+              method: result.method,
+              destination: result.destination,
+            )
+          : await widget.marketplace.requestDriverPayout(
+              result.amount,
+              method: result.method,
+              destination: result.destination,
+            );
       if (!mounted) return;
-      showToast(context, 'Demande de retrait enregistrée.');
+      final status = payout['status']?.toString();
+      final message = switch (status) {
+        'executed' => 'Retrait versé sur votre Mobile Money.',
+        'failed' => 'Retrait échoué : le montant a été recrédité sur votre solde.',
+        _ => 'Demande de retrait enregistrée, en cours de traitement.',
+      };
+      showToast(context, message, isError: status == 'failed');
       await _load();
     } on ApiException catch (e) {
       if (mounted) {
@@ -770,10 +780,15 @@ class _PayoutRequest {
 }
 
 class _PayoutSheet extends StatefulWidget {
-  const _PayoutSheet({required this.available, required this.minPayout});
+  const _PayoutSheet({
+    required this.available,
+    required this.minPayout,
+    this.phone,
+  });
 
   final int available;
   final int minPayout;
+  final String? phone;
 
   @override
   State<_PayoutSheet> createState() => _PayoutSheetState();
@@ -783,7 +798,9 @@ class _PayoutSheetState extends State<_PayoutSheet> {
   late final TextEditingController _amount = TextEditingController(
     text: widget.available.toString(),
   );
-  final _destination = TextEditingController();
+  late final TextEditingController _destination = TextEditingController(
+    text: widget.phone ?? '',
+  );
   String _method = 'mtn_open';
   String? _error;
   String? _phoneError;
