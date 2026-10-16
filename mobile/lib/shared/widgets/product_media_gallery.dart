@@ -27,7 +27,7 @@ class _ProductMediaGalleryState extends State<ProductMediaGallery> {
   final PageController _controller = PageController();
   int _page = 0;
 
-  late final List<_MediaItem> _items = _buildItems();
+  List<_MediaItem> get _items => _buildItems();
 
   List<_MediaItem> _buildItems() {
     final items = <_MediaItem>[];
@@ -47,6 +47,19 @@ class _ProductMediaGalleryState extends State<ProductMediaGallery> {
   }
 
   @override
+  void didUpdateWidget(covariant ProductMediaGallery oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.imageUrls != widget.imageUrls || oldWidget.videoUrl != widget.videoUrl) {
+      _page = 0;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _controller.hasClients) {
+          _controller.jumpToPage(0);
+        }
+      });
+    }
+  }
+
+  @override
   void dispose() {
     _controller.dispose();
     super.dispose();
@@ -61,21 +74,64 @@ class _ProductMediaGalleryState extends State<ProductMediaGallery> {
           PageView.builder(
             controller: _controller,
             itemCount: _items.length,
+            physics: const PageScrollPhysics(parent: BouncingScrollPhysics()),
             onPageChanged: (index) => setState(() => _page = index),
             itemBuilder: (context, index) {
               final item = _items[index];
-              if (item.isVideo) {
-                return _VideoSlide(
-                  url: item.url!,
-                  fallbackIcon: widget.placeholderIcon,
-                );
-              }
-              return AppNetworkImage(
-                url: item.url,
-                icon: widget.placeholderIcon,
+              return AnimatedSwitcher(
+                duration: const Duration(milliseconds: 360),
+                switchInCurve: Curves.easeOutCubic,
+                switchOutCurve: Curves.easeInCubic,
+                transitionBuilder: (child, animation) => FadeTransition(
+                  opacity: animation,
+                  child: ScaleTransition(
+                    scale: Tween<double>(begin: 0.97, end: 1).animate(animation),
+                    child: child,
+                  ),
+                ),
+                child: KeyedSubtree(
+                  key: ValueKey('${item.isVideo}:${item.url}'),
+                  child: item.isVideo
+                      ? _VideoSlide(
+                          url: item.url!,
+                          fallbackIcon: widget.placeholderIcon,
+                        )
+                      : AppNetworkImage(
+                          url: item.url,
+                          icon: widget.placeholderIcon,
+                        ),
+                ),
               );
             },
           ),
+          if (_items.length > 1)
+            Positioned(
+              top: 12,
+              right: 12,
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 220),
+                transitionBuilder: (child, animation) => FadeTransition(
+                  opacity: animation,
+                  child: ScaleTransition(scale: animation, child: child),
+                ),
+                child: Container(
+                  key: ValueKey(_page),
+                  padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.55),
+                    borderRadius: BorderRadius.circular(99),
+                  ),
+                  child: Text(
+                    '${_page + 1} / ${_items.length}',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ),
+            ),
           if (_items.length > 1)
             Positioned(
               left: 0,
@@ -86,7 +142,8 @@ class _ProductMediaGalleryState extends State<ProductMediaGallery> {
                 children: [
                   for (var i = 0; i < _items.length; i++)
                     AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
+                      duration: const Duration(milliseconds: 280),
+                      curve: Curves.easeOutCubic,
                       margin: const EdgeInsets.symmetric(horizontal: 3),
                       width: i == _page ? 18 : 7,
                       height: 7,

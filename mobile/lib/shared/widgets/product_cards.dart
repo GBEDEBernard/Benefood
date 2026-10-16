@@ -5,7 +5,7 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_dimens.dart';
 import '../../core/theme/app_theme.dart';
 import 'amount_widgets.dart';
-import 'app_network_image.dart';
+import 'product_image_carousel.dart';
 
 /// Carte produit "grille" (2 colonnes) — image, badge, nom, boutique, prix, ajout.
 class ProductCardGrid extends StatelessWidget {
@@ -43,7 +43,9 @@ class ProductCardGrid extends StatelessWidget {
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  AppNetworkImage(url: product.displayImageUrl, icon: Icons.fastfood_outlined),
+                  ProductImageCarousel(
+                    imageUrls: product.galleryImageUrls,
+                  ),
                   if (!product.isOrderable || product.isOutOfStock)
                     Positioned(
                       top: 8,
@@ -171,7 +173,10 @@ class ProductListCard extends StatelessWidget {
                 child: SizedBox(
                   width: dense ? 56 : 68,
                   height: dense ? 56 : 68,
-                  child: AppNetworkImage(url: product.displayImageUrl, icon: Icons.fastfood_outlined),
+                  child: ProductImageCarousel(
+                    imageUrls: product.galleryImageUrls,
+                    showCounter: false,
+                  ),
                 ),
               ),
               const SizedBox(width: 12),
