@@ -106,6 +106,7 @@ class _ProductMediaGalleryState extends State<ProductMediaGallery> {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
+      width: double.infinity,
       height: widget.height,
       child: Stack(
         children: [

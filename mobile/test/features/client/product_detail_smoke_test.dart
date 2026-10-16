@@ -122,6 +122,12 @@ void main() {
     expect(exception, isNull, reason: 'exception pendant le build: $exception');
 
     expect(find.byType(ProductMediaGallery), findsOneWidget);
+    final galleryFrame = find.byKey(const ValueKey('product-gallery-fullbleed'));
+    expect(
+      tester.getSize(galleryFrame).width,
+      tester.view.physicalSize.width / tester.view.devicePixelRatio,
+      reason: 'la galerie détaillée doit aller d’un bord à l’autre de l’écran',
+    );
     final gallery = find.byType(ProductMediaGallery);
     final pageView = tester.widget<PageView>(
       find.descendant(of: gallery, matching: find.byType(PageView)),
@@ -135,6 +141,11 @@ void main() {
       find.descendant(of: gallery, matching: find.byType(Image)).first,
     );
     expect((firstImage.image as NetworkImage).url, contains('/main.webp'));
+    expect(
+      tester.getSize(find.descendant(of: gallery, matching: find.byType(Image)).first).width,
+      tester.view.physicalSize.width / tester.view.devicePixelRatio,
+      reason: 'la photo doit remplir toute la largeur du carrousel',
+    );
     expect(find.text('Poulet braisé'), findsOneWidget);
     expect(find.text('4,6 (12 avis)'), findsOneWidget);
     expect(find.text('30'), findsOneWidget);

@@ -81,21 +81,23 @@ class AppNetworkImage extends StatelessWidget {
 
     return ClipRRect(
       borderRadius: borderRadius ?? BorderRadius.zero,
-      child: Image.network(
-        resolved,
-        fit: fit,
-        errorBuilder: (_, _, _) => _fallback(context),
-        loadingBuilder: (context, child, progress) {
-          if (progress == null) {
-            return child;
-          }
-          return Container(
-            color: Theme.of(context).colorScheme.surfaceContainerHighest,
-            child: const Center(
-              child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)),
-            ),
-          );
-        },
+      child: SizedBox.expand(
+        child: Image.network(
+          resolved,
+          fit: fit,
+          errorBuilder: (_, _, _) => _fallback(context),
+          loadingBuilder: (context, child, progress) {
+            if (progress == null) {
+              return child;
+            }
+            return Container(
+              color: Theme.of(context).colorScheme.surfaceContainerHighest,
+              child: const Center(
+                child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)),
+              ),
+            );
+          },
+        ),
       ),
     );
   }

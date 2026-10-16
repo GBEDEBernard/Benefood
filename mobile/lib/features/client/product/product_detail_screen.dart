@@ -5,7 +5,6 @@ import '../../../core/data/marketplace_api.dart';
 import '../../../core/errors/api_exception.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_dimens.dart';
-import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../shared/models/product.dart';
 import '../../../shared/widgets/app_button.dart';
@@ -155,9 +154,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                   : 'Produit introuvable.',
               onRetry: () {
                 final next = widget.marketplace.product(widget.productId);
-                setState(() {
-                  _future = next;
-                });
+                setState(() => _future = next);
               },
             );
           }
@@ -168,35 +165,32 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                 child: ListView(
                   padding: const EdgeInsets.only(bottom: 140),
                   children: [
-                    // Visuel produit (galerie images + vidéo)
-                    Container(
-                      margin: const EdgeInsets.all(AppDimens.pagePadding),
-                      height: 280,
-                      clipBehavior: Clip.antiAlias,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(AppDimens.radiusXl),
-                        border: Border.all(color: AppColors.border),
-                        boxShadow: AppTheme.softShadow(),
-                      ),
-                      child: Stack(
-                        fit: StackFit.expand,
-                        children: [
-                          ProductMediaGallery(
-                            imageUrls: product.galleryImageUrls,
-                            videoUrl: product.videoUrl,
-                          ),
-                          if (!product.isOrderable || product.isOutOfStock)
-                            Positioned(
-                              top: 14,
-                              right: 14,
-                              child: StatusBadge(
-                                label: product.isOutOfStock
-                                    ? 'Rupture de stock'
-                                    : 'Indisponible',
-                                color: AppColors.red,
-                              ),
+                    // La galerie est bord à bord; le contenu inférieur garde son padding.
+                    ClipRect(
+                      child: SizedBox(
+                        key: const ValueKey('product-gallery-fullbleed'),
+                        width: double.infinity,
+                        height: 280,
+                        child: Stack(
+                          fit: StackFit.expand,
+                          children: [
+                            ProductMediaGallery(
+                              imageUrls: product.galleryImageUrls,
+                              videoUrl: product.videoUrl,
                             ),
-                        ],
+                            if (!product.isOrderable || product.isOutOfStock)
+                              Positioned(
+                                top: 14,
+                                right: 14,
+                                child: StatusBadge(
+                                  label: product.isOutOfStock
+                                      ? 'Rupture de stock'
+                                      : 'Indisponible',
+                                  color: AppColors.red,
+                                ),
+                              ),
+                          ],
+                        ),
                       ),
                     ),
                     Padding(
