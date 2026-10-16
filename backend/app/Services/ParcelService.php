@@ -87,6 +87,7 @@ class ParcelService
                 'dropoff_snapshot' => $dropoff,
                 'distance_km' => $breakdown['distance_km'],
                 'delivery_fee' => $breakdown['delivery_fee'],
+                'pricing_snapshot' => $breakdown['pricing_snapshot'],
                 'commission_rate' => $breakdown['commission_rate'],
                 'commission_amount' => $breakdown['commission_amount'],
                 'partner_amount' => $breakdown['partner_amount'],

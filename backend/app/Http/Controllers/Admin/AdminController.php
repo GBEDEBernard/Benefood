@@ -14,13 +14,16 @@ use App\Models\Complaint;
 use App\Models\DeliveryZone;
 use App\Models\DriverProfile;
 use App\Models\Order;
+use App\Models\OrderFinancial;
 use App\Models\Parcel;
 use App\Models\Product;
 use App\Models\Refund;
 use App\Models\User;
 use App\Models\Vendor;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
 class AdminController extends Controller
@@ -29,61 +32,127 @@ class AdminController extends Controller
     {
         $this->authorize('manage', User::class);
 
+        $validated = $request->validate([
+            'from' => ['nullable', 'date'],
+            'to' => [
+                'nullable',
+                'date',
+                'after_or_equal:from',
+                function (string $attribute, mixed $value, \Closure $fail) use ($request): void {
+                    $from = $request->input('from');
+
+                    if ($value !== null && $from !== null && Carbon::parse($from)->diffInDays(Carbon::parse($value)) > 365) {
+                        $fail('La période ne peut pas dépasser 366 jours.');
+                    }
+                },
+            ],
+        ]);
+
         $now = Carbon::now();
-        $todayStart = $now->copy()->startOfDay();
-        $monthStart = $now->copy()->startOfMonth();
-        $weekStart = $now->copy()->subDays(7)->startOfDay();
-        $prevWeekStart = $now->copy()->subDays(14)->startOfDay();
+        $from = isset($validated['from']) ? Carbon::parse($validated['from'])->startOfDay() : $now->copy()->startOfMonth();
+        $to = isset($validated['to']) ? Carbon::parse($validated['to'])->endOfDay() : $now->copy()->endOfMonth();
 
-        // Commandes "réussies" : payées et non annulées (base CA + commissions).
-        $paid = fn ($query) => $query
-            ->whereNotIn('status', [
-                OrderStatus::Draft->value,
-                OrderStatus::AwaitingPayment->value,
-                OrderStatus::Cancelled->value,
-                OrderStatus::Refunded->value,
-            ])
-            ->where('payment_status', PaymentStatus::Confirmed->value);
-
-        $ordersToday = Order::where('created_at', '>=', $todayStart)->count();
-        $ordersMonth = Order::where('created_at', '>=', $monthStart)->count();
-        $ordersWeek = Order::where('created_at', '>=', $weekStart)->count();
-        $ordersPrevWeek = Order::whereBetween('created_at', [$prevWeekStart, $weekStart])->count();
-
-        $caToday = Order::where('created_at', '>=', $todayStart)->where($paid)->sum('total');
-        $caMonth = Order::where('created_at', '>=', $monthStart)->where($paid)->sum('total');
-        $caWeek = Order::where('created_at', '>=', $weekStart)->where($paid)->sum('total');
-        $caPrevWeek = Order::whereBetween('created_at', [$prevWeekStart, $weekStart])->where($paid)->sum('total');
-
-        $commissionsMonth = Order::where('created_at', '>=', $monthStart)
-            ->where($paid)
-            ->whereHas('financials')
-            ->withSum('financials as commission_amount', 'commission_amount')
-            ->get()
+        $excludedStatuses = [OrderStatus::Draft->value, OrderStatus::AwaitingPayment->value, OrderStatus::Cancelled->value, OrderStatus::Refunded->value];
+        $rangeOrders = Order::query()->whereBetween('orders.created_at', [$from, $to]);
+        $successfulOrders = (clone $rangeOrders)
+            ->whereNotIn('orders.status', $excludedStatuses)
+            ->where('orders.payment_status', PaymentStatus::Confirmed->value);
+        $ordersTotal = (clone $rangeOrders)->count();
+        $revenueTotal = (int) (clone $successfulOrders)->sum('total');
+        $orderCommissionTotal = (int) OrderFinancial::query()
+            ->whereHas('order', fn (Builder $query) => $query->whereBetween('orders.created_at', [$from, $to])
+                ->whereNotIn('orders.status', $excludedStatuses)
+                ->where('orders.payment_status', PaymentStatus::Confirmed->value))
             ->sum('commission_amount');
-
-        // Colis : la commission porteuse est la part plateforme (20 % des frais),
-        // encaissée dès le paiement en ligne ou à la livraison en espèces.
-        $commissionsMonth += Parcel::where('created_at', '>=', $monthStart)
+        $parcelBase = Parcel::query()
+            ->whereBetween('created_at', [$from, $to])
             ->where('payment_status', PaymentStatus::Confirmed->value)
-            ->where('status', '!=', ParcelStatus::Cancelled->value)
-            ->sum('platform_amount');
+            ->where('status', '!=', ParcelStatus::Cancelled->value);
+        $parcelCommissionTotal = (int) (clone $parcelBase)->sum('platform_amount');
 
-        // KPIs structurés pour la vue.
+        $dailyRevenueRows = (clone $successfulOrders)
+            ->selectRaw('DATE(orders.created_at) as day, SUM(orders.total) as amount')
+            ->groupBy('day')
+            ->orderBy('day')
+            ->get()
+            ->keyBy(fn ($row) => Carbon::parse($row->day)->format('Y-m-d'));
+        $dailyCommissionRows = OrderFinancial::query()
+            ->join('orders', 'orders.id', '=', 'order_financials.order_id')
+            ->whereBetween('orders.created_at', [$from, $to])
+            ->whereNotIn('orders.status', $excludedStatuses)
+            ->where('orders.payment_status', PaymentStatus::Confirmed->value)
+            ->selectRaw('DATE(orders.created_at) as day, SUM(order_financials.commission_amount) as amount')
+            ->groupBy('day')
+            ->get()
+            ->keyBy(fn ($row) => Carbon::parse($row->day)->format('Y-m-d'));
+        $dailyParcelCommissionRows = (clone $parcelBase)
+            ->selectRaw('DATE(created_at) as day, SUM(platform_amount) as amount')
+            ->groupBy('day')
+            ->get()
+            ->keyBy(fn ($row) => Carbon::parse($row->day)->format('Y-m-d'));
+
+        $days = [];
+        $dailyRevenue = [];
+        $dailyCommissions = [];
+        $cursor = $from->copy()->startOfDay();
+        while ($cursor <= $to) {
+            $key = $cursor->format('Y-m-d');
+            $days[] = $cursor->translatedFormat($from->diffInDays($to) <= 45 ? 'd M' : 'd/m');
+            $dailyRevenue[] = (int) ($dailyRevenueRows[$key]->amount ?? 0);
+            $dailyCommissions[] = (int) ($dailyCommissionRows[$key]->amount ?? 0) + (int) ($dailyParcelCommissionRows[$key]->amount ?? 0);
+            $cursor->addDay();
+        }
+
+        $vendorSummary = (clone $successfulOrders)
+            ->join('vendors', 'vendors.id', '=', 'orders.vendor_id')
+            ->select('vendors.id', 'vendors.business_name')
+            ->selectRaw('COUNT(orders.id) as orders_count, SUM(orders.total) as revenue')
+            ->groupBy('vendors.id', 'vendors.business_name')
+            ->orderByDesc('revenue')
+            ->limit(5)
+            ->get();
+        $clientSummary = (clone $successfulOrders)
+            ->join('users', 'users.id', '=', 'orders.user_id')
+            ->select('users.id', 'users.name')
+            ->selectRaw('COUNT(orders.id) as orders_count, SUM(orders.total) as revenue')
+            ->groupBy('users.id', 'users.name')
+            ->orderByDesc('revenue')
+            ->limit(5)
+            ->get();
+        $driverSummary = DB::table('deliveries')
+            ->join('orders', 'orders.id', '=', 'deliveries.order_id')
+            ->join('driver_profiles', 'driver_profiles.id', '=', 'deliveries.driver_profile_id')
+            ->join('users', 'users.id', '=', 'driver_profiles.user_id')
+            ->whereBetween('orders.created_at', [$from, $to])
+            ->whereNotIn('orders.status', $excludedStatuses)
+            ->where('orders.payment_status', PaymentStatus::Confirmed->value)
+            ->select('users.id', 'users.name')
+            ->selectRaw('COUNT(deliveries.id) as deliveries_count, SUM(deliveries.partner_amount) as revenue')
+            ->groupBy('users.id', 'users.name')
+            ->orderByDesc('revenue')
+            ->limit(5)
+            ->get();
+
+        $statusRows = (clone $rangeOrders)->select('orders.status')->selectRaw('COUNT(*) as amount')->groupBy('orders.status')->pluck('amount', 'status');
+        $paymentRows = (clone $successfulOrders)
+            ->select('orders.payment_method')
+            ->selectRaw('COUNT(orders.id) as orders_count, SUM(orders.total) as amount')
+            ->groupBy('orders.payment_method')
+            ->get()
+            ->keyBy('payment_method');
+
         $kpis = [
-            'orders_today' => ['value' => $ordersToday, 'label' => 'Commandes aujourd’hui'],
-            'orders_month' => ['value' => $ordersMonth, 'label' => 'Commandes ce mois'],
-            'orders_week' => ['value' => $ordersWeek, 'previous' => $ordersPrevWeek],
-            'orders_trend' => $this->trend($ordersWeek, $ordersPrevWeek),
-            'ca_today' => ['value' => $caToday, 'label' => 'CA aujourd’hui'],
-            'ca_month' => ['value' => $caMonth, 'label' => 'CA ce mois'],
-            'ca_week' => ['value' => $caWeek, 'previous' => $caPrevWeek],
-            'ca_trend' => $this->trend($caWeek, $caPrevWeek),
-            'commissions_month' => $commissionsMonth,
+            'orders_today' => ['value' => (clone $rangeOrders)->whereDate('orders.created_at', $now->toDateString())->count()],
+            'orders_month' => ['value' => $ordersTotal],
+            'orders_week' => ['value' => $ordersTotal, 'previous' => 0],
+            'orders_trend' => null,
+            'ca_today' => ['value' => (int) (clone $successfulOrders)->whereDate('orders.created_at', $now->toDateString())->sum('orders.total')],
+            'ca_month' => ['value' => $revenueTotal],
+            'ca_week' => ['value' => $revenueTotal, 'previous' => 0],
+            'ca_trend' => null,
+            'commissions_month' => $orderCommissionTotal + $parcelCommissionTotal,
             'active_vendors' => Vendor::where('status', VendorStatus::Active->value)->count(),
-            'online_drivers' => DriverProfile::where('status', DriverStatus::Active->value)
-                ->where('available', true)
-                ->count(),
+            'online_drivers' => DriverProfile::where('status', DriverStatus::Active->value)->where('available', true)->count(),
             'pending_refunds' => Refund::where('status', RefundStatus::Pending->value)->count(),
         ];
 
@@ -103,9 +172,35 @@ class AdminController extends Controller
         $alerts['pending_refunds'] = $kpis['pending_refunds'];
 
         $latestOrders = Order::with(['vendor', 'user'])
+            ->whereBetween('created_at', [$from, $to])
             ->orderByDesc('created_at')
-            ->limit(8)
+            ->limit(7)
             ->get();
+
+        $largestCommission = max($dailyCommissions ?: [0]);
+        $largestRevenue = max($dailyRevenue ?: [0]);
+        $orderCommissionShare = max($orderCommissionTotal, 0);
+        $parcelCommissionShare = max($parcelCommissionTotal, 0);
+
+        $statusGroups = [
+            'Livrées' => [OrderStatus::Delivered->value],
+            'En cours' => [OrderStatus::Paid->value, OrderStatus::Accepted->value, OrderStatus::Preparing->value, OrderStatus::Ready->value, OrderStatus::Assigned->value, OrderStatus::PickedUp->value, OrderStatus::InDelivery->value],
+            'En attente' => [OrderStatus::Draft->value, OrderStatus::AwaitingPayment->value],
+            'Litiges' => [OrderStatus::Disputed->value],
+            'Annulées' => [OrderStatus::Cancelled->value],
+            'Remboursées' => [OrderStatus::Refunded->value],
+        ];
+        $statusChart = collect($statusGroups)->map(fn (array $statuses, string $label) => [
+            'label' => $label,
+            'value' => (int) collect($statuses)->sum(fn (string $status) => (int) ($statusRows[$status] ?? 0)),
+        ])->values();
+        $paymentChart = collect([
+            ['key' => 'cash', 'label' => 'Espèces'],
+            ['key' => 'online', 'label' => 'Mobile Money'],
+        ])->map(fn ($item) => [
+            'label' => $item['label'],
+            'value' => (int) ($paymentRows[$item['key']]->amount ?? 0),
+        ]);
 
         return view('admin.dashboard', [
             'vendors' => Vendor::count(),
@@ -115,6 +210,24 @@ class AdminController extends Controller
             'kpis' => $kpis,
             'alerts' => $alerts,
             'latestOrders' => $latestOrders,
+            'period' => ['from' => $from->toDateString(), 'to' => $to->toDateString()],
+            'chartData' => [
+                'labels' => $days,
+                'revenue' => $dailyRevenue,
+                'commissions' => $dailyCommissions,
+                'max_revenue' => $largestRevenue,
+                'max_commission' => $largestCommission,
+                'commission_split' => [$orderCommissionShare, $parcelCommissionShare],
+                'revenue_split' => [
+                    (int) OrderFinancial::query()->whereHas('order', fn (Builder $query) => $query->whereBetween('orders.created_at', [$from, $to])->whereNotIn('orders.status', $excludedStatuses)->where('orders.payment_status', PaymentStatus::Confirmed->value))->sum('vendor_amount'),
+                    (int) OrderFinancial::query()->whereHas('order', fn (Builder $query) => $query->whereBetween('orders.created_at', [$from, $to])->whereNotIn('orders.status', $excludedStatuses)->where('orders.payment_status', PaymentStatus::Confirmed->value))->sum('delivery_partner_amount') + (int) (clone $parcelBase)->sum('partner_amount'),
+                    (int) OrderFinancial::query()->whereHas('order', fn (Builder $query) => $query->whereBetween('orders.created_at', [$from, $to])->whereNotIn('orders.status', $excludedStatuses)->where('orders.payment_status', PaymentStatus::Confirmed->value))->sum('platform_amount') + $parcelCommissionTotal,
+                ],
+                'order_statuses' => $statusChart->all(),
+                'payment_methods' => $paymentChart->all(),
+                'payment_orders' => [(int) ($paymentRows['cash']->orders_count ?? 0), (int) ($paymentRows['online']->orders_count ?? 0)],
+            ],
+            'leaderboards' => ['vendors' => $vendorSummary, 'clients' => $clientSummary, 'drivers' => $driverSummary],
         ]);
     }
 

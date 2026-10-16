@@ -68,9 +68,9 @@
                 </a>
             </li>
             
-            <li class="{{ request()->routeIs('admin.zones.*') || request()->routeIs('admin.rates.*') ? 'active' : '' }}">
-                <a class="has-arrow" href="javascript:void(0)" aria-expanded="false" style="color: {{ request()->routeIs('admin.zones.*') || request()->routeIs('admin.rates.*') ? '#FFFFFF' : 'var(--sidebar-text)' }}; background-color: {{ request()->routeIs('admin.zones.*') || request()->routeIs('admin.rates.*') ? 'var(--sidebar-active-bg)' : 'transparent' }};">
-                    <i class="nav-icon ti ti-map-alt" style="color: {{ request()->routeIs('admin.zones.*') || request()->routeIs('admin.rates.*') ? '#FFFFFF' : 'var(--sidebar-text)' }};"></i>
+            <li class="{{ request()->routeIs('admin.zones.*') || request()->routeIs('admin.rates.*') || request()->routeIs('admin.pricing.*') ? 'active' : '' }}">
+                <a class="has-arrow" href="javascript:void(0)" aria-expanded="false" style="color: {{ request()->routeIs('admin.zones.*') || request()->routeIs('admin.rates.*') || request()->routeIs('admin.pricing.*') ? '#FFFFFF' : 'var(--sidebar-text)' }}; background-color: {{ request()->routeIs('admin.zones.*') || request()->routeIs('admin.rates.*') || request()->routeIs('admin.pricing.*') ? 'var(--sidebar-active-bg)' : 'transparent' }};">
+                    <i class="nav-icon ti ti-map-alt" style="color: {{ request()->routeIs('admin.zones.*') || request()->routeIs('admin.rates.*') || request()->routeIs('admin.pricing.*') ? '#FFFFFF' : 'var(--sidebar-text)' }};"></i>
                     <span class="nav-title">{{ __('admin.delivery') }}</span>
                 </a>
                 <ul aria-expanded="false" style="background-color: rgba(0,0,0,0.2);">
@@ -79,6 +79,9 @@
                     </li>
                     <li class="{{ request()->routeIs('admin.rates.*') ? 'active' : '' }}">
                         <a href="{{ route('admin.rates.index') }}" style="color: {{ request()->routeIs('admin.rates.*') ? 'var(--benin-orange)' : 'var(--sidebar-text)' }};">{{ __('admin.rates') }}</a>
+                    </li>
+                    <li class="{{ request()->routeIs('admin.pricing.*') ? 'active' : '' }}">
+                        <a href="{{ route('admin.pricing.index') }}" style="color: {{ request()->routeIs('admin.pricing.*') ? 'var(--benin-orange)' : 'var(--sidebar-text)' }};">Tarifs par distance</a>
                     </li>
                 </ul>
             </li>

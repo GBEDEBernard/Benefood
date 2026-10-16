@@ -65,6 +65,22 @@ class AdminPayoutsTest extends TestCase
             ->assertSee('Chez Edna');
     }
 
+    public function test_admin_can_view_payouts_page_when_a_payout_is_processing(): void
+    {
+        $wallet = $this->walletWithAvailable(5000);
+        Payout::create([
+            'wallet_id' => $wallet->id,
+            'amount' => 1500,
+            'method' => 'mobile_money',
+            'status' => PayoutStatus::Processing->value,
+        ]);
+
+        $this->actingAs($this->admin())
+            ->get(route('admin.payouts.index'))
+            ->assertOk()
+            ->assertSee('En cours');
+    }
+
     public function test_admin_executes_a_payout(): void
     {
         $wallet = $this->walletWithAvailable(5000);

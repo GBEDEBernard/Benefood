@@ -29,6 +29,7 @@ class Parcel extends Model
             'payment_method' => PaymentMethod::class,
             'pickup_snapshot' => 'array',
             'dropoff_snapshot' => 'array',
+            'pricing_snapshot' => 'array',
             'distance_km' => 'decimal:2',
             'delivery_fee' => 'integer',
             'commission_rate' => 'integer',

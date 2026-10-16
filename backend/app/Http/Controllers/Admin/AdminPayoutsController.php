@@ -42,6 +42,7 @@ class AdminPayoutsController extends Controller
             'counts' => [
                 'all' => Payout::count(),
                 'pending' => Payout::where('status', PayoutStatus::Pending->value)->count(),
+                'processing' => Payout::where('status', PayoutStatus::Processing->value)->count(),
                 'executed' => Payout::where('status', PayoutStatus::Executed->value)->count(),
                 'failed' => Payout::where('status', PayoutStatus::Failed->value)->count(),
             ],

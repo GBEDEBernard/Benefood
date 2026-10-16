@@ -1,226 +1,254 @@
 @extends('layouts.app')
 
 @section('content')
-<!-- begin page-title -->
-<div class="row">
-    <div class="col-md-12 m-b-30">
-        <div class="d-block d-lg-flex flex-nowrap align-items-center">
-            <div class="page-title mr-4 pr-4 border-right">
-                <h1 style="color: var(--text-dark); font-weight: 700;">Dashboard</h1>
-            </div>
-            <div class="breadcrumb-bar align-items-center">
-                <nav>
-                    <ol class="breadcrumb p-0 m-b-0">
-                        <li class="breadcrumb-item">
-                            <a href="{{ route('admin.dashboard') }}"><i class="ti ti-home" style="color: var(--benin-green);"></i></a>
-                        </li>
-                        <li class="breadcrumb-item active" aria-current="page" style="color: var(--text-muted);">Dashboard</li>
-                    </ol>
-                </nav>
-            </div>
-        </div>
-    </div>
-</div>
-<!-- end page-title -->
-
+<style>
+    .bf-top-search{height:34px;max-width:370px;flex:1;margin:0 auto;display:flex;align-items:center;gap:9px;padding:0 10px;border:1px solid #e5eaf0;border-radius:7px;background:#fafbfd;color:#8c97a6}
+    .bf-top-search>i{font-size:13px}.bf-top-search input{border:0;outline:0;background:transparent;min-width:0;flex:1;font-size:10px;color:#455266}.bf-top-search input::placeholder{color:#939eac}.bf-top-search kbd{background:#fff;border:1px solid #e5eaf0;border-radius:4px;padding:2px 5px;color:#8792a1;font-size:8px;white-space:nowrap}
+    .bf-dashboard{--bf-ink:#17212f;--bf-muted:#778293;--bf-border:#e8edf2;--bf-green:#25934a;--bf-orange:#f5821f;--bf-blue:#3189e8;--bf-purple:#7d4ce0;color:var(--bf-ink);font-family:Roboto,sans-serif}
+    .bf-dashboard-heading{display:flex;align-items:center;justify-content:space-between;gap:20px;margin:0 0 18px}
+    .bf-dashboard-heading h1{font-size:25px;line-height:1.2;font-weight:700;margin:3px 0 5px;color:var(--bf-ink)!important;letter-spacing:-.45px}
+    .bf-dashboard-heading p{margin:0;color:var(--bf-muted);font-size:12px;line-height:1.5}
+    .bf-eyebrow{font-size:9px;letter-spacing:1.35px;font-weight:800;color:var(--bf-green)}
+    .bf-date-filter{display:flex;align-items:center;gap:8px;padding:5px 9px;border:1px solid var(--bf-border);border-radius:9px;background:#fff;box-shadow:0 2px 7px rgba(29,48,75,.035)}
+    .bf-date-filter>i{color:var(--bf-green);font-size:15px}.bf-date-filter span{color:#a5aebb;font-size:11px}
+    .bf-date-filter input{border:0;background:transparent;color:#4c5868;font-size:10px;width:108px;outline:none}.bf-date-filter button{border:0;background:#eef8f0;color:var(--bf-green);border-radius:6px;width:27px;height:27px;cursor:pointer}
+    .bf-kpis{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px;margin-bottom:12px}
+    .bf-kpi-card,.bf-panel{background:#fff;border:1px solid var(--bf-border);border-radius:11px;box-shadow:0 2px 8px rgba(23,45,71,.035);min-width:0}
+    .bf-kpi-card{min-height:88px;padding:14px 13px;display:flex;align-items:center;justify-content:space-between;gap:8px}
+    .bf-kpi-copy{min-width:0;display:flex;flex-direction:column}.bf-kpi-label{font-size:9px;text-transform:uppercase;letter-spacing:.22px;font-weight:700;color:#647184;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .bf-kpi-value{font-size:18px;line-height:1.3;margin:7px 0 4px;letter-spacing:-.45px;color:var(--bf-ink);white-space:nowrap}.bf-kpi-foot{font-size:9px;color:var(--bf-green);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.bf-kpi-foot i{font-size:9px}
+    .bf-kpi-icon{width:33px;height:33px;border-radius:9px;display:flex;align-items:center;justify-content:center;flex:none;font-size:16px}.bf-kpi-icon.green{background:#e8f5eb;color:var(--bf-green)}.bf-kpi-icon.blue{background:#eaf3ff;color:var(--bf-blue)}.bf-kpi-icon.purple{background:#f2ecff;color:var(--bf-purple)}.bf-kpi-icon.orange{background:#fff1e4;color:var(--bf-orange)}
+    .bf-grid{display:grid;gap:10px;margin-bottom:12px}.bf-grid-top{grid-template-columns:1.55fr 1fr 1.22fr}.bf-grid-leaderboards{grid-template-columns:repeat(3,minmax(0,1fr))}.bf-grid-bottom{grid-template-columns:1.2fr 1fr 1fr .9fr}
+    .bf-panel{padding:14px 14px 12px}.bf-panel-head{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:8px;min-height:31px}.bf-panel-head h2{font-size:11px;line-height:1.4;font-weight:700;margin:0;color:#243043!important}.bf-panel-head p{font-size:9px;margin:3px 0 0;color:#929cab;line-height:1.3}.bf-panel-head>a{font-size:9px;white-space:nowrap;color:var(--bf-green);font-weight:700}.bf-panel-head>a i{font-size:9px;margin-left:2px}.bf-chart-unit{font-size:8px;color:#737f8f;background:#f7f9fb;padding:4px 7px;border:1px solid #edf0f3;border-radius:5px;white-space:nowrap}
+    .bf-chart-area{height:154px;position:relative}.bf-panel-commission .bf-chart-area{height:158px}.bf-chart-bar{height:146px}
+    .bf-donut-layout{display:flex;align-items:center;justify-content:center;gap:12px;min-height:150px}.bf-donut-wrap{width:135px;height:135px;position:relative;flex:none}.bf-donut-wrap canvas{position:relative;z-index:1}.bf-donut-center{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:2;pointer-events:none;text-align:center;width:74px}.bf-donut-center strong{display:block;font-size:11px;line-height:1.25;color:#273346;white-space:nowrap}.bf-donut-center span{display:block;margin-top:3px;font-size:8px;color:#8993a0;white-space:nowrap}.bf-legend-list{display:flex;flex-direction:column;gap:10px;min-width:0;flex:1}.bf-legend-list>div{display:grid;grid-template-columns:8px minmax(0,1fr);align-items:center;column-gap:6px;row-gap:2px;font-size:9px;color:#697586}.bf-legend-list b{grid-column:2;font-size:9px;color:#344053;white-space:nowrap}.bf-dot{width:7px;height:7px;border-radius:50%;background:#aaa}.bf-dot.green{background:var(--bf-green)}.bf-dot.orange{background:var(--bf-orange)}.bf-dot.blue{background:var(--bf-blue)}
+    .bf-table-panel{padding-bottom:4px}.bf-table-panel .bf-panel-head{align-items:center;min-height:23px;margin-bottom:7px}.bf-table-scroll{width:100%;overflow-x:auto}.bf-table{width:100%;border-collapse:collapse;font-size:9px;white-space:nowrap}.bf-table thead th{padding:7px 5px;text-align:left;text-transform:uppercase;font-size:8px;letter-spacing:.25px;color:#8791a0;background:#f8fafb;border:0;border-bottom:1px solid var(--bf-border)}.bf-table tbody td{padding:8px 5px;border:0;border-bottom:1px solid #f0f2f5;color:#586476;vertical-align:middle}.bf-table tbody tr:last-child td{border-bottom:0}.bf-table tbody td strong{font-size:9px;color:#3c4758;font-weight:600}.bf-table-avatar{display:inline-flex;width:20px;height:20px;border-radius:6px;align-items:center;justify-content:center;margin-right:5px;font-size:10px;vertical-align:middle}.bf-table-avatar.green{background:#e9f5ec;color:var(--bf-green)}.bf-table-avatar.blue{background:#edf4ff;color:var(--bf-blue)}.bf-table-avatar.orange{background:#fff2e6;color:var(--bf-orange)}.bf-share{color:var(--bf-green);font-weight:700}.bf-empty{text-align:center!important;color:#929cab!important;padding:19px 6px!important}
+    .bf-panel-bottom-donut .bf-donut-layout-small{gap:6px;min-height:145px}.bf-panel-bottom-donut .bf-donut-wrap{width:120px;height:120px}.bf-panel-bottom-donut .bf-legend-list{gap:8px}.bf-panel-bottom-donut .bf-legend-list>div{font-size:8px}.bf-panel-bottom-donut .bf-legend-list b{font-size:8px}.bf-panel-growth{display:flex;flex-direction:column}.bf-growth-stat{display:flex;align-items:baseline;gap:7px;padding:8px 1px 4px}.bf-growth-stat strong{font-size:26px;letter-spacing:-1px;color:#253245}.bf-growth-stat span{font-size:9px;color:#8c96a4}.bf-mini-bars{height:85px;display:flex;align-items:flex-end;gap:5px;padding:8px 3px 0;border-bottom:1px solid #edf0f3}.bf-mini-bars span{flex:1;min-width:3px;border-radius:3px 3px 0 0;background:linear-gradient(180deg,#34a45b,#b6e0c3);opacity:.92}.bf-growth-foot{display:flex;justify-content:space-between;gap:5px;margin-top:auto;padding-top:9px;font-size:8px;color:#8a94a1}.bf-orders-panel{padding-bottom:5px}.bf-orders-panel .bf-table{font-size:10px}.bf-orders-panel .bf-table thead th{padding:9px}.bf-orders-panel .bf-table tbody td{padding:9px}.bf-order-ref{font-weight:700;color:var(--bf-green)}
+    .bf-dashboard .badge{font-size:8px;padding:5px 8px;border-radius:20px}
+    @media(max-width:1500px){.bf-kpis{grid-template-columns:repeat(3,minmax(0,1fr))}.bf-grid-top{grid-template-columns:1.4fr 1fr}.bf-panel-distribution{grid-column:span 2}.bf-grid-bottom{grid-template-columns:repeat(2,minmax(0,1fr))}}
+    @media(max-width:1000px){.bf-grid-top,.bf-grid-leaderboards{grid-template-columns:repeat(2,minmax(0,1fr))}.bf-panel-distribution{grid-column:auto}.bf-grid-leaderboards .bf-panel:last-child{grid-column:span 2}}
+    @media(max-width:767px){.bf-top-search{display:none}}
+    @media(max-width:680px){.bf-dashboard-heading{align-items:flex-start;flex-direction:column}.bf-date-filter{width:100%;justify-content:space-between}.bf-date-filter input{width:calc(50% - 35px)}.bf-kpis{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.bf-kpi-card{padding:11px 9px;min-height:82px}.bf-kpi-value{font-size:14px}.bf-kpi-label{font-size:8px}.bf-grid-top,.bf-grid-leaderboards,.bf-grid-bottom{grid-template-columns:1fr}.bf-grid-leaderboards .bf-panel:last-child{grid-column:auto}.bf-panel-distribution{grid-column:auto}.bf-panel{padding:12px}.bf-panel-commission .bf-chart-area{height:180px}.bf-donut-layout{justify-content:flex-start}.bf-panel-bottom-donut .bf-donut-layout-small{justify-content:flex-start}.bf-dashboard-heading h1{font-size:22px}}
+</style>
 @php
-    $kpiCards = [
-        ['label' => 'Commandes aujourd’hui', 'value' => number_format($kpis['orders_today']['value']), 'icon' => 'ti-shopping-cart', 'bg' => '#E8F5E9', 'fg' => '#2E7D32'],
-        ['label' => 'CA aujourd’hui', 'value' => \App\Support\AdminLabels::priceLabel($kpis['ca_today']['value']), 'icon' => 'ti-wallet', 'bg' => '#FFF3E0', 'fg' => '#E65100'],
-        ['label' => 'Commandes ce mois', 'value' => number_format($kpis['orders_month']['value']), 'icon' => 'ti-shopping-cart', 'bg' => '#E1F5FE', 'fg' => '#0277BD'],
-        ['label' => 'CA ce mois', 'value' => \App\Support\AdminLabels::priceLabel($kpis['ca_month']['value']), 'icon' => 'ti-wallet', 'bg' => '#E1F5FE', 'fg' => '#0277BD'],
-        ['label' => 'Commissions ce mois', 'value' => \App\Support\AdminLabels::priceLabel($kpis['commissions_month']), 'icon' => 'ti-percentage', 'bg' => '#F3E5F5', 'fg' => '#6A1B9A'],
-        ['label' => 'Vendeurs actifs', 'value' => number_format($kpis['active_vendors']), 'icon' => 'ti-briefcase', 'bg' => '#E8F5E9', 'fg' => '#2E7D32'],
-        ['label' => 'Livreurs en ligne', 'value' => number_format($kpis['online_drivers']), 'icon' => 'ti-truck', 'bg' => '#E0F7FA', 'fg' => '#00838F'],
-        ['label' => 'Remboursements en attente', 'value' => number_format($kpis['pending_refunds']), 'icon' => 'ti-refresh', 'bg' => '#FFEBEE', 'fg' => '#C62828'],
-    ];
+    $money = fn ($amount) => number_format((int) $amount, 0, ',', ' ').' FCFA';
+    $number = fn ($amount) => number_format((int) $amount, 0, ',', ' ');
+    $commissionTotal = array_sum($chartData['commission_split']);
+    $revenueDistributionTotal = array_sum($chartData['revenue_split']);
+    $statusColors = ['#25934a', '#f58a1f', '#2d86e6', '#e34b50', '#9aa4b2', '#7c5ce7'];
+    $statusLabels = array_column($chartData['order_statuses'], 'label');
+    $statusValues = array_column($chartData['order_statuses'], 'value');
+    $paymentLabels = array_column($chartData['payment_methods'], 'label');
+    $paymentValues = array_column($chartData['payment_methods'], 'value');
 @endphp
 
-<!-- begin KPI Cards -->
-<div class="row">
-    @foreach ($kpiCards as $kpi)
-        <div class="col-md-6 col-xl-3">
-            <div class="card card-statistics h-100" style="border: none; box-shadow: 0 2px 10px rgba(0,0,0,0.05); border-radius: 12px;">
-                <div class="card-body">
-                    <div class="d-flex align-items-center justify-content-between">
-                        <div>
-                            <p class="mb-0 font-weight-bold text-muted" style="color: var(--text-muted) !important;">{{ $kpi['label'] }}</p>
-                            <h3 class="mt-2 mb-0" style="color: var(--text-dark); font-weight: 700;">{{ $kpi['value'] }}</h3>
-                            @if (isset($kpi['trend']))
-                                <small class="font-weight-bold" style="color: {{ $kpi['trend'] >= 0 ? '#2E7D32' : '#C62828' }};">
-                                    {{ $kpi['trend'] >= 0 ? '+' : '' }}{{ $kpi['trend'] }}% vs 7j précédents
-                                </small>
-                            @endif
-                        </div>
-                        <div class="icon-box rounded-circle d-flex align-items-center justify-content-center" style="background-color: {{ $kpi['bg'] }}; width: 50px; height: 50px;">
-                            <i class="ti {{ $kpi['icon'] }}" style="color: {{ $kpi['fg'] }}; font-size: 24px;"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
+<div class="bf-dashboard">
+    <div class="bf-dashboard-heading">
+        <div>
+            <div class="bf-eyebrow">BÉNINFOOD · VUE D’ENSEMBLE</div>
+            <h1>Tableau de bord <span aria-hidden="true">👋</span></h1>
+            <p>Bienvenue sur l’administration Béninfood. Voici un aperçu de votre plateforme.</p>
         </div>
-    @endforeach
-</div>
+        <form class="bf-date-filter" method="GET" action="{{ route('admin.dashboard') }}">
+            <i class="ti ti-calendar"></i>
+            <label class="sr-only" for="dashboard-from">Du</label>
+            <input id="dashboard-from" type="date" name="from" value="{{ $period['from'] }}">
+            <span>—</span>
+            <label class="sr-only" for="dashboard-to">Au</label>
+            <input id="dashboard-to" type="date" name="to" value="{{ $period['to'] }}">
+            <button type="submit" aria-label="Appliquer la période"><i class="ti ti-arrow-right"></i></button>
+        </form>
+    </div>
 
-<!-- Tendance 7 jours (commandes + CA) -->
-<div class="row mt-4">
-    <div class="col-md-6">
-        <div class="card h-100" style="border: none; box-shadow: 0 2px 10px rgba(0,0,0,0.05); border-radius: 12px;">
-            <div class="card-header" style="background-color: #FFFFFF; border-bottom: 1px solid var(--border-color); border-radius: 12px 12px 0 0;">
-                <h6 class="card-title mb-0" style="color: var(--text-dark); font-weight: 700;">Tendance commandes (7 jours)</h6>
-            </div>
-            <div class="card-body">
-                <div class="d-flex align-items-center justify-content-around text-center">
-                    <div>
-                        <p class="mb-1 text-muted">7 derniers jours</p>
-                        <h4 class="mb-0" style="font-weight: 700;">{{ $kpis['orders_week']['value'] }}</h4>
-                    </div>
-                    <div>
-                        <p class="mb-1 text-muted">7 jours précédents</p>
-                        <h4 class="mb-0" style="font-weight: 700;">{{ $kpis['orders_week']['previous'] }}</h4>
-                    </div>
-                    <div>
-                        <p class="mb-1 text-muted">Évolution</p>
-                        <h4 class="mb-0" style="font-weight: 700; color: {{ $kpis['orders_trend'] !== null && $kpis['orders_trend'] >= 0 ? '#2E7D32' : '#C62828' }};">
-                            {{ $kpis['orders_trend'] === null ? '—' : ($kpis['orders_trend'] >= 0 ? '+' : '').$kpis['orders_trend'].'%' }}
-                        </h4>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-6">
-        <div class="card h-100" style="border: none; box-shadow: 0 2px 10px rgba(0,0,0,0.05); border-radius: 12px;">
-            <div class="card-header" style="background-color: #FFFFFF; border-bottom: 1px solid var(--border-color); border-radius: 12px 12px 0 0;">
-                <h6 class="card-title mb-0" style="color: var(--text-dark); font-weight: 700;">Tendance CA (7 jours)</h6>
-            </div>
-            <div class="card-body">
-                <div class="d-flex align-items-center justify-content-around text-center">
-                    <div>
-                        <p class="mb-1 text-muted">7 derniers jours</p>
-                        <h4 class="mb-0" style="font-weight: 700;">{{ \App\Support\AdminLabels::priceLabel($kpis['ca_week']['value']) }}</h4>
-                    </div>
-                    <div>
-                        <p class="mb-1 text-muted">7 jours précédents</p>
-                        <h4 class="mb-0" style="font-weight: 700;">{{ \App\Support\AdminLabels::priceLabel($kpis['ca_week']['previous']) }}</h4>
-                    </div>
-                    <div>
-                        <p class="mb-1 text-muted">Évolution</p>
-                        <h4 class="mb-0" style="font-weight: 700; color: {{ $kpis['ca_trend'] !== null && $kpis['ca_trend'] >= 0 ? '#2E7D32' : '#C62828' }};">
-                            {{ $kpis['ca_trend'] === null ? '—' : ($kpis['ca_trend'] >= 0 ? '+' : '').$kpis['ca_trend'].'%' }}
-                        </h4>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
+    @if ($errors->any())
+        <div class="alert alert-danger mb-3">{{ $errors->first() }}</div>
+    @endif
 
-<!-- Alertes + Dernières commandes -->
-<div class="row mt-4">
-    <div class="col-md-4">
-        <div class="card h-100" style="border: none; box-shadow: 0 2px 10px rgba(0,0,0,0.05); border-radius: 12px;">
-            <div class="card-header" style="background-color: #FFFFFF; border-bottom: 1px solid var(--border-color); border-radius: 12px 12px 0 0;">
-                <h6 class="card-title mb-0" style="color: var(--text-dark); font-weight: 700;">Alertes</h6>
-            </div>
-            <div class="card-body">
-                <ul class="list-unstyled mb-0">
-                    <li class="d-flex justify-content-between align-items-center py-2 border-bottom">
-                        <span><i class="ti ti-briefcase mr-2" style="color: #E65100;"></i>Vendeurs à vérifier</span>
-                        <a href="{{ route('admin.vendors.index', ['status' => 'pending_verification']) }}" class="font-weight-bold" style="color: var(--benin-green);">{{ $alerts['pending_vendors'] }}</a>
-                    </li>
-                    <li class="d-flex justify-content-between align-items-center py-2 border-bottom">
-                        <span><i class="ti ti-headphone mr-2" style="color: #C62828;"></i>Réclamations ouvertes</span>
-                        <a href="{{ route('admin.complaints.index') }}" class="font-weight-bold" style="color: var(--benin-green);">{{ $alerts['open_complaints'] }}</a>
-                    </li>
-                    <li class="d-flex justify-content-between align-items-center py-2 border-bottom">
-                        <span><i class="ti ti-shopping-cart mr-2" style="color: #0277BD;"></i>Commandes à payer</span>
-                        <a href="{{ route('admin.orders.index', ['status' => 'awaiting_payment']) }}" class="font-weight-bold" style="color: var(--benin-green);">{{ $alerts['awaiting_payment_orders'] }}</a>
-                    </li>
-                    <li class="d-flex justify-content-between align-items-center py-2">
-                        <span><i class="ti ti-refresh mr-2" style="color: #E65100;"></i>Remboursements en attente</span>
-                        <a href="{{ route('admin.refunds.index') }}" class="font-weight-bold" style="color: var(--benin-green);">{{ $alerts['pending_refunds'] }}</a>
-                    </li>
-                </ul>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-8">
-        <div class="card h-100" style="border: none; box-shadow: 0 2px 10px rgba(0,0,0,0.05); border-radius: 12px;">
-            <div class="card-header d-flex justify-content-between align-items-center" style="background-color: #FFFFFF; border-bottom: 1px solid var(--border-color); border-radius: 12px 12px 0 0;">
-                <h6 class="card-title mb-0" style="color: var(--text-dark); font-weight: 700;">Dernières commandes</h6>
-                <a href="{{ route('admin.orders.index') }}" style="color: var(--benin-green); font-weight: 600;">Tout voir</a>
-            </div>
-            <div class="card-body p-0">
-                @if (count($latestOrders) > 0)
-                    <div class="table-responsive">
-                        <table class="table table-hover mb-0" style="font-size: 14px;">
-                            <thead>
-                                <tr style="color: var(--text-muted);">
-                                    <th>Référence</th>
-                                    <th>Client</th>
-                                    <th>Boutique</th>
-                                    <th>Total</th>
-                                    <th>Statut</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @foreach ($latestOrders as $order)
-                                    <tr>
-                                        <td><a href="{{ route('admin.orders.show', $order) }}" style="color: var(--benin-green); font-weight: 600;">{{ $order->reference }}</a></td>
-                                        <td>{{ $order->user?->name ?? '—' }}</td>
-                                        <td>{{ $order->vendor?->business_name ?? '—' }}</td>
-                                        <td>{{ \App\Support\AdminLabels::priceLabel($order->total) }}</td>
-                                        <td>{!! \App\Support\AdminLabels::orderStatusBadge($order->status->value) !!}</td>
-                                    </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
-                    </div>
-                @else
-                    <div class="text-center py-5" style="color: var(--text-muted);">
-                        <i class="ti ti-shopping-cart" style="font-size: 32px;"></i>
-                        <p class="mb-0 mt-2">Aucune commande enregistrée.</p>
-                    </div>
-                @endif
-            </div>
-        </div>
-    </div>
-</div>
+    <section class="bf-kpis" aria-label="Indicateurs clés">
+        @php
+            $kpiCards = [
+                ['label' => 'Chiffre d’affaires', 'value' => $money($kpis['ca_month']['value']), 'trend' => 'Période sélectionnée', 'icon' => 'ti-wallet', 'tone' => 'green'],
+                ['label' => 'Montant total traité', 'value' => $money($kpis['ca_month']['value']), 'trend' => $number($kpis['orders_month']['value']).' commandes', 'icon' => 'ti-exchange-vertical', 'tone' => 'blue'],
+                ['label' => 'Commissions plateforme', 'value' => $money($kpis['commissions_month']), 'trend' => 'Commandes et colis', 'icon' => 'ti-tag', 'tone' => 'purple'],
+                ['label' => 'Commandes totales', 'value' => $number($kpis['orders_month']['value']), 'trend' => 'Sur la période', 'icon' => 'ti-shopping-cart', 'tone' => 'green'],
+                ['label' => 'Utilisateurs inscrits', 'value' => $number($users), 'trend' => 'Comptes enregistrés', 'icon' => 'ti-user', 'tone' => 'blue'],
+                ['label' => 'Livreurs actifs', 'value' => $number($kpis['online_drivers']), 'trend' => 'En ligne maintenant', 'icon' => 'ti-truck', 'tone' => 'orange'],
+            ];
+        @endphp
+        @foreach ($kpiCards as $card)
+            <article class="bf-kpi-card">
+                <div class="bf-kpi-copy">
+                    <span class="bf-kpi-label">{{ $card['label'] }}</span>
+                    <strong class="bf-kpi-value">{{ $card['value'] }}</strong>
+                    <span class="bf-kpi-foot"><i class="ti ti-arrow-up"></i> {{ $card['trend'] }}</span>
+                </div>
+                <span class="bf-kpi-icon {{ $card['tone'] }}"><i class="ti {{ $card['icon'] }}"></i></span>
+            </article>
+        @endforeach
+    </section>
 
-<!-- begin Quick Actions -->
-<div class="row mt-4">
-    <div class="col-md-12">
-        <div class="card" style="border: none; box-shadow: 0 2px 10px rgba(0,0,0,0.05); border-radius: 12px;">
-            <div class="card-header" style="background-color: #FFFFFF; border-bottom: 1px solid var(--border-color); border-radius: 12px 12px 0 0;">
-                <h4 class="card-title" style="color: var(--text-dark); font-weight: 700; margin-bottom: 0;">Actions rapides</h4>
+    <section class="bf-grid bf-grid-top" aria-label="Tendances et répartitions">
+        <article class="bf-panel bf-panel-commission">
+            <div class="bf-panel-head">
+                <div><h2>Évolution des commissions plateforme</h2><p>Commission cumulée sur la période</p></div>
+                <span class="bf-chart-unit">FCFA</span>
             </div>
-            <div class="card-body">
-                <div class="row">
-                    <div class="col-md-3 col-sm-6 mb-3">
-                        <a href="{{ route('admin.vendors.index') }}" class="btn btn-block" style="background-color: var(--benin-green); color: #FFFFFF; border-radius: 8px; font-weight: 500; padding: 12px;">
-                            <i class="ti ti-briefcase"></i> Gérer les vendeurs
-                        </a>
-                    </div>
-                    <div class="col-md-3 col-sm-6 mb-3">
-                        <a href="{{ route('admin.orders.index') }}" class="btn btn-block" style="background-color: var(--benin-orange); color: #FFFFFF; border-radius: 8px; font-weight: 500; padding: 12px;">
-                            <i class="ti ti-shopping-cart"></i> Voir les commandes
-                        </a>
-                    </div>
-                    <div class="col-md-3 col-sm-6 mb-3">
-                        <a href="{{ route('admin.complaints.index') }}" class="btn btn-block" style="background-color: #FFFFFF; color: var(--text-dark); border: 1px solid var(--border-color); border-radius: 8px; font-weight: 500; padding: 12px;">
-                            <i class="ti ti-headphone" style="color: var(--benin-red);"></i> Réclamations
-                        </a>
-                    </div>
-                    <div class="col-md-3 col-sm-6 mb-3">
-                        <a href="{{ route('admin.settings.index') }}" class="btn btn-block" style="background-color: #FFFFFF; color: var(--text-dark); border: 1px solid var(--border-color); border-radius: 8px; font-weight: 500; padding: 12px;">
-                            <i class="ti ti-settings" style="color: var(--text-muted);"></i> Paramètres
-                        </a>
-                    </div>
+            <div class="bf-chart-area"><canvas id="commissionTrendChart" aria-label="Évolution des commissions par jour"></canvas></div>
+        </article>
+
+        <article class="bf-panel bf-panel-donut">
+            <div class="bf-panel-head"><div><h2>Commissions par service</h2><p>Répartition des commissions</p></div></div>
+            <div class="bf-donut-layout">
+                <div class="bf-donut-wrap"><canvas id="commissionSplitChart" aria-label="Commissions par service"></canvas><div class="bf-donut-center"><strong>{{ $money($commissionTotal) }}</strong><span>Total période</span></div></div>
+                <div class="bf-legend-list">
+                    <div><i class="bf-dot green"></i><span>Commandes</span><b>{{ $money($chartData['commission_split'][0]) }}</b></div>
+                    <div><i class="bf-dot orange"></i><span>Colis</span><b>{{ $money($chartData['commission_split'][1]) }}</b></div>
                 </div>
             </div>
-        </div>
-    </div>
+        </article>
+
+        <article class="bf-panel bf-panel-donut bf-panel-distribution">
+            <div class="bf-panel-head"><div><h2>Répartition des revenus</h2><p>Montants nets distribués</p></div></div>
+            <div class="bf-donut-layout">
+                <div class="bf-donut-wrap"><canvas id="revenueSplitChart" aria-label="Répartition des montants par bénéficiaire"></canvas><div class="bf-donut-center"><strong>{{ $money($revenueDistributionTotal) }}</strong><span>Total période</span></div></div>
+                <div class="bf-legend-list">
+                    <div><i class="bf-dot green"></i><span>Boutiques</span><b>{{ $money($chartData['revenue_split'][0]) }}</b></div>
+                    <div><i class="bf-dot orange"></i><span>Livreurs</span><b>{{ $money($chartData['revenue_split'][1]) }}</b></div>
+                    <div><i class="bf-dot blue"></i><span>Plateforme</span><b>{{ $money($chartData['revenue_split'][2]) }}</b></div>
+                </div>
+            </div>
+        </article>
+    </section>
+
+    <section class="bf-grid bf-grid-leaderboards" aria-label="Meilleurs contributeurs">
+        <article class="bf-panel bf-table-panel">
+            <div class="bf-panel-head"><h2>Chiffre d’affaires par boutique</h2><a href="{{ route('admin.vendors.index') }}">Voir tout <i class="ti ti-arrow-right"></i></a></div>
+            <div class="bf-table-scroll"><table class="bf-table"><thead><tr><th>Boutique</th><th>CA (FCFA)</th><th>Commandes</th><th>Part</th></tr></thead><tbody>
+                @forelse ($leaderboards['vendors'] as $vendor)
+                    <tr><td><span class="bf-table-avatar green"><i class="ti ti-store"></i></span><strong>{{ $vendor->business_name }}</strong></td><td>{{ $money($vendor->revenue) }}</td><td>{{ $number($vendor->orders_count) }}</td><td><span class="bf-share">{{ number_format(((int) $vendor->revenue / max((int) $kpis['ca_month']['value'], 1)) * 100, 1, ',', ' ') }}%</span></td></tr>
+                @empty
+                    <tr><td colspan="4" class="bf-empty">Aucune vente sur cette période.</td></tr>
+                @endforelse
+            </tbody></table></div>
+        </article>
+
+        <article class="bf-panel bf-table-panel">
+            <div class="bf-panel-head"><h2>Chiffre d’affaires par client</h2><a href="{{ route('admin.clients.index') }}">Voir tout <i class="ti ti-arrow-right"></i></a></div>
+            <div class="bf-table-scroll"><table class="bf-table"><thead><tr><th>Client</th><th>Dépense totale</th><th>Commandes</th></tr></thead><tbody>
+                @forelse ($leaderboards['clients'] as $client)
+                    <tr><td><span class="bf-table-avatar blue"><i class="ti ti-user"></i></span><strong>{{ $client->name }}</strong></td><td>{{ $money($client->revenue) }}</td><td>{{ $number($client->orders_count) }}</td></tr>
+                @empty
+                    <tr><td colspan="3" class="bf-empty">Aucune commande payée sur cette période.</td></tr>
+                @endforelse
+            </tbody></table></div>
+        </article>
+
+        <article class="bf-panel bf-table-panel">
+            <div class="bf-panel-head"><h2>Revenus par livreur</h2><a href="{{ route('admin.drivers.index') }}">Voir tout <i class="ti ti-arrow-right"></i></a></div>
+            <div class="bf-table-scroll"><table class="bf-table"><thead><tr><th>Livreur</th><th>Part livreur</th><th>Courses</th></tr></thead><tbody>
+                @forelse ($leaderboards['drivers'] as $driver)
+                    <tr><td><span class="bf-table-avatar orange"><i class="ti ti-truck"></i></span><strong>{{ $driver->name }}</strong></td><td>{{ $money($driver->revenue) }}</td><td>{{ $number($driver->deliveries_count) }}</td></tr>
+                @empty
+                    <tr><td colspan="3" class="bf-empty">Aucune course terminée sur cette période.</td></tr>
+                @endforelse
+            </tbody></table></div>
+        </article>
+    </section>
+
+    <section class="bf-grid bf-grid-bottom" aria-label="Analyses détaillées">
+        <article class="bf-panel bf-panel-bottom-chart">
+            <div class="bf-panel-head"><div><h2>Évolution du chiffre d’affaires</h2><p>Montant quotidien (FCFA)</p></div><span class="bf-chart-unit">Période</span></div>
+            <div class="bf-chart-area bf-chart-bar"><canvas id="revenueTrendChart" aria-label="Chiffre d’affaires quotidien"></canvas></div>
+        </article>
+        <article class="bf-panel bf-panel-bottom-donut">
+            <div class="bf-panel-head"><div><h2>Commandes par statut</h2><p>{{ $number($kpis['orders_month']['value']) }} commandes</p></div></div>
+            <div class="bf-donut-layout bf-donut-layout-small">
+                <div class="bf-donut-wrap"><canvas id="orderStatusChart" aria-label="Commandes par statut"></canvas><div class="bf-donut-center"><strong>{{ $number($kpis['orders_month']['value']) }}</strong><span>Commandes</span></div></div>
+                <div class="bf-legend-list">@foreach ($chartData['order_statuses'] as $index => $status)<div><i class="bf-dot" style="background:{{ $statusColors[$index % count($statusColors)] }}"></i><span>{{ $status['label'] }}</span><b>{{ $number($status['value']) }}</b></div>@endforeach</div>
+            </div>
+        </article>
+        <article class="bf-panel bf-panel-bottom-donut">
+            <div class="bf-panel-head"><div><h2>Méthodes de paiement</h2><p>Encaissements confirmés</p></div></div>
+            <div class="bf-donut-layout bf-donut-layout-small">
+                <div class="bf-donut-wrap"><canvas id="paymentMethodChart" aria-label="Répartition des encaissements par méthode"></canvas><div class="bf-donut-center"><strong>{{ $money(array_sum($paymentValues)) }}</strong><span>Encaissé</span></div></div>
+                <div class="bf-legend-list">@foreach ($chartData['payment_methods'] as $index => $method)<div><i class="bf-dot {{ $index === 0 ? 'green' : 'orange' }}"></i><span>{{ $method['label'] }}</span><b>{{ $money($method['value']) }}</b></div>@endforeach</div>
+            </div>
+        </article>
+        <article class="bf-panel bf-panel-growth">
+            <div class="bf-panel-head"><div><h2>Activité de la période</h2><p>Commandes par jour</p></div></div>
+            <div class="bf-growth-stat"><strong>{{ $number($kpis['orders_month']['value']) }}</strong><span>commandes</span></div>
+            <div class="bf-mini-bars" aria-hidden="true">@foreach ($chartData['revenue'] as $value)<span style="height:{{ $chartData['max_revenue'] > 0 ? max(8, (int) round($value / $chartData['max_revenue'] * 100)) : 8 }}%"></span>@endforeach</div>
+            <div class="bf-growth-foot"><span>{{ $number($kpis['active_vendors']) }} boutiques actives</span><span>{{ $number($products) }} produits</span></div>
+        </article>
+    </section>
+
+    <section class="bf-panel bf-orders-panel">
+        <div class="bf-panel-head"><div><h2>Dernières commandes</h2><p>Activité récente dans la période choisie</p></div><a href="{{ route('admin.orders.index') }}">Toutes les commandes <i class="ti ti-arrow-right"></i></a></div>
+        <div class="bf-table-scroll"><table class="bf-table bf-orders-table"><thead><tr><th>Référence</th><th>Client</th><th>Boutique</th><th>Montant</th><th>Statut</th><th>Date</th></tr></thead><tbody>
+            @forelse ($latestOrders as $order)
+                <tr><td><a class="bf-order-ref" href="{{ route('admin.orders.show', $order) }}">{{ $order->reference }}</a></td><td>{{ $order->user?->name ?? '—' }}</td><td>{{ $order->vendor?->business_name ?? '—' }}</td><td><strong>{{ $money($order->total) }}</strong></td><td>{!! \App\Support\AdminLabels::orderStatusBadge($order->status->value) !!}</td><td>{{ $order->created_at?->format('d/m/Y H:i') ?? '—' }}</td></tr>
+            @empty
+                <tr><td colspan="6" class="bf-empty">Aucune commande sur la période sélectionnée.</td></tr>
+            @endforelse
+        </tbody></table></div>
+    </section>
 </div>
-<!-- end Quick Actions -->
 @endsection
+
+@push('scripts')
+<script>
+(function () {
+    var palette = { green: '#26934b', orange: '#f5821f', blue: '#3189e8', purple: '#7d4ce0', red: '#e44c54', gray: '#a9b1bd' };
+    var labels = @json($chartData['labels']);
+    var revenue = @json($chartData['revenue']);
+    var commissions = @json($chartData['commissions']);
+    var commissionSplit = @json($chartData['commission_split']);
+    var revenueSplit = @json($chartData['revenue_split']);
+    var orderStatus = @json($statusValues);
+    var orderStatusLabels = @json($statusLabels);
+    var paymentValues = @json($paymentValues);
+    var paymentLabels = @json($paymentLabels);
+    var chartColors = [palette.green, palette.orange, palette.blue, palette.red, palette.purple, palette.gray];
+
+    if (typeof Chart === 'undefined') return;
+
+    Chart.defaults.global.defaultFontFamily = "Roboto, sans-serif";
+    Chart.defaults.global.defaultFontColor = '#8791a0';
+    Chart.defaults.global.defaultFontSize = 10;
+
+    var commissionCanvas = document.getElementById('commissionTrendChart');
+    if (commissionCanvas) {
+        var ctx = commissionCanvas.getContext('2d');
+        var gradient = ctx.createLinearGradient(0, 0, 0, 220);
+        gradient.addColorStop(0, 'rgba(38,147,75,.22)');
+        gradient.addColorStop(1, 'rgba(38,147,75,0)');
+        new Chart(ctx, {
+            type: 'line',
+            data: { labels: labels, datasets: [{ data: commissions, borderColor: palette.green, backgroundColor: gradient, borderWidth: 2, pointRadius: 2, pointHoverRadius: 5, pointBackgroundColor: palette.green, fill: true, lineTension: .35 }] },
+            options: { maintainAspectRatio: false, legend: { display: false }, tooltips: { callbacks: { label: function (item) { return ' '+Number(item.yLabel).toLocaleString('fr-FR')+' FCFA'; } } }, scales: { xAxes: [{ gridLines: { display: false }, ticks: { maxTicksLimit: 8, maxRotation: 0 } }], yAxes: [{ ticks: { beginAtZero: true, maxTicksLimit: 5, callback: function (value) { return Number(value).toLocaleString('fr-FR'); } }, gridLines: { color: '#edf0f3', drawBorder: false } }] } }
+        });
+    }
+
+    function doughnut(id, values, colors) {
+        var canvas = document.getElementById(id);
+        if (!canvas) return;
+        new Chart(canvas.getContext('2d'), {
+            type: 'doughnut', data: { labels: [], datasets: [{ data: values.length ? values : [1], backgroundColor: values.some(function (value) { return value > 0; }) ? colors : ['#edf0f3'], borderWidth: 0, hoverBorderWidth: 0 }] },
+            options: { cutoutPercentage: 74, maintainAspectRatio: false, legend: { display: false }, tooltips: { enabled: values.some(function (value) { return value > 0; }), callbacks: { label: function (item, data) { return ' '+Number(data.datasets[0].data[item.index]).toLocaleString('fr-FR')+' FCFA'; } } } }
+        });
+    }
+    doughnut('commissionSplitChart', commissionSplit, [palette.green, palette.orange]);
+    doughnut('revenueSplitChart', revenueSplit, [palette.green, palette.orange, palette.blue]);
+    doughnut('orderStatusChart', orderStatus, chartColors);
+    doughnut('paymentMethodChart', paymentValues, [palette.green, palette.orange]);
+
+    var revenueCanvas = document.getElementById('revenueTrendChart');
+    if (revenueCanvas) {
+        new Chart(revenueCanvas.getContext('2d'), {
+            type: 'bar', data: { labels: labels, datasets: [{ data: revenue, backgroundColor: palette.green, hoverBackgroundColor: '#1d7b3d', borderRadius: 3, maxBarThickness: 12 }] },
+            options: { maintainAspectRatio: false, legend: { display: false }, tooltips: { callbacks: { label: function (item) { return ' '+Number(item.yLabel).toLocaleString('fr-FR')+' FCFA'; } } }, scales: { xAxes: [{ gridLines: { display: false }, ticks: { maxTicksLimit: 8, maxRotation: 0 } }], yAxes: [{ ticks: { beginAtZero: true, maxTicksLimit: 4, callback: function (value) { return Number(value).toLocaleString('fr-FR'); } }, gridLines: { color: '#edf0f3', drawBorder: false } }] } }
+        });
+    }
+})();
+</script>
+@endpush

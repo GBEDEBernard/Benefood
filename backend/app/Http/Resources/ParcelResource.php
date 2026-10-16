@@ -21,6 +21,7 @@ class ParcelResource extends JsonResource
             'dropoff' => $this->dropoff_snapshot,
             'distance_km' => $this->distance_km !== null ? (float) $this->distance_km : null,
             'delivery_fee' => (int) $this->delivery_fee,
+            'pricing_snapshot' => $this->pricing_snapshot,
             'commission_rate' => (int) $this->commission_rate,
             'commission_amount' => (int) $this->commission_amount,
             'partner_amount' => (int) $this->partner_amount,

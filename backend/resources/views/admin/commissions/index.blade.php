@@ -5,6 +5,9 @@
     <a href="{{ route('admin.dashboard') }}" class="btn btn-sm" style="background: #FFFFFF; border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-dark);">
         <i class="ti ti-home"></i> Dashboard
     </a>
+    <a href="{{ route('admin.pricing.index') }}" class="btn btn-sm" style="background: #FFFFFF; border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-dark);">
+        <i class="ti ti-map-alt"></i> Tarifs par distance
+    </a>
 </x-admin.page-header>
 
 @if (session('success'))
@@ -12,6 +15,9 @@
         {{ session('success') }}
         <button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button>
     </div>
+@endif
+@if ($errors->any())
+    <div class="alert alert-danger"><ul class="mb-0">@foreach ($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>
 @endif
 
 <div class="row">
@@ -74,6 +80,35 @@
                 </div>
             @endif
         </div>
+
+        <div class="card mb-4" style="border: none; box-shadow: 0 2px 10px rgba(0,0,0,0.05); border-radius: 12px;">
+            <div class="card-header bg-white" style="border-bottom: 1px solid var(--border-color); border-radius: 12px 12px 0 0;">
+                <h6 class="font-weight-bold mb-0" style="color: var(--text-dark);">Taux particuliers par boutique</h6>
+                <small class="text-muted">Un taux laissé vide suit le taux vendeur global actuellement actif.</small>
+            </div>
+            <div class="table-responsive">
+                <table class="table mb-0" style="font-size: 14px;">
+                    <thead style="background-color: #F9FAFB;"><tr><th class="border-0">Boutique</th><th class="border-0">Taux spécifique (%)</th><th class="border-0 text-right">Action</th></tr></thead>
+                    <tbody>
+                        @forelse ($vendors as $vendor)
+                            <tr>
+                                <td class="align-middle">{{ $vendor->business_name }}</td>
+                                <td class="align-middle">
+                                    <form id="vendor-rate-{{ $vendor->id }}" method="POST" action="{{ route('admin.commissions.vendors.update', $vendor) }}">
+                                        @csrf
+                                        @method('PUT')
+                                    </form>
+                                    <input form="vendor-rate-{{ $vendor->id }}" type="number" name="commission_exception_rate" min="0" max="100" class="form-control" style="max-width:140px" value="{{ $vendor->settings?->commission_exception_rate }}" placeholder="Global">
+                                </td>
+                                <td class="align-middle text-right"><button form="vendor-rate-{{ $vendor->id }}" class="btn btn-sm" style="background:var(--benin-green);color:#fff">Enregistrer</button></td>
+                            </tr>
+                        @empty
+                            <tr><td colspan="3" class="text-center text-muted py-4">Aucune boutique enregistrée.</td></tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+        </div>
     </div>
 
     <div class="col-md-4">
@@ -103,38 +138,21 @@
             </div>
         </div>
 
-        <!-- Barème plateforme (cahier v1.0) -->
+        <!-- Frais et commissions configurables -->
         <div class="card mb-4" style="border: none; box-shadow: 0 2px 10px rgba(0,0,0,0.05); border-radius: 12px;">
             <div class="card-body">
-                <h6 class="font-weight-bold mb-1" style="color: var(--text-dark);">Barème plateforme</h6>
-                <p class="mb-3" style="color: var(--text-muted); font-size: 12.5px;">Répartition appliquée à chaque commande (figée par commande).</p>
-                @php
-                    $serviceFee = (int) config('beninfood.service_fee.rate', 5);
-                    $deliveryCommission = (int) config('beninfood.delivery_commission.rate', 20);
-                    $gatewayFee = ((int) config('beninfood.payment_gateway.fee_rate_basis_points', 120)) / 100;
-                    $minPayout = (int) config('beninfood.wallet.min_payout', 1000);
-                @endphp
-                <ul class="list-unstyled mb-0" style="font-size: 14px;">
-                    <li class="d-flex justify-content-between py-2" style="border-bottom: 1px solid var(--border-color);">
-                        <span style="color: var(--text-muted);">Frais de service client</span>
-                        <strong style="color: var(--text-dark);">{{ $serviceFee }} %</strong>
-                    </li>
-                    <li class="d-flex justify-content-between py-2" style="border-bottom: 1px solid var(--border-color);">
-                        <span style="color: var(--text-muted);">Commission livreur</span>
-                        <strong style="color: var(--text-dark);">{{ $deliveryCommission }} %</strong>
-                    </li>
-                    <li class="d-flex justify-content-between py-2" style="border-bottom: 1px solid var(--border-color);">
-                        <span style="color: var(--text-muted);">Frais passerelle (absorbés)</span>
-                        <strong style="color: var(--text-dark);">{{ rtrim(rtrim(number_format($gatewayFee, 2, ',', ''), '0'), ',') }} %</strong>
-                    </li>
-                    <li class="d-flex justify-content-between py-2">
-                        <span style="color: var(--text-muted);">Retrait minimum</span>
-                        <strong style="color: var(--text-dark);">{{ \App\Support\AdminLabels::priceLabel($minPayout) }}</strong>
-                    </li>
-                </ul>
-                <p class="mt-3 mb-0" style="color: var(--text-muted); font-size: 12px;">
-                    <i class="ti ti-info-circle"></i> Modifiable via la configuration serveur (variables <code>BENINFOOD_SERVICE_FEE_RATE</code>, <code>BENINFOOD_DELIVERY_COMMISSION_RATE</code>, <code>BENINFOOD_GATEWAY_FEE_BASIS_POINTS</code>).
-                </p>
+                <h6 class="font-weight-bold mb-1" style="color: var(--text-dark);">Frais et commissions plateforme</h6>
+                <p class="mb-3" style="color: var(--text-muted); font-size: 12.5px;">Les taux saisis s’appliquent aux nouvelles commandes et nouveaux colis.</p>
+                <form method="POST" action="{{ route('admin.commissions.platform-settings') }}">
+                    @csrf
+                    @method('PUT')
+                    <div class="form-group"><label for="service_fee_rate">Frais de service client (%)</label><input id="service_fee_rate" name="service_fee_rate" type="number" min="0" max="100" class="form-control" value="{{ old('service_fee_rate', $platformSettings['service_fee_rate']) }}" required></div>
+                    <div class="form-group"><label for="delivery_commission_rate">Commission plateforme sur livraison (%)</label><input id="delivery_commission_rate" name="delivery_commission_rate" type="number" min="0" max="100" class="form-control" value="{{ old('delivery_commission_rate', $platformSettings['delivery_commission_rate']) }}" required></div>
+                    <div class="form-group"><label for="parcel_commission_rate">Commission plateforme sur colis (%)</label><input id="parcel_commission_rate" name="parcel_commission_rate" type="number" min="0" max="100" class="form-control" value="{{ old('parcel_commission_rate', $platformSettings['parcel_commission_rate']) }}" required></div>
+                    <div class="form-group"><label for="gateway_fee_basis_points">Frais passerelle absorbés (points de base)</label><input id="gateway_fee_basis_points" name="gateway_fee_basis_points" type="number" min="0" max="10000" class="form-control" value="{{ old('gateway_fee_basis_points', $platformSettings['gateway_fee_basis_points']) }}" required><small class="text-muted">100 points = 1 %; ce coût n’est pas ajouté au total client.</small></div>
+                    <div class="form-group"><label for="minimum_payout">Retrait minimum (F CFA)</label><input id="minimum_payout" name="minimum_payout" type="number" min="0" class="form-control" value="{{ old('minimum_payout', $platformSettings['minimum_payout']) }}" required></div>
+                    <button type="submit" class="btn btn-block" style="background-color: var(--benin-green); color: #FFFFFF; border-radius: 8px; font-weight: 500;"><i class="ti ti-device-floppy"></i> Enregistrer les taux</button>
+                </form>
             </div>
         </div>
 

@@ -11,6 +11,7 @@ use App\Http\Controllers\Admin\AdminOrdersController;
 use App\Http\Controllers\Admin\AdminParcelsController;
 use App\Http\Controllers\Admin\AdminPaymentsController;
 use App\Http\Controllers\Admin\AdminPayoutsController;
+use App\Http\Controllers\Admin\AdminPricingController;
 use App\Http\Controllers\Admin\AdminProductsController;
 use App\Http\Controllers\Admin\AdminRatesController;
 use App\Http\Controllers\Admin\AdminRefundsController;
@@ -109,6 +110,13 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function (): v
     Route::delete('rates/{rate}', [AdminRatesController::class, 'destroy'])->name('rates.destroy');
     Route::post('rates/{rate}/active', [AdminRatesController::class, 'toggleActive'])->name('rates.active');
 
+    // ---------- Barèmes distance et frais plateforme ----------
+    Route::get('pricing', [AdminPricingController::class, 'index'])->name('pricing.index');
+    Route::post('pricing/settings', [AdminPricingController::class, 'updateSettings'])->name('pricing.settings');
+    Route::post('pricing/rules', [AdminPricingController::class, 'storeRule'])->name('pricing.rules.store');
+    Route::put('pricing/rules/{rule}', [AdminPricingController::class, 'updateRule'])->name('pricing.rules.update');
+    Route::delete('pricing/rules/{rule}', [AdminPricingController::class, 'destroyRule'])->name('pricing.rules.destroy');
+
     // ---------- Phase 16 — Paiements / transactions ----------
     Route::resource('payments', AdminPaymentsController::class)->only(['index', 'show']);
 
@@ -131,6 +139,8 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function (): v
     // ---------- Phase 16 — Commissions (J138) ----------
     Route::get('commissions', [AdminCommissionsController::class, 'index'])->name('commissions.index');
     Route::post('commissions', [AdminCommissionsController::class, 'store'])->name('commissions.store');
+    Route::put('commissions/platform-settings', [AdminCommissionsController::class, 'updatePlatformSettings'])->name('commissions.platform-settings');
+    Route::put('commissions/vendors/{vendor}', [AdminCommissionsController::class, 'updateVendorRate'])->name('commissions.vendors.update');
     Route::delete('commissions/{rate}', [AdminCommissionsController::class, 'destroy'])->name('commissions.destroy');
 
     // ---------- Phase 16 — Remboursements (J140) ----------
@@ -166,8 +176,8 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function (): v
     // ---------- Boutiques (J135) : renvoie vers les vendeurs actifs ----------
     Route::get('/boutiques', fn () => redirect()->route('admin.vendors.index', ['status' => 'active']))->name('shops.index');
 
-    // ---------- Paramètres (hors périmètre Phase 16) ----------
-    Route::get('/parametres', fn () => view('admin.placeholder', ['title' => 'Paramètres', 'section' => 'Configuration des règles métier']))->name('settings.index');
+    // ---------- Paramètres généraux ----------
+    Route::get('/parametres', fn () => redirect()->route('admin.pricing.index'))->name('settings.index');
 });
 
 // Legacy / redirect / landing

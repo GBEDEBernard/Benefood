@@ -37,7 +37,7 @@ body {
 .card {
     border: 1px solid var(--bf-border) !important;
     border-radius: 8px !important;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.04) !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04) !important;
     background: var(--bf-surface) !important;
 }
 
@@ -53,7 +53,12 @@ body {
 }
 
 /* ---- Titres ---- */
-h1, h2, h3, h4, h5, h6 {
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
     color: var(--bf-text) !important;
 }
 
@@ -63,7 +68,8 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 /* ---- Texte secondaire ---- */
-.text-muted, .font-weight-bold.text-muted {
+.text-muted,
+.font-weight-bold.text-muted {
     color: var(--bf-text-secondary) !important;
 }
 
@@ -74,17 +80,17 @@ h1, h2, h3, h4, h5, h6 {
     box-shadow: none !important;
 }
 
-.sidebar-nav .metismenu > li > a {
+.sidebar-nav .metismenu>li>a {
     color: var(--bf-text-secondary) !important;
     transition: all 0.2s ease;
 }
 
-.sidebar-nav .metismenu > li > a:hover {
+.sidebar-nav .metismenu>li>a:hover {
     color: var(--bf-green) !important;
     background: var(--bf-green-light) !important;
 }
 
-.sidebar-nav .metismenu > li.active > a {
+.sidebar-nav .metismenu>li.active>a {
     color: var(--bf-green) !important;
     background: var(--bf-green-light) !important;
     font-weight: 500;
@@ -92,7 +98,7 @@ h1, h2, h3, h4, h5, h6 {
     padding-left: 12px;
 }
 
-.sidebar-nav .metismenu > li.active > a .nav-icon {
+.sidebar-nav .metismenu>li.active>a .nav-icon {
     color: var(--bf-green) !important;
 }
 
@@ -118,7 +124,7 @@ h1, h2, h3, h4, h5, h6 {
 .app-header.top-bar {
     background: var(--bf-surface) !important;
     border-bottom: 1px solid var(--bf-border) !important;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.04) !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04) !important;
 }
 
 .app-header .navbar {
@@ -138,10 +144,11 @@ h1, h2, h3, h4, h5, h6 {
     color: #fff !important;
 }
 
-.btn-primary:hover, .btn-primary:focus {
+.btn-primary:hover,
+.btn-primary:focus {
     background-color: #d96a12 !important;
     border-color: #d96a12 !important;
-    box-shadow: 0 2px 8px rgba(242,122,24,0.3) !important;
+    box-shadow: 0 2px 8px rgba(242, 122, 24, 0.3) !important;
 }
 
 /* ---- Boutons succès (Vert) ---- */
@@ -150,7 +157,8 @@ h1, h2, h3, h4, h5, h6 {
     border-color: var(--bf-green) !important;
 }
 
-.btn-success:hover, .btn-success:focus {
+.btn-success:hover,
+.btn-success:focus {
     background-color: #2e8529 !important;
     border-color: #2e8529 !important;
 }
@@ -161,7 +169,8 @@ h1, h2, h3, h4, h5, h6 {
     border-color: var(--bf-red) !important;
 }
 
-.btn-danger:hover, .btn-danger:focus {
+.btn-danger:hover,
+.btn-danger:focus {
     background-color: #c62828 !important;
     border-color: #c62828 !important;
 }
@@ -296,7 +305,7 @@ a.text-primary:hover {
 /* ---- Dropdown ---- */
 .dropdown-menu {
     border: 1px solid var(--bf-border) !important;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.08) !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08) !important;
 }
 
 /* ---- Scrollbar ---- */
@@ -363,7 +372,7 @@ a.text-primary:hover {
 /* ---- Form controls ---- */
 .form-control:focus {
     border-color: var(--bf-green) !important;
-    box-shadow: 0 0 0 0.15rem rgba(58,155,52,0.25) !important;
+    box-shadow: 0 0 0 0.15rem rgba(58, 155, 52, 0.25) !important;
 }
 
 /* ---- Nav tabs ---- */
@@ -441,7 +450,7 @@ a.text-primary:hover {
         z-index: 1200 !important;
         transition: left 0.3s ease !important;
         background: var(--bf-surface) !important;
-        box-shadow: 2px 0 15px rgba(0,0,0,0.15) !important;
+        box-shadow: 2px 0 15px rgba(0, 0, 0, 0.15) !important;
     }
 
     /* Quand le body a la classe sidebar-toggled, afficher la sidebar */
@@ -457,7 +466,7 @@ a.text-primary:hover {
         left: 0;
         width: 100%;
         height: 100%;
-        background: rgba(0,0,0,0.4);
+        background: rgba(0, 0, 0, 0.4);
         z-index: 1150;
         cursor: pointer;
     }
@@ -472,5 +481,113 @@ a.text-primary:hover {
 @media (min-width: 992px) {
     .sidebar-toggle {
         display: block !important;
+    }
+}
+
+/* ---- Unified admin sidebar and shell ---- */
+body {
+    background-color: #f6f8fa !important;
+}
+
+.app-navbar {
+    width: 205px !important;
+    background: #063d31 !important;
+    border-right: 1px solid rgba(255, 255, 255, .06) !important;
+    box-shadow: 1px 0 14px rgba(16, 38, 32, .12) !important;
+}
+
+.app-navbar .sidebar-nav,
+.app-navbar .sidebar-nav ul.metismenu {
+    background: linear-gradient(180deg, #073e32 0%, #052f28 100%) !important;
+}
+
+.app-navbar .sidebar-nav ul.metismenu li.nav-static-title {
+    color: #88a89c !important;
+    padding: 13px 18px 5px !important;
+    font-size: 9px !important;
+    letter-spacing: .9px !important;
+}
+
+.app-navbar .sidebar-nav ul.metismenu li a {
+    padding: 9px 15px !important;
+    color: #c1d3cb !important;
+    font-size: 11px;
+    transition: background-color .18s ease, color .18s ease;
+}
+
+.app-navbar .sidebar-nav ul.metismenu li a .nav-icon {
+    color: #8ba99d !important;
+    font-size: 14px;
+}
+
+.app-navbar .sidebar-nav ul.metismenu li>a:hover {
+    background: rgba(255, 255, 255, .08) !important;
+    color: #fff !important;
+}
+
+.app-navbar .sidebar-nav ul.metismenu li.active>a {
+    margin: 0 9px;
+    padding: 9px 10px !important;
+    border-radius: 6px;
+    background: #16874f !important;
+    color: #fff !important;
+}
+
+.app-navbar .sidebar-nav ul.metismenu li.active>a .nav-icon {
+    color: #fff !important;
+}
+
+.app-navbar .sidebar-nav ul.metismenu li.active ul li a {
+    background: transparent !important;
+    color: #b4c9c0 !important;
+}
+
+.app-navbar .sidebar-nav ul.metismenu li.active ul li.active>a {
+    color: #fff !important;
+}
+
+.app-navbar .sidebar-nav ul.metismenu li.active ul:before {
+    background: rgba(255, 255, 255, .14) !important;
+}
+
+.app-header .navbar-header {
+    width: 205px !important;
+    padding-left: 12px !important;
+    background: #063d31 !important;
+}
+
+.app-header .navbar-header .navbar-brand {
+    justify-content: flex-start;
+}
+
+.app-header .navigation {
+    height: 60px;
+    border-bottom: 1px solid #e8edf2;
+}
+
+.app-main {
+    margin-left: 215px !important;
+    padding: 24px 26px 42px !important;
+    background: #f6f8fa !important;
+}
+
+@media (max-width: 991px) {
+    .app-navbar {
+        left: -205px !important;
+        width: 205px !important;
+        background: #063d31 !important;
+    }
+
+    body.sidebar-toggled .app-navbar {
+        left: 0 !important;
+    }
+
+    .app-header .navbar-header {
+        width: 100% !important;
+    }
+
+    .app-main {
+        margin-left: 0 !important;
+        padding: 18px 14px 35px !important;
     }
 }

@@ -138,6 +138,7 @@ class DeliveryQuoteApiTest extends TestCase
     public function test_quote_returns_matched_by_and_distance_km_for_distance_match(): void
     {
         $vendor = $this->activeVendor();
+        $vendor->update(['latitude' => 6.3700, 'longitude' => 2.3900]);
         $zone = DeliveryZone::factory()->distance(radiusKm: 10)->create();
         DeliveryRate::factory()->create(['zone_id' => $zone->id, 'price' => 1500]);
 
@@ -145,7 +146,7 @@ class DeliveryQuoteApiTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.zone.id', $zone->id)
             ->assertJsonPath('data.matched_by', 'distance')
-            ->assertJsonPath('data.distance_km', 0);
+            ->assertJsonPath('data.distance_km', 0.14);
     }
 
     public function test_quote_returns_matched_by_for_name_match_without_coordinates(): void
@@ -169,13 +170,14 @@ class DeliveryQuoteApiTest extends TestCase
             ->assertJsonPath('errors.0.code', 'delivery.zone_not_found');
     }
 
-    public function test_quote_zone_without_rate_returns_422_domain_code(): void
+    public function test_quote_zone_without_rate_uses_the_configured_default_fee(): void
     {
         DeliveryZone::factory()->create(['name' => 'Cotonou Centre', 'city' => 'Cotonou']);
 
         $this->quote(['city' => 'Cotonou'])
-            ->assertStatus(422)
-            ->assertJsonPath('errors.0.code', 'delivery.rate_not_configured');
+            ->assertOk()
+            ->assertJsonPath('data.delivery_fee', 1000)
+            ->assertJsonPath('data.rate.id', null);
     }
 
     public function test_quote_rejects_suspended_vendor(): void

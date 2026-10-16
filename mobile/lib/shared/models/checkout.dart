@@ -5,6 +5,7 @@ class OrderSummary {
     required this.subtotal,
     required this.deliveryFee,
     required this.total,
+    this.deliveryDistanceKm,
     this.serviceFee = 0,
     this.vendorId,
     this.vendorName,
@@ -18,6 +19,7 @@ class OrderSummary {
   final int subtotal;
   final int deliveryFee;
   final int total;
+  final double? deliveryDistanceKm;
 
   /// Frais de service client (5 %, cahier v1.0).
   final int serviceFee;
@@ -61,6 +63,9 @@ class OrderSummary {
       items: items,
       subtotal: _i(json['subtotal']),
       deliveryFee: _i(json['delivery_fee']),
+      deliveryDistanceKm: json['delivery_distance_km'] is num
+          ? (json['delivery_distance_km'] as num).toDouble()
+          : null,
       total: _i(json['total']),
       serviceFee: _i(json['service_fee']),
       vendorId: vendorId,

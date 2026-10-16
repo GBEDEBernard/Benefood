@@ -9,6 +9,8 @@ use App\Models\CommissionRate;
 use App\Models\Order;
 use App\Models\Parcel;
 use App\Models\User;
+use App\Models\Vendor;
+use App\Services\PlatformPricingSettings;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -65,6 +67,8 @@ class AdminCommissionsController extends Controller
 
         return view('admin.commissions.index', [
             'rates' => $rates,
+            'vendors' => Vendor::query()->with('settings')->orderBy('business_name')->get(),
+            'platformSettings' => app(PlatformPricingSettings::class)->all(),
             'monthlyRevenue' => $monthlyRevenue,
             'filters' => [
                 'scope' => $request->query('scope'),
@@ -107,5 +111,38 @@ class AdminCommissionsController extends Controller
         }
 
         return back()->with('success', 'Le taux a été clôturé.');
+    }
+
+    public function updatePlatformSettings(Request $request, PlatformPricingSettings $settings): RedirectResponse
+    {
+        $this->authorize('manage', User::class);
+
+        $data = $request->validate([
+            'service_fee_rate' => ['required', 'integer', 'min:0', 'max:100'],
+            'delivery_commission_rate' => ['required', 'integer', 'min:0', 'max:100'],
+            'parcel_commission_rate' => ['required', 'integer', 'min:0', 'max:100'],
+            'gateway_fee_basis_points' => ['required', 'integer', 'min:0', 'max:10000'],
+            'minimum_payout' => ['required', 'integer', 'min:0'],
+        ]);
+
+        $settings->update($data, $request->user()->id);
+
+        return back()->with('success', 'Les taux et frais de la plateforme ont été mis à jour.');
+    }
+
+    public function updateVendorRate(Request $request, Vendor $vendor): RedirectResponse
+    {
+        $this->authorize('manage', User::class);
+
+        $data = $request->validate([
+            'commission_exception_rate' => ['nullable', 'integer', 'min:0', 'max:100'],
+        ]);
+
+        $vendor->settings()->updateOrCreate(
+            ['vendor_id' => $vendor->id],
+            ['commission_exception_rate' => $data['commission_exception_rate'] ?? null],
+        );
+
+        return back()->with('success', 'La commission spécifique de la boutique a été mise à jour.');
     }
 }

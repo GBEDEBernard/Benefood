@@ -86,6 +86,7 @@ class OrderService
             'items' => $entries,
             'subtotal' => $subtotal,
             'delivery_fee' => $breakdown['delivery_fee'],
+            'delivery_distance_km' => $delivery['distance_km'] !== null ? round($delivery['distance_km'], 2) : null,
             'delivery_zone' => [
                 'id' => $delivery['zone_id'],
                 'name' => $delivery['rate_snapshot']['zone_name'] ?? null,
@@ -746,7 +747,9 @@ class OrderService
             ->orderByDesc('effective_from')
             ->first();
 
-        return $rate !== null ? (int) $rate->rate : (int) config('beninfood.commission.default_rate', 10);
+        return $rate !== null
+            ? (int) $rate->rate
+            : app(PlatformPricingSettings::class)->get('vendor_commission_rate');
     }
 
     // -----------------------------------------------------------------------
@@ -764,6 +767,7 @@ class OrderService
             return [
                 'fee' => $quote['delivery_fee'],
                 'zone_id' => $quote['zone']->id,
+                'distance_km' => $quote['distance_km'],
                 'rate_snapshot' => $this->delivery->snapshotForOrder($quote),
             ];
         } catch (DomainException $e) {

@@ -68,7 +68,7 @@ class VendorRevenueService
             'pending_amount' => $pendingAmount,
             'available_balance' => $wallet ? (int) $wallet->available_balance : max($netSales - $executedPayouts, 0),
             'pending_balance' => $wallet ? (int) $wallet->pending_balance : $pendingAmount,
-            'min_payout' => (int) config('beninfood.wallet.min_payout', 1000),
+            'min_payout' => app(PlatformPricingSettings::class)->get('minimum_payout'),
             'transactions' => $this->transactions($vendor, $from, $to),
             'payouts' => $this->payouts($wallet),
         ];

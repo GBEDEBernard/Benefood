@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Services\PlatformPricingSettings;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Facades\Storage;
@@ -23,7 +24,7 @@ class DeliveryResource extends JsonResource
         }
 
         if ($partnerAmount === 0 && (int) $this->fee > 0) {
-            $rate = (int) config('beninfood.delivery_commission.rate', 20);
+            $rate = app(PlatformPricingSettings::class)->get('delivery_commission_rate');
             $commission = (int) round((int) $this->fee * $rate / 100);
             $partnerAmount = (int) $this->fee - $commission;
         }

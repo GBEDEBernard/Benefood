@@ -111,6 +111,7 @@ class ParcelFeatureTest extends TestCase
 
         $this->assertDatabaseCount('parcels', 1);
         $this->assertDatabaseCount('payments', 1);
+        $this->assertNotNull(Parcel::query()->firstOrFail()->pricing_snapshot);
     }
 
     public function test_parcel_snapshots_keep_landmark(): void

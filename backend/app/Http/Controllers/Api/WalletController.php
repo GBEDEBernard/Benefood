@@ -10,6 +10,7 @@ use App\Models\Vendor;
 use App\Models\Wallet;
 use App\Services\FinanceService;
 use App\Services\PayoutService;
+use App\Services\PlatformPricingSettings;
 use App\Support\Api;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -134,7 +135,7 @@ class WalletController extends Controller
             'available_balance' => (int) $wallet->available_balance,
             'balance' => (int) $wallet->balance,
             'currency' => config('beninfood.currency', 'XOF'),
-            'min_payout' => (int) config('beninfood.wallet.min_payout', 1000),
+            'min_payout' => app(PlatformPricingSettings::class)->get('minimum_payout'),
             'phone' => $phone,
             'transactions' => $wallet->transactions()
                 ->orderByDesc('created_at')
@@ -155,7 +156,7 @@ class WalletController extends Controller
                 ->where('reference_type', 'driver_commission')
                 ->where('type', 'debit');
 
-            $payload['commission_rate'] = (int) config('beninfood.delivery_commission.rate', 20);
+            $payload['commission_rate'] = app(PlatformPricingSettings::class)->get('delivery_commission_rate');
             $payload['commission_total'] = (int) (clone $commissions)->sum('amount');
             $payload['commission_count'] = (int) (clone $commissions)->distinct()->count('reference_id');
         }

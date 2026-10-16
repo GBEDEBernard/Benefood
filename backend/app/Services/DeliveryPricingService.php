@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Exceptions\DomainException;
 use App\Models\DeliveryRate;
 use App\Models\DeliveryZone;
+use App\Models\DistancePricingRule;
 use App\Models\Vendor;
 use Illuminate\Support\Str;
 
@@ -104,7 +105,7 @@ class DeliveryPricingService
      * Le prix dépend de la distance boutique → client dès que les coordonnées
      * des deux parties sont connues ; sinon on retombe sur le tarif de zone.
      *
-     * @return array{zone: DeliveryZone, rate: DeliveryRate, delivery_fee: int, distance_km: ?float}
+     * @return array{zone: DeliveryZone, rate: ?DeliveryRate, delivery_fee: int, distance_km: ?float}
      */
     public function quoteForVendor(Vendor $vendor, array $address): array
     {
@@ -116,10 +117,6 @@ class DeliveryPricingService
 
         $rate = $this->rateForZone($zone, $vendor->id);
 
-        if ($rate === null) {
-            throw new DomainException('delivery.rate_not_configured', 'Aucun tarif de livraison n\'est configuré pour cette zone.', 422);
-        }
-
         $distanceKm = $this->distanceKm(
             $vendor->latitude,
             $vendor->longitude,
@@ -127,13 +124,20 @@ class DeliveryPricingService
             $address['longitude'] ?? null,
         );
 
+        $minimumFee = app(PlatformPricingSettings::class)->get('order_minimum_fee');
+        $fallbackFee = app(PlatformPricingSettings::class)->get('order_default_fee');
+        $distanceRule = $distanceKm !== null ? $this->distanceRuleQuote($distanceKm) : null;
+
+        $deliveryFee = $distanceKm !== null
+            ? ($distanceRule['fee'] ?? $this->feeForDistance($distanceKm))
+            : max($minimumFee, $rate !== null ? (int) $rate->price : $fallbackFee);
+
         return [
             'zone' => $zone,
             'rate' => $rate,
-            'delivery_fee' => $distanceKm !== null
-                ? $this->feeForDistance($distanceKm)
-                : (int) $rate->price,
+            'delivery_fee' => $distanceKm !== null ? max($minimumFee, $deliveryFee) : $deliveryFee,
             'distance_km' => $distanceKm,
+            'distance_pricing_rule' => $distanceRule['snapshot'] ?? null,
         ];
     }
 
@@ -149,6 +153,59 @@ class DeliveryPricingService
      */
     public function feeForDistance(float $distanceKm): int
     {
+        $minimumFee = app(PlatformPricingSettings::class)->get('order_minimum_fee');
+        $distanceRule = $this->distanceRuleQuote($distanceKm);
+
+        if ($distanceRule !== null) {
+            return max($minimumFee, $distanceRule['fee']);
+        }
+
+        // Compatibilité avant le premier lancement du seeder des barèmes.
+        return $this->legacyFeeForDistance($distanceKm, $minimumFee);
+    }
+
+    /** @return array{fee: int, snapshot: array<string, mixed>}|null */
+    private function distanceRuleQuote(float $distanceKm): ?array
+    {
+        $rules = DistancePricingRule::query()
+            ->where('service_type', DistancePricingRule::ORDER_DELIVERY)
+            ->where('is_active', true)
+            ->orderByRaw('max_km IS NULL')
+            ->orderBy('max_km')
+            ->get();
+
+        if ($rules->isNotEmpty()) {
+            $previousMaxKm = 0.0;
+
+            foreach ($rules as $rule) {
+                if ($rule->max_km === null || $distanceKm <= (float) $rule->max_km) {
+                    $rawFee = (int) round((int) $rule->base_fee + (int) $rule->per_km * max(0, $distanceKm - $previousMaxKm));
+                    $discountedFee = (int) round($rawFee * (100 - (int) $rule->discount_percentage) / 100);
+
+                    return [
+                        'fee' => $discountedFee,
+                        'snapshot' => [
+                            'rule_id' => $rule->id,
+                            'from_km' => $previousMaxKm,
+                            'max_km' => $rule->max_km,
+                            'base_fee' => (int) $rule->base_fee,
+                            'per_km' => (int) $rule->per_km,
+                            'discount_percentage' => (int) $rule->discount_percentage,
+                            'raw_fee' => $rawFee,
+                            'discounted_fee' => $discountedFee,
+                        ],
+                    ];
+                }
+
+                $previousMaxKm = (float) $rule->max_km;
+            }
+        }
+
+        return null;
+    }
+
+    private function legacyFeeForDistance(float $distanceKm, int $minimumFee): int
+    {
         $config = config('beninfood.delivery_pricing');
 
         $minFee = (int) $config['min_fee'];
@@ -161,27 +218,27 @@ class DeliveryPricingService
         $discountedPerKm = (int) $config['discounted_per_km'];
 
         if ($distanceKm <= $flatKm) {
-            return $minFee;
+            return max($minimumFee, $minFee);
         }
 
         if ($distanceKm <= $baseKm) {
             $span = max($baseKm - $flatKm, 0.0001);
             $ratio = ($distanceKm - $flatKm) / $span;
 
-            return (int) round($minFee + ($baseFee - $minFee) * $ratio);
+            return max($minimumFee, (int) round($minFee + ($baseFee - $minFee) * $ratio));
         }
 
         if ($distanceKm <= $includedKm) {
-            return $baseFee;
+            return max($minimumFee, $baseFee);
         }
 
         if ($distanceKm <= $discountKm) {
-            return $baseFee + (int) round($perKm * ($distanceKm - $includedKm));
+            return max($minimumFee, $baseFee + (int) round($perKm * ($distanceKm - $includedKm)));
         }
 
         $feeAtDiscountKm = $baseFee + $perKm * ($discountKm - $includedKm);
 
-        return (int) round($feeAtDiscountKm + $discountedPerKm * ($distanceKm - $discountKm));
+        return max($minimumFee, (int) round($feeAtDiscountKm + $discountedPerKm * ($distanceKm - $discountKm)));
     }
 
     /**
@@ -215,16 +272,17 @@ class DeliveryPricingService
             'zone_name' => $zone->name,
             'zone_city' => $zone->city,
             'identification_mode' => $zone->identification_mode->value,
-            'rate_id' => $rate->id,
-            'vendor_id' => $rate->vendor_id,
-            'price' => $rate->price,
-            'is_vendor_specific' => $rate->vendor_id !== null,
-            'effective_from' => $rate->effective_from?->toIso8601String(),
-            'effective_to' => $rate->effective_to?->toIso8601String(),
+            'rate_id' => $rate?->id,
+            'vendor_id' => $rate?->vendor_id,
+            'price' => $rate?->price,
+            'is_vendor_specific' => $rate?->vendor_id !== null,
+            'effective_from' => $rate?->effective_from?->toIso8601String(),
+            'effective_to' => $rate?->effective_to?->toIso8601String(),
             'delivery_fee' => (int) $quote['delivery_fee'],
             'distance_km' => ($quote['distance_km'] ?? null) !== null
                 ? round($quote['distance_km'], 2)
                 : null,
+            'distance_pricing_rule' => $quote['distance_pricing_rule'] ?? null,
             'computed_at' => now()->toIso8601String(),
         ];
     }

@@ -30,10 +30,12 @@ class FinanceService
      */
     public function rates(): array
     {
+        $settings = app(PlatformPricingSettings::class);
+
         return [
-            'service_fee_rate' => (int) config('beninfood.service_fee.rate', 5),
-            'delivery_commission_rate' => (int) config('beninfood.delivery_commission.rate', 20),
-            'gateway_fee_basis_points' => (int) config('beninfood.payment_gateway.fee_rate_basis_points', 120),
+            'service_fee_rate' => $settings->get('service_fee_rate'),
+            'delivery_commission_rate' => $settings->get('delivery_commission_rate'),
+            'gateway_fee_basis_points' => $settings->get('gateway_fee_basis_points'),
         ];
     }
 

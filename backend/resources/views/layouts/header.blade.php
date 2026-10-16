@@ -31,6 +31,13 @@
                         </a>
                     </li>
                 </ul>
+                @if (request()->routeIs('admin.dashboard'))
+                    <div class="bf-top-search" role="search">
+                        <i class="ti ti-search"></i>
+                        <input type="search" aria-label="Rechercher dans le back-office" placeholder="Rechercher (commandes, utilisateurs, livreurs...)">
+                        <kbd>⌘ K</kbd>
+                    </div>
+                @endif
                 <ul class="navbar-nav nav-right ml-auto align-items-center">
                     <li class="nav-item mr-3">
                         <a class="nav-link" href="javascript:void(0)">

@@ -355,6 +355,22 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                       children: [
                         _SummaryRow(label: 'Sous-total', amount: _summary!.subtotal),
                         _SummaryRow(label: 'Livraison', amount: _summary!.deliveryFee),
+                        if (_summary!.deliveryDistanceKm != null)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 2, bottom: 6),
+                            child: Align(
+                              alignment: Alignment.centerRight,
+                              child: Text(
+                                'Distance estimée : ${_summary!.deliveryDistanceKm!.toStringAsFixed(2)} km',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.onSurfaceVariant,
+                                ),
+                              ),
+                            ),
+                          ),
                         if (_summary!.serviceFee > 0)
                           _SummaryRow(label: 'Frais de service (5 %)', amount: _summary!.serviceFee),
                         if (_summary!.deliveryZoneName != null)

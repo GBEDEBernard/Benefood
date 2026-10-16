@@ -46,16 +46,14 @@ class DeliveryQuoteController extends Controller
                 'identification_mode' => $quote['zone']->identification_mode->value,
             ],
             'rate' => [
-                'id' => $quote['rate']->id,
-                'price' => $quote['rate']->price,
-                'is_vendor_specific' => $quote['rate']->vendor_id !== null,
+                'id' => $quote['rate']?->id,
+                'price' => $quote['rate']?->price ?? $quote['delivery_fee'],
+                'is_vendor_specific' => $quote['rate']?->vendor_id !== null,
             ],
             'delivery_fee' => $quote['delivery_fee'],
             'currency' => 'XOF',
             'matched_by' => $details['matched_by'] ?? null,
-            'distance_km' => isset($details['distance_km'])
-                ? round($details['distance_km'], 2)
-                : null,
+            'distance_km' => $quote['distance_km'] !== null ? round($quote['distance_km'], 2) : null,
         ]);
     }
 }

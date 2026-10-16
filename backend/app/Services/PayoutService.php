@@ -37,7 +37,7 @@ class PayoutService
      */
     public function request(Model $owner, int $amount, ?string $method = null, ?string $details = null): Payout
     {
-        $minPayout = (int) config('beninfood.wallet.min_payout', 1000);
+        $minPayout = app(PlatformPricingSettings::class)->get('minimum_payout');
 
         if ($amount < $minPayout) {
             throw new DomainException(

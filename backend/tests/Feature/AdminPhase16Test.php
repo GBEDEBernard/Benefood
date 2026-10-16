@@ -130,10 +130,28 @@ class AdminPhase16Test extends TestCase
         $this->actingAs($this->admin())
             ->get(route('admin.dashboard'))
             ->assertOk()
-            ->assertSee('Commandes aujourd’hui')
-            ->assertSee('CA ce mois')
-            ->assertSee('Commissions ce mois')
-            ->assertSee('Livreurs en ligne');
+            ->assertSee('Chiffre d’affaires')
+            ->assertSee('Évolution des commissions plateforme')
+            ->assertSee('Commandes par statut')
+            ->assertSee('Livreurs actifs')
+            ->assertSee('Dernières commandes');
+    }
+
+    public function test_admin_dashboard_accepts_a_custom_date_range(): void
+    {
+        $this->actingAs($this->admin())
+            ->get(route('admin.dashboard', ['from' => now()->startOfMonth()->toDateString(), 'to' => now()->toDateString()]))
+            ->assertOk()
+            ->assertSee('Chiffre d’affaires par boutique');
+    }
+
+    public function test_admin_dashboard_rejects_date_ranges_over_one_year(): void
+    {
+        $this->actingAs($this->admin())
+            ->from(route('admin.dashboard'))
+            ->get(route('admin.dashboard', ['from' => '2024-01-01', 'to' => '2026-01-01']))
+            ->assertRedirect(route('admin.dashboard'))
+            ->assertSessionHasErrors('to');
     }
 
     // -----------------------------------------------------------------
