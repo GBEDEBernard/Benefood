@@ -29,4 +29,29 @@ void main() {
 
     expect(find.text('2/2'), findsOneWidget);
   });
+
+  testWidgets('le carrousel avance automatiquement toutes les deux secondes', (tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 320,
+            height: 240,
+            child: ProductImageCarousel(
+              imageUrls: [
+                'https://cdn.example.test/plat-1.webp',
+                'https://cdn.example.test/plat-2.webp',
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('1/2'), findsOneWidget);
+    await tester.pump(const Duration(seconds: 2));
+    await tester.pump(const Duration(milliseconds: 700));
+
+    expect(find.text('2/2'), findsOneWidget);
+  });
 }

@@ -1,3 +1,6 @@
+import 'dart:async';
+
+import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 
@@ -25,9 +28,42 @@ class ProductMediaGallery extends StatefulWidget {
 
 class _ProductMediaGalleryState extends State<ProductMediaGallery> {
   final PageController _controller = PageController();
+  Timer? _autoPlayTimer;
   int _page = 0;
 
   List<_MediaItem> get _items => _buildItems();
+
+  int get _photoCount => widget.imageUrls.where((url) => url.isNotEmpty).length;
+
+  @override
+  void initState() {
+    super.initState();
+    _startAutoPlay();
+  }
+
+  void _startAutoPlay() {
+    _autoPlayTimer?.cancel();
+    if (_photoCount < 2) {
+      return;
+    }
+    _autoPlayTimer = Timer.periodic(const Duration(seconds: 2), (_) {
+      if (!mounted || !_controller.hasClients) {
+        return;
+      }
+      if (_page >= _photoCount) {
+        return;
+      }
+
+      // Le diaporama automatique boucle seulement sur les photos. La vidéo
+      // reste consultable au geste sans interrompre le visionnage.
+      final nextPage = _page >= _photoCount - 1 ? 0 : _page + 1;
+      _controller.animateToPage(
+        nextPage,
+        duration: const Duration(milliseconds: 700),
+        curve: Curves.easeInOutCubic,
+      );
+    });
+  }
 
   List<_MediaItem> _buildItems() {
     final items = <_MediaItem>[];
@@ -49,8 +85,9 @@ class _ProductMediaGalleryState extends State<ProductMediaGallery> {
   @override
   void didUpdateWidget(covariant ProductMediaGallery oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.imageUrls != widget.imageUrls || oldWidget.videoUrl != widget.videoUrl) {
+    if (!listEquals(oldWidget.imageUrls, widget.imageUrls) || oldWidget.videoUrl != widget.videoUrl) {
       _page = 0;
+      _startAutoPlay();
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted && _controller.hasClients) {
           _controller.jumpToPage(0);
@@ -61,6 +98,7 @@ class _ProductMediaGalleryState extends State<ProductMediaGallery> {
 
   @override
   void dispose() {
+    _autoPlayTimer?.cancel();
     _controller.dispose();
     super.dispose();
   }

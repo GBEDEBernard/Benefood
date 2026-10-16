@@ -1,3 +1,6 @@
+import 'dart:async';
+
+import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter/material.dart';
 
 import 'app_network_image.dart';
@@ -26,15 +29,41 @@ class ProductImageCarousel extends StatefulWidget {
 
 class _ProductImageCarouselState extends State<ProductImageCarousel> {
   late final PageController _controller = PageController();
+  Timer? _autoPlayTimer;
   int _page = 0;
 
   List<String> get _images => widget.imageUrls.where((url) => url.isNotEmpty).toList();
 
   @override
+  void initState() {
+    super.initState();
+    _startAutoPlay();
+  }
+
+  void _startAutoPlay() {
+    _autoPlayTimer?.cancel();
+    if (_images.length < 2) {
+      return;
+    }
+    _autoPlayTimer = Timer.periodic(const Duration(seconds: 2), (_) {
+      if (!mounted || !_controller.hasClients) {
+        return;
+      }
+      final nextPage = (_page + 1) % _images.length;
+      _controller.animateToPage(
+        nextPage,
+        duration: const Duration(milliseconds: 650),
+        curve: Curves.easeInOutCubic,
+      );
+    });
+  }
+
+  @override
   void didUpdateWidget(covariant ProductImageCarousel oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.imageUrls != widget.imageUrls) {
+    if (!listEquals(oldWidget.imageUrls, widget.imageUrls)) {
       _page = 0;
+      _startAutoPlay();
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted && _controller.hasClients) {
           _controller.jumpToPage(0);
@@ -45,6 +74,7 @@ class _ProductImageCarouselState extends State<ProductImageCarousel> {
 
   @override
   void dispose() {
+    _autoPlayTimer?.cancel();
     _controller.dispose();
     super.dispose();
   }
