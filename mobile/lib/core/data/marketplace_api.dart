@@ -1198,18 +1198,19 @@ class MarketplaceApi {
   }
 
   /// Ajoute une image à un produit (première image = image principale).
-  Future<void> uploadProductImage(
+  Future<ProductImage> uploadProductImage(
     String productId,
     List<int> bytes, {
     String? fileName,
     bool isMain = false,
   }) async {
-    await _api.multipart(
+    final response = await _api.multipart(
       '/vendors/me/products/$productId/images',
       fields: {if (isMain) 'is_main': '1'},
       files: {'image': bytes},
       fileNames: {'image': fileName ?? 'image.jpg'},
     );
+    return ProductImage.fromJson(_dataObject(response) ?? const {});
   }
 
   /// Supprime une image précise d'un produit.
@@ -1218,17 +1219,19 @@ class MarketplaceApi {
   }
 
   /// Ajoute (ou remplace) la petite vidéo d'un produit.
-  Future<void> uploadProductVideo(
+  Future<String?> uploadProductVideo(
     String productId,
     List<int> bytes, {
     String? fileName,
   }) async {
-    await _api.multipart(
+    final response = await _api.multipart(
       '/vendors/me/products/$productId/video',
       fields: const {},
       files: {'video': bytes},
       fileNames: {'video': fileName ?? 'video.mp4'},
     );
+    final data = _dataObject(response);
+    return data?['video_url'] is String ? data!['video_url'] as String : null;
   }
 
   /// Supprime la vidéo d'un produit.

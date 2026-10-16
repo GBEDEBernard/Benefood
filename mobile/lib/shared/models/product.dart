@@ -87,10 +87,13 @@ class Product {
   /// URLs de la galerie produit (photos chargées sinon image principale).
   List<String> get galleryImageUrls {
     if (images.isNotEmpty) {
-      return images
+      final urls = images
           .map((i) => i.url)
           .where((url) => url.isNotEmpty)
           .toList();
+      if (urls.isNotEmpty) {
+        return urls;
+      }
     }
     final url = imageUrl;
     return (url != null && url.isNotEmpty) ? [url] : const [];

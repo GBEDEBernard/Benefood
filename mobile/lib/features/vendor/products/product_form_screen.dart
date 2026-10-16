@@ -17,7 +17,7 @@ import '../../../shared/widgets/feedback_widgets.dart';
 
 /// Création / édition d'un produit vendeur (J155).
 ///
-/// Le prix est saisi en FCFA puis converti en centimes pour l'API.
+/// Le prix est saisi et transmis directement en FCFA (XOF, sans décimales).
 class ProductFormScreen extends StatefulWidget {
   const ProductFormScreen({super.key, required this.marketplace, this.product});
 
@@ -52,13 +52,16 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
 
   /// Photos déjà rattachées au produit (mode édition).
   final List<ProductImage> _existingImages = [];
+  Product? _createdProduct;
+  String? _existingVideoUrl;
 
   /// Petite vidéo sélectionnée (nulle si inchangée/absente).
   Uint8List? _videoBytes;
   String? _videoName;
   bool _videoRemoved = false;
 
-  bool get _isEditing => widget.product != null;
+  Product? get _editingProduct => widget.product ?? _createdProduct;
+  bool get _isEditing => _editingProduct != null;
 
   @override
   void initState() {
@@ -72,6 +75,7 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
       _stock.text = product.stockQty?.toString() ?? '';
       _isAvailable = product.isAvailable;
       _existingImages.addAll(product.images);
+      _existingVideoUrl = product.videoUrl;
     }
     _loadCategories();
   }
@@ -132,15 +136,17 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
   Future<void> _pickImages() async {
     setState(() => _pickingImages = true);
     try {
-      final files = await ImagePicker().pickMultiImage();
+      final files = await ImagePicker().pickMultiImage(
+        imageQuality: 85,
+        maxWidth: 1600,
+        maxHeight: 1600,
+      );
       if (files.isEmpty || !mounted) {
         return;
       }
-      final remaining = 10 - _existingImages.length - _newImages.length;
-      final selected = files.take(remaining).toList();
       final bytes = <Uint8List>[];
       final names = <String>[];
-      for (final file in selected) {
+      for (final file in files) {
         final data = await file.readAsBytes();
         bytes.add(data);
         names.add(file.name);
@@ -166,7 +172,10 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
   Future<void> _pickVideo() async {
     setState(() => _pickingVideo = true);
     try {
-      final file = await ImagePicker().pickVideo(source: ImageSource.gallery);
+      final file = await ImagePicker().pickVideo(
+        source: ImageSource.gallery,
+        maxDuration: const Duration(seconds: 30),
+      );
       if (file == null || !mounted) {
         return;
       }
@@ -196,7 +205,7 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
     }
     setState(() => _removingExistingImage = true);
     try {
-      await widget.marketplace.removeProductImage(widget.product!.id, image.id);
+      await widget.marketplace.removeProductImage(_editingProduct!.id, image.id);
       if (!mounted) {
         return;
       }
@@ -221,7 +230,11 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
       showToast(context, 'Choisissez une catégorie', isError: true);
       return;
     }
-    final priceCents = _parsePrice().round(); // FCFA entier
+    if (_existingImages.isEmpty && _newImages.isEmpty) {
+      showToast(context, 'Ajoutez au moins une photo du produit.', isError: true);
+      return;
+    }
+    final priceXof = _parsePrice().round();
     final description = _description.text.trim().isEmpty
         ? null
         : _description.text.trim();
@@ -230,12 +243,13 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
 
     setState(() => _saving = true);
     try {
+      final editingProduct = _editingProduct;
       Product saved;
-      if (_isEditing) {
+      if (editingProduct != null) {
         saved = await widget.marketplace.updateProduct(
-          widget.product!.id,
+          editingProduct.id,
           name: _name.text.trim(),
-          price: priceCents,
+          price: priceXof,
           categoryId: category.id,
           description: description,
           unit: unit,
@@ -245,13 +259,14 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
       } else {
         saved = await widget.marketplace.createProduct(
           name: _name.text.trim(),
-          price: priceCents,
+          price: priceXof,
           categoryId: category.id,
           description: description,
           unit: unit,
           stockQty: stockQty,
           isAvailable: _isAvailable,
         );
+        setState(() => _createdProduct = saved);
       }
       await _uploadMediaIfAny(saved.id);
       if (mounted) {
@@ -265,6 +280,10 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
           showToast(context, e.message, isError: true);
         }
       }
+    } catch (e) {
+      if (mounted) {
+        showToast(context, 'Impossible d’enregistrer le produit : $e', isError: true);
+      }
     } finally {
       if (mounted) {
         setState(() => _saving = false);
@@ -273,45 +292,45 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
   }
 
   Future<void> _uploadMediaIfAny(String productId) async {
-    for (var i = 0; i < _newImages.length; i++) {
-      try {
-        await widget.marketplace.uploadProductImage(
-          productId,
-          _newImages[i],
-          fileName: _newImageNames[i],
-        );
-      } catch (e) {
-        if (mounted) {
-          showToast(
-            context,
-            'Erreur lors de l\'envoi d\'une photo. Certaines images peuvent ne pas avoir été enregistrées.',
-            isError: true,
-          );
-        }
+    while (_newImages.isNotEmpty) {
+      final image = await widget.marketplace.uploadProductImage(
+        productId,
+        _newImages.first,
+        fileName: _newImageNames.first,
+        isMain: _existingImages.isEmpty,
+      );
+      if (!mounted) {
+        return;
       }
+      setState(() {
+        _existingImages.add(image);
+        _newImages.removeAt(0);
+        _newImageNames.removeAt(0);
+      });
     }
 
     final video = _videoBytes;
     if (video != null) {
-      try {
-        await widget.marketplace.uploadProductVideo(
-          productId,
-          video,
-          fileName: _videoName,
-        );
-      } catch (e) {
-        if (mounted) {
-          showToast(
-            context,
-            'Erreur lors de l\'envoi de la vidéo. Elle n\'a pas été enregistrée.',
-            isError: true,
-          );
-        }
+      final videoUrl = await widget.marketplace.uploadProductVideo(
+        productId,
+        video,
+        fileName: _videoName,
+      );
+      if (mounted) {
+        setState(() {
+          _existingVideoUrl = videoUrl;
+          _videoBytes = null;
+          _videoName = null;
+        });
       }
     } else if (_videoRemoved && _isEditing) {
-      try {
-        await widget.marketplace.removeProductVideo(productId);
-      } catch (_) {}
+      await widget.marketplace.removeProductVideo(productId);
+      if (mounted) {
+        setState(() {
+          _existingVideoUrl = null;
+          _videoRemoved = false;
+        });
+      }
     }
   }
 
@@ -319,7 +338,7 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
     final confirmed = await showConfirmDialog(
       context,
       title: 'Supprimer le produit',
-      message: 'Voulez-vous vraiment supprimer « ${widget.product!.name} » ?',
+      message: 'Voulez-vous vraiment supprimer « ${_editingProduct!.name} » ?',
       confirmLabel: 'Supprimer',
     );
     if (!confirmed || !mounted) {
@@ -327,7 +346,7 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
     }
     setState(() => _deleting = true);
     try {
-      await widget.marketplace.deleteProduct(widget.product!.id);
+      await widget.marketplace.deleteProduct(_editingProduct!.id);
       if (mounted) {
         Navigator.of(context).pop(true);
       }
@@ -471,7 +490,7 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
     final theme = Theme.of(context);
 
     final totalImages = _existingImages.length + _newImages.length;
-    final canAddMore = totalImages < 10;
+    const canAddMore = true;
 
     return Card(
       child: Padding(
@@ -481,7 +500,7 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
           children: [
             Text('Photos du produit', style: theme.textTheme.titleSmall),
             Text(
-              'Jusqu\'à 10 photos ($totalImages/10)',
+              'Plusieurs photos possibles · $totalImages sélectionnée${totalImages == 1 ? '' : 's'} · 1 minimum',
               style: theme.textTheme.bodySmall,
             ),
             const SizedBox(height: 10),
@@ -603,7 +622,7 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
   Widget _buildVideoTile() {
     final theme = Theme.of(context);
     final hasExisting =
-        _isEditing && widget.product!.videoUrl != null && !_videoRemoved;
+        _existingVideoUrl != null && !_videoRemoved;
     final hasNew = _videoBytes != null;
 
     if (hasExisting || hasNew) {

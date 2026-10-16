@@ -38,7 +38,10 @@ class Product extends Model
 
     public function images(): HasMany
     {
-        return $this->hasMany(ProductImage::class)->orderBy('sort_order')->orderBy('created_at');
+        return $this->hasMany(ProductImage::class)
+            ->orderByDesc('is_main')
+            ->orderBy('sort_order')
+            ->orderBy('created_at');
     }
 
     public function mainImage(): HasOne

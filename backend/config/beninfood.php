@@ -13,7 +13,7 @@ return [
     |--------------------------------------------------------------------------
     | Devise et précision monétaire
     |--------------------------------------------------------------------------
-    | Tous les montants sont stockés en centimes XOF (entier côté serveur).
+    | Tous les montants sont stockés en XOF entiers (FCFA, sans décimales).
     */
     'currency' => env('BENINFOOD_CURRENCY', 'XOF'),
     'currency_precision' => 0,

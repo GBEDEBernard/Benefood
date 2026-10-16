@@ -43,7 +43,7 @@ class ProductCardGrid extends StatelessWidget {
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  AppNetworkImage(url: product.displayImageUrl ?? product.imageUrl, icon: Icons.fastfood_outlined),
+                  AppNetworkImage(url: product.displayImageUrl, icon: Icons.fastfood_outlined),
                   if (!product.isOrderable || product.isOutOfStock)
                     Positioned(
                       top: 8,
@@ -94,6 +94,7 @@ class ProductCardGrid extends StatelessWidget {
                   ] else ...[
                     const SizedBox(height: 3),
                   ],
+                  _ProductSocialProof(product: product),
                   const SizedBox(height: 8),
                   Row(
                     children: [
@@ -170,7 +171,7 @@ class ProductListCard extends StatelessWidget {
                 child: SizedBox(
                   width: dense ? 56 : 68,
                   height: dense ? 56 : 68,
-                  child: AppNetworkImage(url: product.imageUrl, icon: Icons.fastfood_outlined),
+                  child: AppNetworkImage(url: product.displayImageUrl, icon: Icons.fastfood_outlined),
                 ),
               ),
               const SizedBox(width: 12),
@@ -193,6 +194,8 @@ class ProductListCard extends StatelessWidget {
                         style: theme.textTheme.bodySmall?.copyWith(fontSize: 12, color: AppColors.textSecondary),
                       ),
                     ],
+                    const SizedBox(height: 6),
+                    _ProductSocialProof(product: product),
                     const SizedBox(height: 6),
                     AmountText(
                       product.price,
@@ -233,6 +236,49 @@ class ProductListCard extends StatelessWidget {
   }
 }
 
+class _ProductSocialProof extends StatelessWidget {
+  const _ProductSocialProof({required this.product});
+
+  final Product product;
+
+  @override
+  Widget build(BuildContext context) {
+    final rating = product.rating;
+    final reviewCount = product.reviewsCount ?? 0;
+    final likesCount = product.likesCount ?? 0;
+    final style = Theme.of(context).textTheme.bodySmall?.copyWith(
+          fontSize: 11,
+          color: AppColors.textSecondary,
+          fontWeight: FontWeight.w600,
+        );
+
+    return Semantics(
+      label: '${rating == null ? 'Sans note' : 'Note ${rating.toStringAsFixed(1)} sur 5'}, '
+          '$reviewCount avis, $likesCount favoris',
+      child: Row(
+        children: [
+          const Icon(Icons.star_rounded, size: 14, color: AppColors.gold),
+          const SizedBox(width: 2),
+          Text(rating?.toStringAsFixed(1).replaceAll('.', ',') ?? 'Nouveau', style: style),
+          const SizedBox(width: 4),
+          Flexible(
+            child: Text(
+              '$reviewCount avis',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: style,
+            ),
+          ),
+          const Spacer(),
+          const Icon(Icons.favorite_rounded, size: 13, color: AppColors.red),
+          const SizedBox(width: 2),
+          Text('$likesCount', style: style),
+        ],
+      ),
+    );
+  }
+}
+
 /// Grille 2 colonnes réactive de cartes produit.
 class ProductGrid extends StatelessWidget {
   const ProductGrid({
@@ -260,7 +306,7 @@ class ProductGrid extends StatelessWidget {
         crossAxisCount: 2,
         mainAxisSpacing: 14,
         crossAxisSpacing: 14,
-        childAspectRatio: 0.68,
+        childAspectRatio: 0.60,
       ),
       itemCount: products.length,
       itemBuilder: (context, index) {

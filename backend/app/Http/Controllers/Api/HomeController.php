@@ -11,7 +11,6 @@ use App\Models\Review;
 use App\Models\Vendor;
 use App\Support\Api;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
 /**
@@ -37,37 +36,43 @@ class HomeController extends Controller
             ->values();
 
         $products = Product::query()
-            ->with(['vendor', 'category'])
+            ->with(['vendor', 'category', 'images'])
             ->withAvg('reviews as reviews_avg_rating', 'rating')
             ->withCount(['reviews', 'favorites'])
             ->orderable()
             ->whereHas('vendor', fn ($vendor) => $vendor->where('status', VendorStatus::Active->value)->whereNull('closed_at'))
+            ->orderByRaw('CASE WHEN reviews_avg_rating IS NULL THEN 1 ELSE 0 END')
+            ->orderByDesc('reviews_avg_rating')
+            ->orderByDesc('reviews_count')
             ->latest('products.created_at')
             ->limit(12)
             ->get();
 
+        $vendorRatings = Review::query()
+            ->join('orders', 'orders.id', '=', 'reviews.order_id')
+            ->select('orders.vendor_id')
+            ->selectRaw('AVG(reviews.rating) as average_rating')
+            ->selectRaw('COUNT(reviews.id) as reviews_count')
+            ->groupBy('orders.vendor_id');
+
         $vendors = Vendor::query()
             ->with(['settings'])
+            ->leftJoinSub($vendorRatings, 'vendor_ratings', fn ($join) => $join->on('vendors.id', '=', 'vendor_ratings.vendor_id'))
+            ->select('vendors.*')
+            ->addSelect([
+                'vendor_ratings.average_rating as average_rating',
+                'vendor_ratings.reviews_count as reviews_count',
+            ])
             ->where('status', VendorStatus::Active->value)
             ->whereNull('closed_at')
-            ->orderByDesc('approved_at')
+            ->orderByRaw('CASE WHEN vendor_ratings.average_rating IS NULL THEN 1 ELSE 0 END')
+            ->orderByDesc('vendor_ratings.average_rating')
+            ->orderByDesc('vendor_ratings.reviews_count')
+            ->orderByDesc('vendors.approved_at')
             ->limit(6)
             ->get();
 
         $vendorIds = $vendors->pluck('id');
-
-        // Note moyenne et nombre d'avis calculés depuis les avis des commandes.
-        $ratings = Review::query()
-            ->join('orders', 'orders.id', '=', 'reviews.order_id')
-            ->whereIn('orders.vendor_id', $vendorIds)
-            ->groupBy('orders.vendor_id')
-            ->select([
-                'orders.vendor_id as vendor_id',
-                DB::raw('AVG(reviews.rating) as average_rating'),
-                DB::raw('COUNT(reviews.id) as reviews_count'),
-            ])
-            ->get()
-            ->keyBy('vendor_id');
 
         // Catégorie du dernier produit publié : sous-titre « Plats locaux • Cotonou ».
         $categoryNames = Category::query()->pluck('name', 'id');
@@ -82,9 +87,7 @@ class HomeController extends Controller
             ]);
 
         $vendors = $vendors
-            ->map(function (Vendor $vendor) use ($ratings, $latestCategories) {
-                $stat = $ratings->get($vendor->id);
-
+            ->map(function (Vendor $vendor) use ($latestCategories) {
                 return [
                     'id' => $vendor->id,
                     'business_name' => $vendor->business_name,
@@ -94,8 +97,8 @@ class HomeController extends Controller
                     'city' => $vendor->city,
                     'is_open' => $vendor->isOpenNow(),
                     'category' => $latestCategories->get($vendor->id),
-                    'rating' => $stat !== null ? round((float) $stat->average_rating, 1) : null,
-                    'reviews_count' => $stat !== null ? (int) $stat->reviews_count : 0,
+                    'rating' => $vendor->average_rating !== null ? round((float) $vendor->average_rating, 1) : null,
+                    'reviews_count' => (int) ($vendor->reviews_count ?? 0),
                     'prep_minutes' => (int) ($vendor->settings?->max_preparation_minutes ?? 30),
                 ];
             })

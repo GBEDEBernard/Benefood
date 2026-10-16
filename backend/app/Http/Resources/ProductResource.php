@@ -10,6 +10,13 @@ class ProductResource extends JsonResource
 {
     public function toArray(Request $request): array
     {
+        $imagePath = $this->image_main;
+        if ($this->resource->relationLoaded('images')) {
+            $primaryImage = $this->resource->getRelation('images')->firstWhere('is_main', true)
+                ?? $this->resource->getRelation('images')->first();
+            $imagePath = $primaryImage?->path ?? $imagePath;
+        }
+
         return [
             'id' => $this->id,
             'vendor_id' => $this->vendor_id,
@@ -27,12 +34,12 @@ class ProductResource extends JsonResource
             'currency' => 'XOF',
             'stock_qty' => $this->stock_qty,
             'image_main' => $this->image_main,
-            'image_url' => $this->image_main ? Storage::disk('public')->url($this->image_main) : null,
-            'video_url' => $this->video_path ? Storage::disk('public')->url($this->video_path) : null,
+            'image_url' => $this->mediaUrl($imagePath),
+            'video_url' => $this->mediaUrl($this->video_path),
             'images' => $this->whenLoaded('images', fn () => $this->images->map(fn ($image) => [
                 'id' => $image->id,
-                'url' => Storage::disk('public')->url($image->path),
-                'thumb_url' => Storage::disk('public')->url($image->thumb_path),
+                'url' => $this->mediaUrl($image->path),
+                'thumb_url' => $this->mediaUrl($image->thumb_path),
                 'is_main' => (bool) $image->is_main,
                 'sort_order' => $image->sort_order,
             ])->values()),
@@ -48,5 +55,23 @@ class ProductResource extends JsonResource
             'created_at' => $this->created_at?->toIso8601String(),
             'updated_at' => $this->updated_at?->toIso8601String(),
         ];
+    }
+
+    private function mediaUrl(?string $path): ?string
+    {
+        if ($path === null || $path === '') {
+            return null;
+        }
+
+        if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
+            return $path;
+        }
+
+        $path = ltrim($path, '/');
+        if (str_starts_with($path, 'storage/')) {
+            $path = substr($path, strlen('storage/'));
+        }
+
+        return Storage::disk('public')->url($path);
     }
 }

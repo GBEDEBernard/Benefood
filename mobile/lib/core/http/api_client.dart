@@ -82,27 +82,42 @@ class ApiClient {
   }) async {
     final uri = _uri(path);
 
-    final request = http.MultipartRequest(method, uri);
-    if (auth) {
-      final token = await _tokenStore.readToken();
-      if (token != null) {
-        request.headers['Authorization'] = 'Bearer $token';
-      }
-    }
-    request.fields.addAll(fields);
-    files?.forEach((name, bytes) {
-      request.files.add(http.MultipartFile.fromBytes(
-        name,
-        bytes,
-        filename: fileNames?[name] ?? '$name.bin',
-      ));
-    });
+    try {
+      Future<http.Response> sendRequest() async {
+        final request = http.MultipartRequest(method, uri);
+        request.headers['Accept'] = 'application/json';
+        request.headers['Accept-Language'] = 'fr';
+        if (auth) {
+          final token = await _tokenStore.readToken();
+          if (token != null) {
+            request.headers['Authorization'] = 'Bearer $token';
+          }
+        }
+        request.fields.addAll(fields);
+        files?.forEach((name, bytes) {
+          request.files.add(http.MultipartFile.fromBytes(
+            name,
+            bytes,
+            filename: fileNames?[name] ?? '$name.bin',
+          ));
+        });
 
-    // Via `_http` (et non `request.send()`) : même client injecté,
-    // mêmes timeouts et mêmes tests que le reste des requêtes.
-    final streamed = await _http.send(request).timeout(timeout);
-    final response = await http.Response.fromStream(streamed).timeout(timeout);
-    return _decode(response, attemptsLeft: auth ? 1 : 0);
+        // Via `_http` (et non `request.send()`) : même client injecté,
+        // mêmes timeouts et mêmes tests que le reste des requêtes.
+        final streamed = await _http.send(request).timeout(timeout);
+        return await http.Response.fromStream(streamed).timeout(timeout);
+      }
+
+      var response = await sendRequest();
+      if (response.statusCode == 401 && auth && await _refreshToken()) {
+        response = await sendRequest();
+      }
+      return await _decode(response);
+    } on TimeoutException {
+      throw ApiException.timeout();
+    } on http.ClientException catch (e) {
+      throw ApiException.network(e.message);
+    }
   }
 
   Future<Map<String, dynamic>> _request(

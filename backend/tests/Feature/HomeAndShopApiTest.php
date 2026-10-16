@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Enums\OrderStatus;
 use App\Enums\VendorStatus;
 use App\Models\Category;
+use App\Models\Favorite;
 use App\Models\Order;
 use App\Models\Product;
 use App\Models\Review;
@@ -32,18 +33,32 @@ class HomeAndShopApiTest extends TestCase
     {
         $vendor = Vendor::factory()->create(['status' => VendorStatus::Active->value]);
         $category = Category::factory()->create();
-        Product::factory()->create([
+        $product = Product::factory()->create([
             'vendor_id' => $vendor->id,
             'category_id' => $category->id,
             'stock_qty' => 5,
         ]);
+        $product->images()->create([
+            'path' => 'products/demo/main.webp',
+            'thumb_path' => 'products/demo/main_thumb.webp',
+            'mime' => 'image/webp',
+            'size' => 1024,
+            'is_main' => true,
+            'sort_order' => 0,
+        ]);
 
-        $this->getJson('/api/v1/home')
+        $response = $this->getJson('/api/v1/home')
             ->assertOk()
             ->assertJsonCount(1, 'data.categories')
             ->assertJsonCount(1, 'data.featured_products')
+            ->assertJsonCount(1, 'data.featured_products.0.images')
             ->assertJsonPath('data.vendors.0.id', $vendor->id)
             ->assertJsonPath('data.vendors.0.is_open', true);
+
+        $this->assertStringEndsWith(
+            '/storage/products/demo/main.webp',
+            $response->json('data.featured_products.0.image_url'),
+        );
     }
 
     public function test_home_excludes_suspended_vendor_products(): void
@@ -104,6 +119,59 @@ class HomeAndShopApiTest extends TestCase
             ->assertJsonPath('data.vendors.0.rating', null)
             ->assertJsonPath('data.vendors.0.reviews_count', 0)
             ->assertJsonPath('data.vendors.0.prep_minutes', 30);
+    }
+
+    public function test_home_ranks_best_rated_vendors_and_products_and_preserves_xof_prices(): void
+    {
+        $category = Category::factory()->create();
+        $client = User::factory()->create();
+        $lowRatedVendor = Vendor::factory()->create([
+            'status' => VendorStatus::Active->value,
+            'approved_at' => now(),
+        ]);
+        $topRatedVendor = Vendor::factory()->create([
+            'status' => VendorStatus::Active->value,
+            'approved_at' => now()->subDays(5),
+        ]);
+
+        $lowProduct = Product::factory()->create([
+            'vendor_id' => $lowRatedVendor->id,
+            'category_id' => $category->id,
+            'price' => 2000,
+            'stock_qty' => 5,
+        ]);
+        $topProduct = Product::factory()->create([
+            'vendor_id' => $topRatedVendor->id,
+            'category_id' => $category->id,
+            'price' => 2500,
+            'stock_qty' => 5,
+        ]);
+
+        foreach ([[$lowRatedVendor, $lowProduct, 3], [$topRatedVendor, $topProduct, 5]] as [$vendor, $product, $rating]) {
+            $order = Order::create([
+                'reference' => 'REF-RANK-'.$vendor->id,
+                'user_id' => $client->id,
+                'vendor_id' => $vendor->id,
+                'status' => OrderStatus::Delivered->value,
+            ]);
+            $review = Review::create([
+                'order_id' => $order->id,
+                'user_id' => $client->id,
+                'rating' => $rating,
+            ]);
+            ReviewItem::create(['review_id' => $review->id, 'product_id' => $product->id]);
+        }
+
+        Favorite::create(['user_id' => $client->id, 'product_id' => $topProduct->id]);
+
+        $this->getJson('/api/v1/home')
+            ->assertOk()
+            ->assertJsonPath('data.vendors.0.id', $topRatedVendor->id)
+            ->assertJsonPath('data.vendors.0.rating', 5)
+            ->assertJsonPath('data.featured_products.0.id', $topProduct->id)
+            ->assertJsonPath('data.featured_products.0.price', 2500)
+            ->assertJsonPath('data.featured_products.0.reviews_count', 1)
+            ->assertJsonPath('data.featured_products.0.likes_count', 1);
     }
 
     public function test_vendor_shop_exposes_rating_reviews_and_prep_time(): void

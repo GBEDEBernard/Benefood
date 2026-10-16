@@ -31,14 +31,14 @@ class _ProductMediaGalleryState extends State<ProductMediaGallery> {
 
   List<_MediaItem> _buildItems() {
     final items = <_MediaItem>[];
-    final video = widget.videoUrl;
-    if (video != null && video.isNotEmpty) {
-      items.add(_MediaItem(url: video, isVideo: true));
-    }
     for (final url in widget.imageUrls) {
       if (url.isNotEmpty) {
         items.add(_MediaItem(url: url, isVideo: false));
       }
+    }
+    final video = widget.videoUrl;
+    if (video != null && video.isNotEmpty) {
+      items.add(_MediaItem(url: video, isVideo: true));
     }
     if (items.isEmpty) {
       items.add(const _MediaItem(url: null, isVideo: false));

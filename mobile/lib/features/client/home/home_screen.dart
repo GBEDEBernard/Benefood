@@ -466,7 +466,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 // --- Restaurants populaires ---
                 if (data.vendors.isNotEmpty) ...[
                   SectionHeader(
-                    title: 'Restaurants populaires',
+                    title: 'Boutiques les mieux notées',
                     actionLabel: 'Voir tout',
                     onAction: () => context.push('/client/search'),
                   ),
@@ -502,7 +502,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 // --- Plats du jour ---
                 if (allProducts.isNotEmpty) ...[
                   SectionHeader(
-                    title: 'Plats du jour',
+                    title: 'Plats du jour les mieux notés',
                     actionLabel: 'Voir tout',
                     onAction: () => context.push('/client/search'),
                   ),

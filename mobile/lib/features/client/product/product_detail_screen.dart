@@ -182,12 +182,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                         fit: StackFit.expand,
                         children: [
                           ProductMediaGallery(
-                            imageUrls: product.images.isNotEmpty
-                                ? product.images.map((i) => i.url).toList()
-                                : [
-                                    if (product.imageUrl != null)
-                                      product.imageUrl!,
-                                  ],
+                            imageUrls: product.galleryImageUrls,
                             videoUrl: product.videoUrl,
                           ),
                           if (!product.isOrderable || product.isOutOfStock)

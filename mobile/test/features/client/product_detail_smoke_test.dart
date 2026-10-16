@@ -51,6 +51,20 @@ MockClient _mockBackend() {
             'rating': 4.6,
             'reviews_count': 12,
             'likes_count': 30,
+            'image_url': 'http://api.test/storage/products/p1/main.webp',
+            'images': [
+              {
+                'id': 'image-main',
+                'url': 'http://api.test/storage/products/p1/main.webp',
+                'is_main': true,
+              },
+              {
+                'id': 'image-second',
+                'url': 'http://api.test/storage/products/p1/second.webp',
+                'is_main': false,
+              },
+            ],
+            'video_url': 'http://api.test/storage/products/p1/video.mp4',
           },
         }),
         200,
@@ -108,6 +122,19 @@ void main() {
     expect(exception, isNull, reason: 'exception pendant le build: $exception');
 
     expect(find.byType(ProductMediaGallery), findsOneWidget);
+    final gallery = find.byType(ProductMediaGallery);
+    final pageView = tester.widget<PageView>(
+      find.descendant(of: gallery, matching: find.byType(PageView)),
+    );
+    expect(
+      (pageView.childrenDelegate as SliverChildBuilderDelegate).childCount,
+      3,
+      reason: '2 photos et la vidéo doivent apparaître dans la galerie',
+    );
+    final firstImage = tester.widget<Image>(
+      find.descendant(of: gallery, matching: find.byType(Image)).first,
+    );
+    expect((firstImage.image as NetworkImage).url, contains('/main.webp'));
     expect(find.text('Poulet braisé'), findsOneWidget);
     expect(find.text('4,6 (12 avis)'), findsOneWidget);
     expect(find.text('30'), findsOneWidget);
