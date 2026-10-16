@@ -101,7 +101,7 @@ class CatalogController extends Controller
             return Api::error('Produit introuvable.', 'not_found', 404);
         }
 
-        $product->load(['vendor', 'category', 'images']);
+        $product->load(['vendor', 'category', 'images'])->loadCount(['favorites', 'reviews']);
 
         return Api::ok(new ProductResource($product));
     }

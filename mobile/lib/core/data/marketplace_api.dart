@@ -1473,8 +1473,17 @@ String _s(dynamic value, [String fallback = '']) =>
 
 /// Résultat d'un avis produit : note moyenne et nombre d'avis recalculés.
 class ProductReviewResult {
-  const ProductReviewResult({this.rating, this.reviewsCount = 0});
+  const ProductReviewResult({this.rating, this.reviewsCount = 0, this.likesCount});
 
   final double? rating;
   final int reviewsCount;
+  final int? likesCount;
+
+  ProductReviewResult copyWith({double? rating, int? reviewsCount, int? likesCount}) {
+    return ProductReviewResult(
+      rating: rating ?? this.rating,
+      reviewsCount: reviewsCount ?? this.reviewsCount,
+      likesCount: likesCount ?? this.likesCount,
+    );
+  }
 }

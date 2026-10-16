@@ -99,11 +99,11 @@ void main() {
     final exception = tester.takeException();
     expect(exception, isNull, reason: 'exception pendant le build: $exception');
 
-    expect(find.text('Restaurants populaires'), findsOneWidget);
+    expect(find.text('Boutiques les mieux notées'), findsOneWidget);
     expect(find.text('La Boulangerie du Centre'), findsOneWidget);
     await tester.scrollUntilVisible(
       find.text('Plats du jour'),
-      400,
+      1200,
       scrollable: find.byType(Scrollable).first,
     );
     expect(find.text('Plats du jour'), findsOneWidget);
@@ -116,7 +116,7 @@ void main() {
     final exception = tester.takeException();
     expect(exception, isNull, reason: 'exception pendant le build: $exception');
 
-    expect(find.text('Restaurants populaires'), findsOneWidget);
+    expect(find.text('Boutiques les mieux notées'), findsOneWidget);
     expect(find.text('La Boulangerie du Centre'), findsOneWidget);
   });
 }
