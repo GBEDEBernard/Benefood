@@ -26,6 +26,8 @@ class _NoopTokenStore implements TokenStore {
 }
 
 MockClient _mockBackend() {
+  var isFavorite = false;
+
   return MockClient((request) async {
     const json = {'content-type': 'application/json'};
     final path = request.url.path;
@@ -73,10 +75,24 @@ MockClient _mockBackend() {
     }
     if (path.endsWith('/me/favorites')) {
       return http.Response(
-        jsonEncode({'data': <Object?>[]}),
+        jsonEncode({
+          'data': isFavorite ? <Object?>[{'product_id': 'p1'}] : <Object?>[],
+        }),
         200,
         headers: json,
       );
+    }
+    if (request.method == 'POST' && path.endsWith('/me/favorites')) {
+      isFavorite = true;
+      return http.Response(
+        jsonEncode({'data': {'id': 'favorite-1', 'product_id': 'p1'}}),
+        201,
+        headers: json,
+      );
+    }
+    if (request.method == 'DELETE' && path.endsWith('/me/favorites/p1')) {
+      isFavorite = false;
+      return http.Response('', 204, headers: json);
     }
     return http.Response(
       jsonEncode({'message': 'Not found'}),
@@ -150,5 +166,33 @@ void main() {
     expect(find.text('4,6 (12 avis)'), findsOneWidget);
     expect(find.text('30'), findsOneWidget);
     expect(find.text('Chez Awa'), findsOneWidget);
+  });
+
+  testWidgets('le bouton cœur ajoute et retire le produit des favoris', (tester) async {
+    await _pump(tester);
+
+    final addFavorite = find.byTooltip('Ajouter aux favoris');
+    expect(addFavorite, findsOneWidget);
+    await tester.tap(addFavorite);
+    await tester.pumpAndSettle();
+
+    final removeFavorite = find.byTooltip('Retirer des favoris');
+    expect(removeFavorite, findsOneWidget);
+    expect(
+      find.descendant(of: removeFavorite, matching: find.byIcon(Icons.favorite)),
+      findsOneWidget,
+    );
+    expect(find.text('Ajouté aux favoris'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Retirer des favoris'));
+    await tester.pumpAndSettle();
+
+    final addFavoriteAgain = find.byTooltip('Ajouter aux favoris');
+    expect(addFavoriteAgain, findsOneWidget);
+    expect(
+      find.descendant(of: addFavoriteAgain, matching: find.byIcon(Icons.favorite_border)),
+      findsOneWidget,
+    );
+    expect(find.text('Retiré des favoris'), findsOneWidget);
   });
 }

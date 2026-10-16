@@ -36,6 +36,8 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   int _quantity = 1;
   bool _adding = false;
   bool _isFavorite = false;
+  bool _favoriteBusy = false;
+  int _favoriteMutationVersion = 0;
   ProductReviewResult? _reviewResult;
 
   @override
@@ -72,9 +74,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   }
 
   Future<void> _loadFavorite() async {
+    final versionAtStart = _favoriteMutationVersion;
     try {
       final favorites = await widget.marketplace.myFavorites();
-      if (!mounted) {
+      if (!mounted || versionAtStart != _favoriteMutationVersion) {
         return;
       }
       setState(() {
@@ -86,21 +89,42 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   }
 
   Future<void> _toggleFavorite() async {
+    if (_favoriteBusy) {
+      return;
+    }
+
     final wasFavorite = _isFavorite;
-    setState(() => _isFavorite = !wasFavorite);
+    setState(() {
+      _favoriteBusy = true;
+      _favoriteMutationVersion++;
+      _isFavorite = !wasFavorite;
+    });
+
     try {
       if (wasFavorite) {
         await widget.marketplace.removeFavorite(widget.productId);
       } else {
         await widget.marketplace.addFavorite(widget.productId);
       }
-      if (mounted && !wasFavorite) {
-        showToast(context, 'Ajouté aux favoris');
+      if (mounted) {
+        showToast(
+          context,
+          wasFavorite ? 'Retiré des favoris' : 'Ajouté aux favoris',
+        );
       }
     } on ApiException catch (e) {
       if (mounted) {
         setState(() => _isFavorite = wasFavorite);
         showToast(context, e.message, isError: true);
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => _isFavorite = wasFavorite);
+        showToast(context, 'Impossible de mettre à jour vos favoris.', isError: true);
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _favoriteBusy = false);
       }
     }
   }
@@ -131,13 +155,28 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       api: widget.marketplace,
       actions: [
         IconButton(
-          onPressed: _toggleFavorite,
+          onPressed: _favoriteBusy ? null : _toggleFavorite,
           tooltip: _isFavorite
               ? 'Retirer des favoris'
               : 'Ajouter aux favoris',
-          icon: Icon(
-            _isFavorite ? Icons.favorite : Icons.favorite_border,
-            color: _isFavorite ? AppColors.red : AppColors.text,
+          icon: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 220),
+            transitionBuilder: (child, animation) => ScaleTransition(
+              scale: animation,
+              child: FadeTransition(opacity: animation, child: child),
+            ),
+            child: _favoriteBusy
+                ? const SizedBox(
+                    key: ValueKey('favorite-loading'),
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : Icon(
+                    key: ValueKey(_isFavorite),
+                    _isFavorite ? Icons.favorite : Icons.favorite_border,
+                    color: _isFavorite ? AppColors.red : AppColors.text,
+                  ),
           ),
         ),
       ],
