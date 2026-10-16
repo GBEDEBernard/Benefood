@@ -25,6 +25,19 @@ void main() {
       expect(resolved, 'http://127.0.0.1:8000/storage/x.webp');
     });
 
+    test('réécrit une URL de stockage créée avec un ancien domaine de tunnel', () {
+      AppConfig.apiBaseUrlOverride = 'http://10.0.2.2:8000';
+
+      final resolved = resolveMediaUrl(
+        'https://ancien-tunnel.trycloudflare.com/storage/avatars/user.webp?version=2',
+      );
+
+      expect(
+        resolved,
+        'http://10.0.2.2:8000/storage/avatars/user.webp?version=2',
+      );
+    });
+
     test('préfixe un chemin racine-relative', () {
       AppConfig.apiBaseUrlOverride = 'https://xxx.trycloudflare.com';
 

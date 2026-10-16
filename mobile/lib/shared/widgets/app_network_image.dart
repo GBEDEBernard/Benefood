@@ -24,6 +24,20 @@ String? resolveMediaUrl(String? source) {
     return base.resolve(source).toString();
   }
 
+  // Les URLs Laravel du disque local sont construites avec APP_URL. Cette
+  // valeur peut être un ancien domaine de tunnel (Cloudflare/ngrok) alors que
+  // l'API est joignable sur une autre adresse. Les fichiers /storage restent
+  // sur le même serveur que l'API : on réutilise donc toujours son origine.
+  if (uri.path == '/storage' || uri.path.startsWith('/storage/')) {
+    return base
+        .replace(
+          path: uri.path,
+          query: uri.hasQuery ? uri.query : null,
+          fragment: uri.hasFragment ? uri.fragment : null,
+        )
+        .toString();
+  }
+
   if (uri.host != 'localhost' && uri.host != '127.0.0.1') {
     return source;
   }
