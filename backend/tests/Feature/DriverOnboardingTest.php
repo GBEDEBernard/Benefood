@@ -39,6 +39,8 @@ class DriverOnboardingTest extends TestCase
 
         $this->postJson('/api/v1/driver/me/onboarding', [
             'vehicle' => 'Moto Bajaj',
+            'city' => 'Cotonou',
+            'area' => 'Akpakpa',
         ])->assertCreated()
             ->assertJsonPath('data.type', 'independent')
             ->assertJsonPath('data.status', 'candidate');
@@ -47,6 +49,8 @@ class DriverOnboardingTest extends TestCase
             'user_id' => $user->id,
             'type' => 'independent',
             'status' => 'candidate',
+            'city' => 'Cotonou',
+            'area' => 'Akpakpa',
         ]);
         $this->assertTrue($user->fresh()->roles->pluck('slug')->contains('driver-independent'));
         $this->assertDatabaseHas('driver_status_history', [

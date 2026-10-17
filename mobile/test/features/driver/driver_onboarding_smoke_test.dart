@@ -34,6 +34,22 @@ MockClient _mockBackend(List<String> log) {
     final path = request.url.path;
     log.add('${request.method} $path');
 
+    if (path.endsWith('/locations')) {
+      return http.Response(
+        jsonEncode({
+          'data': [
+            {
+              'city': 'Cotonou',
+              'neighborhoods': [
+                {'id': 'n-1', 'name': 'Akpakpa', 'latitude': 6.36, 'longitude': 2.44},
+              ],
+            },
+          ],
+        }),
+        200,
+        headers: headers,
+      );
+    }
     if (path.endsWith('/driver/me/onboarding')) {
       return http.Response(
         jsonEncode({'data': {'id': 'dp-1', 'status': 'candidate'}}),
@@ -153,6 +169,14 @@ void main() {
 
     final field = find.widgetWithText(TextFormField, 'Véhicule');
     await tester.enterText(field, 'Moto Bajaj Boxer');
+
+    // Zone d'activité du livreur (ville + quartier via le sélecteur).
+    await tester.ensureVisible(find.text('Choisir un quartier…'));
+    await tester.tap(find.text('Choisir un quartier…'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Akpakpa'));
+    await tester.pumpAndSettle();
+
     await tester.tap(find.text('Enregistrer mon inscription'));
     await tester.pumpAndSettle();
     expect(log.where((e) => e.endsWith('/driver/me/onboarding')), hasLength(1));

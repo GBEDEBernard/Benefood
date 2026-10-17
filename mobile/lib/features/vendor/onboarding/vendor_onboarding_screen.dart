@@ -52,6 +52,8 @@ class _VendorOnboardingScreenState extends State<VendorOnboardingScreen> {
   final _ifu = TextEditingController();
   final _phone = TextEditingController();
   final _email = TextEditingController();
+  final _city = TextEditingController();
+  final _area = TextEditingController();
   final _adresse = TextEditingController();
 
   // --- Étape 2 : documents ---
@@ -90,6 +92,8 @@ class _VendorOnboardingScreenState extends State<VendorOnboardingScreen> {
     _ifu.dispose();
     _phone.dispose();
     _email.dispose();
+    _city.dispose();
+    _area.dispose();
     _adresse.dispose();
     _shopName.dispose();
     _description.dispose();
@@ -119,6 +123,8 @@ class _VendorOnboardingScreenState extends State<VendorOnboardingScreen> {
       _ifu.text = vendor['ifu'] as String? ?? '';
       _phone.text = vendor['phone'] as String? ?? '';
       _email.text = vendor['email'] as String? ?? '';
+      _city.text = vendor['city'] as String? ?? '';
+      _area.text = vendor['area'] as String? ?? '';
       _adresse.text = vendor['address'] as String? ?? '';
       _shopName.text = vendor['business_name'] as String? ?? '';
       _description.text = vendor['description'] as String? ?? '';
@@ -349,6 +355,8 @@ class _VendorOnboardingScreenState extends State<VendorOnboardingScreen> {
       ifu: _ifu.text.trim(),
       phone: _phone.text.trim(),
       email: _email.text.trim(),
+      city: _city.text.trim(),
+      area: _area.text.trim(),
       address: _adresse.text.trim(),
     );
   }
@@ -360,6 +368,8 @@ class _VendorOnboardingScreenState extends State<VendorOnboardingScreen> {
       ifu: _ifu.text.trim(),
       phone: _phone.text.trim(),
       email: _email.text.trim(),
+      city: _city.text.trim(),
+      area: _area.text.trim(),
       address: _adresse.text.trim(),
     );
   }
@@ -454,11 +464,14 @@ class _VendorOnboardingScreenState extends State<VendorOnboardingScreen> {
                 onBack: () => _goTo(0),
                 onNext: _continueFromLegal,
                 child: LegalInfoStep(
+                  marketplace: widget.marketplace,
                   formKey: _legalFormKey,
                   raisonSociale: _raisonSociale,
                   ifu: _ifu,
                   phone: _phone,
                   email: _email,
+                  city: _city,
+                  area: _area,
                   adresse: _adresse,
                 ),
               ),

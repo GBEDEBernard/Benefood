@@ -22,6 +22,8 @@ class DriverController extends Controller
 
         $data = $request->validate([
             'vehicle' => ['sometimes', 'nullable', 'string', 'max:255'],
+            'city' => ['sometimes', 'nullable', 'string', 'max:120'],
+            'area' => ['sometimes', 'nullable', 'string', 'max:120'],
         ]);
 
         $profile = $this->driverService->candidacy($request->user(), $data);

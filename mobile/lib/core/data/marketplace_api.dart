@@ -473,6 +473,7 @@ class MarketplaceApi {
     required String phone,
     String? email,
     String? city,
+    String? area,
     String? address,
     String? categoryId,
     VendorType? type,
@@ -488,6 +489,7 @@ class MarketplaceApi {
         'phone': phone,
         if (email != null && email.isNotEmpty) 'email': email,
         if (city != null && city.isNotEmpty) 'city': city,
+        if (area != null && area.isNotEmpty) 'area': area,
         if (address != null && address.isNotEmpty) 'address': address,
         if (categoryId != null && categoryId.isNotEmpty)
           'category_id': categoryId,
@@ -507,6 +509,7 @@ class MarketplaceApi {
     String? phone,
     String? email,
     String? city,
+    String? area,
     String? address,
     String? categoryId,
     VendorType? type,
@@ -522,6 +525,7 @@ class MarketplaceApi {
         if (phone != null && phone.isNotEmpty) 'phone': phone,
         'email': ?email,
         'city': ?city,
+        'area': ?area,
         'address': ?address,
         if (categoryId != null && categoryId.isNotEmpty)
           'category_id': categoryId,
@@ -540,6 +544,7 @@ class MarketplaceApi {
     String? phone,
     String? email,
     String? city,
+    String? area,
     String? address,
     String? pickupAddress,
     String? pickupLandmark,
@@ -556,6 +561,7 @@ class MarketplaceApi {
         if (phone != null && phone.trim().isNotEmpty) 'phone': phone.trim(),
         if (email != null) 'email': email.trim().isEmpty ? null : email.trim(),
         if (city != null) 'city': city.trim().isEmpty ? null : city.trim(),
+        if (area != null) 'area': area.trim().isEmpty ? null : area.trim(),
         if (address != null)
           'address': address.trim().isEmpty ? null : address.trim(),
         if (pickupAddress != null) 'pickup_address': pickupAddress.trim(),
@@ -654,8 +660,19 @@ class MarketplaceApi {
     return _dataObject(response) ?? {};
   }
 
-  Future<void> driverOnboarding({required String vehicle}) async {
-    await _api.post('/driver/me/onboarding', body: {'vehicle': vehicle});
+  Future<void> driverOnboarding({
+    required String vehicle,
+    String? city,
+    String? area,
+  }) async {
+    await _api.post(
+      '/driver/me/onboarding',
+      body: {
+        'vehicle': vehicle,
+        if (city != null && city.isNotEmpty) 'city': city,
+        if (area != null && area.isNotEmpty) 'area': area,
+      },
+    );
   }
 
   Future<void> clientOnboarding({
@@ -663,6 +680,7 @@ class MarketplaceApi {
     String? phone,
     String? address,
     String? city,
+    String? area,
   }) async {
     await _api.post(
       '/client/me/onboarding',
@@ -671,6 +689,7 @@ class MarketplaceApi {
         if (phone != null && phone.isNotEmpty) 'phone': phone,
         if (address != null && address.isNotEmpty) 'address': address,
         if (city != null && city.isNotEmpty) 'city': city,
+        if (area != null && area.isNotEmpty) 'area': area,
       },
     );
   }

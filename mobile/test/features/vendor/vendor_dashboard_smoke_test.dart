@@ -430,7 +430,7 @@ void main() {
     expect(find.text('Instructions pour le livreur'), findsOneWidget);
 
     // Édition de l'adresse de la boutique puis enregistrement.
-    await tester.enterText(find.byType(TextFormField).at(1), 'Rue des Palmiers');
+    await tester.enterText(find.byType(TextFormField).first, 'Rue des Palmiers');
     await tester.tap(find.text('Enregistrer'));
     await tester.pump();
     await tester.pumpAndSettle();

@@ -72,6 +72,27 @@ MockClient _mockBackend(List<String> log, {bool started = false}) {
         headers: headers,
       );
     }
+    if (path.endsWith('/locations')) {
+      return http.Response(
+        jsonEncode({
+          'data': [
+            {
+              'city': 'Cotonou',
+              'neighborhoods': [
+                {
+                  'id': 'n-1',
+                  'name': 'Fidjrossè',
+                  'latitude': 6.35,
+                  'longitude': 2.35,
+                },
+              ],
+            },
+          ],
+        }),
+        200,
+        headers: headers,
+      );
+    }
     if (path.endsWith('/client/me/onboarding')) {
       return http.Response(
         jsonEncode({'data': {'id': 'cp-1', 'status': 'pending'}}),
@@ -175,8 +196,18 @@ void main() {
     final fields = find.byType(TextFormField);
     await tester.enterText(fields.at(0), 'Awa Sossou');
     await tester.enterText(fields.at(1), '+229 97 00 00 50');
-    await tester.enterText(fields.at(2), 'Cotonou');
-    await tester.enterText(fields.at(3), 'Rue 12, Cadjèhoun');
+
+    // Ville + quartier choisis via le sélecteur de lieu.
+    await tester.ensureVisible(find.text('Choisir un quartier…'));
+    await tester.tap(find.text('Choisir un quartier…'));
+    await tester.pumpAndSettle();
+    expect(find.text('Choisir un lieu'), findsOneWidget);
+    await tester.tap(find.text('Fidjrossè'));
+    await tester.pumpAndSettle();
+
+    final addressField = find.byType(TextFormField, skipOffstage: false).last;
+    await tester.ensureVisible(addressField);
+    await tester.enterText(addressField, 'Rue 12, Cadjèhoun');
 
     await tester.tap(find.text('Enregistrer mes informations'));
     await tester.pumpAndSettle();

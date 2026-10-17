@@ -33,6 +33,8 @@ class DriverOnboardingService
             'type' => DriverType::Independent->value,
             'status' => DriverStatus::Candidate->value,
             'vehicle' => $data['vehicle'] ?? null,
+            'city' => $data['city'] ?? null,
+            'area' => $data['area'] ?? null,
         ]);
 
         $this->recordHistory($profile, null, DriverStatus::Candidate, actorType: 'user', actorId: $user->id);
@@ -112,6 +114,8 @@ class DriverOnboardingService
                 'type' => $profile->type,
                 'status' => $profile->status,
                 'vehicle' => $profile->vehicle,
+                'city' => $profile->city,
+                'area' => $profile->area,
                 'available' => $profile->available,
                 'rating' => $profile->rating,
                 'created_at' => $profile->created_at?->toIso8601String(),

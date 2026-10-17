@@ -11,6 +11,7 @@ import '../../../shared/widgets/app_button.dart';
 import '../../../shared/widgets/beninfood_header.dart';
 import '../../../shared/widgets/app_text_field.dart';
 import '../../../shared/widgets/brand_logo.dart';
+import '../../../shared/widgets/city_area_picker.dart';
 import '../../../shared/widgets/feedback_widgets.dart';
 
 /// Sélecteur d'images injectable (tests).
@@ -57,6 +58,7 @@ class _ClientOnboardingScreenState extends State<ClientOnboardingScreen> {
   final _name = TextEditingController();
   final _phone = TextEditingController();
   final _city = TextEditingController();
+  final _area = TextEditingController();
   final _address = TextEditingController();
 
   bool _profileCreated = false;
@@ -79,6 +81,7 @@ class _ClientOnboardingScreenState extends State<ClientOnboardingScreen> {
     _name.dispose();
     _phone.dispose();
     _city.dispose();
+    _area.dispose();
     _address.dispose();
     super.dispose();
   }
@@ -107,6 +110,7 @@ class _ClientOnboardingScreenState extends State<ClientOnboardingScreen> {
             ? profile['phone'] as String
             : _phone.text;
         _city.text = profile['city'] as String? ?? '';
+        _area.text = profile['area'] as String? ?? '';
         _address.text = profile['address'] as String? ?? '';
         _profileCreated = true;
       }
@@ -224,6 +228,7 @@ class _ClientOnboardingScreenState extends State<ClientOnboardingScreen> {
         phone: _phone.text.trim(),
         address: _address.text.trim(),
         city: _city.text.trim(),
+        area: _area.text.trim(),
       );
       if (mounted) {
         setState(() => _profileCreated = true);
@@ -314,9 +319,11 @@ class _ClientOnboardingScreenState extends State<ClientOnboardingScreen> {
           children: [
             _WelcomePage(onStart: () => _goTo(1)),
             _DocumentsPage(
+              marketplace: widget.marketplace,
               name: _name,
               phone: _phone,
               city: _city,
+              area: _area,
               address: _address,
               profileCreated: _profileCreated,
               submitting: _submitting,
@@ -436,9 +443,11 @@ class _WelcomePage extends StatelessWidget {
 
 class _DocumentsPage extends StatelessWidget {
   const _DocumentsPage({
+    required this.marketplace,
     required this.name,
     required this.phone,
     required this.city,
+    required this.area,
     required this.address,
     required this.profileCreated,
     required this.submitting,
@@ -453,9 +462,11 @@ class _DocumentsPage extends StatelessWidget {
     required this.onFinish,
   });
 
+  final MarketplaceApi marketplace;
   final TextEditingController name;
   final TextEditingController phone;
   final TextEditingController city;
+  final TextEditingController area;
   final TextEditingController address;
   final bool profileCreated;
   final bool submitting;
@@ -515,10 +526,10 @@ class _DocumentsPage extends StatelessWidget {
                 enabled: !profileCreated,
               ),
               const SizedBox(height: 12),
-              AppTextField(
-                controller: city,
-                label: 'Ville',
-                icon: Icons.location_city_outlined,
+              CityAreaPickerField(
+                marketplace: marketplace,
+                cityController: city,
+                areaController: area,
                 enabled: !profileCreated,
               ),
               const SizedBox(height: 12),

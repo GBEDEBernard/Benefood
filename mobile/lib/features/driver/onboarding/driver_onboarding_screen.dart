@@ -12,6 +12,7 @@ import '../../../shared/widgets/app_button.dart';
 import '../../../shared/widgets/app_text_field.dart';
 import '../../../shared/widgets/beninfood_header.dart';
 import '../../../shared/widgets/brand_logo.dart';
+import '../../../shared/widgets/city_area_picker.dart';
 import '../../../shared/widgets/feedback_widgets.dart';
 import '../../../shared/widgets/status_badge.dart';
 
@@ -56,6 +57,8 @@ class _DriverOnboardingScreenState extends State<DriverOnboardingScreen> {
 
   final PageController _pageController = PageController();
   final _vehicle = TextEditingController();
+  final _city = TextEditingController();
+  final _area = TextEditingController();
   bool _submitting = false;
   String? _uploadingType;
 
@@ -67,6 +70,9 @@ class _DriverOnboardingScreenState extends State<DriverOnboardingScreen> {
   @override
   void initState() {
     super.initState();
+    _vehicle.text = widget.profile?['vehicle'] as String? ?? '';
+    _city.text = widget.profile?['city'] as String? ?? '';
+    _area.text = widget.profile?['area'] as String? ?? '';
     _restoreUploads();
     // Dossier déjà commencé (inscription ou documents envoyés) : on reprend
     // directement sur la page Documents au lieu de la bienvenue.
@@ -82,6 +88,8 @@ class _DriverOnboardingScreenState extends State<DriverOnboardingScreen> {
   @override
   void dispose() {
     _vehicle.dispose();
+    _city.dispose();
+    _area.dispose();
     _pageController.dispose();
     super.dispose();
   }
@@ -119,7 +127,11 @@ class _DriverOnboardingScreenState extends State<DriverOnboardingScreen> {
     setState(() => _submitting = true);
     try {
       try {
-        await widget.marketplace.driverOnboarding(vehicle: _vehicle.text.trim());
+        await widget.marketplace.driverOnboarding(
+        vehicle: _vehicle.text.trim(),
+        city: _city.text.trim(),
+        area: _area.text.trim(),
+      );
       } on ApiException catch (e) {
         if (!e.isConflict) {
           rethrow;
@@ -213,10 +225,13 @@ class _DriverOnboardingScreenState extends State<DriverOnboardingScreen> {
             children: [
               _WelcomePage(onStart: () => _goTo(1)),
               _DocumentsPage(
+                marketplace: widget.marketplace,
                 profile: widget.profile,
                 documents: widget.documents,
                 onRefresh: widget.onRefresh,
                 vehicle: _vehicle,
+                city: _city,
+                area: _area,
                 docTypes: _docTypes,
                 hasProfile: _hasProfile,
                 submitting: _submitting,
@@ -327,10 +342,13 @@ class _WelcomePage extends StatelessWidget {
 
 class _DocumentsPage extends StatelessWidget {
   const _DocumentsPage({
+    required this.marketplace,
     required this.profile,
     required this.documents,
     required this.onRefresh,
     required this.vehicle,
+    required this.city,
+    required this.area,
     required this.docTypes,
     required this.hasProfile,
     required this.submitting,
@@ -342,10 +360,13 @@ class _DocumentsPage extends StatelessWidget {
     required this.docLabel,
   });
 
+  final MarketplaceApi marketplace;
   final Map<String, dynamic>? profile;
   final List<Map<String, dynamic>> documents;
   final Future<void> Function() onRefresh;
   final TextEditingController vehicle;
+  final TextEditingController city;
+  final TextEditingController area;
   final List<(String, String)> docTypes;
   final bool hasProfile;
   final bool submitting;
@@ -398,6 +419,13 @@ class _DocumentsPage extends StatelessWidget {
             label: 'Véhicule',
             hint: 'Ex : Moto, voiture…',
             icon: Icons.two_wheeler_outlined,
+            enabled: !hasProfile,
+          ),
+          const SizedBox(height: 12),
+          CityAreaPickerField(
+            marketplace: marketplace,
+            cityController: city,
+            areaController: area,
             enabled: !hasProfile,
           ),
           const SizedBox(height: 12),

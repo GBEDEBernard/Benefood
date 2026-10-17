@@ -324,6 +324,7 @@ class CityAreaPickerField extends StatelessWidget {
     required this.areaController,
     this.label = 'Ville et quartier',
     this.icon = Icons.location_city_outlined,
+    this.enabled = true,
   });
 
   final MarketplaceApi marketplace;
@@ -331,6 +332,7 @@ class CityAreaPickerField extends StatelessWidget {
   final TextEditingController areaController;
   final String label;
   final IconData icon;
+  final bool enabled;
 
   @override
   Widget build(BuildContext context) {
@@ -344,19 +346,21 @@ class CityAreaPickerField extends StatelessWidget {
 
         return InkWell(
           borderRadius: BorderRadius.circular(AppDimens.radiusMd),
-          onTap: () async {
-            final selection = await showCityAreaPicker(
-              context,
-              marketplace: marketplace,
-              initialCity: city.isEmpty ? null : city,
-              initialArea: area.isEmpty ? null : area,
-            );
-            if (selection == null) {
-              return;
-            }
-            cityController.text = selection.city ?? '';
-            areaController.text = selection.area ?? '';
-          },
+          onTap: enabled
+              ? () async {
+                  final selection = await showCityAreaPicker(
+                    context,
+                    marketplace: marketplace,
+                    initialCity: city.isEmpty ? null : city,
+                    initialArea: area.isEmpty ? null : area,
+                  );
+                  if (selection == null) {
+                    return;
+                  }
+                  cityController.text = selection.city ?? '';
+                  areaController.text = selection.area ?? '';
+                }
+              : null,
           child: InputDecorator(
             decoration: InputDecoration(
               labelText: label,

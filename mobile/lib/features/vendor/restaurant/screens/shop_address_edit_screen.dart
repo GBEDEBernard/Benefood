@@ -4,6 +4,7 @@ import '../../../../core/data/marketplace_api.dart';
 import '../../../../core/errors/api_exception.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/models/vendor.dart';
+import '../../../../shared/widgets/city_area_picker.dart';
 import '../../../../shared/widgets/feedback_widgets.dart';
 import '../../onboarding/widgets/custom_text_field.dart';
 import '../restaurant_palette.dart';
@@ -23,6 +24,7 @@ class ShopAddressEditScreen extends StatefulWidget {
 
 class _ShopAddressEditScreenState extends State<ShopAddressEditScreen> {
   late final TextEditingController _city;
+  late final TextEditingController _area;
   late final TextEditingController _address;
   late final TextEditingController _pickupLandmark;
   late final TextEditingController _pickupAddress;
@@ -33,6 +35,7 @@ class _ShopAddressEditScreenState extends State<ShopAddressEditScreen> {
   void initState() {
     super.initState();
     _city = TextEditingController(text: widget.vendor.city ?? '');
+    _area = TextEditingController(text: widget.vendor.area ?? '');
     _address = TextEditingController(text: widget.vendor.address ?? '');
     _pickupLandmark = TextEditingController(text: widget.vendor.pickupLandmark ?? '');
     _pickupAddress = TextEditingController(text: widget.vendor.pickupAddress ?? '');
@@ -42,6 +45,7 @@ class _ShopAddressEditScreenState extends State<ShopAddressEditScreen> {
   @override
   void dispose() {
     _city.dispose();
+    _area.dispose();
     _address.dispose();
     _pickupLandmark.dispose();
     _pickupAddress.dispose();
@@ -56,6 +60,7 @@ class _ShopAddressEditScreenState extends State<ShopAddressEditScreen> {
       if (api != null) {
         await api.updateVendorShop(
           city: _city.text,
+          area: _area.text,
           address: _address.text,
           pickupAddress: _pickupAddress.text,
           pickupLandmark: _pickupLandmark.text,
@@ -107,12 +112,19 @@ class _ShopAddressEditScreenState extends State<ShopAddressEditScreen> {
                     color: AppColors.green,
                   ),
                   const SizedBox(height: 12),
-                  CustomTextField(
-                    label: 'Ville',
-                    controller: _city,
-                    hint: 'Cotonou',
-                    textInputAction: TextInputAction.next,
-                  ),
+                  if (widget.marketplace != null)
+                    CityAreaPickerField(
+                      marketplace: widget.marketplace!,
+                      cityController: _city,
+                      areaController: _area,
+                    )
+                  else
+                    CustomTextField(
+                      label: 'Ville',
+                      controller: _city,
+                      hint: 'Cotonou',
+                      textInputAction: TextInputAction.next,
+                    ),
                   const SizedBox(height: 14),
                   CustomTextField(
                     label: 'Adresse exacte',

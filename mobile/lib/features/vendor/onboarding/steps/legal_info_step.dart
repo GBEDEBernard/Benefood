@@ -1,25 +1,33 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/data/marketplace_api.dart';
+import '../../../../shared/widgets/city_area_picker.dart';
 import '../widgets/custom_text_field.dart';
 
 /// Étape 1/4 — Informations légales : raison sociale, IFU, téléphone,
-/// email et adresse complète de l'entreprise.
+/// email, ville/quartier et adresse complète de l'entreprise.
 class LegalInfoStep extends StatelessWidget {
   const LegalInfoStep({
     super.key,
+    required this.marketplace,
     required this.formKey,
     required this.raisonSociale,
     required this.ifu,
     required this.phone,
     required this.email,
+    required this.city,
+    required this.area,
     required this.adresse,
   });
 
+  final MarketplaceApi marketplace;
   final GlobalKey<FormState> formKey;
   final TextEditingController raisonSociale;
   final TextEditingController ifu;
   final TextEditingController phone;
   final TextEditingController email;
+  final TextEditingController city;
+  final TextEditingController area;
   final TextEditingController adresse;
 
   @override
@@ -66,6 +74,12 @@ class LegalInfoStep extends StatelessWidget {
             keyboardType: TextInputType.emailAddress,
             textInputAction: TextInputAction.next,
             validator: _emailValidator,
+          ),
+          const SizedBox(height: 14),
+          CityAreaPickerField(
+            marketplace: marketplace,
+            cityController: city,
+            areaController: area,
           ),
           const SizedBox(height: 14),
           CustomTextField(

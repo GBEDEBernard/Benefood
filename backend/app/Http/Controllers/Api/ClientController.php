@@ -26,6 +26,7 @@ class ClientController extends Controller
             'phone' => ['sometimes', 'nullable', 'string', 'max:20'],
             'address' => ['sometimes', 'nullable', 'string', 'max:255'],
             'city' => ['sometimes', 'nullable', 'string', 'max:120'],
+            'area' => ['sometimes', 'nullable', 'string', 'max:120'],
         ]);
 
         $profile = $this->clientService->onboard($request->user(), $data);

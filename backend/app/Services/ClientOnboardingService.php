@@ -39,6 +39,7 @@ class ClientOnboardingService
                 'phone' => $data['phone'] ?? $user->phone,
                 'address' => $data['address'] ?? null,
                 'city' => $data['city'] ?? null,
+                'area' => $data['area'] ?? null,
             ]);
         } else {
             $profile->update(array_filter([
@@ -46,6 +47,7 @@ class ClientOnboardingService
                 'phone' => $data['phone'] ?? null,
                 'address' => $data['address'] ?? null,
                 'city' => $data['city'] ?? null,
+                'area' => $data['area'] ?? null,
             ], fn ($value) => $value !== null));
         }
 
@@ -105,6 +107,7 @@ class ClientOnboardingService
                 'phone' => $profile->phone,
                 'address' => $profile->address,
                 'city' => $profile->city,
+                'area' => $profile->area,
                 'created_at' => $profile->created_at?->toIso8601String(),
             ],
             'documents' => $profile->documents->map(fn (ClientDocument $document) => [

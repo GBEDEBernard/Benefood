@@ -42,6 +42,7 @@ class ClientOnboardingTest extends TestCase
             'phone' => '+22997000050',
             'address' => 'Rue 12, Cotonou',
             'city' => 'Cotonou',
+            'area' => 'Fidjrossè',
         ])->assertCreated()
             ->assertJsonPath('data.status', 'pending');
 
@@ -49,6 +50,7 @@ class ClientOnboardingTest extends TestCase
             'user_id' => $user->id,
             'status' => 'pending',
             'address' => 'Rue 12, Cotonou',
+            'area' => 'Fidjrossè',
         ]);
     }
 
