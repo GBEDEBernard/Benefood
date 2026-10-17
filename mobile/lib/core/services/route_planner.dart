@@ -19,15 +19,20 @@ class RoutePlanner {
 
   /// Retourne l'itinéraire passant par [points] (2 minimum), ou `null` si le
   /// calcul échoue (réseau coupé) — l'appelant retombe alors sur la ligne droite.
-  Future<RoutePlan?> plan(List<GeoPoint> points, {String profile = 'moto'}) async {
+  ///
+  /// [force] ignore le cache : utile après un recalcul consécutif au fait que le
+  /// livreur s'est écarté de l'itinéraire.
+  Future<RoutePlan?> plan(List<GeoPoint> points, {String profile = 'moto', bool force = false}) async {
     if (points.length < 2) {
       return null;
     }
 
     final key = _key(points, profile);
-    final cached = _cache[key];
-    if (cached != null) {
-      return cached;
+    if (!force) {
+      final cached = _cache[key];
+      if (cached != null) {
+        return cached;
+      }
     }
     if (_inFlight.contains(key)) {
       return null;

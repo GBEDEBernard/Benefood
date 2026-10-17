@@ -30,9 +30,11 @@ class AppMap extends StatefulWidget {
     this.showRoute = true,
     this.route,
     this.routeColor,
+    this.highlightRoute,
     this.extraRoute,
     this.travelled,
     this.originIsDriver = true,
+    this.originHeading,
     this.openInMaps = false,
     this.expandable = true,
     this.fullscreen = false,
@@ -71,6 +73,9 @@ class AppMap extends StatefulWidget {
   /// Couleur du tracé actif ([route]). Par défaut : orange.
   final Color? routeColor;
 
+  /// Segment de la prochaine manœuvre, mis en évidence par-dessus [route].
+  final List<LatLng>? highlightRoute;
+
   /// Second itinéraire (ex. tronçon complémentaire) tracé en bleu atténué.
   final List<LatLng>? extraRoute;
 
@@ -79,6 +84,9 @@ class AppMap extends StatefulWidget {
 
   /// `true` : marqueur moto pour [origin] (livreur) ; `false` : point bleu « moi ».
   final bool originIsDriver;
+
+  /// Cap du véhicule en degrés (0 = Nord) pour orienter le marqueur moto.
+  final double? originHeading;
 
   /// Affiche un bouton « Ouvrir dans Google Maps » (navigation guidée).
   final bool openInMaps;
@@ -272,7 +280,9 @@ class _AppMapState extends State<AppMap> {
                         maxNativeZoom: 19,
                         tileDisplay: const TileDisplay.fadeIn(duration: Duration(milliseconds: 150)),
                       ),
-                      if (_routePoints.length >= 2 || (widget.extraRoute?.length ?? 0) >= 2)
+                      if (_routePoints.length >= 2 ||
+                          (widget.extraRoute?.length ?? 0) >= 2 ||
+                          (widget.highlightRoute?.length ?? 0) >= 2)
                         PolylineLayer(
                           polylines: [
                             // Tronçon complémentaire (ex. boutique → client) : bleu atténué.
@@ -298,6 +308,15 @@ class _AppMapState extends State<AppMap> {
                                 strokeWidth: 5,
                                 color: (widget.routeColor ?? AppColors.orange).withValues(alpha: 0.9),
                                 borderStrokeWidth: 1,
+                                borderColor: Colors.white,
+                              ),
+                            // Prochain segment de manœuvre, mis en évidence.
+                            if (widget.highlightRoute != null && widget.highlightRoute!.length >= 2)
+                              Polyline(
+                                points: widget.highlightRoute!,
+                                strokeWidth: 7,
+                                color: AppColors.blue,
+                                borderStrokeWidth: 1.5,
                                 borderColor: Colors.white,
                               ),
                           ],
@@ -330,7 +349,7 @@ class _AppMapState extends State<AppMap> {
                               size: widget.originIsDriver ? 42 : 28,
                               label: widget.originLabel,
                               child: widget.originIsDriver
-                                  ? const _MotoMarker()
+                                  ? _MotoMarker(heading: widget.originHeading)
                                   : const _DriverMarker(),
                             ),
                         ],
@@ -427,27 +446,38 @@ class _MarkerLabel extends StatelessWidget {
 
 /// Marqueur du livreur en déplacement (icône moto).
 class _MotoMarker extends StatelessWidget {
-  const _MotoMarker();
+  const _MotoMarker({this.heading});
+
+  /// Cap du véhicule en degrés (0 = Nord). `null` = pas de rotation.
+  final double? heading;
 
   @override
   Widget build(BuildContext context) {
+    final icon = Container(
+      width: 28,
+      height: 28,
+      decoration: BoxDecoration(
+        color: AppColors.orange,
+        shape: BoxShape.circle,
+        border: Border.all(color: Colors.white, width: 2),
+        boxShadow: [BoxShadow(color: AppColors.orange.withValues(alpha: 0.45), blurRadius: 8)],
+      ),
+      // Flèche orientée quand un cap est connu, moto sinon.
+      child: Icon(heading != null ? Icons.navigation : Icons.two_wheeler, size: 16, color: Colors.white),
+    );
+
     return Container(
       decoration: BoxDecoration(
         color: AppColors.orange.withValues(alpha: 0.22),
         shape: BoxShape.circle,
       ),
       child: Center(
-        child: Container(
-          width: 28,
-          height: 28,
-          decoration: BoxDecoration(
-            color: AppColors.orange,
-            shape: BoxShape.circle,
-            border: Border.all(color: Colors.white, width: 2),
-            boxShadow: [BoxShadow(color: AppColors.orange.withValues(alpha: 0.45), blurRadius: 8)],
-          ),
-          child: const Icon(Icons.two_wheeler, size: 16, color: Colors.white),
-        ),
+        child: heading != null
+            ? Transform.rotate(
+                angle: heading! * 3.1415926535 / 180,
+                child: icon,
+              )
+            : icon,
       ),
     );
   }
@@ -632,6 +662,10 @@ class MapGuidanceBar extends StatelessWidget {
     this.etaMinutes,
     this.accent = AppColors.orange,
     this.waitingForPosition = false,
+    this.maneuverInstruction,
+    this.maneuverIcon,
+    this.maneuverDistanceMeters,
+    this.offRoute = false,
   });
 
   final String title;
@@ -649,8 +683,27 @@ class MapGuidanceBar extends StatelessWidget {
   /// La position du livreur n'est pas encore connue : on affiche « GPS… ».
   final bool waitingForPosition;
 
+  /// Instruction de la prochaine manœuvre (guidage tour-par-tour). Quand elle
+  /// est fournie, le bandeau affiche la manœuvre au lieu du cap à vol d'oiseau.
+  final String? maneuverInstruction;
+
+  /// Icône directionnelle de la manœuvre.
+  final IconData? maneuverIcon;
+
+  /// Distance avant la prochaine manœuvre (mètres).
+  final int? maneuverDistanceMeters;
+
+  /// Le livreur s'est écarté de l'itinéraire : recalcul en cours.
+  final bool offRoute;
+
+  bool get _hasManeuver => maneuverInstruction != null && maneuverInstruction!.isNotEmpty;
+
   @override
   Widget build(BuildContext context) {
+    if (_hasManeuver) {
+      return _buildManeuver(context);
+    }
+
     final hasGuidance = distanceKm != null && bearing != null;
 
     return Container(
@@ -709,6 +762,93 @@ class MapGuidanceBar extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               decoration: BoxDecoration(
                 color: accent,
+                borderRadius: BorderRadius.circular(AppDimens.radiusPill),
+              ),
+              child: Text(
+                formatEta(etaMinutes),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 12.5,
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  /// Bandeau « prochaine manœuvre » : flèche directionnelle + instruction +
+  /// distance avant la manœuvre, et ETA restante.
+  Widget _buildManeuver(BuildContext context) {
+    final color = offRoute ? AppColors.gold : accent;
+
+    return Container(
+      padding: const EdgeInsets.all(AppDimens.md),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 52,
+            height: 52,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: color,
+                borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+              ),
+              child: Icon(
+                maneuverIcon ?? Icons.straight,
+                color: Colors.white,
+                size: 30,
+              ),
+            ),
+          ),
+          const SizedBox(width: AppDimens.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (maneuverDistanceMeters != null)
+                  Text(
+                    formatGeoDistance(maneuverDistanceMeters! / 1000),
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w800,
+                      color: color,
+                    ),
+                  ),
+                Text(
+                  offRoute ? 'Recalcul de l\'itinéraire…' : maneuverInstruction!,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.text,
+                    fontSize: 15,
+                  ),
+                ),
+                if (address != null && address!.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: Text(
+                      address!,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          if (!offRoute && etaMinutes != null)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: color,
                 borderRadius: BorderRadius.circular(AppDimens.radiusPill),
               ),
               child: Text(

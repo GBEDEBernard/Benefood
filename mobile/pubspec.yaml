@@ -63,6 +63,12 @@ dependencies:
   qr_flutter: ^4.1.0
   video_player: ^2.14.1
 
+  # Guidage vocal des livreurs (annonces des manœuvres)
+  flutter_tts: ^4.2.0
+
+  # Suivi de position du livreur en arrière-plan (service Android, tâche iOS)
+  flutter_background_service: ^5.1.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

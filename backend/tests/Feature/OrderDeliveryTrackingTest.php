@@ -147,14 +147,25 @@ class OrderDeliveryTrackingTest extends TestCase
         $this->assertSame(2.3901234, (float) $fresh->last_longitude);
         $this->assertNotNull($fresh->last_location_at);
 
+        // Deuxième position (déplacement vers le nord) : le cap doit être calculé.
+        $this->patchJson('/api/v1/driver/me/availability/location', [
+            'latitude' => 6.3845678,
+            'longitude' => 2.3901234,
+        ])->assertOk();
+
+        $moved = $fresh->fresh();
+        $this->assertNotNull($moved->last_heading);
+        $this->assertSame(0.0, (float) $moved->last_heading);
+
         $this->postJson('/api/v1/driver/me/availability', ['available' => false])
             ->assertOk()
             ->assertJsonPath('data.available', false);
 
-        $offline = $fresh->fresh();
+        $offline = $moved->fresh();
         $this->assertNull($offline->last_latitude);
         $this->assertNull($offline->last_longitude);
         $this->assertNull($offline->last_location_at);
+        $this->assertNull($offline->last_heading);
     }
 
     public function test_client_sees_driver_position_during_delivery_but_not_after(): void
@@ -182,6 +193,12 @@ class OrderDeliveryTrackingTest extends TestCase
             'longitude' => 2.3923456,
         ])->assertOk();
 
+        // Second relevé : produit un cap exploitable pour orienter le marqueur.
+        $this->patchJson('/api/v1/driver/me/availability/location', [
+            'latitude' => 6.3722345,
+            'longitude' => 2.3923456,
+        ])->assertOk();
+
         $this->postJson("/api/v1/driver/me/deliveries/{$deliveryId}/pickup")
             ->assertOk();
         $this->postJson("/api/v1/driver/me/deliveries/{$deliveryId}/start")
@@ -194,17 +211,24 @@ class OrderDeliveryTrackingTest extends TestCase
             ->assertJsonPath('data.delivery.status', 'in_delivery')
             ->assertJsonPath('data.delivery.driver.name', $driver->user->name)
             ->assertJsonPath('data.delivery.driver.vehicle', $driver->vehicle)
-            ->assertJsonPath('data.delivery.position.latitude', 6.371)
+            ->assertJsonPath('data.delivery.position.latitude', 6.372)
             ->assertJsonPath('data.delivery.position.longitude', 2.392)
             ->assertJsonPath('data.delivery.position.last_location_at', $driver->fresh()->last_location_at?->toIso8601String());
 
         $this->assertTrue(
             is_numeric($this->getJson("/api/v1/orders/{$order->id}")->json('data.delivery.position.distance_km')),
         );
+        $this->assertTrue(
+            is_numeric($this->getJson("/api/v1/orders/{$order->id}")->json('data.delivery.position.heading')),
+        );
 
         $this->actAs($driver->user);
         $this->postJson("/api/v1/driver/me/deliveries/{$deliveryId}/deliver", ['proof_code' => 'ok'])
             ->assertOk();
+
+        // Fin de course : la position est effacée en base (confidentialité).
+        $this->assertNull($driver->fresh()->last_latitude);
+        $this->assertNull($driver->fresh()->last_heading);
 
         $this->actAs($client);
         $this->getJson("/api/v1/orders/{$order->id}")

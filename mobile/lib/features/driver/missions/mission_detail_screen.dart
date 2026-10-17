@@ -7,8 +7,11 @@ import 'package:latlong2/latlong.dart';
 import '../../../core/data/marketplace_api.dart';
 import '../../../core/errors/api_exception.dart';
 import '../../../core/navigation/notification_router.dart';
+import '../../../core/services/background_location_service.dart';
 import '../../../core/services/location_service.dart';
+import '../../../core/services/navigation_guide.dart';
 import '../../../core/services/route_planner.dart';
+import '../../../core/services/voice_guidance.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_dimens.dart';
 import '../../../core/utils/geo.dart';
@@ -61,6 +64,20 @@ class _MissionDetailScreenState extends State<MissionDetailScreen>
 
   late final RoutePlanner _routePlanner;
 
+  /// Guidage tour-par-tour (manœuvres, distance le long de la route, hors-route).
+  late final NavigationGuide _navigationGuide;
+
+  /// Annonces vocales des manœuvres.
+  late final VoiceGuidance _voice;
+
+  /// État de guidage courant ; `null` si non calculable (repli à vol d'oiseau).
+  NavigationState? _navigationState;
+
+  bool _voiceEnabled = true;
+
+  /// Dernier recalcul hors-itinéraire, pour éviter de spammer le serveur.
+  DateTime? _lastOffRouteRecalc;
+
   /// Itinéraire routier réel et la cible pour laquelle il a été calculé.
   RoutePlan? _route;
   GeoPoint? _routeTarget;
@@ -75,6 +92,8 @@ class _MissionDetailScreenState extends State<MissionDetailScreen>
   void initState() {
     super.initState();
     _routePlanner = RoutePlanner(widget.marketplace);
+    _navigationGuide = const NavigationGuide();
+    _voice = VoiceGuidance()..init();
     _delivery = widget.initialDelivery;
     _load();
     _startPositionStream();
@@ -84,6 +103,7 @@ class _MissionDetailScreenState extends State<MissionDetailScreen>
   void dispose() {
     _locationTimer?.cancel();
     _positionSubscription?.cancel();
+    _voice.dispose();
     super.dispose();
   }
 
@@ -97,12 +117,47 @@ class _MissionDetailScreenState extends State<MissionDetailScreen>
           return;
         }
         setState(() => _position = GeoPoint(geo.latitude, geo.longitude));
+        _refreshNavigation();
         _updateRoute();
       },
       onError: (_) {
         // Permission refusée / GPS coupé : la carte reste sur la destination.
       },
     );
+  }
+
+  /// Recalcule l'état de guidage (manœuvre à venir, hors-route) et annonce la
+  /// voix si nécessaire.
+  void _refreshNavigation() {
+    final position = _position;
+    final route = _route;
+    final target = _target;
+    if (position == null || route == null || _routeTarget != target) {
+      setState(() => _navigationState = null);
+      return;
+    }
+
+    final state = _navigationGuide.update(route, position);
+    setState(() => _navigationState = state);
+
+    if (state != null) {
+      _voice.announce(state);
+      if (state.offRoute) {
+        _handleOffRoute();
+      }
+    }
+  }
+
+  /// Recalcule l'itinéraire quand le livreur s'écarte de la route, avec un
+  /// minimum de 15 s entre deux recalculs pour limiter les appels réseau.
+  void _handleOffRoute() {
+    final now = DateTime.now();
+    final last = _lastOffRouteRecalc;
+    if (last != null && now.difference(last).inSeconds < 15) {
+      return;
+    }
+    _lastOffRouteRecalc = now;
+    _updateRoute(force: true);
   }
 
   bool get _shouldReportLocation =>
@@ -112,10 +167,14 @@ class _MissionDetailScreenState extends State<MissionDetailScreen>
     _locationTimer?.cancel();
     _locationTimer = null;
     if (!_shouldReportLocation) {
+      BackgroundLocationService.stop();
       return;
     }
     _sendLocation();
     _locationTimer = Timer.periodic(_locationInterval, (_) => _sendLocation());
+    // Suivi en arrière-plan : la position continue d'être transmise même si
+    // l'app est minimisée (processus Android en premier plan / tâche iOS).
+    BackgroundLocationService.configure().then((_) => BackgroundLocationService.start());
   }
 
   /// Phase « collecte » : la cible du guidage est le vendeur.
@@ -154,14 +213,14 @@ class _MissionDetailScreenState extends State<MissionDetailScreen>
 
   /// Calcule les itinéraires routiers réels : le tronçon actif (livreur → cible
   /// courante) et le tronçon livraison boutique → client.
-  Future<void> _updateRoute() async {
+  Future<void> _updateRoute({bool force = false}) async {
     final delivery = _delivery;
     final shop = delivery?.pickupPoint;
     final dropoff = delivery?.dropoffPoint;
 
     // Tronçon livraison, indépendant de la position du livreur.
     if (shop != null && dropoff != null) {
-      final leg = await _routePlanner.plan([shop, dropoff]);
+      final leg = await _routePlanner.plan([shop, dropoff], force: force);
       if (!mounted) {
         return;
       }
@@ -173,7 +232,7 @@ class _MissionDetailScreenState extends State<MissionDetailScreen>
     if (target == null || position == null) {
       return;
     }
-    final plan = await _routePlanner.plan([position, target]);
+    final plan = await _routePlanner.plan([position, target], force: force);
     if (!mounted) {
       return;
     }
@@ -181,6 +240,7 @@ class _MissionDetailScreenState extends State<MissionDetailScreen>
       _route = plan;
       _routeTarget = target;
     });
+    _refreshNavigation();
   }
 
   /// Itinéraire à tracer uniquement s'il correspond à la cible courante.
@@ -189,6 +249,21 @@ class _MissionDetailScreenState extends State<MissionDetailScreen>
       return null;
     }
     return _route!.latLng;
+  }
+
+  /// Segment de la prochaine manœuvre, tracé en surbrillance sur la carte.
+  List<LatLng>? get _highlightSegment {
+    final state = _navigationState;
+    final route = _route;
+    if (state == null || route == null || _routeTarget != _target) {
+      return null;
+    }
+    final stepIndex = state.stepIndex;
+    if (stepIndex < 0 || stepIndex >= route.steps.length) {
+      return null;
+    }
+    final latLng = route.steps[stepIndex].latLng;
+    return latLng.length >= 2 ? latLng : null;
   }
 
   Future<void> _sendLocation() async {
@@ -464,15 +539,55 @@ class _MissionDetailScreenState extends State<MissionDetailScreen>
           const SizedBox(height: AppDimens.lg),
 
           // Guidage GPS : la cible suit l'avancement de la mission
-          // (collecte chez le vendeur -> adresse du client).
-          MapGuidanceBar(
-            title: _targetTitle,
-            distanceKm: _distanceKm,
-            bearing: _bearing,
-            etaMinutes: estimateMinutes(_distanceKm ?? 0),
-            address: _targetAddress,
-            waitingForPosition: _position == null,
-            accent: _isPickupPhase ? AppColors.gold : AppColors.orange,
+          // (collecte chez le vendeur -> adresse du client). Quand l'itinéraire
+          // fournit des manœuvres, le bandeau bascule en guidage tour-par-tour.
+          Row(
+            children: [
+              Expanded(
+                child: MapGuidanceBar(
+                  title: _targetTitle,
+                  distanceKm: _distanceKm,
+                  bearing: _bearing,
+                  etaMinutes: _navigationState?.etaMinutes ?? estimateMinutes(_distanceKm ?? 0),
+                  address: _targetAddress,
+                  waitingForPosition: _position == null,
+                  accent: _isPickupPhase ? AppColors.gold : AppColors.orange,
+                  maneuverInstruction: _navigationState?.instruction,
+                  maneuverIcon: _navigationState?.icon,
+                  maneuverDistanceMeters: _navigationState?.distanceToManeuverMeters,
+                  offRoute: _navigationState?.offRoute ?? false,
+                ),
+              ),
+              const SizedBox(width: AppDimens.sm),
+              // Coupe/active les annonces vocales des manœuvres.
+              InkWell(
+                onTap: () => setState(() {
+                  _voiceEnabled = !_voiceEnabled;
+                  _voice.enabled = _voiceEnabled;
+                  if (!_voiceEnabled) {
+                    _voice.stop();
+                  }
+                }),
+                borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+                child: Container(
+                  padding: const EdgeInsets.all(AppDimens.sm),
+                  decoration: BoxDecoration(
+                    color: (_voiceEnabled ? AppColors.green : AppColors.textSecondary)
+                        .withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+                    border: Border.all(
+                      color: (_voiceEnabled ? AppColors.green : AppColors.textSecondary)
+                          .withValues(alpha: 0.3),
+                    ),
+                  ),
+                  child: Icon(
+                    _voiceEnabled ? Icons.volume_up : Icons.volume_off,
+                    size: 22,
+                    color: _voiceEnabled ? AppColors.green : AppColors.textSecondary,
+                  ),
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: AppDimens.sm),
           AppMap(
@@ -488,6 +603,7 @@ class _MissionDetailScreenState extends State<MissionDetailScreen>
             secondaryColor: AppColors.gold,
             route: _activeRoute,
             routeColor: AppColors.blue,
+            highlightRoute: _highlightSegment,
             extraRoute: _deliveryLeg?.latLng,
             height: 280,
             followOrigin: true,

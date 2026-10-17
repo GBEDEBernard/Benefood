@@ -350,6 +350,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
       return AppMap(
         origin: driver,
         originLabel: order.delivery?.driver?.name ?? 'Livreur',
+        originHeading: order.delivery?.position?.heading,
         target: dropoff,
         targetLabel: 'Vous',
         targetIcon: Icons.place,
@@ -528,6 +529,8 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
   }
 
   /// Distance livreur -> adresse : `distance_km` de l'API, sinon calculée ici.
+  /// L'ETA privilégie l'itinéraire routier réel (`_route`) quand il est connu,
+  /// sinon retombe sur l'estimation à vol d'oiseau.
   String _distanceLabel(Order order) {
     final position = order.delivery?.position;
     if (position == null) {
@@ -537,7 +540,8 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
     final km = position.distanceKm ??
         (dropoff == null ? null : distanceKm(position.point.latLng, dropoff.latLng));
     final label = 'À ${formatDistance(km)} de vous';
-    final minutes = estimateMinutes(km ?? 0);
+    final routeMinutes = _route?.etaMinutes;
+    final minutes = routeMinutes ?? estimateMinutes(km ?? 0);
     return minutes == null ? label : '$label · ~${formatEta(minutes)}';
   }
 

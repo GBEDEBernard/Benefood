@@ -22,6 +22,7 @@ class DriverProfile extends Model
             'last_latitude' => 'decimal:7',
             'last_longitude' => 'decimal:7',
             'last_location_at' => 'datetime',
+            'last_heading' => 'decimal:2',
             'rating' => 'decimal:2',
         ];
     }

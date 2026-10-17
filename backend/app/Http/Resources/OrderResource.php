@@ -170,6 +170,7 @@ class OrderResource extends JsonResource
         $payload['position'] = [
             'latitude' => round((float) $driver->last_latitude, 3),
             'longitude' => round((float) $driver->last_longitude, 3),
+            'heading' => $driver->last_heading !== null ? (float) $driver->last_heading : null,
             'last_location_at' => $driver->last_location_at?->toIso8601String(),
             'distance_km' => $this->distanceToClient($driver),
         ];

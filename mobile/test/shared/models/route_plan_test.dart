@@ -51,5 +51,67 @@ void main() {
       expect(plan.geometry, isEmpty);
       expect(plan.latLng, isEmpty);
     });
+
+    test('parse les instructions de manœuvre (étapes de guidage)', () {
+      final plan = RoutePlan.fromJson({
+        'provider': 'osrm',
+        'distance_m': 1200,
+        'duration_s': 240,
+        'geometry': [
+          [6.3703, 2.3942],
+          [6.3720, 2.3960],
+          [6.3740, 2.3990],
+        ],
+        'steps': [
+          {
+            'type': 'depart',
+            'modifier': 'straight',
+            'instruction': 'Partez sur Boulevard de la Marina',
+            'name': 'Boulevard de la Marina',
+            'distance_m': 500,
+            'duration_s': 100,
+            'geometry': [
+              [6.3703, 2.3942],
+              [6.3720, 2.3960],
+            ],
+          },
+          {
+            'type': 'turn',
+            'modifier': 'left',
+            'instruction': 'Tournez à gauche sur Rue Foo',
+            'name': 'Rue Foo',
+            'distance_m': 700,
+            'duration_s': 140,
+            'geometry': [
+              [6.3720, 2.3960],
+              [6.3740, 2.3990],
+            ],
+          },
+        ],
+      });
+
+      expect(plan.hasSteps, isTrue);
+      expect(plan.steps, hasLength(2));
+      expect(plan.steps.first.type, 'depart');
+      expect(plan.steps.first.instruction, 'Partez sur Boulevard de la Marina');
+      expect(plan.steps.first.icon, isNotNull);
+      expect(plan.steps[1].modifier, 'left');
+      expect(plan.steps[1].geometry, hasLength(2));
+    });
+
+    test('tolère des étapes vides ou malformées', () {
+      final plan = RoutePlan.fromJson({
+        'provider': 'straight',
+        'steps': [
+          'invalid',
+          {'type': 'continue'},
+        ],
+      });
+
+      expect(plan.steps, hasLength(1));
+      expect(plan.steps.single.type, 'continue');
+      expect(plan.steps.single.distanceMeters, 0);
+      expect(plan.steps.single.geometry, isEmpty);
+    });
   });
 }

@@ -14,14 +14,97 @@ use Throwable;
  * privilégiée lorsqu'une clé est configurée, sinon OSRM (gratuit, sans clé).
  * En dernier recours — réseau indisponible — une ligne droite est renvoyée afin
  * que l'app affiche toujours une distance et une estimation.
+ *
+ * @phpstan-type RouteStepShape array{type: string, modifier: string|null, instruction: string, name: string, distance_m: int, duration_s: int, geometry: array<int, array{0: float, 1: float}>}
+ * @phpstan-type RouteShape array{provider: string, distance_m: int, duration_s: int, geometry: array<int, array{0: float, 1: float}>, legs: array<int, array{distance_m: int, duration_s: int}>, steps: array<int, RouteStepShape>}
  */
 class RoutingService
 {
     /**
+     * Modifiers OSRM traduits en français (phrases complètes pour l'instruction).
+     *
+     * @var array<string, string>
+     */
+    private const OSRM_MODIFIERS_FR = [
+        'uturn' => 'en faisant demi-tour',
+        'sharp right' => 'franchement à droite',
+        'right' => 'à droite',
+        'slight right' => 'légèrement à droite',
+        'straight' => 'tout droit',
+        'slight left' => 'légèrement à gauche',
+        'left' => 'à gauche',
+        'sharp left' => 'franchement à gauche',
+    ];
+
+    /**
+     * Manœuvres Google (`navigationInstructions.maneuver`) vers la taxonomie OSRM.
+     *
+     * @var array<string, string>
+     */
+    private const GOOGLE_MANEUVERS = [
+        'DEPART' => 'depart',
+        'TURN_LEFT' => 'turn',
+        'TURN_RIGHT' => 'turn',
+        'STRAIGHT' => 'continue',
+        'UTURN_LEFT' => 'uturn',
+        'UTURN_RIGHT' => 'uturn',
+        'SHARP_LEFT' => 'turn',
+        'SHARP_RIGHT' => 'turn',
+        'SLIGHT_LEFT' => 'turn',
+        'SLIGHT_RIGHT' => 'turn',
+        'ROUNDABOUT_LEFT' => 'roundabout',
+        'ROUNDABOUT_RIGHT' => 'roundabout',
+        'ROUNDABOUT_TURN' => 'roundabout',
+        'EXIT_ROUNDABOUT_LEFT' => 'roundabout',
+        'EXIT_ROUNDABOUT_RIGHT' => 'roundabout',
+        'EXIT_ROTARY_LEFT' => 'rotary',
+        'EXIT_ROTARY_RIGHT' => 'rotary',
+        'ROTARY' => 'rotary',
+        'RAMP_LEFT' => 'on ramp',
+        'RAMP_RIGHT' => 'on ramp',
+        'FORK_LEFT' => 'fork',
+        'FORK_RIGHT' => 'fork',
+        'MERGE' => 'merge',
+        'FERRY' => 'continue',
+    ];
+
+    /**
+     * Modifiers Google vers la taxonomie OSRM.
+     *
+     * @var array<string, string>
+     */
+    private const GOOGLE_MODIFIERS = [
+        'TURN_LEFT' => 'left',
+        'TURN_RIGHT' => 'right',
+        'STRAIGHT' => 'straight',
+        'UTURN_LEFT' => 'uturn',
+        'UTURN_RIGHT' => 'uturn',
+        'SHARP_LEFT' => 'sharp left',
+        'SHARP_RIGHT' => 'sharp right',
+        'SLIGHT_LEFT' => 'slight left',
+        'SLIGHT_RIGHT' => 'slight right',
+        'ROUNDABOUT_LEFT' => 'left',
+        'ROUNDABOUT_RIGHT' => 'right',
+        'ROUNDABOUT_TURN' => 'straight',
+        'EXIT_ROUNDABOUT_LEFT' => 'left',
+        'EXIT_ROUNDABOUT_RIGHT' => 'right',
+        'EXIT_ROTARY_LEFT' => 'left',
+        'EXIT_ROTARY_RIGHT' => 'right',
+        'ROTARY' => 'straight',
+        'RAMP_LEFT' => 'slight left',
+        'RAMP_RIGHT' => 'slight right',
+        'FORK_LEFT' => 'slight left',
+        'FORK_RIGHT' => 'slight right',
+        'MERGE' => 'straight',
+        'FERRY' => 'straight',
+        'DEPART' => 'straight',
+    ];
+
+    /**
      * Calcule un itinéraire passant par une liste de points (au moins 2).
      *
      * @param  array<int, array{latitude: float|int|string, longitude: float|int|string}>  $points
-     * @return array{provider: string, distance_m: int, duration_s: int, geometry: array<int, array{0: float, 1: float}>, legs: array<int, array{distance_m: int, duration_s: int}>}
+     * @return RouteShape
      */
     public function plan(array $points, string $profile = 'moto'): array
     {
@@ -47,7 +130,7 @@ class RoutingService
 
     /**
      * @param  array<int, array{0: float, 1: float}>  $coordinates
-     * @return array{provider: string, distance_m: int, duration_s: int, geometry: array<int, array{0: float, 1: float}>, legs: array<int, array{distance_m: int, duration_s: int}>}
+     * @return RouteShape
      */
     private function compute(array $coordinates, string $profile): array
     {
@@ -68,7 +151,7 @@ class RoutingService
 
     /**
      * @param  array<int, array{0: float, 1: float}>  $coordinates
-     * @return array{provider: string, distance_m: int, duration_s: int, geometry: array<int, array{0: float, 1: float}>, legs: array<int, array{distance_m: int, duration_s: int}>}|null
+     * @return RouteShape|null
      */
     private function googleRoute(array $coordinates, string $profile): ?array
     {
@@ -98,7 +181,7 @@ class RoutingService
         try {
             $response = Http::withHeaders([
                 'X-Goog-Api-Key' => $key,
-                'X-Goog-FieldMask' => 'routes.duration,routes.distanceMeters,routes.polyline.encodedPolyline,routes.legs.duration,routes.legs.distanceMeters',
+                'X-Goog-FieldMask' => 'routes.duration,routes.distanceMeters,routes.polyline.encodedPolyline,routes.legs.duration,routes.legs.distanceMeters,routes.legs.steps.distanceMeters,routes.legs.steps.duration,routes.legs.steps.polyline.encodedPolyline,routes.legs.steps.navigationInstructions,routes.legs.steps.startLocation,routes.legs.steps.endLocation',
                 'Accept' => 'application/json',
             ])->timeout($this->timeout())->post((string) config('beninfood.routing.google_url'), $payload);
         } catch (Throwable) {
@@ -120,12 +203,13 @@ class RoutingService
             'duration_s' => $this->parseGoogleDuration($route['duration'] ?? null),
             'geometry' => $this->decodePolyline($route['polyline']['encodedPolyline']),
             'legs' => $this->mapGoogleLegs($route['legs'] ?? []),
+            'steps' => $this->mapGoogleSteps($route['legs'] ?? []),
         ];
     }
 
     /**
      * @param  array<int, array{0: float, 1: float}>  $coordinates
-     * @return array{provider: string, distance_m: int, duration_s: int, geometry: array<int, array{0: float, 1: float}>, legs: array<int, array{distance_m: int, duration_s: int}>}|null
+     * @return RouteShape|null
      */
     private function osrmRoute(array $coordinates): ?array
     {
@@ -140,7 +224,8 @@ class RoutingService
                 ->get((string) config('beninfood.routing.osrm_url').'/route/v1/driving/'.$path, [
                     'overview' => 'full',
                     'geometries' => 'geojson',
-                    'steps' => 'false',
+                    'steps' => 'true',
+                    'language' => 'fr',
                 ]);
         } catch (Throwable) {
             return null;
@@ -172,6 +257,7 @@ class RoutingService
                 ],
                 $route['legs'] ?? [],
             ),
+            'steps' => $this->mapOsrmSteps($route['legs'] ?? []),
         ];
     }
 
@@ -179,7 +265,7 @@ class RoutingService
      * Repli géométrique : segments à vol d'oiseau, vitesse urbaine moyenne.
      *
      * @param  array<int, array{0: float, 1: float}>  $coordinates
-     * @return array{provider: string, distance_m: int, duration_s: int, geometry: array<int, array{0: float, 1: float}>, legs: array<int, array{distance_m: int, duration_s: int}>}
+     * @return RouteShape
      */
     private function straightRoute(array $coordinates): array
     {
@@ -203,6 +289,7 @@ class RoutingService
             'duration_s' => (int) round($totalSeconds),
             'geometry' => $coordinates,
             'legs' => $legs,
+            'steps' => [],
         ];
     }
 
@@ -238,6 +325,148 @@ class RoutingService
             ],
             array_values($legs),
         );
+    }
+
+    /**
+     * Aplatit les steps des legs OSRM en liste d'instructions normalisées.
+     *
+     * @param  array<int, array<string, mixed>>  $legs
+     * @return array<int, RouteStepShape>
+     */
+    private function mapOsrmSteps(array $legs): array
+    {
+        $steps = [];
+
+        foreach ($legs as $leg) {
+            foreach (is_array($leg['steps'] ?? null) ? $leg['steps'] : [] as $step) {
+                if (! is_array($step)) {
+                    continue;
+                }
+
+                $maneuver = is_array($step['maneuver'] ?? null) ? $step['maneuver'] : [];
+                $type = (string) ($maneuver['type'] ?? 'continue');
+                $modifier = isset($maneuver['modifier']) ? (string) $maneuver['modifier'] : null;
+                $name = (string) ($step['name'] ?? '');
+
+                $steps[] = [
+                    'type' => $type,
+                    'modifier' => $modifier,
+                    'instruction' => $this->osrmInstruction($type, $modifier, $name, $maneuver),
+                    'name' => $name,
+                    'distance_m' => (int) round((float) ($step['distance'] ?? 0)),
+                    'duration_s' => (int) round((float) ($step['duration'] ?? 0)),
+                    'geometry' => $this->mapOsrmStepGeometry($step),
+                ];
+            }
+        }
+
+        return $steps;
+    }
+
+    /**
+     * @param  array<string, mixed>  $step
+     * @return array<int, array{0: float, 1: float}>
+     */
+    private function mapOsrmStepGeometry(array $step): array
+    {
+        $coordinates = $step['geometry']['coordinates'] ?? null;
+
+        if (! is_array($coordinates)) {
+            return [];
+        }
+
+        return array_map(
+            static fn (array $pair): array => [(float) $pair[1], (float) $pair[0]],
+            $coordinates,
+        );
+    }
+
+    /**
+     * Construit une instruction française à partir d'une manœuvre OSRM.
+     *
+     * @param  array<string, mixed>  $maneuver
+     */
+    private function osrmInstruction(string $type, ?string $modifier, string $name, array $maneuver): string
+    {
+        $street = $name !== '' ? ' sur '.$name : '';
+
+        return match ($type) {
+            'depart' => 'Partez'.$street,
+            'arrive' => 'Vous êtes arrivé',
+            'roundabout', 'rotary', 'roundabout turn' => sprintf(
+                'Au rond-point, prenez la sortie %s%s',
+                isset($maneuver['exit']) ? (string) $maneuver['exit'] : '',
+                $street,
+            ),
+            'merge' => 'Rejoignez la voie'.$street,
+            'on ramp' => 'Prenez la rampe'.$street,
+            'off ramp' => 'Prenez la sortie'.$street,
+            'fork' => 'Restez '.$this->modifierFr($modifier).$street,
+            'end of road' => 'À la fin de la route, tournez '.$this->modifierFr($modifier).$street,
+            'turn' => 'Tournez '.$this->modifierFr($modifier).$street,
+            'new name' => 'Continuez'.$street,
+            'notification' => $name !== '' ? 'Suivez '.$name : 'Continuez',
+            default => 'Continuez '.$this->modifierFr($modifier).$street,
+        };
+    }
+
+    private function modifierFr(?string $modifier): string
+    {
+        return self::OSRM_MODIFIERS_FR[$modifier] ?? 'tout droit';
+    }
+
+    /**
+     * Aplatit les steps des legs Google en liste d'instructions normalisées.
+     *
+     * @param  array<int, array<string, mixed>>  $legs
+     * @return array<int, RouteStepShape>
+     */
+    private function mapGoogleSteps(array $legs): array
+    {
+        $steps = [];
+
+        foreach ($legs as $leg) {
+            foreach (is_array($leg['steps'] ?? null) ? $leg['steps'] : [] as $step) {
+                if (! is_array($step)) {
+                    continue;
+                }
+
+                $navigation = is_array($step['navigationInstructions'] ?? null) ? $step['navigationInstructions'] : [];
+                $maneuverEnum = (string) ($navigation['maneuver'] ?? 'STRAIGHT');
+                $type = self::GOOGLE_MANEUVERS[$maneuverEnum] ?? 'continue';
+                $modifier = self::GOOGLE_MODIFIERS[$maneuverEnum] ?? null;
+                $name = (string) ($step['streetName'] ?? '');
+
+                // L'instruction Google est déjà en français (`languageCode: fr-FR`).
+                $instruction = trim((string) ($navigation['instructions'] ?? ''));
+                if ($instruction === '') {
+                    $instruction = $this->osrmInstruction($type, $modifier, $name, []);
+                }
+
+                $steps[] = [
+                    'type' => $type,
+                    'modifier' => $modifier,
+                    'instruction' => $instruction,
+                    'name' => $name,
+                    'distance_m' => (int) round((float) ($step['distanceMeters'] ?? 0)),
+                    'duration_s' => $this->parseGoogleDuration($step['duration'] ?? null),
+                    'geometry' => $this->mapGoogleStepGeometry($step),
+                ];
+            }
+        }
+
+        return $steps;
+    }
+
+    /**
+     * @param  array<string, mixed>  $step
+     * @return array<int, array{0: float, 1: float}>
+     */
+    private function mapGoogleStepGeometry(array $step): array
+    {
+        $encoded = $step['polyline']['encodedPolyline'] ?? null;
+
+        return is_string($encoded) ? $this->decodePolyline($encoded) : [];
     }
 
     /**

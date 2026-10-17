@@ -37,6 +37,7 @@ class DeliveryService
                 'last_latitude' => null,
                 'last_longitude' => null,
                 'last_location_at' => null,
+                'last_heading' => null,
             ]);
         } else {
             $profile->update([
@@ -59,17 +60,55 @@ class DeliveryService
     /**
      * Met à jour la position GPS du livreur (J175).
      *
+     * Le cap (`last_heading`) est déduit du déplacement depuis la position
+     * précédente, pour orienter le marqueur côté client. Il est conservé si le
+     * livreur ne s'est pas déplacé de manière significative.
+     *
      * @param  array{latitude: float, longitude: float}  $location
      */
     public function updateLocation(DriverProfile $profile, array $location): DriverProfile
     {
+        $heading = $this->headingBetween(
+            $profile->last_latitude !== null ? (float) $profile->last_latitude : null,
+            $profile->last_longitude !== null ? (float) $profile->last_longitude : null,
+            $location['latitude'],
+            $location['longitude'],
+        );
+
         $profile->update([
             'last_latitude' => $location['latitude'],
             'last_longitude' => $location['longitude'],
             'last_location_at' => now(),
+            'last_heading' => $heading ?? $profile->last_heading,
         ]);
 
         return $profile->fresh();
+    }
+
+    /**
+     * Cap en degrés (0 = Nord) entre deux positions, ou `null` si le déplacement
+     * est trop faible pour être significatif (< ~5 m).
+     */
+    private function headingBetween(?float $fromLat, ?float $fromLng, float $toLat, float $toLng): ?float
+    {
+        if ($fromLat === null || $fromLng === null) {
+            return null;
+        }
+
+        $dLat = $toLat - $fromLat;
+        $dLng = $toLng - $fromLng;
+        if (abs($dLat) < 0.000045 && abs($dLng) < 0.000045) {
+            return null;
+        }
+
+        $fromLatRad = deg2rad($fromLat);
+        $toLatRad = deg2rad($toLat);
+        $dLngRad = deg2rad($dLng);
+
+        $y = sin($dLngRad) * cos($toLatRad);
+        $x = cos($fromLatRad) * sin($toLatRad) - sin($fromLatRad) * cos($toLatRad) * cos($dLngRad);
+
+        return round((rad2deg(atan2($y, $x)) + 360) % 360, 2);
     }
 
     /**
@@ -201,6 +240,15 @@ class DeliveryService
         $delivery->update([
             'proof_code' => $delivery->proof_code ?? $code,
             'proof_photo_path' => $proof['proof_photo'] ?? $delivery->proof_photo_path,
+        ]);
+
+        // Fin de course : on efface la dernière position partagée (protection des
+        // données de localisation — le client ne doit plus voir le livreur).
+        $driver->update([
+            'last_latitude' => null,
+            'last_longitude' => null,
+            'last_location_at' => null,
+            'last_heading' => null,
         ]);
 
         $delivery->statusHistory()->create([
