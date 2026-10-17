@@ -7,6 +7,7 @@ use App\Http\Controllers\Admin\AdminCommissionsController;
 use App\Http\Controllers\Admin\AdminComplaintsController;
 use App\Http\Controllers\Admin\AdminController;
 use App\Http\Controllers\Admin\AdminDriversController;
+use App\Http\Controllers\Admin\AdminLocationsController;
 use App\Http\Controllers\Admin\AdminOrdersController;
 use App\Http\Controllers\Admin\AdminParcelsController;
 use App\Http\Controllers\Admin\AdminPaymentsController;
@@ -105,6 +106,11 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function (): v
     Route::resource('zones', AdminZonesController::class)->except(['show', 'destroy']);
     Route::delete('zones/{zone}', [AdminZonesController::class, 'destroy'])->name('zones.destroy');
     Route::post('zones/{zone}/active', [AdminZonesController::class, 'toggleActive'])->name('zones.active');
+
+    // ---------- Référentiel des villes & quartiers ----------
+    Route::resource('locations', AdminLocationsController::class)->except(['show', 'destroy']);
+    Route::delete('locations/{location}', [AdminLocationsController::class, 'destroy'])->name('locations.destroy');
+    Route::post('locations/{location}/active', [AdminLocationsController::class, 'toggleActive'])->name('locations.active');
 
     Route::resource('rates', AdminRatesController::class)->except(['show', 'destroy']);
     Route::delete('rates/{rate}', [AdminRatesController::class, 'destroy'])->name('rates.destroy');

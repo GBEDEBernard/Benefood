@@ -13,6 +13,7 @@ return [
     'commissions' => 'Commissions',
     'delivery' => 'Livraison',
     'zones' => 'Zones',
+    'locations' => 'Villes & quartiers',
     'rates' => 'Tarifs',
     'payments' => 'Paiements',
     'transactions' => 'Transactions',
