@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
@@ -114,9 +115,20 @@ class _AppMapState extends State<AppMap> {
   GeoPoint? _lastCenteredOrigin;
   bool _movedByUser = false;
 
+  /// Bump à chaque mise à jour du widget parent pour rafraîchir la carte
+  /// plein écran (qui vit dans une autre route et ne se reconstruit pas seule).
+  final ValueNotifier<int> _rev = ValueNotifier<int>(0);
+
   @override
   void didUpdateWidget(AppMap oldWidget) {
     super.didUpdateWidget(oldWidget);
+    // Différé : notifier un autre arbre (la route plein écran) pendant la phase
+    // de build déclencherait un setState-during-build.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _rev.value++;
+      }
+    });
     final origin = widget.origin;
     if (origin == null || !widget.followOrigin || _movedByUser) {
       return;
@@ -129,6 +141,7 @@ class _AppMapState extends State<AppMap> {
 
   @override
   void dispose() {
+    _rev.dispose();
     _controller.dispose();
     super.dispose();
   }
@@ -171,9 +184,11 @@ class _AppMapState extends State<AppMap> {
       showRoute: widget.showRoute,
       route: widget.route,
       routeColor: widget.routeColor,
+      highlightRoute: widget.highlightRoute,
       extraRoute: widget.extraRoute,
       travelled: widget.travelled,
       originIsDriver: widget.originIsDriver,
+      originHeading: widget.originHeading,
       openInMaps: widget.openInMaps,
       fullscreen: true,
       expandable: false,
@@ -185,11 +200,17 @@ class _AppMapState extends State<AppMap> {
   }
 
   /// Ouvre la carte en plein écran, sans quitter l'application.
+  ///
+  /// La carte plein écran est reconstruite à chaque mise à jour du suivi
+  /// (position, tracé, cap) via [_rev], pour rester réellement en direct.
   void _openFullscreen() {
     Navigator.of(context, rootNavigator: true).push(
       MaterialPageRoute<void>(
         fullscreenDialog: true,
-        builder: (_) => _FullscreenMapPage(child: _fullscreenMap()),
+        builder: (_) => _FullscreenMapPage(
+          rev: _rev,
+          builder: _fullscreenMap,
+        ),
       ),
     );
   }
@@ -635,15 +656,24 @@ class AppDimensRadius {
 }
 /// Écran plein écran hébergeant la carte, sans quitter l'application.
 class _FullscreenMapPage extends StatelessWidget {
-  const _FullscreenMapPage({required this.child});
+  const _FullscreenMapPage({required this.rev, required this.builder});
 
-  final Widget child;
+  /// Notifié à chaque mise à jour du suivi pour rafraîchir la carte en direct.
+  final ValueListenable<int> rev;
+
+  /// Construit la carte plein écran à partir des données courantes.
+  final Widget Function() builder;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
-      body: SafeArea(child: child),
+      body: SafeArea(
+        child: ValueListenableBuilder<int>(
+          valueListenable: rev,
+          builder: (_, _, _) => builder(),
+        ),
+      ),
     );
   }
 }
