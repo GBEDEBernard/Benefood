@@ -102,11 +102,11 @@ void main() {
     expect(find.text('Boutiques les mieux notées'), findsOneWidget);
     expect(find.text('La Boulangerie du Centre'), findsOneWidget);
     await tester.scrollUntilVisible(
-      find.text('Plats du jour'),
+      find.text('Plats du jour les mieux notés'),
       1200,
       scrollable: find.byType(Scrollable).first,
     );
-    expect(find.text('Plats du jour'), findsOneWidget);
+    expect(find.text('Plats du jour les mieux notés'), findsOneWidget);
     expect(find.byType(ListSkeleton), findsNothing);
   });
 

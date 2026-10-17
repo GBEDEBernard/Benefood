@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Enums\VendorDocumentType;
 use App\Enums\VendorStatus;
+use App\Enums\VendorType;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\ComplaintResource;
 use App\Http\Resources\ProductResource;
@@ -16,9 +17,11 @@ use App\Services\ComplaintService;
 use App\Services\VendorActivityService;
 use App\Services\VendorOnboardingService;
 use App\Support\Api;
+use App\Support\Geo;
 use App\Support\Phone;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Storage;
 
 class VendorController extends Controller
@@ -38,9 +41,11 @@ class VendorController extends Controller
             'legal_name' => ['sometimes', 'nullable', 'string', 'max:255'],
             'ifu' => ['sometimes', 'nullable', 'string', 'max:30'],
             'description' => ['sometimes', 'nullable', 'string'],
+            'type' => ['sometimes', 'nullable', 'string', 'in:'.implode(',', VendorType::values())],
             'phone' => ['required', 'string', 'regex:/^(?:\+?229|00229|0)?0?1?[0-9]{8}$/'],
             'email' => ['sometimes', 'nullable', 'email', 'max:255'],
             'city' => ['sometimes', 'nullable', 'string', 'max:100'],
+            'area' => ['sometimes', 'nullable', 'string', 'max:120'],
             'address' => ['sometimes', 'nullable', 'string'],
             'category_id' => ['sometimes', 'nullable', 'uuid', 'exists:categories,id'],
         ]);
@@ -165,9 +170,11 @@ class VendorController extends Controller
             'legal_name' => ['sometimes', 'nullable', 'string', 'max:255'],
             'ifu' => ['sometimes', 'nullable', 'string', 'max:30'],
             'description' => ['sometimes', 'nullable', 'string'],
+            'type' => ['sometimes', 'nullable', 'string', 'in:'.implode(',', VendorType::values())],
             'phone' => ['sometimes', 'string', 'regex:/^(?:\+?229|00229|0)?0?1?[0-9]{8}$/'],
             'email' => ['sometimes', 'nullable', 'email', 'max:255'],
             'city' => ['sometimes', 'nullable', 'string', 'max:100'],
+            'area' => ['sometimes', 'nullable', 'string', 'max:120'],
             'address' => ['sometimes', 'nullable', 'string'],
             'pickup_address' => ['sometimes', 'nullable', 'string'],
             'pickup_landmark' => ['sometimes', 'nullable', 'string', 'max:255'],
@@ -486,34 +493,106 @@ class VendorController extends Controller
 
     public function index(Request $request): JsonResponse
     {
+        // Note moyenne et nombre d'avis : les avis sont rattachés aux commandes,
+        // on agrège donc via orders.vendor_id (même logique que /home).
+        $vendorRatings = Review::query()
+            ->join('orders', 'orders.id', '=', 'reviews.order_id')
+            ->select('orders.vendor_id')
+            ->selectRaw('AVG(reviews.rating) as average_rating')
+            ->selectRaw('COUNT(reviews.id) as reviews_count')
+            ->groupBy('orders.vendor_id');
+
         $query = Vendor::query()
-            ->with(['settings'])
-            ->where('status', VendorStatus::Active->value)
-            ->whereNull('closed_at');
+            ->with(['settings', 'hours'])
+            ->leftJoinSub($vendorRatings, 'vendor_ratings', fn ($join) => $join->on('vendors.id', '=', 'vendor_ratings.vendor_id'))
+            ->select('vendors.*')
+            ->addSelect([
+                'vendor_ratings.average_rating as average_rating',
+                'vendor_ratings.reviews_count as reviews_count',
+            ])
+            ->where('vendors.status', VendorStatus::Active->value)
+            ->whereNull('vendors.closed_at');
+
+        // Recherche « par km » : distance orthodromique calculée en SQL à partir
+        // de la position transmise (GPS ou centre du quartier choisi).
+        $latitude = Geo::coordinate($request->query('latitude'), -90, 90);
+        $longitude = Geo::coordinate($request->query('longitude'), -180, 180);
+        $hasLocation = $latitude !== null && $longitude !== null;
+
+        $distanceSql = null;
+        $distanceBindings = [];
+
+        if ($hasLocation) {
+            [$distanceSql, $distanceBindings] = Geo::distanceKm('vendors.latitude', 'vendors.longitude', $latitude, $longitude);
+            $query->selectRaw("{$distanceSql} as distance_km", $distanceBindings);
+        }
 
         $q = trim((string) $request->query('q'));
         if ($q !== '') {
             $query->where(function ($builder) use ($q) {
-                $builder->where('business_name', 'like', "%{$q}%")
-                    ->orWhere('description', 'like', "%{$q}%")
-                    ->orWhere('city', 'like', "%{$q}%");
+                $builder->where('vendors.business_name', 'like', "%{$q}%")
+                    ->orWhere('vendors.description', 'like', "%{$q}%")
+                    ->orWhere('vendors.city', 'like', "%{$q}%")
+                    ->orWhere('vendors.area', 'like', "%{$q}%");
             });
         }
 
         if ($request->filled('city')) {
-            $query->where('city', $request->query('city'));
+            $query->where('vendors.city', $request->query('city'));
+        }
+
+        if ($request->filled('area')) {
+            $query->where('vendors.area', $request->query('area'));
+        }
+
+        if ($request->filled('type')) {
+            $query->where('vendors.type', $request->query('type'));
         }
 
         if ($request->filled('category_id')) {
             $query->whereHas('products', fn ($products) => $products->orderable()->where('category_id', $request->query('category_id')));
         }
 
+        if ($hasLocation && $request->filled('radius_km')) {
+            $radius = (float) $request->query('radius_km');
+            if ($radius > 0) {
+                $query->whereRaw("{$distanceSql} <= ?", [...$distanceBindings, $radius]);
+            }
+        }
+
         $perPage = (int) $request->query('per_page', config('beninfood.pagination.per_page'));
         $perPage = $perPage > 0 && $perPage <= config('beninfood.pagination.max_per_page') ? $perPage : config('beninfood.pagination.per_page');
 
-        $paginator = $query->orderBy('business_name')->paginate($perPage);
+        if ($hasLocation && $request->query('sort') === 'distance') {
+            $query->orderByRaw("{$distanceSql} asc", $distanceBindings);
+        } else {
+            $query->orderBy('vendors.business_name');
+        }
 
-        return Api::ok(VendorResource::collection($paginator->items())->values(), [
+        if ($request->boolean('open')) {
+            // Ouverture calculée (horaires du jour) : filtrage applicatif puis
+            // pagination manuelle, la logique dépassant une simple clause SQL.
+            $vendors = $query->get()
+                ->filter(fn (Vendor $vendor) => $vendor->isOpenNow())
+                ->values();
+
+            $page = max(1, (int) $request->query('page', 1));
+            $paginator = new LengthAwarePaginator(
+                $vendors->forPage($page, $perPage)->values(),
+                $vendors->count(),
+                $perPage,
+                $page,
+                ['path' => LengthAwarePaginator::resolveCurrentPath()],
+            );
+        } else {
+            $paginator = $query->paginate($perPage);
+        }
+
+        $items = collect($paginator->items())
+            ->map(fn (Vendor $vendor) => $this->vendorListPayload($vendor))
+            ->values();
+
+        return Api::ok($items, [
             'pagination' => [
                 'total' => $paginator->total(),
                 'per_page' => $paginator->perPage(),
@@ -521,6 +600,36 @@ class VendorController extends Controller
                 'last_page' => $paginator->lastPage(),
             ],
         ]);
+    }
+
+    /**
+     * Élément de liste boutique (recherche, filtre par type) avec note,
+     * nombre d'avis et état d'ouverture calculés.
+     *
+     * @return array<string, mixed>
+     */
+    private function vendorListPayload(Vendor $vendor): array
+    {
+        $distance = $vendor->getAttribute('distance_km');
+
+        return [
+            'id' => $vendor->id,
+            'business_name' => $vendor->business_name,
+            'description' => $vendor->description,
+            'type' => $vendor->type?->value,
+            'logo_url' => $this->mediaUrl($vendor->logo_url),
+            'cover_url' => $this->mediaUrl($vendor->cover_url),
+            'city' => $vendor->city,
+            'area' => $vendor->area,
+            'address' => $vendor->address,
+            'latitude' => $vendor->latitude,
+            'longitude' => $vendor->longitude,
+            'is_open' => $vendor->isOpenNow(),
+            'rating' => $vendor->average_rating !== null ? round((float) $vendor->average_rating, 1) : null,
+            'reviews_count' => (int) ($vendor->reviews_count ?? 0),
+            'prep_minutes' => (int) ($vendor->settings?->max_preparation_minutes ?? 30),
+            'distance_km' => $distance !== null ? round((float) $distance, 1) : null,
+        ];
     }
 
     public function show(Request $request, Vendor $vendor): JsonResponse
@@ -567,6 +676,7 @@ class VendorController extends Controller
             'cover_url' => $this->mediaUrl($vendor->cover_url),
             'phone' => $vendor->phone,
             'city' => $vendor->city,
+            'area' => $vendor->area,
             'address' => $vendor->address,
             'latitude' => $vendor->latitude,
             'longitude' => $vendor->longitude,

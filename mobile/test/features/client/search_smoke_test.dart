@@ -31,6 +31,31 @@ MockClient _mockBackend() {
     const json = {'content-type': 'application/json'};
     final path = request.url.path;
 
+    if (path.endsWith('/vendors')) {
+      return http.Response(
+        jsonEncode({
+          'data': [
+            {
+              'id': 'v1',
+              'business_name': 'Chez Awa',
+              'type': 'restaurant',
+              'city': 'Cotonou',
+              'area': 'Akpakpa',
+              'logo_url': null,
+              'cover_url': null,
+              'latitude': 6.36,
+              'longitude': 2.42,
+              'is_open': true,
+              'rating': 4.5,
+              'reviews_count': 3,
+              'prep_minutes': 25,
+            },
+          ],
+        }),
+        200,
+        headers: json,
+      );
+    }
     if (path.endsWith('/products')) {
       return http.Response(
         jsonEncode({
@@ -119,8 +144,9 @@ void main() {
     expect(find.byType(BeninfoodBrand), findsOneWidget);
     expect(find.byType(NotificationBell), findsOneWidget);
 
-    // Champ de recherche + résultats.
-    expect(find.text('Rechercher un produit…'), findsOneWidget);
+    // Champ de recherche + résultats (plats et boutiques).
+    expect(find.text('Rechercher un plat, un restaurant, une boutique…'), findsOneWidget);
+    expect(find.text('Chez Awa'), findsWidgets);
     expect(find.text('Poulet braisé'), findsOneWidget);
   });
 }

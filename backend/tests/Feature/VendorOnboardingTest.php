@@ -240,6 +240,67 @@ class VendorOnboardingTest extends TestCase
         ]);
     }
 
+    public function test_onboarding_defaults_to_boutique_and_accepts_type(): void
+    {
+        $user = User::factory()->create(['phone' => '+22997000010']);
+        Sanctum::actingAs($user);
+
+        $this->postJson('/api/v1/vendors/me/onboarding', [
+            'business_name' => 'Maquis du Port',
+            'phone' => '97000011',
+            'type' => 'maquis',
+        ])->assertCreated()
+            ->assertJsonPath('data.type', 'maquis');
+
+        $this->assertDatabaseHas('vendors', [
+            'user_id' => $user->id,
+            'type' => 'maquis',
+        ]);
+
+        $other = User::factory()->create(['phone' => '+22997000012']);
+        Sanctum::actingAs($other);
+
+        $this->postJson('/api/v1/vendors/me/onboarding', [
+            'business_name' => 'Boutique sans type',
+            'phone' => '97000013',
+        ])->assertCreated()
+            ->assertJsonPath('data.type', 'boutique');
+    }
+
+    public function test_onboarding_rejects_unknown_type(): void
+    {
+        $user = User::factory()->create(['phone' => '+22997000010']);
+        Sanctum::actingAs($user);
+
+        $this->postJson('/api/v1/vendors/me/onboarding', [
+            'business_name' => 'Resto Chez Awa',
+            'phone' => '97000011',
+            'type' => 'boulangerie',
+        ])->assertUnprocessable()
+            ->assertJsonPath('errors.0.field', 'type');
+    }
+
+    public function test_update_profile_sets_type(): void
+    {
+        $user = User::factory()->create(['phone' => '+22997000010']);
+        Sanctum::actingAs($user);
+
+        $this->postJson('/api/v1/vendors/me/onboarding', [
+            'business_name' => 'Resto Chez Awa',
+            'phone' => '97000011',
+        ])->assertCreated();
+
+        $this->patchJson('/api/v1/vendors/me', [
+            'type' => 'restaurant',
+        ])->assertOk()
+            ->assertJsonPath('data.type', 'restaurant');
+
+        $this->assertDatabaseHas('vendors', [
+            'user_id' => $user->id,
+            'type' => 'restaurant',
+        ]);
+    }
+
     public function test_onboarding_rejects_unknown_category(): void
     {
         $user = User::factory()->create(['phone' => '+22997000010']);

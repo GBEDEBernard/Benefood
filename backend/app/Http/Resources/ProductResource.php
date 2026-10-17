@@ -52,6 +52,7 @@ class ProductResource extends JsonResource
                 : null,
             'reviews_count' => $this->reviews_count ?? 0,
             'likes_count' => $this->favorites_count ?? 0,
+            'distance_km' => $this->distance_km !== null ? round((float) $this->distance_km, 1) : null,
             'created_at' => $this->created_at?->toIso8601String(),
             'updated_at' => $this->updated_at?->toIso8601String(),
         ];

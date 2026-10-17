@@ -14,6 +14,7 @@ import '../features/client/presentation/client_shell.dart';
 import '../features/client/presentation/client_sub_shell.dart';
 import '../features/client/product/product_detail_screen.dart';
 import '../features/client/shop/shop_detail_screen.dart';
+import '../features/client/shops/shop_list_screen.dart';
 import '../features/client/search/search_screen.dart';
 import '../features/client/checkout/checkout_screen.dart';
 import '../features/client/account/addresses_screen.dart';
@@ -36,6 +37,7 @@ import '../features/driver/presentation/driver_shell.dart';
 import '../features/driver/account/favorite_clients_screen.dart';
 import '../features/wallet/wallet_screen.dart';
 import '../shared/models/user.dart';
+import '../shared/models/vendor.dart';
 
 /// Routeur central (J146) : contenu protégé selon session + contexte actif.
 GoRouter buildAppRouter(SessionProvider session, MarketplaceApi marketplace) {
@@ -141,6 +143,13 @@ GoRouter buildAppRouter(SessionProvider session, MarketplaceApi marketplace) {
             builder: (context, state) => ShopDetailScreen(
               marketplace: marketplace,
               vendorId: state.pathParameters['id']!,
+            ),
+          ),
+          GoRoute(
+            path: '/client/shops',
+            builder: (context, state) => ShopListScreen(
+              marketplace: marketplace,
+              type: VendorType.fromApi(state.uri.queryParameters['type']),
             ),
           ),
           GoRoute(

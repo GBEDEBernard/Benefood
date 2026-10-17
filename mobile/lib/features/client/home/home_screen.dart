@@ -455,13 +455,11 @@ class _HomeScreenState extends State<HomeScreen> {
                   onOrder: () => context.push('/client/search'),
                 ),
 
-                // --- Catégories ---
-                if (data.categories.isNotEmpty)
-                  _CategoryStrip(
-                    categories: data.categories,
-                    selectedIndex: _categoryIndex,
-                    onSelect: (index) => setState(() => _categoryIndex = index),
-                  ),
+                // --- Actions rapides par type de boutique ---
+                _ShopTypeStrip(
+                  onSelect: (type) =>
+                      context.push('/client/shops?type=${type.apiValue}'),
+                ),
 
                 // --- Restaurants populaires ---
                 if (data.vendors.isNotEmpty) ...[
@@ -728,114 +726,104 @@ class _PromoBannerState extends State<_PromoBanner> {
   }
 }
 
-// ------------------------------------------------------------------ catégories
+// ------------------------------------------------------------ types boutiques
 
-/// Bande de catégories défilante : « Tous » (actif par défaut) puis les
-/// catégories du catalogue, icône dans un carré arrondi + libellé dessous.
-class _CategoryStrip extends StatelessWidget {
-  const _CategoryStrip({
-    required this.categories,
-    required this.selectedIndex,
-    required this.onSelect,
-  });
+/// Actions rapides de l'accueil : raccourcis vers les boutiques ouvertes par
+/// type (Restaurant, Boutique, Maquis).
+class _ShopTypeStrip extends StatelessWidget {
+  const _ShopTypeStrip({required this.onSelect});
 
-  final List<Category> categories;
-  final int selectedIndex;
-  final ValueChanged<int> onSelect;
+  final ValueChanged<VendorType> onSelect;
+
+  static const Map<VendorType, IconData> _icons = {
+    VendorType.restaurant: Icons.restaurant,
+    VendorType.boutique: Icons.storefront,
+    VendorType.maquis: Icons.soup_kitchen,
+  };
 
   @override
   Widget build(BuildContext context) {
-    final items = <_CategoryItem>[
-      const _CategoryItem(label: 'Tous', icon: Icons.room_service, index: 0),
-      for (var i = 0; i < categories.length; i++)
-        _CategoryItem(
-          label: categories[i].name,
-          icon: categoryIcon(categories[i].name),
-          index: i + 1,
-        ),
-    ];
-
-    return SizedBox(
-      height: 104,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.fromLTRB(
-          AppDimens.pagePadding,
-          8,
-          AppDimens.pagePadding,
-          8,
-        ),
-        itemCount: items.length,
-        separatorBuilder: (_, _) => const SizedBox(width: 10),
-        itemBuilder: (context, index) {
-          final item = items[index];
-          final active = item.index == selectedIndex;
-          return InkWell(
-            onTap: () => onSelect(item.index),
-            borderRadius: BorderRadius.circular(AppDimens.radiusLg),
-            child: SizedBox(
-              width: 74,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  AnimatedContainer(
-                    duration: const Duration(milliseconds: 180),
-                    width: 60,
-                    height: 60,
-                    decoration: BoxDecoration(
-                      color: active
-                          ? AppColors.orange
-                          : AppColors.surfaceVariant,
-                      borderRadius: BorderRadius.circular(AppDimens.radiusLg),
-                      border: Border.all(
-                        color: active ? AppColors.orange : AppColors.border,
-                      ),
-                      boxShadow: const [
-                        BoxShadow(
-                          color: Color(0x0A000000),
-                          blurRadius: 6,
-                          offset: Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: Icon(
-                      item.icon,
-                      size: 26,
-                      color: active ? AppColors.surface : AppColors.green,
-                    ),
-                  ),
-                  const SizedBox(height: 7),
-                  Text(
-                    item.label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      fontSize: 11.5,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.text,
-                    ),
-                  ),
-                ],
+    const types = [VendorType.restaurant, VendorType.boutique, VendorType.maquis];
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppDimens.pagePadding,
+        8,
+        AppDimens.pagePadding,
+        4,
+      ),
+      child: Row(
+        children: [
+          for (var i = 0; i < types.length; i++) ...[
+            if (i > 0) const SizedBox(width: 10),
+            Expanded(
+              child: _ShopTypeTile(
+                label: types[i].label,
+                icon: _icons[types[i]]!,
+                onTap: () => onSelect(types[i]),
               ),
             ),
-          );
-        },
+          ],
+        ],
       ),
     );
   }
 }
 
-class _CategoryItem {
-  const _CategoryItem({
+class _ShopTypeTile extends StatelessWidget {
+  const _ShopTypeTile({
     required this.label,
     required this.icon,
-    required this.index,
+    required this.onTap,
   });
 
   final String label;
   final IconData icon;
-  final int index;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppColors.surfaceVariant,
+      borderRadius: BorderRadius.circular(AppDimens.radiusLg),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppDimens.radiusLg),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(AppDimens.radiusLg),
+            border: Border.all(color: AppColors.border),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: AppColors.orangeLight,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(icon, size: 21, color: AppColors.orange),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.text,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 /// Icône associée à une catégorie selon son libellé.

@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\VendorStatus;
+use App\Enums\VendorType;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -24,6 +25,7 @@ class Vendor extends Model
         return [
             'approved_at' => 'datetime',
             'closed_at' => 'datetime',
+            'type' => VendorType::class,
         ];
     }
 

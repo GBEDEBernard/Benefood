@@ -15,6 +15,7 @@ class DatabaseSeeder extends Seeder
             RolesAndPermissionsSeeder::class,
             CommissionRatesSeeder::class,
             DeliveryZonesSeeder::class,
+            NeighborhoodSeeder::class,
             DistancePricingRulesSeeder::class,
             CategoriesSeeder::class,
             NotificationTemplatesSeeder::class,

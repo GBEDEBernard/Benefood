@@ -12,6 +12,7 @@ import '../../../shared/models/parcel.dart';
 import '../../../shared/widgets/amount_widgets.dart';
 import '../../../shared/widgets/app_text_field.dart';
 import '../../../shared/widgets/beninfood_header.dart';
+import '../../../shared/widgets/city_area_picker.dart';
 import '../../../shared/widgets/feedback_widgets.dart';
 import '../../../shared/widgets/favorite_driver_picker.dart';
 import '../../../shared/widgets/fedapay_checkout_screen.dart';
@@ -491,24 +492,10 @@ class _ParcelCreateScreenState extends State<ParcelCreateScreen> {
               required: true,
             ),
             const SizedBox(height: AppDimens.md),
-            Row(
-              children: [
-                Expanded(
-                  child: AppTextField(
-                    controller: _pickupArea,
-                    label: 'Quartier',
-                    icon: Icons.location_city_outlined,
-                  ),
-                ),
-                const SizedBox(width: AppDimens.md),
-                Expanded(
-                  child: AppTextField(
-                    controller: _pickupCity,
-                    label: 'Ville',
-                    icon: Icons.map_outlined,
-                  ),
-                ),
-              ],
+            CityAreaPickerField(
+              marketplace: widget.marketplace,
+              cityController: _pickupCity,
+              areaController: _pickupArea,
             ),
             const SizedBox(height: AppDimens.md),
             AppTextField(
@@ -566,24 +553,10 @@ class _ParcelCreateScreenState extends State<ParcelCreateScreen> {
                 required: true,
               ),
               const SizedBox(height: AppDimens.md),
-              Row(
-                children: [
-                  Expanded(
-                    child: AppTextField(
-                      controller: _dropoffArea,
-                      label: 'Quartier',
-                      icon: Icons.location_city_outlined,
-                    ),
-                  ),
-                  const SizedBox(width: AppDimens.md),
-                  Expanded(
-                    child: AppTextField(
-                      controller: _dropoffCity,
-                      label: 'Ville',
-                      icon: Icons.map_outlined,
-                    ),
-                  ),
-                ],
+              CityAreaPickerField(
+                marketplace: widget.marketplace,
+                cityController: _dropoffCity,
+                areaController: _dropoffArea,
               ),
               const SizedBox(height: AppDimens.md),
               AppTextField(

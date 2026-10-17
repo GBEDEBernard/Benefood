@@ -217,6 +217,11 @@ void main() {
       'Cuisine béninoise à Cotonou.',
     );
 
+    await tester.tap(find.widgetWithText(ChoiceChip, 'Restaurant'));
+    await tester.pumpAndSettle();
+
+    await tester.ensureVisible(find.byType(DropdownButtonFormField<String>));
+    await tester.pumpAndSettle();
     await tester.tap(find.byType(DropdownButtonFormField<String>));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Snacks et restauration'));

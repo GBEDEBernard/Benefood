@@ -10,6 +10,7 @@ use App\Models\Vendor;
 use App\Services\CatalogService;
 use App\Services\MediaService;
 use App\Support\Api;
+use App\Support\Geo;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -40,6 +41,21 @@ class VendorProductController extends Controller
             ->withAvg('reviews as reviews_avg_rating', 'rating')
             ->withCount(['reviews', 'favorites']);
 
+        $latitude = Geo::coordinate($request->query('latitude'), -90, 90);
+        $longitude = Geo::coordinate($request->query('longitude'), -180, 180);
+        $hasLocation = $latitude !== null && $longitude !== null;
+        $distanceSql = null;
+        $distanceBindings = [];
+
+        if ($hasLocation) {
+            $vendorHasCoords = ($vendor->latitude !== null && $vendor->longitude !== null);
+            if ($vendorHasCoords) {
+                [$expression, $distanceBindings] = Geo::distanceKm('vendors.latitude', 'vendors.longitude', $latitude, $longitude);
+                $distanceSql = "(select {$expression} from vendors where vendors.id = products.vendor_id)";
+                $query->selectRaw("{$distanceSql} as distance_km", $distanceBindings);
+            }
+        }
+
         if ($q !== '') {
             $query->where('name', 'like', "%{$q}%");
         }
@@ -60,9 +76,23 @@ class VendorProductController extends Controller
             $query->where('is_available', (bool) $request->query('is_available'));
         }
 
-        $paginator = $query->orderBy('name')->paginate($perPage);
+        if ($hasLocation && $distanceSql !== null && $request->filled('radius_km')) {
+            $radius = (float) $request->query('radius_km');
+            if ($radius > 0) {
+                $query->whereRaw("{$distanceSql} <= ?", [...$distanceBindings, $radius]);
+            }
+        }
 
-        $items = ProductResource::collection(collect($paginator->items()))->resolve();
+        $sort = (string) $request->query('sort', 'name');
+        if ($hasLocation && $distanceSql !== null && $sort === 'distance') {
+            $query->orderByRaw("{$distanceSql} asc", $distanceBindings);
+        } else {
+            $query->orderBy('name');
+        }
+
+        $paginator = $query->paginate($perPage);
+
+        $items = ProductResource::collection($paginator->items())->resolve();
 
         return Api::ok($items, [
             'pagination' => [

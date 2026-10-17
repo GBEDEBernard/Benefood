@@ -92,6 +92,7 @@ class HomeController extends Controller
                     'id' => $vendor->id,
                     'business_name' => $vendor->business_name,
                     'description' => $vendor->description,
+                    'type' => $vendor->type?->value,
                     'logo_url' => $this->mediaUrl($vendor->logo_url),
                     'cover_url' => $this->mediaUrl($vendor->cover_url),
                     'city' => $vendor->city,

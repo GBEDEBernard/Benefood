@@ -1,3 +1,23 @@
+enum VendorType {
+  boutique('boutique', 'Boutique'),
+  restaurant('restaurant', 'Restaurant'),
+  maquis('maquis', 'Maquis');
+
+  const VendorType(this.apiValue, this.label);
+
+  final String apiValue;
+  final String label;
+
+  static VendorType? fromApi(String? value) {
+    for (final type in VendorType.values) {
+      if (type.apiValue == value) {
+        return type;
+      }
+    }
+    return null;
+  }
+}
+
 class Vendor {
   const Vendor({
     required this.id,
@@ -9,6 +29,7 @@ class Vendor {
     this.phone,
     this.email,
     this.city,
+    this.area,
     this.address,
     this.pickupAddress,
     this.pickupLandmark,
@@ -24,6 +45,8 @@ class Vendor {
     this.maxPreparationMinutes,
     this.rating,
     this.reviewsCount = 0,
+    this.type,
+    this.distanceKm,
   });
 
   final String id;
@@ -35,6 +58,7 @@ class Vendor {
   final String? phone;
   final String? email;
   final String? city;
+  final String? area;
   final String? address;
   final String? pickupAddress;
   final String? pickupLandmark;
@@ -50,6 +74,8 @@ class Vendor {
   final int? maxPreparationMinutes;
   final double? rating;
   final int reviewsCount;
+  final VendorType? type;
+  final double? distanceKm;
 
   bool get isActive => status == 'active';
   bool get isOpenResolved => isOpen ?? false;
@@ -63,6 +89,18 @@ class Vendor {
     return '$minutes-${minutes + 15} min';
   }
 
+  /// Distance à l'utilisateur, ex. « 2,3 km » ou « 850 m ».
+  String? get distanceLabel {
+    final distance = distanceKm;
+    if (distance == null) {
+      return null;
+    }
+    if (distance < 1) {
+      return '${(distance * 1000).round()} m';
+    }
+    return '${distance.toStringAsFixed(1).replaceAll('.', ',')} km';
+  }
+
   factory Vendor.fromJson(Map<String, dynamic> json) => Vendor(
         id: _s(json['id']),
         userId: json['user_id'] is String ? json['user_id'] as String : null,
@@ -73,6 +111,7 @@ class Vendor {
         phone: json['phone'] is String ? json['phone'] as String : null,
         email: json['email'] is String ? json['email'] as String : null,
         city: json['city'] is String ? json['city'] as String : null,
+        area: json['area'] is String ? json['area'] as String : null,
         address: json['address'] is String ? json['address'] as String : null,
         pickupAddress: json['pickup_address'] is String ? json['pickup_address'] as String : null,
         pickupLandmark: json['pickup_landmark'] is String ? json['pickup_landmark'] as String : null,
@@ -87,9 +126,13 @@ class Vendor {
         approvedAt: json['approved_at'] is String ? json['approved_at'] as String : null,
         createdAt: json['created_at'] is String ? json['created_at'] as String : null,
         maxPreparationMinutes:
-            json['max_preparation_minutes'] is int ? json['max_preparation_minutes'] as int : null,
+            json['max_preparation_minutes'] is int
+                ? json['max_preparation_minutes'] as int
+                : (json['prep_minutes'] is int ? json['prep_minutes'] as int : null),
         rating: _d(json['rating']),
         reviewsCount: json['reviews_count'] is int ? json['reviews_count'] as int : 0,
+        type: VendorType.fromApi(json['type'] is String ? json['type'] as String : null),
+        distanceKm: _d(json['distance_km']),
       );
 }
 

@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Enums\VendorDocumentStatus;
 use App\Enums\VendorDocumentType;
 use App\Enums\VendorStatus;
+use App\Enums\VendorType;
 use App\Exceptions\DomainException;
 use App\Models\User;
 use App\Models\Vendor;
@@ -33,9 +34,11 @@ class VendorOnboardingService
             'legal_name' => $data['legal_name'] ?? null,
             'ifu' => $data['ifu'] ?? null,
             'description' => $data['description'] ?? null,
+            'type' => $data['type'] ?? VendorType::Boutique->value,
             'phone' => Phone::normalize($data['phone']),
             'email' => $data['email'] ?? null,
             'city' => $data['city'] ?? null,
+            'area' => $data['area'] ?? null,
             'address' => $data['address'] ?? null,
             'category_id' => $data['category_id'] ?? null,
             'status' => VendorStatus::Registered->value,

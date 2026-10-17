@@ -8,6 +8,7 @@ import '../../../shared/models/address.dart';
 import '../../../shared/widgets/app_button.dart';
 import '../../../shared/widgets/app_text_field.dart';
 import '../../../shared/widgets/beninfood_header.dart';
+import '../../../shared/widgets/city_area_picker.dart';
 import '../../../shared/widgets/feedback_widgets.dart';
 import '../../../shared/widgets/state_widgets.dart';
 
@@ -357,24 +358,10 @@ class _AddAddressSheetState extends State<_AddAddressSheet> {
                     validator: (v) => (v == null || v.trim().isEmpty) ? 'Requis' : null,
                   ),
                   const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: AppTextField(
-                          controller: _city,
-                          label: 'Ville',
-                          hint: 'Cotonou…',
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: AppTextField(
-                          controller: _area,
-                          label: 'Quartier',
-                          hint: 'Akpakpa…',
-                        ),
-                      ),
-                    ],
+                  CityAreaPickerField(
+                    marketplace: widget.marketplace,
+                    cityController: _city,
+                    areaController: _area,
                   ),
                   const SizedBox(height: 12),
                   AppTextField(

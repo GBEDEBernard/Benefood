@@ -15,6 +15,7 @@ use App\Http\Controllers\Api\DriverFloatController;
 use App\Http\Controllers\Api\FavoriteDriverController;
 use App\Http\Controllers\Api\HealthController;
 use App\Http\Controllers\Api\HomeController;
+use App\Http\Controllers\Api\LocationController;
 use App\Http\Controllers\Api\MeController;
 use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\ParcelController;
@@ -266,6 +267,7 @@ Route::get('/vendors/me/documents/{document}/download', [VendorController::class
     ->name('api.v1.vendors.me.documents.download');
 
 Route::get('/categories', [CatalogController::class, 'categories'])->name('api.v1.categories.index');
+Route::get('/locations', [LocationController::class, 'index'])->name('api.v1.locations.index');
 Route::get('/products', [CatalogController::class, 'index'])->name('api.v1.products.index');
 Route::get('/products/{product}', [CatalogController::class, 'show'])->name('api.v1.products.show');
 Route::get('/vendors', [VendorController::class, 'index'])->name('api.v1.vendors.index');

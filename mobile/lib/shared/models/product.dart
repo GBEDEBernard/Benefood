@@ -42,6 +42,7 @@ class Product {
     this.rating,
     this.reviewsCount,
     this.likesCount,
+    this.distanceKm,
   });
 
   final String id;
@@ -69,7 +70,22 @@ class Product {
   final int? reviewsCount;
   final int? likesCount;
 
+  /// Distance au vendeur (renseignée par la recherche par proximité).
+  final double? distanceKm;
+
   bool get isOutOfStock => stockQty != null && stockQty == 0;
+
+  /// Distance à l'utilisateur, ex. « 2,3 km » ou « 850 m ».
+  String? get distanceLabel {
+    final distance = distanceKm;
+    if (distance == null) {
+      return null;
+    }
+    if (distance < 1) {
+      return '${(distance * 1000).round()} m';
+    }
+    return '${distance.toStringAsFixed(1).replaceAll('.', ',')} km';
+  }
 
   /// URL d'image principale réellement affichable : photo chargée (tableau
   /// `images`) sinon `image_url` résolue par le backend. `image_main` brut
@@ -125,6 +141,7 @@ class Product {
       rating: rating,
       reviewsCount: reviewsCount,
       likesCount: likesCount,
+      distanceKm: distanceKm,
     );
   }
 
@@ -172,6 +189,7 @@ class Product {
       rating: _d(json['rating']),
       reviewsCount: _i(json['reviews_count']),
       likesCount: _i(json['likes_count']),
+      distanceKm: _d(json['distance_km']),
     );
   }
 }

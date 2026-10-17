@@ -7,6 +7,7 @@ import '../../../core/data/marketplace_api.dart';
 import '../../../core/errors/api_exception.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../shared/models/category.dart';
+import '../../../shared/models/vendor.dart';
 import '../../../shared/widgets/feedback_widgets.dart';
 import 'steps/documents_step.dart';
 import 'steps/legal_info_step.dart';
@@ -64,6 +65,7 @@ class _VendorOnboardingScreenState extends State<VendorOnboardingScreen> {
   final _description = TextEditingController();
   List<Category> _categories = [];
   String? _categoryId;
+  VendorType? _type;
   Uint8List? _logoBytes;
   Uint8List? _coverBytes;
   String? _logoUrl;
@@ -121,6 +123,7 @@ class _VendorOnboardingScreenState extends State<VendorOnboardingScreen> {
       _shopName.text = vendor['business_name'] as String? ?? '';
       _description.text = vendor['description'] as String? ?? '';
       _categoryId = vendor['category_id'] as String?;
+      _type = VendorType.fromApi(vendor['type'] as String?);
       _logoUrl = vendor['logo_url'] as String?;
       _coverUrl = vendor['cover_url'] as String?;
 
@@ -398,6 +401,7 @@ class _VendorOnboardingScreenState extends State<VendorOnboardingScreen> {
         businessName: _shopName.text.trim(),
         description: _description.text.trim(),
         categoryId: _categoryId,
+        type: _type,
       );
       if (_logoBytes != null || _coverBytes != null) {
         await widget.marketplace.updateVendorMedia(
@@ -489,6 +493,8 @@ class _VendorOnboardingScreenState extends State<VendorOnboardingScreen> {
                   categories: _categories,
                   selectedCategoryId: _categoryId,
                   onCategoryChanged: (value) => setState(() => _categoryId = value),
+                  selectedType: _type,
+                  onTypeChanged: (value) => setState(() => _type = value),
                   logoBytes: _logoBytes,
                   logoUrl: _logoUrl,
                   onPickLogo: () => _pickMedia(isLogo: true),

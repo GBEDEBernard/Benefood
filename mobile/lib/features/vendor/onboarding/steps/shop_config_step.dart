@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/models/category.dart';
+import '../../../../shared/models/vendor.dart';
 import '../../../../shared/widgets/app_network_image.dart';
 import '../widgets/custom_text_field.dart';
 
@@ -18,6 +19,8 @@ class ShopConfigStep extends StatefulWidget {
     required this.categories,
     required this.selectedCategoryId,
     required this.onCategoryChanged,
+    required this.selectedType,
+    required this.onTypeChanged,
     required this.logoBytes,
     required this.logoUrl,
     required this.onPickLogo,
@@ -32,6 +35,8 @@ class ShopConfigStep extends StatefulWidget {
   final List<Category> categories;
   final String? selectedCategoryId;
   final ValueChanged<String?> onCategoryChanged;
+  final VendorType? selectedType;
+  final ValueChanged<VendorType?> onTypeChanged;
   final Uint8List? logoBytes;
   final String? logoUrl;
   final VoidCallback onPickLogo;
@@ -89,6 +94,63 @@ class _ShopConfigStepState extends State<ShopConfigStep> {
             textInputAction: TextInputAction.next,
             validator: (v) =>
                 (v == null || v.trim().isEmpty) ? 'Ajoutez une description' : null,
+          ),
+          const SizedBox(height: 16),
+          _Label(text: 'Type de boutique', required: true),
+          const SizedBox(height: 8),
+          FormField<VendorType>(
+            key: ValueKey('type:${widget.selectedType?.apiValue ?? ''}'),
+            initialValue: widget.selectedType,
+            validator: (value) =>
+                value == null ? 'Choisissez le type de boutique' : null,
+            builder: (field) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Wrap(
+                    spacing: 10,
+                    runSpacing: 10,
+                    children: [
+                      for (final type in VendorType.values)
+                        ChoiceChip(
+                          label: Text(type.label),
+                          selected: field.value == type,
+                          onSelected: (_) {
+                            field.didChange(type);
+                            widget.onTypeChanged(type);
+                          },
+                          selectedColor: AppColors.orangeLight,
+                          labelStyle: TextStyle(
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.w700,
+                            color: field.value == type
+                                ? AppColors.orange
+                                : AppColors.textSecondary,
+                          ),
+                          side: BorderSide(
+                            color: field.value == type
+                                ? AppColors.orange
+                                : AppColors.border,
+                          ),
+                          backgroundColor: AppColors.surface,
+                          showCheckmark: false,
+                        ),
+                    ],
+                  ),
+                  if (field.hasError)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 6, left: 4),
+                      child: Text(
+                        field.errorText!,
+                        style: const TextStyle(
+                          fontSize: 12.5,
+                          color: AppColors.orange,
+                        ),
+                      ),
+                    ),
+                ],
+              );
+            },
           ),
           const SizedBox(height: 16),
           _Label(text: 'Catégorie', required: true),

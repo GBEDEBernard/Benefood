@@ -8,6 +8,7 @@ use App\Http\Resources\ProductResource;
 use App\Models\Category;
 use App\Models\Product;
 use App\Support\Api;
+use App\Support\Geo;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -43,18 +44,50 @@ class CatalogController extends Controller
             ->orderable()
             ->whereHas('vendor', fn ($vendor) => $vendor->where('status', VendorStatus::Active->value));
 
+        // Recherche « par km » : distance au vendeur, calculée en SQL.
+        $latitude = Geo::coordinate($request->query('latitude'), -90, 90);
+        $longitude = Geo::coordinate($request->query('longitude'), -180, 180);
+        $hasLocation = $latitude !== null && $longitude !== null;
+
+        $distanceSql = null;
+        $distanceBindings = [];
+
+        if ($hasLocation) {
+            [$expression, $distanceBindings] = Geo::distanceKm('vendors.latitude', 'vendors.longitude', $latitude, $longitude);
+            $distanceSql = "(select {$expression} from vendors where vendors.id = products.vendor_id)";
+            $query->selectRaw("{$distanceSql} as distance_km", $distanceBindings);
+        }
+
         $q = trim((string) $request->query('q'));
         if ($q !== '') {
             $query->where(function ($builder) use ($q) {
                 $builder->where('products.name', 'like', "%{$q}%")
                     ->orWhere('products.description', 'like', "%{$q}%")
-                    ->orWhereHas('vendor', fn ($vendor) => $vendor->where('business_name', 'like', "%{$q}%"));
+                    ->orWhereHas('vendor', fn ($vendor) => $vendor
+                        ->where('business_name', 'like', "%{$q}%")
+                        ->orWhere('city', 'like', "%{$q}%")
+                        ->orWhere('area', 'like', "%{$q}%"));
             });
+        }
+
+        if ($request->filled('city')) {
+            $query->whereHas('vendor', fn ($vendor) => $vendor->where('city', $request->query('city')));
+        }
+
+        if ($request->filled('area')) {
+            $query->whereHas('vendor', fn ($vendor) => $vendor->where('area', $request->query('area')));
         }
 
         if ($request->filled('category_id')) {
             $ids = $this->categoryIdsRecursively((string) $request->query('category_id'));
             $query->whereIn('products.category_id', $ids);
+        }
+
+        if ($hasLocation && $request->filled('radius_km')) {
+            $radius = (float) $request->query('radius_km');
+            if ($radius > 0) {
+                $query->whereRaw("{$distanceSql} <= ?", [...$distanceBindings, $radius]);
+            }
         }
 
         if ($request->filled('vendor_id')) {
@@ -75,7 +108,13 @@ class CatalogController extends Controller
                 ->when(! $inStock, fn ($builder) => $builder->where(fn ($stock) => $stock->whereNotNull('products.stock_qty')->where('products.stock_qty', '<=', 0)));
         }
 
-        $query->orderByRaw(...$this->orderByForSort((string) $request->query('sort', '-created_at')));
+        $sort = (string) $request->query('sort', '-created_at');
+
+        if ($hasLocation && $sort === 'distance') {
+            $query->orderByRaw("{$distanceSql} asc", $distanceBindings);
+        } else {
+            $query->orderByRaw(...$this->orderByForSort($sort));
+        }
 
         $paginator = $query->paginate($perPage);
 

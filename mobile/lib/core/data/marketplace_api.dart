@@ -8,6 +8,7 @@ import '../../shared/models/delivery.dart';
 import '../../shared/models/favorite_driver.dart';
 import '../../shared/models/order.dart';
 import '../../shared/models/geo_point.dart';
+import '../../shared/models/neighborhood.dart';
 import '../../shared/models/parcel.dart';
 import '../../shared/models/product.dart';
 import '../../shared/models/route_plan.dart';
@@ -48,7 +49,13 @@ class MarketplaceApi {
     String? categoryId,
     String? q,
     String? vendorId,
+    String? city,
+    String? area,
     bool? inStock,
+    double? latitude,
+    double? longitude,
+    double? radiusKm,
+    String? sort,
     int perPage = 25,
   }) async {
     final response = await _api.get(
@@ -57,7 +64,13 @@ class MarketplaceApi {
         if (categoryId != null) 'category_id': categoryId,
         if (q != null && q.isNotEmpty) 'q': q,
         if (vendorId != null) 'vendor_id': vendorId,
+        if (city != null && city.isNotEmpty) 'city': city,
+        if (area != null && area.isNotEmpty) 'area': area,
         if (inStock != null) 'in_stock': inStock.toString(),
+        if (latitude != null) 'latitude': latitude.toString(),
+        if (longitude != null) 'longitude': longitude.toString(),
+        if (radiusKm != null) 'radius_km': radiusKm.toString(),
+        if (sort != null && sort.isNotEmpty) 'sort': sort,
         'per_page': perPage.toString(),
       },
     );
@@ -72,6 +85,13 @@ class MarketplaceApi {
   Future<List<Vendor>> vendors({
     String? q,
     String? city,
+    String? area,
+    VendorType? type,
+    bool onlyOpen = false,
+    double? latitude,
+    double? longitude,
+    double? radiusKm,
+    String? sort,
     int perPage = 25,
   }) async {
     final response = await _api.get(
@@ -79,10 +99,23 @@ class MarketplaceApi {
       query: {
         if (q != null && q.isNotEmpty) 'q': q,
         if (city != null && city.isNotEmpty) 'city': city,
+        if (area != null && area.isNotEmpty) 'area': area,
+        if (type != null) 'type': type.apiValue,
+        if (onlyOpen) 'open': '1',
+        if (latitude != null) 'latitude': latitude.toString(),
+        if (longitude != null) 'longitude': longitude.toString(),
+        if (radiusKm != null) 'radius_km': radiusKm.toString(),
+        if (sort != null && sort.isNotEmpty) 'sort': sort,
         'per_page': perPage.toString(),
       },
     );
     return _dataList(response).map(Vendor.fromJson).toList();
+  }
+
+  /// Référentiel des villes et de leurs quartiers (GET /locations).
+  Future<List<LocationCity>> locations() async {
+    final response = await _api.get('/locations');
+    return _dataList(response).map(LocationCity.fromJson).toList();
   }
 
   Future<ShopDetail> vendor(String id) async {
@@ -442,6 +475,7 @@ class MarketplaceApi {
     String? city,
     String? address,
     String? categoryId,
+    VendorType? type,
   }) async {
     await _api.post(
       '/vendors/me/onboarding',
@@ -457,6 +491,7 @@ class MarketplaceApi {
         if (address != null && address.isNotEmpty) 'address': address,
         if (categoryId != null && categoryId.isNotEmpty)
           'category_id': categoryId,
+        if (type != null) 'type': type.apiValue,
       },
     );
   }
@@ -474,6 +509,7 @@ class MarketplaceApi {
     String? city,
     String? address,
     String? categoryId,
+    VendorType? type,
   }) async {
     await _api.patch(
       '/vendors/me',
@@ -489,6 +525,7 @@ class MarketplaceApi {
         'address': ?address,
         if (categoryId != null && categoryId.isNotEmpty)
           'category_id': categoryId,
+        if (type != null) 'type': type.apiValue,
       },
     );
   }

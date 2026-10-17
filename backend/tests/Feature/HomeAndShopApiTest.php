@@ -322,4 +322,66 @@ class HomeAndShopApiTest extends TestCase
             ->assertOk()
             ->assertJsonCount(1, 'data');
     }
+
+    public function test_vendors_index_filters_by_type_and_exposes_it(): void
+    {
+        $restaurant = Vendor::factory()->create([
+            'status' => VendorStatus::Active->value,
+            'business_name' => 'Chez Awa',
+            'type' => 'restaurant',
+        ]);
+        Vendor::factory()->create([
+            'status' => VendorStatus::Active->value,
+            'business_name' => 'Primeur',
+            'type' => 'boutique',
+        ]);
+
+        $this->getJson('/api/v1/vendors?type=restaurant')
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $restaurant->id)
+            ->assertJsonPath('data.0.type', 'restaurant');
+
+        $this->getJson('/api/v1/vendors?type=maquis')
+            ->assertOk()
+            ->assertJsonCount(0, 'data');
+    }
+
+    public function test_vendors_index_open_filter_returns_only_open_shops(): void
+    {
+        // Sans horaire du jour : la boutique est considérée ouverte.
+        Vendor::factory()->create([
+            'status' => VendorStatus::Active->value,
+            'business_name' => 'Ouvert',
+            'type' => 'restaurant',
+        ]);
+
+        // Horaire du jour explicitement fermé.
+        $closed = Vendor::factory()->create([
+            'status' => VendorStatus::Active->value,
+            'business_name' => 'Fermé',
+            'type' => 'restaurant',
+        ]);
+        $closed->hours()->create([
+            'day_of_week' => now()->dayOfWeek,
+            'is_closed' => true,
+        ]);
+
+        $this->getJson('/api/v1/vendors?type=restaurant&open=1')
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.business_name', 'Ouvert');
+    }
+
+    public function test_home_exposes_vendor_type(): void
+    {
+        Vendor::factory()->create([
+            'status' => VendorStatus::Active->value,
+            'type' => 'maquis',
+        ]);
+
+        $this->getJson('/api/v1/home')
+            ->assertOk()
+            ->assertJsonPath('data.vendors.0.type', 'maquis');
+    }
 }
