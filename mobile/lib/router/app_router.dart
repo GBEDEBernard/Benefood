@@ -179,13 +179,8 @@ GoRouter buildAppRouter(SessionProvider session, MarketplaceApi marketplace) {
         routes: [
           GoRoute(
             path: '/client/addresses',
-            builder: (context, state) {
-              final select = state.uri.queryParameters['select'] == '1';
-              return AddressesScreen(
-                marketplace: marketplace,
-                selectMode: select,
-              );
-            },
+            builder: (context, state) =>
+                AddressesScreen(marketplace: marketplace),
           ),
           GoRoute(
             path: '/client/orders',

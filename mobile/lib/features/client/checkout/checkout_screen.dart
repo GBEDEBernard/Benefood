@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../../core/data/marketplace_api.dart';
 import '../../../core/errors/api_exception.dart';
@@ -15,6 +14,7 @@ import '../../../shared/widgets/favorite_driver_picker.dart';
 import '../../../shared/widgets/fedapay_checkout_screen.dart';
 import '../../../shared/widgets/feedback_widgets.dart';
 import '../../../shared/widgets/state_widgets.dart';
+import '../account/addresses_screen.dart';
 import '../orders/order_tracking_screen.dart';
 
 /// Checkout client (J151) : adresse → récapitulatif serveur → commande → paiement.
@@ -302,7 +302,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               ],
               OutlinedButton.icon(
                 onPressed: () async {
-                  final created = await context.push<Address>('/client/addresses?select=1');
+                  final created = await showAddAddressSheet(context, widget.marketplace);
                   if (created != null && mounted) {
                     setState(() {
                       _addresses = [created, ..._addresses];

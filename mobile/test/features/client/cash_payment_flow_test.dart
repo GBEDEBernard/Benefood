@@ -49,6 +49,7 @@ Map<String, dynamic> _orderPayload({required String paymentMethod}) => {
 /// Backend simulé du checkout : adresses, récapitulatif, commande et paiement.
 class _CheckoutBackend {
   final List<Map<String, dynamic>> orderBodies = [];
+  final List<Map<String, dynamic>> addressBodies = [];
   int paymentCreateCalls = 0;
 
   MockClient client() => MockClient((request) async {
@@ -56,6 +57,23 @@ class _CheckoutBackend {
         final path = request.url.path;
 
         if (path.endsWith('/addresses')) {
+          if (request.method == 'POST') {
+            final body = jsonDecode(request.body) as Map<String, dynamic>;
+            addressBodies.add(body);
+            return http.Response(
+              jsonEncode({
+                'data': {
+                  'id': 'a2',
+                  'label': body['label'],
+                  'full_address': body['full_address'],
+                  'city': body['city'],
+                  'area': body['area'],
+                },
+              }),
+              201,
+              headers: jsonHeaders,
+            );
+          }
           return http.Response(
             jsonEncode({
               'data': [
@@ -205,6 +223,50 @@ void main() {
 
     expect(backend.orderBodies.single['payment_method'], 'online');
     expect(backend.paymentCreateCalls, 1);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+      'checkout : « Ajouter une nouvelle adresse » ouvre le formulaire et '
+      'sélectionne l\'adresse créée', (tester) async {
+    final backend = _CheckoutBackend();
+    await _pumpCheckout(tester, backend);
+
+    expect(find.text('Adresse de livraison'), findsOneWidget);
+
+    final addButton = find.text('Ajouter une nouvelle adresse');
+    await tester.scrollUntilVisible(
+      addButton,
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.ensureVisible(addButton);
+    await tester.pumpAndSettle();
+    await tester.tap(addButton);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Nouvelle adresse'), findsOneWidget);
+
+    await tester.enterText(find.byType(TextFormField).at(0), 'Maison');
+    await tester.enterText(
+      find.byType(TextFormField).at(1),
+      'Rue 12, Fidjrossè',
+    );
+    await tester.tap(find.text('Enregistrer'));
+    await tester.pumpAndSettle();
+
+    expect(backend.addressBodies, hasLength(1));
+    expect(
+      backend.addressBodies.single['full_address'],
+      'Rue 12, Fidjrossè',
+    );
+    expect(find.text('Nouvelle adresse'), findsNothing);
+    await tester.scrollUntilVisible(
+      find.text('Maison'),
+      -300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(find.text('Maison'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 

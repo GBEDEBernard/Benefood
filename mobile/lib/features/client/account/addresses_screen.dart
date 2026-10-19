@@ -12,12 +12,28 @@ import '../../../shared/widgets/city_area_picker.dart';
 import '../../../shared/widgets/feedback_widgets.dart';
 import '../../../shared/widgets/state_widgets.dart';
 
+/// Ouvre le formulaire de création d'adresse (ville, quartier et point exact).
+///
+/// Renvoie l'adresse créée, ou `null` si l'utilisateur ferme le formulaire.
+Future<Address?> showAddAddressSheet(
+  BuildContext context,
+  MarketplaceApi marketplace,
+) {
+  return showModalBottomSheet<Address>(
+    context: context,
+    isScrollControlled: true,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+    ),
+    builder: (context) => _AddAddressSheet(marketplace: marketplace),
+  );
+}
+
 /// Mes adresses (J153) : liste, ajout et sélection au checkout.
 class AddressesScreen extends StatefulWidget {
-  const AddressesScreen({super.key, required this.marketplace, this.selectMode = false});
+  const AddressesScreen({super.key, required this.marketplace});
 
   final MarketplaceApi marketplace;
-  final bool selectMode;
 
   @override
   State<AddressesScreen> createState() => _AddressesScreenState();
@@ -58,34 +74,24 @@ class _AddressesScreenState extends State<AddressesScreen> {
   }
 
   Future<void> _openAdd() async {
-    final created = await showModalBottomSheet<Address>(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (context) => _AddAddressSheet(marketplace: widget.marketplace),
-    );
+    final created = await showAddAddressSheet(context, widget.marketplace);
     if (created != null && mounted) {
       setState(() => _addresses = [created, ..._addresses]);
       showToast(context, 'Adresse enregistrée');
-      if (widget.selectMode) {
-        Navigator.of(context).pop(created);
-      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return BeninfoodPageScaffold(
-      title: widget.selectMode ? 'Choisir une adresse' : 'Mes adresses',
+      title: 'Mes adresses',
       api: widget.marketplace,
       body: _buildBody(),
-      floatingActionButton: widget.selectMode
-          ? null
-          : FloatingActionButton.extended(
-              onPressed: _openAdd,
-              icon: const Icon(Icons.add_location_alt_outlined),
-              label: const Text('Ajouter'),
-            ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _openAdd,
+        icon: const Icon(Icons.add_location_alt_outlined),
+        label: const Text('Ajouter'),
+      ),
     );
   }
 
@@ -120,9 +126,7 @@ class _AddressesScreenState extends State<AddressesScreen> {
             ),
             child: InkWell(
               borderRadius: BorderRadius.circular(16),
-              onTap: widget.selectMode
-                  ? () => Navigator.of(context).pop(address)
-                  : _openAdd,
+              onTap: _openAdd,
               child: Padding(
                 padding: const EdgeInsets.all(14),
                 child: Row(
@@ -182,9 +186,9 @@ class _AddressesScreenState extends State<AddressesScreen> {
                       ),
                     ),
                     const SizedBox(width: 8),
-                    Icon(
-                      widget.selectMode ? Icons.check_circle_outline : Icons.chevron_right,
-                      color: widget.selectMode ? AppColors.green : AppColors.textSecondary,
+                    const Icon(
+                      Icons.chevron_right,
+                      color: AppColors.textSecondary,
                     ),
                   ],
                 ),
