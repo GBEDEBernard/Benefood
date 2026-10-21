@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/auth/session_provider.dart';
 import '../../../core/data/marketplace_api.dart';
 import '../../../core/errors/api_exception.dart';
-import '../../../core/theme/app_colors.dart';
-import '../../../core/theme/app_dimens.dart';
-import '../../../shared/widgets/brand_logo.dart';
 import '../../../shared/widgets/state_widgets.dart';
+import '../../../shared/widgets/status_badge.dart';
 import '../account/driver_account_screen.dart';
 import '../history/driver_history_screen.dart';
 import '../missions/driver_home_screen.dart';
@@ -14,6 +13,7 @@ import '../offers/offers_screen.dart';
 import '../onboarding/driver_onboarding_screen.dart';
 import '../parcels/parcels_tab_screen.dart';
 import '../widgets/driver_bottom_bar.dart';
+import '../widgets/driver_drawer.dart';
 
 /// Espace Livreur (J160) : missions, offres, historique, compte.
 ///
@@ -116,12 +116,36 @@ class _DriverShellState extends State<DriverShell> {
     }
   }
 
+  /// Déconnexion depuis le tiroir latéral.
+  Future<void> _logout() async {
+    await widget.session.logout();
+    if (mounted) {
+      context.go('/landing');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     void onOpenMenu() => _scaffoldKey.currentState?.openDrawer();
+    final rawProfile = _status?['profile'];
+    final profile = rawProfile is Map<String, dynamic> ? rawProfile : null;
+    final rawStatus = profile?['status'];
+    final palette = BadgePalette.driver(rawStatus is String ? rawStatus : null);
+    final rawVehicle = profile == null ? null : profile['vehicle'];
+    final vehicle = rawVehicle is String ? rawVehicle : null;
+
     return Scaffold(
       key: _scaffoldKey,
-      drawer: _DriverDrawer(session: widget.session, onSelectTab: _onDestinationSelected),
+      drawer: DriverDrawer(
+        session: widget.session,
+        currentIndex: _index,
+        onSelectTab: _onDestinationSelected,
+        available: profile?['available'] == true,
+        statusLabel: palette?.$1,
+        statusColor: palette?.$2,
+        vehicle: vehicle,
+        onLogout: _logout,
+      ),
       body: IndexedStack(
         index: _index,
         children: [
@@ -186,159 +210,6 @@ class _DriverShellState extends State<DriverShell> {
       documents: documents,
       onRefresh: _loadStatus,
       onOpenMenu: onOpenMenu,
-    );
-  }
-}
-
-/// Tiroir latéral du livreur : identité + navigation vers les onglets.
-class _DriverDrawer extends StatelessWidget {
-  const _DriverDrawer({required this.session, required this.onSelectTab});
-
-  final SessionProvider session;
-  final ValueChanged<int> onSelectTab;
-
-  @override
-  Widget build(BuildContext context) {
-    final user = session.user;
-    final name = (user?.name ?? '').trim();
-    final detail = (user?.email?.isNotEmpty ?? false)
-        ? user!.email!
-        : (user?.phone ?? '');
-
-    return Drawer(
-      backgroundColor: AppColors.surface,
-      child: SafeArea(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(AppDimens.pagePadding),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Image.asset(
-                    'assets/Logo.jpeg',
-                    height: 44,
-                    fit: BoxFit.contain,
-                    errorBuilder: (_, _, _) =>
-                        const BrandMark(iconSize: 26, fontSize: 18),
-                  ),
-                  const SizedBox(height: 8),
-                  if (name.isNotEmpty)
-                    Text(
-                      name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  if (detail.isNotEmpty)
-                    Text(
-                      detail,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 12.5,
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                ],
-              ),
-            ),
-            const Divider(height: 1),
-            Expanded(
-              child: ListView(
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                children: [
-                  _DrawerNavTile(
-                    icon: Icons.delivery_dining_outlined,
-                    label: 'Mes missions',
-                    onTap: () {
-                      Navigator.of(context).pop();
-                      onSelectTab(0);
-                    },
-                  ),
-                  _DrawerNavTile(
-                    icon: Icons.local_offer_outlined,
-                    label: 'Offres disponibles',
-                    onTap: () {
-                      Navigator.of(context).pop();
-                      onSelectTab(1);
-                    },
-                  ),
-                  _DrawerNavTile(
-                    icon: Icons.inventory_2_outlined,
-                    label: 'Mes colis',
-                    onTap: () {
-                      Navigator.of(context).pop();
-                      onSelectTab(2);
-                    },
-                  ),
-                  _DrawerNavTile(
-                    icon: Icons.history_outlined,
-                    label: 'Historique',
-                    onTap: () {
-                      Navigator.of(context).pop();
-                      onSelectTab(3);
-                    },
-                  ),
-                  _DrawerNavTile(
-                    icon: Icons.person_outline,
-                    label: 'Mon compte',
-                    onTap: () {
-                      Navigator.of(context).pop();
-                      onSelectTab(4);
-                    },
-                  ),
-                ],
-              ),
-            ),
-            const Divider(height: 1),
-            const Padding(
-              padding: EdgeInsets.all(AppDimens.pagePadding),
-              child: Text(
-                'Béninfood • Le goût du Bénin, livré chez vous',
-                style: TextStyle(fontSize: 12, color: AppColors.textFaint),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// Ligne de navigation du tiroir livreur.
-class _DrawerNavTile extends StatelessWidget {
-  const _DrawerNavTile({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return ListTile(
-      leading: Container(
-        width: 40,
-        height: 40,
-        decoration: BoxDecoration(
-          color: AppColors.orangeLight,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Icon(icon, size: 20, color: AppColors.orange),
-      ),
-      title: Text(
-        label,
-        style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w600),
-      ),
-      onTap: onTap,
     );
   }
 }
