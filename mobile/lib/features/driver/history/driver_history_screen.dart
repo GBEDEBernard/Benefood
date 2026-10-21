@@ -3,12 +3,14 @@ import 'package:flutter/material.dart';
 import '../../../core/data/marketplace_api.dart';
 import '../../../core/navigation/notification_router.dart';
 import '../../../core/errors/api_exception.dart';
+import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../shared/models/delivery.dart';
 import '../../../shared/widgets/amount_widgets.dart';
 import '../../../shared/widgets/beninfood_header.dart';
 import '../../../shared/widgets/status_badge.dart';
 import '../../../shared/widgets/state_widgets.dart';
+import 'driver_history_detail_sheet.dart';
 
 /// Historique des missions terminées du livreur (J162).
 class DriverHistoryScreen extends StatefulWidget {
@@ -115,37 +117,77 @@ class _HistoryCard extends StatelessWidget {
 
     return Card(
       margin: const EdgeInsets.only(bottom: 10),
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(reference, style: const TextStyle(fontWeight: FontWeight.bold)),
-                ),
-                if (palette != null)
-                  StatusBadge(label: palette.$1, color: palette.$2, small: true),
-              ],
-            ),
-            const SizedBox(height: 6),
-            Row(
-              children: [
-                Icon(Icons.event_outlined, size: 16, color: theme.colorScheme.onSurfaceVariant),
-                const SizedBox(width: 6),
-                Text(
-                  formatDateTime(delivery.createdAt, fallback: '—'),
-                  style: theme.textTheme.bodySmall,
-                ),
-                const Spacer(),
-                AmountText(
-                  delivery.fee,
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ],
-            ),
-          ],
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: () => showDriverHistoryDetails(context, delivery),
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      reference,
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                  if (palette != null)
+                    StatusBadge(
+                      label: palette.$1,
+                      color: palette.$2,
+                      small: true,
+                    ),
+                  const SizedBox(width: 6),
+                  const Icon(
+                    Icons.chevron_right_rounded,
+                    size: 20,
+                    color: AppColors.textFaint,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Row(
+                children: [
+                  Icon(
+                    Icons.event_outlined,
+                    size: 16,
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    formatDateTime(delivery.createdAt, fallback: '—'),
+                    style: theme.textTheme.bodySmall,
+                  ),
+                  const Spacer(),
+                  AmountText(
+                    delivery.fee,
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  const Icon(
+                    Icons.receipt_long_outlined,
+                    size: 14,
+                    color: AppColors.textFaint,
+                  ),
+                  const SizedBox(width: 6),
+                  const Text(
+                    'Voir le détail de la mission',
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.orange,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
