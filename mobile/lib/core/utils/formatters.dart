@@ -27,6 +27,27 @@ String _thousands(String digits) {
   return buffer.toString().split('').reversed.join();
 }
 
+/// Montant abrégé pour les axes de graphique et les tuiles compactes :
+/// 1 500 → "1,5 k", 2 000 000 → "2 M".
+String formatCompactAmount(num amount) {
+  final value = amount.toDouble();
+  if (value.abs() >= 1000000) {
+    return '${_compact(value / 1000000)} M';
+  }
+  if (value.abs() >= 1000) {
+    return '${_compact(value / 1000)} k';
+  }
+  return _compact(value);
+}
+
+String _compact(double value) {
+  final rounded = value.roundToDouble();
+  if ((value - rounded).abs() < 0.05) {
+    return rounded.toInt().toString();
+  }
+  return value.toStringAsFixed(1).replaceAll('.', ',');
+}
+
 String formatPhone(String phone) {
   return phone;
 }

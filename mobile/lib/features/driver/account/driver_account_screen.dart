@@ -351,6 +351,14 @@ class _DriverAccountScreenState extends State<DriverAccountScreen> {
   List<ProfileMenuEntry> _buildMenuEntries() {
     return [
       ProfileMenuEntry(
+        icon: Icons.insights_outlined,
+        tint: AppColors.greenLight,
+        accent: AppColors.green,
+        title: 'Mes statistiques',
+        subtitle: 'Gains, missions et dernières livraisons...',
+        onTap: () => _openRoute('/driver/stats'),
+      ),
+      ProfileMenuEntry(
         icon: Icons.account_balance_wallet_outlined,
         tint: AppColors.goldLight,
         accent: AppColors.goldDark,

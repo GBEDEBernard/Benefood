@@ -33,8 +33,10 @@ import '../features/client/parcels/parcel_detail_screen.dart';
 import '../features/client/parcels/parcels_screen.dart';
 import '../features/vendor/account/vendor_settings_screen.dart';
 import '../features/vendor/presentation/vendor_shell.dart';
+import '../features/vendor/restaurant/screens/vendor_statistics_screen.dart';
 import '../features/driver/presentation/driver_shell.dart';
 import '../features/driver/account/favorite_clients_screen.dart';
+import '../features/driver/stats/driver_statistics_screen.dart';
 import '../features/wallet/wallet_screen.dart';
 import '../shared/models/user.dart';
 import '../shared/models/vendor.dart';
@@ -269,7 +271,11 @@ GoRouter buildAppRouter(SessionProvider session, MarketplaceApi marketplace) {
       ),
       GoRoute(
         path: '/vendor',
-        builder: (context, state) => VendorShell(session: session, marketplace: marketplace),
+        builder: (context, state) => VendorShell(
+          session: session,
+          marketplace: marketplace,
+          initialIndex: int.tryParse(state.uri.queryParameters['tab'] ?? '') ?? 0,
+        ),
       ),
       GoRoute(
         path: '/vendor/profile/edit',
@@ -278,6 +284,12 @@ GoRouter buildAppRouter(SessionProvider session, MarketplaceApi marketplace) {
       GoRoute(
         path: '/vendor/settings',
         builder: (context, state) => VendorSettingsScreen(marketplace: marketplace),
+      ),
+      GoRoute(
+        path: '/vendor/stats',
+        builder: (context, state) => VendorStatisticsScreen(
+          marketplace: marketplace,
+        ),
       ),
       GoRoute(
         path: '/vendor/notifications',
@@ -332,11 +344,21 @@ GoRouter buildAppRouter(SessionProvider session, MarketplaceApi marketplace) {
       ),
       GoRoute(
         path: '/driver',
-        builder: (context, state) => DriverShell(session: session, marketplace: marketplace),
+        builder: (context, state) => DriverShell(
+          session: session,
+          marketplace: marketplace,
+          initialIndex: int.tryParse(state.uri.queryParameters['tab'] ?? '') ?? 0,
+        ),
       ),
       GoRoute(
         path: '/driver/favorite-clients',
         builder: (context, state) => FavoriteClientsScreen(marketplace: marketplace),
+      ),
+      GoRoute(
+        path: '/driver/stats',
+        builder: (context, state) => DriverStatisticsScreen(
+          marketplace: marketplace,
+        ),
       ),
       GoRoute(
         path: '/driver/profile/edit',

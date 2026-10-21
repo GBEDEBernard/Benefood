@@ -13,6 +13,7 @@ import '../missions/driver_home_screen.dart';
 import '../offers/offers_screen.dart';
 import '../onboarding/driver_onboarding_screen.dart';
 import '../parcels/parcels_tab_screen.dart';
+import '../widgets/driver_bottom_bar.dart';
 
 /// Espace Livreur (J160) : missions, offres, historique, compte.
 ///
@@ -20,10 +21,19 @@ import '../parcels/parcels_tab_screen.dart';
 /// n'est pas `active`, un panneau d'inscription et d'envoi de documents est
 /// affiché à la place des missions.
 class DriverShell extends StatefulWidget {
-  const DriverShell({super.key, required this.session, required this.marketplace});
+  const DriverShell({
+    super.key,
+    required this.session,
+    required this.marketplace,
+    this.initialIndex = 0,
+  });
 
   final SessionProvider session;
   final MarketplaceApi marketplace;
+
+  /// Onglet affiché au démarrage (0 missions … 4 compte). Permet d'ouvrir une
+  /// section précise via `/driver?tab=…`.
+  final int initialIndex;
 
   @override
   State<DriverShell> createState() => _DriverShellState();
@@ -46,8 +56,20 @@ class _DriverShellState extends State<DriverShell> {
   @override
   void initState() {
     super.initState();
+    _index = _clampIndex(widget.initialIndex);
     _loadStatus();
   }
+
+  @override
+  void didUpdateWidget(DriverShell oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.initialIndex != widget.initialIndex) {
+      setState(() => _index = _clampIndex(widget.initialIndex));
+    }
+  }
+
+  /// Borne l'onglet demandé à la plage gérée par le shell.
+  static int _clampIndex(int index) => index.clamp(0, 4);
 
   Future<void> _loadStatus() async {
     if (!_loadedOnce) {
@@ -126,16 +148,9 @@ class _DriverShellState extends State<DriverShell> {
           ),
         ],
       ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _index,
-        onDestinationSelected: _onDestinationSelected,
-        destinations: const [
-          NavigationDestination(icon: Icon(Icons.delivery_dining_outlined), selectedIcon: Icon(Icons.delivery_dining), label: 'Missions'),
-          NavigationDestination(icon: Icon(Icons.local_offer_outlined), selectedIcon: Icon(Icons.local_offer), label: 'Offres'),
-          NavigationDestination(icon: Icon(Icons.inventory_2_outlined), selectedIcon: Icon(Icons.inventory_2), label: 'Colis'),
-          NavigationDestination(icon: Icon(Icons.history_outlined), selectedIcon: Icon(Icons.history), label: 'Historique'),
-          NavigationDestination(icon: Icon(Icons.person_outline), selectedIcon: Icon(Icons.person), label: 'Compte'),
-        ],
+      bottomNavigationBar: DriverBottomBar(
+        activeIndex: _index,
+        onSelect: _onDestinationSelected,
       ),
     );
   }

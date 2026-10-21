@@ -355,6 +355,14 @@ class _VendorAccountScreenState extends State<VendorAccountScreen> {
   List<ProfileMenuEntry> _buildMenuEntries() {
     return [
       ProfileMenuEntry(
+        icon: Icons.insights_outlined,
+        tint: AppColors.greenLight,
+        accent: AppColors.green,
+        title: 'Mes statistiques',
+        subtitle: 'Ventes, commandes et meilleurs produits...',
+        onTap: () => _openRoute('/vendor/stats'),
+      ),
+      ProfileMenuEntry(
         icon: Icons.person_outline,
         tint: AppColors.greenLight,
         accent: AppColors.green,

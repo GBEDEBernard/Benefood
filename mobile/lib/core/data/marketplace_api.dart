@@ -990,6 +990,24 @@ class MarketplaceApi {
     return _dataObject(response) ?? {};
   }
 
+  /// Tableau de bord statistique du vendeur (`7d`, `30d`, `90d`, `12m`).
+  Future<Map<String, dynamic>> vendorStats({String period = '30d'}) async {
+    final response = await _api.get(
+      '/vendors/me/stats',
+      query: {'period': period},
+    );
+    return _dataObject(response) ?? {};
+  }
+
+  /// Tableau de bord statistique du livreur (`7d`, `30d`, `90d`, `12m`).
+  Future<Map<String, dynamic>> driverStats({String period = '30d'}) async {
+    final response = await _api.get(
+      '/driver/me/stats',
+      query: {'period': period},
+    );
+    return _dataObject(response) ?? {};
+  }
+
   /// Revenus, commissions et reversements du vendeur (J21 §8).
   Future<Map<String, dynamic>> vendorRevenues({
     String? from,

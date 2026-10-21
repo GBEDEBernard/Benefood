@@ -16,10 +16,18 @@ import '../restaurant/restaurant_shell_screen.dart';
 /// Le premier affichage vérifie le statut d'onboarding vendeur : si le compte
 /// n'est pas `active`, un écran de soumission du dossier est affiché à la place.
 class VendorShell extends StatefulWidget {
-  const VendorShell({super.key, required this.session, required this.marketplace});
+  const VendorShell({
+    super.key,
+    required this.session,
+    required this.marketplace,
+    this.initialIndex = 0,
+  });
 
   final SessionProvider session;
   final MarketplaceApi marketplace;
+
+  /// Onglet du shell à afficher au démarrage (0 tableau de bord … 8 profil).
+  final int initialIndex;
 
   @override
   State<VendorShell> createState() => _VendorShellState();
@@ -98,6 +106,7 @@ class _VendorShellState extends State<VendorShell> {
       return RestaurantShellScreen(
         session: widget.session,
         marketplace: widget.marketplace,
+        initialIndex: widget.initialIndex,
       );
     }
 

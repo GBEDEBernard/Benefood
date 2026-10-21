@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\DeliveryQuoteController;
 use App\Http\Controllers\Api\DeliveryZoneController;
 use App\Http\Controllers\Api\DriverController;
 use App\Http\Controllers\Api\DriverFloatController;
+use App\Http\Controllers\Api\DriverStatsController;
 use App\Http\Controllers\Api\FavoriteDriverController;
 use App\Http\Controllers\Api\HealthController;
 use App\Http\Controllers\Api\HomeController;
@@ -27,6 +28,7 @@ use App\Http\Controllers\Api\VendorController;
 use App\Http\Controllers\Api\VendorProductController;
 use App\Http\Controllers\Api\VendorRevenueController;
 use App\Http\Controllers\Api\VendorReviewController;
+use App\Http\Controllers\Api\VendorStatsController;
 use App\Http\Controllers\Api\WalletController;
 use Illuminate\Support\Facades\Route;
 
@@ -114,6 +116,8 @@ Route::middleware('auth:sanctum')->group(function (): void {
 
     Route::get('vendors/me/revenues', [VendorRevenueController::class, 'index'])->name('api.v1.vendors.me.revenues.index');
 
+    Route::get('vendors/me/stats', [VendorStatsController::class, 'index'])->name('api.v1.vendors.me.stats');
+
     // ---------- Wallets & retraits (cahier v1.0) ----------
     Route::get('vendors/me/wallet', [WalletController::class, 'vendorWallet'])->name('api.v1.vendors.me.wallet');
     Route::get('vendors/me/wallet/payouts', [WalletController::class, 'vendorPayouts'])->name('api.v1.vendors.me.wallet.payouts');
@@ -129,6 +133,7 @@ Route::middleware('auth:sanctum')->group(function (): void {
         Route::post('/onboarding', [DriverController::class, 'onboarding'])->name('api.v1.driver.me.onboarding');
         Route::post('/documents', [DriverController::class, 'uploadDocument'])->name('api.v1.driver.me.documents');
         Route::get('/status', [DriverController::class, 'status'])->name('api.v1.driver.me.status');
+        Route::get('/stats', [DriverStatsController::class, 'index'])->name('api.v1.driver.me.stats');
 
         // ---------- Wallet & retraits livreur (cahier v1.0) ----------
         Route::get('/wallet', [WalletController::class, 'driverWallet'])->name('api.v1.driver.me.wallet');

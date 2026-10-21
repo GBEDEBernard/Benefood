@@ -30,10 +30,19 @@ import 'widgets/vendor_bottom_bar.dart';
 /// (statut de la boutique, commandes, revenus) sont chargées depuis l'API
 /// quand [marketplace] est fourni ; sinon un jeu de démonstration est utilisé.
 class RestaurantShellScreen extends StatefulWidget {
-  const RestaurantShellScreen({super.key, this.session, this.marketplace});
+  const RestaurantShellScreen({
+    super.key,
+    this.session,
+    this.marketplace,
+    this.initialIndex = 0,
+  });
 
   final SessionProvider? session;
   final MarketplaceApi? marketplace;
+
+  /// Onglet affiché au démarrage (0 tableau de bord … 8 profil). Permet
+  /// d'ouvrir une section précise via `/vendor?tab=…`.
+  final int initialIndex;
 
   @override
   State<RestaurantShellScreen> createState() => _RestaurantShellScreenState();
@@ -68,12 +77,24 @@ class _RestaurantShellScreenState extends State<RestaurantShellScreen> {
   @override
   void initState() {
     super.initState();
+    _selectedIndex = _clampIndex(widget.initialIndex);
     if (_live) {
       _load();
     } else {
       _applyDemoStatus();
     }
   }
+
+  @override
+  void didUpdateWidget(RestaurantShellScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.initialIndex != widget.initialIndex) {
+      setState(() => _selectedIndex = _clampIndex(widget.initialIndex));
+    }
+  }
+
+  /// Borne l'onglet demandé à la plage gérée par le shell.
+  static int _clampIndex(int index) => index.clamp(0, _titles.length - 1);
 
   Future<void> _load() async {
     setState(() {
