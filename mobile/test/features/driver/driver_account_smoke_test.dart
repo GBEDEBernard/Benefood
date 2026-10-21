@@ -150,17 +150,35 @@ Future<void> _scrollTo(WidgetTester tester, Finder target) async {
   await tester.pumpAndSettle();
 }
 
+/// Remonte la liste pour atteindre un élément situé plus haut.
+Future<void> _scrollUpTo(WidgetTester tester, Finder target) async {
+  final verticalScrollable = find
+      .byWidgetPredicate(
+        (widget) => widget is Scrollable && widget.axis == Axis.vertical,
+        skipOffstage: false,
+      )
+      .first;
+  await tester.dragUntilVisible(
+    target,
+    verticalScrollable,
+    const Offset(0, 300),
+  );
+  await tester.ensureVisible(target);
+  await tester.pumpAndSettle();
+}
+
 void main() {
-  testWidgets('compte livreur : carte verte, stats missions et menu', (
+  testWidgets('compte livreur : bannière verte, stats missions et menu', (
     tester,
   ) async {
     await _pumpScreen(tester);
     expect(tester.takeException(), isNull);
 
-    // Carte verte : identité, badges.
+    // Bannière d'identité (carte verte) : titre, photo, badges, QR visible.
     expect(find.text('Mon profil'), findsOneWidget);
     expect(find.text('Utilisateur'), findsOneWidget);
     expect(find.text('Espace livreur'), findsOneWidget);
+    expect(find.byIcon(Icons.qr_code_2_rounded), findsOneWidget);
     expect(find.text('Actif'), findsNWidgets(2)); // pastille + badge carte
 
     // Statistiques dynamiques (status + livraisons).
@@ -168,27 +186,28 @@ void main() {
     expect(find.text('Missions'), findsOneWidget);
     expect(find.text('2'), findsNWidgets(2)); // livrées + pastille cloche
     expect(find.text('Livrées'), findsOneWidget);
-    expect(
-      find.text(
-        '${formatAmount(700, showSymbol: false).trim()} FCFA',
-        findRichText: true,
-      ),
-      findsOneWidget,
-    );
-    expect(find.text('Gains'), findsOneWidget);
     expect(find.text('4,7'), findsOneWidget);
     expect(find.text('Note'), findsOneWidget);
 
     // Bloc profil livreur conservé (véhicule, statut, disponibilité).
-    expect(find.text('Mon profil livreur'), findsOneWidget);
-    await _scrollTo(tester, find.text('Disponible pour les livraisons'));
-    expect(find.text('Moto TVN-4521'), findsOneWidget);
-    expect(find.text('Note : 4.7'), findsOneWidget);
+    await _scrollTo(tester, find.text('Moto TVN-4521'));
+    expect(find.text('En ligne'), findsOneWidget);
+    expect(find.text('Note 4,7'), findsOneWidget);
 
-    // Menu « Mon compte » : 4 entrées communes.
+    // Gains cumulés.
+    await _scrollTo(tester, find.text('Gains cumulés'));
+    expect(
+      find.text(formatAmount(700, showSymbol: false).trim()),
+      findsOneWidget,
+    );
+    expect(find.text('FCFA'), findsOneWidget);
+
+    // Menu « Mon compte » : sections et entrées.
     await _scrollTo(tester, find.text('Se déconnecter'));
     const titles = [
+      'Mes statistiques',
       'Mes gains & retraits',
+      'Mes clients',
       'Informations personnelles',
       'Notifications',
       'Sécurité',
@@ -214,12 +233,14 @@ void main() {
     await tester.pump();
     expect(_selectedTab, 3);
 
-    await tester.tap(find.text('Gains'));
+    await _scrollTo(tester, find.text('Gains cumulés'));
+    await tester.tap(find.text('Gains cumulés'));
     await tester.pumpAndSettle();
     expect(find.text('/driver/wallet'), findsOneWidget);
     await tester.pageBack();
     await tester.pumpAndSettle();
 
+    await _scrollUpTo(tester, find.text('Note'));
     await tester.tap(find.text('Note'));
     await tester.pumpAndSettle();
     expect(find.text('Note moyenne attribuée par les clients.'), findsOneWidget);
@@ -262,7 +283,10 @@ void main() {
   ) async {
     await _pumpScreen(tester);
 
-    await tester.tap(find.byIcon(Icons.qr_code));
+    // Le QR est visible directement dans la bannière d'identité.
+    expect(find.byIcon(Icons.qr_code_2_rounded), findsOneWidget);
+
+    await tester.tap(find.byIcon(Icons.qr_code_2_rounded));
     await tester.pumpAndSettle();
     expect(find.text('Ma carte de contact'), findsOneWidget);
     expect(tester.takeException(), isNull);

@@ -12,6 +12,9 @@ import '../models/user.dart';
 import 'app_network_image.dart';
 import 'beninfood_header.dart';
 
+/// Vert profond de la bannière d'identité (dégradé de la carte verte).
+const Color _greenDeep = Color(0xFF0E3B1D);
+
 // ------------------------------------------------------------------- en-tête
 
 /// En-tête des écrans de profil : logo central + cloche dynamique
@@ -143,13 +146,17 @@ class ProfileStatusPill extends StatelessWidget {
             decoration: BoxDecoration(color: color, shape: BoxShape.circle),
           ),
           const SizedBox(width: 6),
-          Text(
-            label,
-            style: const TextStyle(
-              color: AppColors.surface,
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-              height: 1.2,
+          Flexible(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: AppColors.surface,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                height: 1.2,
+              ),
             ),
           ),
         ],
@@ -178,13 +185,17 @@ class ProfileLabelBadge extends StatelessWidget {
         children: [
           Icon(icon, size: 13, color: AppColors.gold),
           const SizedBox(width: 5),
-          Text(
-            label,
-            style: const TextStyle(
-              color: AppColors.surface,
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-              height: 1.2,
+          Flexible(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: AppColors.surface,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                height: 1.2,
+              ),
             ),
           ),
         ],
@@ -225,6 +236,7 @@ class ProfileHero extends StatelessWidget {
     this.uploadingAvatar = false,
     required this.onEditAvatar,
     required this.onShowQr,
+    this.padding = const EdgeInsets.symmetric(horizontal: AppDimens.pagePadding),
   });
 
   final User? user;
@@ -234,10 +246,14 @@ class ProfileHero extends StatelessWidget {
   final VoidCallback onEditAvatar;
   final VoidCallback onShowQr;
 
+  /// Marges horizontales de la bannière (à mettre à zéro si la liste parente
+  /// applique déjà un padding horizontal).
+  final EdgeInsets padding;
+
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppDimens.pagePadding),
+      padding: padding,
       child: Stack(
         clipBehavior: Clip.none,
         children: [
@@ -285,11 +301,17 @@ class _GreenIdentityCard extends StatelessWidget {
     final displayName = name.isEmpty ? 'Utilisateur' : name;
     final phone = user?.phone ?? '';
     final email = user?.email;
+    final hasPhone = phone.isNotEmpty;
+    final hasEmail = email != null && email.isNotEmpty;
 
     return Container(
-      padding: const EdgeInsets.all(AppDimens.lg),
+      clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
-        color: AppColors.green,
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [AppColors.green, _greenDeep],
+        ),
         borderRadius: BorderRadius.circular(AppDimens.radiusLg),
         boxShadow: [
           BoxShadow(
@@ -299,55 +321,95 @@ class _GreenIdentityCard extends StatelessWidget {
           ),
         ],
       ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Stack(
         children: [
-          ProfileAvatar(
-            name: displayName,
-            imageUrl: user?.avatarUrl,
-            uploading: uploadingAvatar,
-            onEdit: onEditAvatar,
+          // Halos décoratifs : donnent du relief à la bannière.
+          Positioned(
+            right: -46,
+            top: -56,
+            child: _halo(140, AppColors.orange.withValues(alpha: 0.18)),
           ),
-          const SizedBox(width: 12),
-          Expanded(
+          Positioned(
+            right: 30,
+            bottom: -64,
+            child: _halo(120, AppColors.gold.withValues(alpha: 0.12)),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(AppDimens.lg),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  displayName,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: AppColors.surface,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 20,
-                    letterSpacing: -0.3,
-                  ),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    ProfileAvatar(
+                      name: displayName,
+                      imageUrl: user?.avatarUrl,
+                      uploading: uploadingAvatar,
+                      onEdit: onEditAvatar,
+                      size: 76,
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            displayName,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: AppColors.surface,
+                              fontWeight: FontWeight.w800,
+                              fontSize: 20,
+                              letterSpacing: -0.3,
+                            ),
+                          ),
+                          if (badges.isNotEmpty) ...[
+                            const SizedBox(height: 8),
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 6,
+                              crossAxisAlignment: WrapCrossAlignment.center,
+                              children: badges,
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    _QrButton(onTap: onShowQr),
+                  ],
                 ),
-                if (badges.isNotEmpty) ...[
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 6,
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    children: badges,
+                if (hasPhone || hasEmail) ...[
+                  const SizedBox(height: 14),
+                  Divider(
+                    color: Colors.white.withValues(alpha: 0.18),
+                    height: 1,
+                    thickness: 1,
                   ),
-                ],
-                if (phone.isNotEmpty) ...[
-                  const SizedBox(height: 8),
-                  _ContactLine(icon: Icons.call_outlined, text: phone),
-                ],
-                if (email != null && email.isNotEmpty) ...[
-                  const SizedBox(height: 4),
-                  _ContactLine(icon: Icons.mail_outline, text: email),
+                  const SizedBox(height: 10),
+                  if (hasPhone)
+                    _ContactLine(icon: Icons.call_outlined, text: phone),
+                  if (hasEmail) ...[
+                    if (hasPhone) const SizedBox(height: 6),
+                    _ContactLine(icon: Icons.mail_outline, text: email),
+                  ],
                 ],
               ],
             ),
           ),
-          const SizedBox(width: 8),
-          _QrButton(onTap: onShowQr),
         ],
       ),
+    );
+  }
+
+  /// Halo circulaire décoratif.
+  Widget _halo(double size, Color color) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(shape: BoxShape.circle, color: color),
     );
   }
 }
@@ -360,6 +422,7 @@ class ProfileAvatar extends StatelessWidget {
     required this.imageUrl,
     required this.uploading,
     required this.onEdit,
+    this.size = 64,
   });
 
   final String name;
@@ -367,19 +430,23 @@ class ProfileAvatar extends StatelessWidget {
   final bool uploading;
   final VoidCallback onEdit;
 
+  /// Diamètre de l'avatar.
+  final double size;
+
   @override
   Widget build(BuildContext context) {
     final initials = _initials(name);
+    final fontSize = (size * 0.31).clamp(14.0, 24.0);
 
     return SizedBox(
-      width: 64,
-      height: 64,
+      width: size,
+      height: size,
       child: Stack(
         clipBehavior: Clip.none,
         children: [
           Container(
-            width: 64,
-            height: 64,
+            width: size,
+            height: size,
             decoration: BoxDecoration(
               color: AppColors.surface,
               shape: BoxShape.circle,
@@ -387,30 +454,37 @@ class ProfileAvatar extends StatelessWidget {
                 color: AppColors.surface.withValues(alpha: 0.45),
                 width: 2,
               ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.18),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ],
             ),
             alignment: Alignment.center,
             clipBehavior: Clip.antiAlias,
             child: imageUrl != null
                 ? Image.network(
                     resolveMediaUrl(imageUrl!)!,
-                    width: 64,
-                    height: 64,
+                    width: size,
+                    height: size,
                     fit: BoxFit.cover,
                     errorBuilder: (_, _, _) => Text(
                       initials,
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: AppColors.green,
                         fontWeight: FontWeight.w800,
-                        fontSize: 20,
+                        fontSize: fontSize,
                       ),
                     ),
                   )
                 : Text(
                     initials,
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: AppColors.green,
                       fontWeight: FontWeight.w800,
-                      fontSize: 20,
+                      fontSize: fontSize,
                     ),
                   ),
           ),
@@ -447,8 +521,8 @@ class ProfileAvatar extends StatelessWidget {
                 customBorder: const CircleBorder(),
                 onTap: onEdit,
                 child: Container(
-                  width: 24,
-                  height: 24,
+                  width: 26,
+                  height: 26,
                   decoration: BoxDecoration(
                     color: AppColors.surface,
                     shape: BoxShape.circle,
@@ -456,7 +530,7 @@ class ProfileAvatar extends StatelessWidget {
                   ),
                   child: const Icon(
                     Icons.edit,
-                    size: 12,
+                    size: 13,
                     color: AppColors.orange,
                   ),
                 ),
@@ -508,7 +582,8 @@ class _ContactLine extends StatelessWidget {
   }
 }
 
-/// Cadre QR (droite de la carte verte).
+/// Cadre QR (droite de la carte verte) : carte blanche très contrastée
+/// avec l'icône QR verte + la mention « Contact ».
 class _QrButton extends StatelessWidget {
   const _QrButton({required this.onTap});
 
@@ -516,21 +591,37 @@ class _QrButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(AppDimens.radiusSm + 2),
-        child: Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            border: Border.all(
-              color: Colors.white.withValues(alpha: 0.55),
-              width: 1.5,
+    return Semantics(
+      button: true,
+      label: 'Ma carte de contact (QR code)',
+      child: Material(
+        color: AppColors.surface,
+        elevation: 3,
+        shadowColor: Colors.black26,
+        borderRadius: BorderRadius.circular(AppDimens.radiusSm + 4),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(AppDimens.radiusSm + 4),
+          child: const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.qr_code_2_rounded, size: 28, color: AppColors.green),
+                SizedBox(height: 2),
+                Text(
+                  'Contact',
+                  style: TextStyle(
+                    color: AppColors.green,
+                    fontSize: 9.5,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.2,
+                    height: 1.2,
+                  ),
+                ),
+              ],
             ),
-            borderRadius: BorderRadius.circular(AppDimens.radiusSm + 2),
           ),
-          child: const Icon(Icons.qr_code, size: 26, color: AppColors.surface),
         ),
       ),
     );

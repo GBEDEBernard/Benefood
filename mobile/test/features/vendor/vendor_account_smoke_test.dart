@@ -285,7 +285,7 @@ void main() {
   ) async {
     await _pumpScreen(tester);
 
-    await tester.tap(find.byIcon(Icons.qr_code));
+    await tester.tap(find.byIcon(Icons.qr_code_2_rounded));
     await tester.pumpAndSettle();
     expect(find.text('Ma carte de contact'), findsOneWidget);
     expect(tester.takeException(), isNull);
