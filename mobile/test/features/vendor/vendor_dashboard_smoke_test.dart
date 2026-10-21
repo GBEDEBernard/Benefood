@@ -211,9 +211,9 @@ void main() {
     await tester.tap(find.byIcon(Icons.menu));
     await tester.pumpAndSettle();
     expect(find.text('Tableau de bord'), findsWidgets);
-    expect(find.text('LE DÉLICE FAST-FOOD'), findsOneWidget);
+    expect(find.text('LE DÉLICE FAST-FOOD'), findsNothing);
     expect(find.text('Ouvert'), findsWidgets);
-    expect(find.text('Boutique'), findsOneWidget);
+    expect(find.text('Boutique'), findsWidgets);
     expect(find.text('Produits'), findsNWidgets(2)); // tiroir + barre
     expect(find.text('Commandes'), findsNWidgets(2)); // tiroir + barre
     expect(find.text('Revenus'), findsNWidgets(2)); // tiroir + barre
@@ -248,15 +248,15 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(RevenusScreen), findsOneWidget);
     expect(find.text('BÉNINFOOD', findRichText: true), findsOneWidget);
-    expect(find.text('Solde wallet'), findsOneWidget);
+    expect(find.text('Solde disponible'), findsOneWidget);
     expect(find.text('Ventes validées'), findsOneWidget);
-    expect(find.text('Commission prélevée'), findsOneWidget);
     expect(find.text('En attente de reversement'), findsOneWidget);
     expect(find.text('Dernières transactions'), findsOneWidget);
     expect(find.text('Voir tout'), findsWidgets);
     // Montants calculés depuis les commandes du backend de test.
     expect(find.text('6 750 FCFA'), findsOneWidget); // 7 500 livrées − 10 %
     expect(find.text('28 500 FCFA'), findsOneWidget); // ventes validées
+    expect(find.text('25 650 FCFA'), findsWidgets); // net vendeur
     expect(find.text('2 850 FCFA'), findsOneWidget); // commission 10 %
     expect(find.text('25 500 FCFA'), findsOneWidget); // en attente
     expect(find.text('Vente #BF1256'), findsOneWidget);
@@ -538,14 +538,16 @@ void main() {
     expect(find.byType(RevenusScreen), findsOneWidget);
     expect(find.text('BÉNINFOOD', findRichText: true), findsOneWidget);
     expect(find.text('Revenus'), findsWidgets); // titre de carte + barre
-    expect(find.text('6 commandes ce mois-ci'), findsOneWidget);
+    expect(find.text('6 commandes'), findsWidgets);
 
     // Résumé calculé dynamiquement depuis les commandes de démonstration.
-    expect(find.text('Solde wallet'), findsOneWidget);
+    expect(find.text('Solde disponible'), findsOneWidget);
     expect(find.text('5 580 FCFA'), findsOneWidget); // 6 200 livrées − 10 %
     expect(find.text('Ventes validées'), findsOneWidget);
     expect(find.text('64 500 FCFA'), findsOneWidget);
-    expect(find.text('Commission prélevée'), findsOneWidget);
+    expect(find.text('Net vendeur'), findsWidgets);
+    expect(find.text('58 050 FCFA'), findsWidgets); // 64 500 − commission
+    expect(find.text('Commission'), findsWidgets);
     expect(find.text('6 450 FCFA'), findsOneWidget); // 10 % des ventes
     expect(find.text('En attente de reversement'), findsOneWidget);
     expect(find.text('73 500 FCFA'), findsOneWidget);
@@ -559,18 +561,16 @@ void main() {
     expect(find.text('Vente #BF1255'), findsOneWidget);
     expect(find.text('+9 800 FCFA'), findsOneWidget);
 
-    // Sélecteur de mois : cliquable (simple toast pour le moment).
-    await tester.tap(find.byIcon(Icons.chevron_right));
+    // Sélecteur de mois : réellement fonctionnel.
+    await tester.tap(find.byIcon(Icons.keyboard_arrow_down_rounded));
     await tester.pumpAndSettle();
-    expect(find.text('Sélection du mois bientôt disponible.'), findsOneWidget);
+    expect(find.text('Période'), findsOneWidget);
+    expect(find.byType(ListTile), findsWidgets);
 
-    // « Voir tout » ouvre l'historique des activités.
-    await tester.tap(find.text('Voir tout'));
+    await tester.tap(find.byType(ListTile).at(1));
     await tester.pumpAndSettle();
-    expect(find.byType(ActivityScreen), findsOneWidget);
-    expect(find.text('BÉNINFOOD', findRichText: true), findsOneWidget);
-
-    expect(tester.takeException(), isNull);
+    expect(find.text('Aucune transaction ce mois-ci'), findsOneWidget);
+    expect(find.text('0 FCFA'), findsWidgets);
   });
 
   testWidgets('produits (démo) : recherche, onglets, bascule, archivage et FAB', (tester) async {

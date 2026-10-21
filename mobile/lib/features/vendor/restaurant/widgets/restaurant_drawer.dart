@@ -1,14 +1,16 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../shared/widgets/app_network_image.dart';
 import '../restaurant_palette.dart';
-import 'status_chip.dart';
 
-/// Menu latéral rétractable « Le Délice Fast-Food ».
+/// Menu latéral premium de l'espace vendeur Béninfood.
 ///
-/// S'ouvre par-dessus l'écran principal. Fond vert forêt, élément actif
-/// surligné en blanc avec des accents orange.
+/// Identité visuelle : crème, vert profond et orange gourmand.
+/// L'API publique est conservée pour ne pas casser les écrans existants.
 class RestaurantDrawer extends StatelessWidget {
   const RestaurantDrawer({
     super.key,
@@ -20,250 +22,366 @@ class RestaurantDrawer extends StatelessWidget {
     this.logoUrl,
   });
 
-  /// Index de l'élément sélectionné dans [_items].
   final int currentIndex;
-
-  /// État d'ouverture de la boutique (« Ouvert » / « Fermé »).
   final bool isOpen;
-
-  /// Nom de la boutique affiché dans l'en-tête.
   final String businessName;
-
-  /// Logo de la boutique affiché dans l'en-tête du menu.
   final String? logoUrl;
-
-  /// Appelé quand l'utilisateur sélectionne un élément du menu.
   final ValueChanged<int> onSelect;
-
-  /// Déconnexion du compte vendeur.
   final VoidCallback? onLogout;
+
+  static const _ink = Color(0xFF173B2D);
+  static const _inkSoft = Color(0xFF315846);
+  static const _orange = Color(0xFFF07835);
+  static const _cream = Color(0xFFFFFBF5);
+  static const _muted = Color(0xFF7A887F);
+  static const _line = Color(0xFFECE7DE);
+  static const _greenWash = Color(0xFFEAF3EC);
 
   static const List<_DrawerItem> _items = [
     _DrawerItem(
-      label: 'Tableau de bord',
-      outline: Icons.dashboard_outlined,
-      filled: Icons.dashboard,
+      label: 'Vue d’ensemble',
+      subtitle: 'Résumé de votre activité',
+      outline: Icons.space_dashboard_outlined,
+      filled: Icons.space_dashboard_rounded,
     ),
     _DrawerItem(
-      label: 'Boutique',
+      label: 'Ma boutique',
+      subtitle: 'Informations et visibilité',
       outline: Icons.storefront_outlined,
-      filled: Icons.storefront,
+      filled: Icons.storefront_rounded,
     ),
     _DrawerItem(
-      label: 'Produits',
-      outline: Icons.inventory_2_outlined,
-      filled: Icons.inventory_2,
+      label: 'Mes produits',
+      subtitle: 'Carte, prix et disponibilités',
+      outline: Icons.restaurant_menu_outlined,
+      filled: Icons.restaurant_menu_rounded,
     ),
     _DrawerItem(
       label: 'Commandes',
+      subtitle: 'Suivre les commandes clients',
       outline: Icons.receipt_long_outlined,
-      filled: Icons.receipt_long,
+      filled: Icons.receipt_long_rounded,
     ),
     _DrawerItem(
       label: 'Revenus',
-      outline: Icons.bar_chart_outlined,
-      filled: Icons.bar_chart,
+      subtitle: 'Ventes et paiements',
+      outline: Icons.account_balance_wallet_outlined,
+      filled: Icons.account_balance_wallet_rounded,
     ),
     _DrawerItem(
       label: 'Mon dossier',
-      outline: Icons.folder_outlined,
-      filled: Icons.folder,
+      subtitle: 'Documents de la boutique',
+      outline: Icons.folder_open_outlined,
+      filled: Icons.folder_rounded,
     ),
     _DrawerItem(
-      label: 'Mes avis clients',
-      outline: Icons.reviews_outlined,
-      filled: Icons.reviews,
+      label: 'Avis clients',
+      subtitle: 'Notes et commentaires',
+      outline: Icons.star_outline_rounded,
+      filled: Icons.star_rounded,
     ),
     _DrawerItem(
       label: 'Historique',
-      outline: Icons.history_outlined,
-      filled: Icons.history,
+      subtitle: 'Vos dernières activités',
+      outline: Icons.history_rounded,
+      filled: Icons.history_rounded,
     ),
     _DrawerItem(
-      label: 'Profil & Paramètres',
-      outline: Icons.person_outline,
-      filled: Icons.person,
+      label: 'Profil et réglages',
+      subtitle: 'Compte et préférences',
+      outline: Icons.tune_rounded,
+      filled: Icons.tune_rounded,
     ),
   ];
 
   @override
   Widget build(BuildContext context) {
+    final width = math.min(MediaQuery.sizeOf(context).width * 0.88, 360.0);
+
     return Drawer(
-      width: MediaQuery.sizeOf(context).width * 0.75,
-      backgroundColor: RestaurantPalette.forest,
+      width: width,
+      elevation: 0,
+      backgroundColor: _cream,
+      surfaceTintColor: Colors.transparent,
+      clipBehavior: Clip.antiAlias,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.only(
+          topRight: Radius.circular(30),
+          bottomRight: Radius.circular(30),
+        ),
+      ),
       child: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            _buildHeader(),
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              child: Divider(color: Color(0x22FFFFFF), height: 1),
-            ),
-            Expanded(
-              child: ListView.separated(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                itemCount: _items.length,
-                separatorBuilder: (_, _) => const SizedBox(height: 6),
-                itemBuilder: (context, index) => _buildItem(context, index, _items[index]),
+            _buildHeader(context),
+            const SizedBox(height: 10),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(22, 5, 22, 10),
+              child: Row(
+                children: [
+                  const Text(
+                    'ESPACE VENDEUR',
+                    style: TextStyle(
+                      color: _muted,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 1.7,
+                    ),
+                  ),
+                  const Spacer(),
+                  Container(
+                    width: 24,
+                    height: 3,
+                    decoration: BoxDecoration(
+                      color: _orange,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                ],
               ),
             ),
-            // Raccourcis hors onglets : la boutique peut aussi envoyer des
-            // colis, comme un client.
-            _buildShortcut(
-              context,
-              icon: Icons.inventory_2_outlined,
-              label: 'Mes colis',
-              route: '/vendor/parcels',
-            ),
-            _buildShortcut(
-              context,
-              icon: Icons.account_balance_wallet_outlined,
-              label: 'Portefeuille',
-              route: '/vendor/wallet',
-            ),
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              child: Divider(color: Color(0x22FFFFFF), height: 1),
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+                physics: const BouncingScrollPhysics(),
+                children: [
+                  for (var i = 0; i < _items.length; i++)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 5),
+                      child: _NavTile(
+                        item: _items[i],
+                        active: i == currentIndex,
+                        onTap: () {
+                          HapticFeedback.selectionClick();
+                          onSelect(i);
+                        },
+                      ),
+                    ),
+                  const SizedBox(height: 13),
+                  const Padding(
+                    padding: EdgeInsets.fromLTRB(10, 0, 10, 10),
+                    child: Text(
+                      'ACCÈS RAPIDES',
+                      style: TextStyle(
+                        color: _muted,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 1.6,
+                      ),
+                    ),
+                  ),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _QuickAction(
+                          icon: Icons.inventory_2_outlined,
+                          label: 'Mes colis',
+                          color: const Color(0xFF2E7953),
+                          onTap: () => _open(context, '/vendor/parcels'),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: _QuickAction(
+                          icon: Icons.insights_rounded,
+                          label: 'Statistiques',
+                          color: const Color(0xFFBA672C),
+                          onTap: () => _open(context, '/vendor/stats'),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: _QuickAction(
+                          icon: Icons.account_balance_wallet_outlined,
+                          label: 'Portefeuille',
+                          color: const Color(0xFF5274A5),
+                          onTap: () => _open(context, '/vendor/wallet'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
             _buildLogout(context),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.only(bottom: 4),
+                child: Text(
+                  'BÉNINFOOD  •  ESPACE PARTENAIRE',
+                  style: TextStyle(
+                    color: Color(0xFFA3AAA3),
+                    fontSize: 9,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 1.1,
+                  ),
+                ),
+              ),
+            ),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildHeader() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 24, 16, 12),
-      child: Row(
+  Widget _buildHeader(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(14, 12, 14, 0),
+      padding: const EdgeInsets.fromLTRB(16, 18, 14, 17),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [_ink, Color(0xFF24563E)],
+        ),
+        borderRadius: BorderRadius.circular(25),
+        boxShadow: [
+          BoxShadow(
+            color: _ink.withValues(alpha: 0.18),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Stack(
         children: [
-          _ShopLogo(url: logoUrl, size: 52),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              businessName.toUpperCase(),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 13,
-                fontWeight: FontWeight.w800,
-                height: 1.19,
+          Positioned(
+            right: -23,
+            top: -32,
+            child: Container(
+              width: 112,
+              height: 112,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: Colors.white.withValues(alpha: 0.07),
+                  width: 18,
+                ),
               ),
             ),
           ),
-          const SizedBox(width: 8),
-          StatusChip(
-            label: isOpen ? 'Ouvert' : 'Fermé',
-            background: (isOpen ? RestaurantPalette.success : RestaurantPalette.danger).withValues(alpha: 0.2),
-            foreground: isOpen ? const Color(0xFF86EFAC) : const Color(0xFFFCA5A5),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 9,
+                      vertical: 5,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.12),
+                      ),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.restaurant_rounded,
+                            color: Color(0xFFFFC078), size: 13),
+                        SizedBox(width: 5),
+                        Text(
+                          'MON ESPACE',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 9,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 1.1,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Spacer(),
+                  const Icon(
+                    Icons.more_horiz_rounded,
+                    color: Color(0xFFD7E5D9),
+                    size: 23,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 17),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  _ShopLogo(url: logoUrl, size: 62),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          businessName,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                            height: 1.18,
+                            letterSpacing: -0.3,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        _StatusPill(isOpen: isOpen),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 17),
+              Container(
+                height: 1,
+                color: Colors.white.withValues(alpha: 0.13),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Icon(
+                    Icons.verified_rounded,
+                    size: 15,
+                    color: const Color(0xFFFFC078),
+                  ),
+                  const SizedBox(width: 6),
+                  const Expanded(
+                    child: Text(
+                      'Partenaire Béninfood',
+                      style: TextStyle(
+                        color: Color(0xFFE3EFE5),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  const Icon(
+                    Icons.arrow_forward_rounded,
+                    size: 16,
+                    color: Color(0xFFFFC078),
+                  ),
+                ],
+              ),
+            ],
           ),
         ],
       ),
     );
   }
 
-  /// Raccourci du bas du menu : ouvre une page dédiée à l'espace vendeur.
-  Widget _buildShortcut(
-    BuildContext context, {
-    required IconData icon,
-    required String label,
-    required String route,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(RestaurantPalette.radius),
-          onTap: () {
-            Navigator.of(context).pop();
-            context.push(route);
-          },
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF4B83F).withValues(alpha: 0.16),
-              borderRadius: BorderRadius.circular(RestaurantPalette.radius),
-              border: Border.all(
-                color: const Color(0xFFF4B83F).withValues(alpha: 0.35),
-              ),
-            ),
-            child: Row(
-              children: [
-                Icon(icon, size: 22, color: const Color(0xFFF4B83F)),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Text(
-                    label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildItem(BuildContext context, int index, _DrawerItem item) {
-    final bool active = index == currentIndex;
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(RestaurantPalette.radius),
-        onTap: () => onSelect(index),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
-          decoration: BoxDecoration(
-            color: active ? RestaurantPalette.white : Colors.transparent,
-            borderRadius: BorderRadius.circular(RestaurantPalette.radius),
-          ),
-          child: Row(
-            children: [
-              Icon(
-                active ? item.filled : item.outline,
-                size: 22,
-                color: active ? RestaurantPalette.orange : Colors.white,
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Text(
-                  item.label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: active ? RestaurantPalette.orange : Colors.white,
-                    fontSize: 14,
-                    fontWeight: active ? FontWeight.w700 : FontWeight.w500,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
   Widget _buildLogout(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12),
+      padding: const EdgeInsets.fromLTRB(14, 8, 14, 8),
       child: Material(
-        color: Colors.transparent,
+        color: const Color(0xFFFFF0EA),
+        borderRadius: BorderRadius.circular(17),
         child: InkWell(
-          borderRadius: BorderRadius.circular(RestaurantPalette.radius),
+          borderRadius: BorderRadius.circular(17),
           onTap: () {
+            HapticFeedback.mediumImpact();
             Navigator.of(context).pop();
             if (onLogout != null) {
               onLogout!();
@@ -273,24 +391,29 @@ class RestaurantDrawer extends StatelessWidget {
               );
             }
           },
-          child: const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-            child: Row(
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 13),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(17),
+              border: Border.all(color: const Color(0xFFF6D9CC)),
+            ),
+            child: const Row(
               children: [
-                Icon(Icons.logout, size: 22, color: RestaurantPalette.danger),
-                SizedBox(width: 14),
+                Icon(Icons.logout_rounded,
+                    size: 20, color: Color(0xFFCE5738)),
+                SizedBox(width: 11),
                 Expanded(
                   child: Text(
-                    'Déconnexion',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                    'Se déconnecter',
                     style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF9D422C),
+                      fontSize: 13,
+                      fontWeight: FontWeight.w800,
                     ),
                   ),
                 ),
+                Icon(Icons.chevron_right_rounded,
+                    size: 20, color: Color(0xFFCE8B75)),
               ],
             ),
           ),
@@ -298,9 +421,230 @@ class RestaurantDrawer extends StatelessWidget {
       ),
     );
   }
+
+  void _open(BuildContext context, String route) {
+    HapticFeedback.selectionClick();
+    Navigator.of(context).pop();
+    context.push(route);
+  }
 }
 
-/// Logo de la boutique (rond blanc avec image réseau ou repli orange).
+class _NavTile extends StatelessWidget {
+  const _NavTile({
+    required this.item,
+    required this.active,
+    required this.onTap,
+  });
+
+  final _DrawerItem item;
+  final bool active;
+  final VoidCallback onTap;
+
+  static const _ink = Color(0xFF173B2D);
+  static const _orange = Color(0xFFF07835);
+  static const _muted = Color(0xFF7A887F);
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 220),
+      curve: Curves.easeOutCubic,
+      decoration: BoxDecoration(
+        color: active ? const Color(0xFFEAF3EC) : Colors.transparent,
+        borderRadius: BorderRadius.circular(17),
+        border: Border.all(
+          color: active ? const Color(0xFFD4E5D7) : Colors.transparent,
+        ),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(17),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+            child: Row(
+              children: [
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 220),
+                  width: 43,
+                  height: 43,
+                  decoration: BoxDecoration(
+                    color: active ? _ink : Colors.white,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: active ? _ink : const Color(0xFFECE7DE),
+                    ),
+                    boxShadow: active
+                        ? [
+                            BoxShadow(
+                              color: _ink.withValues(alpha: 0.15),
+                              blurRadius: 9,
+                              offset: const Offset(0, 4),
+                            ),
+                          ]
+                        : const [],
+                  ),
+                  child: Icon(
+                    active ? item.filled : item.outline,
+                    color: active ? Colors.white : _inkSoftColor,
+                    size: 21,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        item.label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: active ? _ink : const Color(0xFF34483B),
+                          fontSize: 13,
+                          fontWeight: active ? FontWeight.w800 : FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        item.subtitle,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: _muted,
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (active)
+                  Container(
+                    width: 26,
+                    height: 26,
+                    decoration: const BoxDecoration(
+                      color: _orange,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.chevron_right_rounded,
+                      color: Colors.white,
+                      size: 19,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  static const _inkSoftColor = Color(0xFF52705D);
+}
+
+class _QuickAction extends StatelessWidget {
+  const _QuickAction({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(17),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(17),
+        onTap: onTap,
+        child: Container(
+          constraints: const BoxConstraints(minHeight: 88),
+          padding: const EdgeInsets.fromLTRB(4, 12, 4, 10),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(17),
+            border: Border.all(color: const Color(0xFFECE7DE)),
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.10),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(icon, color: color, size: 19),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                label,
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: Color(0xFF34483B),
+                  fontSize: 10,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _StatusPill extends StatelessWidget {
+  const _StatusPill({required this.isOpen});
+
+  final bool isOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    final color =
+        isOpen ? const Color(0xFF9BE2AF) : const Color(0xFFFFB3A1);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withValues(alpha: 0.32)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 6,
+            height: 6,
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+          ),
+          const SizedBox(width: 6),
+          Text(
+            isOpen ? 'OUVERTE' : 'FERMÉE',
+            style: TextStyle(
+              color: color,
+              fontSize: 9,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 0.8,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _ShopLogo extends StatelessWidget {
   const _ShopLogo({required this.size, this.url});
 
@@ -309,20 +653,34 @@ class _ShopLogo extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bool hasUrl = url != null && url!.trim().isNotEmpty;
+    final hasUrl = url != null && url!.trim().isNotEmpty;
     return Container(
       width: size,
       height: size,
-      padding: const EdgeInsets.all(2),
-      decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
-      child: ClipOval(
-        child: hasUrl
-            ? Image.network(
-                resolveMediaUrl(url!)!,
-                fit: BoxFit.cover,
-                errorBuilder: (_, _, _) => const _ShopLogoFallback(),
-              )
-            : const _ShopLogoFallback(),
+      padding: const EdgeInsets.all(2.5),
+      decoration: const BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFFFFC078), Color(0xFFF07835)],
+        ),
+      ),
+      child: Container(
+        padding: const EdgeInsets.all(2),
+        decoration: const BoxDecoration(
+          color: Color(0xFF24563E),
+          shape: BoxShape.circle,
+        ),
+        child: ClipOval(
+          child: hasUrl
+              ? Image.network(
+                  resolveMediaUrl(url!)!,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, _, _) => const _ShopLogoFallback(),
+                )
+              : const _ShopLogoFallback(),
+        ),
       ),
     );
   }
@@ -334,9 +692,9 @@ class _ShopLogoFallback extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const ColoredBox(
-      color: RestaurantPalette.orange,
+      color: Color(0xFFF07835),
       child: Center(
-        child: Icon(Icons.storefront, color: Colors.white, size: 30),
+        child: Icon(Icons.restaurant_rounded, color: Colors.white, size: 27),
       ),
     );
   }
@@ -345,11 +703,13 @@ class _ShopLogoFallback extends StatelessWidget {
 class _DrawerItem {
   const _DrawerItem({
     required this.label,
+    required this.subtitle,
     required this.outline,
     required this.filled,
   });
 
   final String label;
+  final String subtitle;
   final IconData outline;
   final IconData filled;
 }

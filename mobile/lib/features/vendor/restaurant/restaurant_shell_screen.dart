@@ -691,8 +691,6 @@ class _RestaurantShellScreenState extends State<RestaurantShellScreen> {
           revenue: _revenue,
           onOpenDrawer: _openDrawer,
           marketplace: widget.marketplace,
-          onMonthTap: () =>
-              showToast(context, 'Sélection du mois bientôt disponible.'),
           onSeeAllTap: _revenue == null ? () => _select(7) : _openRevenueHistory,
           onRefresh: _reloadData,
         );
