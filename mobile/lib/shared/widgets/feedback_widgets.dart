@@ -113,13 +113,50 @@ class _TextPromptDialogState extends State<_TextPromptDialog> {
 }
 
 /// Toast simple (SnackBar) — J24 §2.
+///
+/// Le retour visuel ne doit jamais faire échouer l'action métier : si l'arbre
+/// est instable (Scaffold désactivé pendant une transition, un pop ou un hot
+/// reload), `showSnackBar` peut lever « Looking up a deactivated widget's
+/// ancestor is unsafe ». On retombe alors sur une tentative à la frame
+/// suivante, sans propager l'erreur.
 void showToast(BuildContext context, String message, {bool isError = false}) {
+  ScaffoldMessengerState? messenger;
+  Color? errorColor;
+  try {
+    messenger = ScaffoldMessenger.maybeOf(context);
+    errorColor = isError ? Theme.of(context).colorScheme.error : null;
+  } catch (_) {
+    // Contexte déjà désactivé : aucun retour visuel possible.
+    return;
+  }
+  final host = messenger;
+  if (host == null) {
+    return;
+  }
+
   final snackBar = SnackBar(
     content: Text(message),
-    backgroundColor: isError ? Theme.of(context).colorScheme.error : null,
+    backgroundColor: errorColor,
     behavior: SnackBarBehavior.floating,
   );
-  ScaffoldMessenger.of(context)
-    ..hideCurrentSnackBar()
-    ..showSnackBar(snackBar);
+
+  bool attempt() {
+    if (!host.mounted) {
+      return false;
+    }
+    try {
+      host
+        ..hideCurrentSnackBar()
+        ..showSnackBar(snackBar);
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  if (!attempt()) {
+    // L'arbre peut se stabiliser dès la frame suivante : on retente sans
+    // jamais laisser l'erreur remonter au parcours métier.
+    WidgetsBinding.instance.addPostFrameCallback((_) => attempt());
+  }
 }

@@ -535,9 +535,11 @@ class _RestaurantShellScreenState extends State<RestaurantShellScreen> {
     setState(() => _busyOrders.add(order.id));
     try {
       await call(order);
-      if (!mounted) return false;
-      showToast(context, doneMessage);
+      // Rafraîchit la liste avant le retour visuel : même si le SnackBar ne
+      // peut pas s'afficher (Scaffold désactivé pendant une transition),
+      // l'écran reflète l'action déjà acceptée par le serveur.
       await _loadOrders();
+      if (mounted) showToast(context, doneMessage);
       return true;
     } on ApiException catch (e) {
       if (mounted) showToast(context, e.message, isError: true);
@@ -604,8 +606,13 @@ class _RestaurantShellScreenState extends State<RestaurantShellScreen> {
   }
 
   Future<void> _loadOrders() async {
-    final orders = await widget.marketplace!.vendorOrders(perPage: 50);
-    if (mounted) setState(() => _orders = orders);
+    try {
+      final orders = await widget.marketplace!.vendorOrders(perPage: 50);
+      if (mounted) setState(() => _orders = orders);
+    } on ApiException {
+      // Rafraîchissement optimiste : on conserve la liste courante si le
+      // réseau échoue après une action pourtant acceptée par le serveur.
+    }
   }
 
   @override
@@ -632,11 +639,12 @@ class _RestaurantShellScreenState extends State<RestaurantShellScreen> {
 
   Widget _buildBody() {
     if (_loading) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      return const Center(child: CircularProgressIndicator());
     }
     if (_error != null) {
-      return Scaffold(
-        body: Center(
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
