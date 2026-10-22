@@ -5,22 +5,26 @@ import 'package:go_router/go_router.dart';
 import '../../../core/data/marketplace_api.dart';
 import '../../../core/errors/api_exception.dart';
 import '../../../core/navigation/notification_router.dart';
-import '../../../core/theme/app_colors.dart';
-import '../../../core/theme/app_dimens.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../shared/widgets/beninfood_header.dart';
 import '../../../shared/widgets/feedback_widgets.dart';
 import '../../../shared/widgets/fedapay_checkout_screen.dart';
 import '../../../shared/widgets/state_widgets.dart';
+import '../../vendor/restaurant/restaurant_palette.dart';
 import '../../wallet/widgets/payout_request_sheet.dart';
 
-/// Écran **Wallet & retraits** du livreur (cahier de conception v1.0).
-///
-/// Carte gradient avec solde disponible, séquestre « en attente », demande
-/// de retrait vers Mobile Money, flottant espèces et journal des mouvements.
-/// Les données proviennent de `GET /driver/me/wallet[/payouts]` et
-/// `GET /driver/me/float`.
+abstract final class _WalletColors {
+  static const Color forest = Color(0xFF0B3320);
+  static const Color forestDeep = Color(0xFF072516);
+  static const Color mint = Color(0xFFA9EDC3);
+  static const Color orangeWash = Color(0xFFFFF0E3);
+  static const Color greenWash = Color(0xFFE8F7EE);
+  static const Color goldWash = Color(0xFFFFF6DE);
+  static const Color gold = Color(0xFFF4B83F);
+  static const Color goldDark = Color(0xFF9A6A08);
+}
+
 class DriverWalletScreen extends StatefulWidget {
   const DriverWalletScreen({
     super.key,
@@ -35,7 +39,8 @@ class DriverWalletScreen extends StatefulWidget {
   State<DriverWalletScreen> createState() => _DriverWalletScreenState();
 }
 
-class _DriverWalletScreenState extends State<DriverWalletScreen> {
+class _DriverWalletScreenState extends State<DriverWalletScreen>
+    with TickerProviderStateMixin {
   Map<String, dynamic> _wallet = const {};
   Map<String, dynamic> _float = const {};
   List<Map<String, dynamic>> _payouts = const [];
@@ -43,39 +48,40 @@ class _DriverWalletScreenState extends State<DriverWalletScreen> {
   String? _error;
   bool _requesting = false;
   bool _floatBusy = false;
+  bool _hideAmounts = false;
+  int _tab = 0;
+
+  late final AnimationController _entrance = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 860),
+  )..forward();
 
   int get _pending => (_wallet['pending_balance'] as num?)?.toInt() ?? 0;
   int get _available => (_wallet['available_balance'] as num?)?.toInt() ?? 0;
   int get _minPayout => (_wallet['min_payout'] as num?)?.toInt() ?? 1000;
   int get _floatBalance => (_float['prepaid_balance'] as num?)?.toInt() ?? 0;
-  int get _commissionTotal =>
-      (_wallet['commission_total'] as num?)?.toInt() ?? 0;
-  int get _commissionCount =>
-      (_wallet['commission_count'] as num?)?.toInt() ?? 0;
-  int get _commissionRate =>
-      (_wallet['commission_rate'] as num?)?.toInt() ?? 20;
+  int get _commissionTotal => (_wallet['commission_total'] as num?)?.toInt() ?? 0;
+  int get _commissionRate => (_wallet['commission_rate'] as num?)?.toInt() ?? 20;
 
   String? get _phone {
     final phone = (_wallet['phone'] as String?)?.trim();
     return (phone == null || phone.isEmpty) ? null : phone;
   }
 
-  List<Map<String, dynamic>> get _floatTransactions =>
-      (_float['transactions'] as List?)
-          ?.whereType<Map<String, dynamic>>()
-          .toList() ??
-      const [];
-
   List<Map<String, dynamic>> get _transactions =>
-      (_wallet['transactions'] as List?)
-          ?.whereType<Map<String, dynamic>>()
-          .toList() ??
+      (_wallet['transactions'] as List?)?.whereType<Map<String, dynamic>>().toList() ??
       const [];
 
   @override
   void initState() {
     super.initState();
     _load();
+  }
+
+  @override
+  void dispose() {
+    _entrance.dispose();
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -122,16 +128,13 @@ class _DriverWalletScreenState extends State<DriverWalletScreen> {
       );
       return;
     }
-
     final result = await showPayoutRequestSheet(
       context,
       available: _available,
       minPayout: _minPayout,
       phone: _phone,
     );
-
     if (result == null || !mounted) return;
-
     setState(() => _requesting = true);
     try {
       final payout = await widget.marketplace.requestDriverPayout(
@@ -143,20 +146,15 @@ class _DriverWalletScreenState extends State<DriverWalletScreen> {
       final status = payout['status']?.toString();
       final message = switch (status) {
         'executed' => 'Retrait versé sur votre Mobile Money.',
-        'failed' =>
-          'Retrait échoué : le montant a été recrédité sur votre solde.',
+        'failed' => 'Retrait échoué : le montant a été recrédité sur votre solde.',
         _ => 'Demande de retrait enregistrée, en cours de traitement.',
       };
       showToast(context, message, isError: status == 'failed');
       await _load();
     } on ApiException catch (e) {
-      if (mounted) {
-        showToast(context, e.message, isError: true);
-      }
+      if (mounted) showToast(context, e.message, isError: true);
     } finally {
-      if (mounted) {
-        setState(() => _requesting = false);
-      }
+      if (mounted) setState(() => _requesting = false);
     }
   }
 
@@ -164,15 +162,15 @@ class _DriverWalletScreenState extends State<DriverWalletScreen> {
     final result = await showModalBottomSheet<int>(
       context: context,
       isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(26))),
       builder: (context) => const _FloatSheet(),
     );
     if (result == null || !mounted) return;
-
     setState(() => _floatBusy = true);
     try {
       final payload = await widget.marketplace.topUpFloat(result);
       final checkoutUrl = payload['checkout_url'] as String?;
-
       if (checkoutUrl != null && checkoutUrl.isNotEmpty) {
         if (!mounted) return;
         final paid = await startFedaPayCheckout(
@@ -182,35 +180,48 @@ class _DriverWalletScreenState extends State<DriverWalletScreen> {
           transactionId: payload['transaction_id'] as String?,
         );
         if (!mounted) return;
-        showToast(
-          context,
-          paid ? 'Flottant rechargé.' : 'Paiement non confirmé.',
-          isError: !paid,
-        );
+        showToast(context, paid ? 'Flottant rechargé.' : 'Paiement non confirmé.', isError: !paid);
       } else if (mounted) {
         showToast(context, 'Flottant rechargé.');
       }
       await _load();
     } on ApiException catch (e) {
-      if (mounted) {
-        showToast(context, e.message, isError: true);
-      }
+      if (mounted) showToast(context, e.message, isError: true);
     } finally {
-      if (mounted) {
-        setState(() => _floatBusy = false);
-      }
+      if (mounted) setState(() => _floatBusy = false);
     }
+  }
+
+  Future<void> _showPayoutHistory() async {
+    HapticFeedback.selectionClick();
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(26))),
+      builder: (_) => _PayoutHistorySheet(payouts: _payouts),
+    );
+  }
+
+  void _showHelp() {
+    HapticFeedback.selectionClick();
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(26))),
+      builder: (ctx) => _HelpSheet(minPayout: _minPayout, commissionRate: _commissionRate),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: Column(
+    return Material(
+      color: RestaurantPalette.background,
+      child: Column(
         children: [
           BeninfoodAppBar(
-            onMenu:
-                widget.onOpenDrawer ??
+            onMenu: widget.onOpenDrawer ??
                 () {
                   if (context.canPop()) {
                     context.pop();
@@ -228,292 +239,87 @@ class _DriverWalletScreenState extends State<DriverWalletScreen> {
   }
 
   Widget _buildBody() {
-    if (_loading) {
-      return const Center(child: CircularProgressIndicator());
-    }
-    if (_error != null) {
-      return ErrorState(message: _error!, onRetry: _load);
-    }
+    if (_loading) return const Center(child: CircularProgressIndicator());
+    if (_error != null) return ErrorState(message: _error!, onRetry: _load);
 
     return RefreshIndicator(
       onRefresh: _load,
+      color: RestaurantPalette.orange,
       child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(
-          AppDimens.pagePadding,
-          AppDimens.md,
-          AppDimens.pagePadding,
-          AppDimens.xxl,
-        ),
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
         children: [
-          _BalanceCard(
-            available: _available,
-            pending: _pending,
-            busy: _requesting,
-            onWithdraw: _openPayoutSheet,
+          _stagger(0, _PageHeader(onHelp: _showHelp)),
+          const SizedBox(height: 16),
+          _stagger(
+            1,
+            _BalanceBanner(
+              available: _available,
+              pending: _pending,
+              hidden: _hideAmounts,
+              withdrawBusy: _requesting,
+              onToggleHidden: () => setState(() => _hideAmounts = !_hideAmounts),
+              onWithdraw: _openPayoutSheet,
+            ),
           ),
-          const SizedBox(height: AppDimens.lg),
-          _FloatCard(
-            balance: _floatBalance,
-            transactions: _floatTransactions,
-            busy: _floatBusy,
-            onTopUp: _openFloatSheet,
+          const SizedBox(height: 14),
+          _stagger(
+            2,
+            _StatsGrid(pending: _pending, commissionTotal: _commissionTotal, commissionRate: _commissionRate, minPayout: _minPayout),
           ),
-          const SizedBox(height: AppDimens.lg),
-          _CommissionCard(
-            total: _commissionTotal,
-            count: _commissionCount,
-            rate: _commissionRate,
-          ),
-          const SizedBox(height: AppDimens.lg),
-          _QuickFacts(minPayout: _minPayout),
-          const SizedBox(height: AppDimens.xl),
-          _SectionTitle(
-            title: 'Mouvements',
-            subtitle: 'Séquestres libérés, commissions et retraits',
-          ),
-          const SizedBox(height: AppDimens.sm),
-          if (_transactions.isEmpty)
-            const _EmptyCard(
-              icon: Icons.receipt_long_outlined,
-              message: 'Aucun mouvement pour le moment.',
-            )
-          else
-            _TransactionsCard(transactions: _transactions),
-          const SizedBox(height: AppDimens.xl),
-          _SectionTitle(title: 'Retraits', subtitle: 'Historique des demandes'),
-          const SizedBox(height: AppDimens.sm),
-          if (_payouts.isEmpty)
-            const _EmptyCard(
-              icon: Icons.savings_outlined,
-              message: 'Aucun retrait pour le moment.',
-            )
-          else
-            _PayoutsCard(payouts: _payouts),
-        ],
-      ),
-    );
-  }
-}
-
-// ---------------------------------------------------------------- Header
-
-// ------------------------------------------------------------ Balance card
-
-class _BalanceCard extends StatelessWidget {
-  const _BalanceCard({
-    required this.available,
-    required this.pending,
-    required this.busy,
-    required this.onWithdraw,
-  });
-
-  final int available;
-  final int pending;
-  final bool busy;
-  final VoidCallback onWithdraw;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF0F3D22), AppColors.green],
-        ),
-        borderRadius: BorderRadius.circular(AppDimens.radiusXl),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x2618231F),
-            blurRadius: 22,
-            offset: Offset(0, 10),
+          const SizedBox(height: 14),
+          _stagger(3, _FloatCard(balance: _floatBalance, busy: _floatBusy, onTopUp: _openFloatSheet)),
+          const SizedBox(height: 14),
+          _stagger(
+            4,
+            _MovementsCard(
+              tabs: const ['Mouvements', 'Retraits'],
+              selected: _tab,
+              onSelect: (i) => setState(() => _tab = i),
+              transactions: _tab == 0 ? _transactions : const [],
+              payouts: _tab == 1 ? _payouts : const [],
+              onSeeAllPayouts: _showPayoutHistory,
+            ),
           ),
         ],
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(AppDimens.xl),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.14),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Icon(
-                    Icons.account_balance_wallet_outlined,
-                    color: Colors.white,
-                    size: 21,
-                  ),
-                ),
-                const SizedBox(width: AppDimens.md),
-                const Text(
-                  'Solde disponible',
-                  style: TextStyle(
-                    color: Colors.white70,
-                    fontSize: 13.5,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: 0.2,
-                  ),
-                ),
-                const Spacer(),
-                const _GoldDot(),
-              ],
-            ),
-            const SizedBox(height: AppDimens.lg),
-            Text(
-              formatAmount(available),
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 34,
-                fontWeight: FontWeight.w800,
-                letterSpacing: -0.6,
-                height: 1.05,
-              ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              'Retirable vers votre Mobile Money',
-              style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.72),
-                fontSize: 12.5,
-              ),
-            ),
-            const SizedBox(height: AppDimens.lg),
-            Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppDimens.md,
-                vertical: 10,
-              ),
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.10),
-                borderRadius: BorderRadius.circular(AppDimens.radiusMd),
-                border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
-              ),
-              child: Row(
-                children: [
-                  const Icon(
-                    Icons.hourglass_bottom,
-                    size: 17,
-                    color: AppColors.gold,
-                  ),
-                  const SizedBox(width: 8),
-                  const Expanded(
-                    child: Text(
-                      'En attente de livraison',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                  Text(
-                    formatAmount(pending),
-                    style: const TextStyle(
-                      color: AppColors.gold,
-                      fontSize: 14.5,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: AppDimens.lg),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton.icon(
-                style: FilledButton.styleFrom(
-                  backgroundColor: AppColors.gold,
-                  foregroundColor: AppColors.goldDark,
-                  minimumSize: const Size(0, 50),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                ),
-                onPressed: busy ? null : onWithdraw,
-                icon: busy
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2.2,
-                          color: AppColors.goldDark,
-                        ),
-                      )
-                    : const Icon(Icons.arrow_downward_rounded, size: 20),
-                label: const Text(
-                  'Retirer',
-                  style: TextStyle(fontSize: 15.5, fontWeight: FontWeight.w800),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
+
+  Widget _stagger(int i, Widget child) => AnimatedBuilder(
+        animation: _entrance,
+        builder: (context, _) {
+          final t = Curves.easeOutCubic.transform((_entrance.value - i * 0.08).clamp(0.0, 1.0));
+          return Opacity(opacity: t, child: Transform.translate(offset: Offset(0, (1 - t) * 16), child: child));
+        },
+      );
 }
 
-class _GoldDot extends StatelessWidget {
-  const _GoldDot();
-
+class _PageHeader extends StatelessWidget {
+  const _PageHeader({required this.onHelp});
+  final VoidCallback onHelp;
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration: BoxDecoration(
-        color: AppColors.gold.withValues(alpha: 0.20),
-        borderRadius: BorderRadius.circular(AppDimens.radiusPill),
-      ),
-      child: const Text(
-        'Béninfood Pay',
-        style: TextStyle(
-          color: AppColors.gold,
-          fontSize: 11,
-          fontWeight: FontWeight.w700,
-          letterSpacing: 0.3,
-        ),
-      ),
-    );
-  }
-}
-
-// ------------------------------------------------------------- Quick facts
-
-class _QuickFacts extends StatelessWidget {
-  const _QuickFacts({required this.minPayout});
-
-  final int minPayout;
-
-  @override
-  Widget build(BuildContext context) {
-    const commission = '20 %';
-
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Expanded(
-          child: _FactCard(
-            icon: Icons.south_west,
-            tint: AppColors.greenLight,
-            accent: AppColors.green,
-            label: 'Retrait minimum',
-            value: formatAmount(minPayout),
+        const Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Portefeuille', style: TextStyle(color: RestaurantPalette.darkText, fontSize: 26, fontWeight: FontWeight.w800, letterSpacing: -0.6)),
+              SizedBox(height: 3),
+              Text('Gérez vos fonds, commissions et retraits', style: TextStyle(color: RestaurantPalette.grayText, fontSize: 12.5)),
+            ],
           ),
         ),
-        const SizedBox(width: AppDimens.md),
-        Expanded(
-          child: _FactCard(
-            icon: Icons.percent,
-            tint: AppColors.orangeLight,
-            accent: AppColors.orange,
-            label: 'Commission',
-            value: commission,
+        _Pressable(
+          onTap: onHelp,
+          borderRadius: BorderRadius.circular(20),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20), border: Border.all(color: RestaurantPalette.borderColor), boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8, offset: const Offset(0, 2))]),
+            child: const Row(mainAxisSize: MainAxisSize.min, children: [Icon(Icons.help_outline_rounded, size: 15, color: RestaurantPalette.orange), SizedBox(width: 5), Text('Aide', style: TextStyle(color: RestaurantPalette.orange, fontSize: 12, fontWeight: FontWeight.w800))]),
           ),
         ),
       ],
@@ -521,60 +327,64 @@ class _QuickFacts extends StatelessWidget {
   }
 }
 
-class _FactCard extends StatelessWidget {
-  const _FactCard({
-    required this.icon,
-    required this.tint,
-    required this.accent,
-    required this.label,
-    required this.value,
-  });
-
-  final IconData icon;
-  final Color tint;
-  final Color accent;
-  final String label;
-  final String value;
-
+class _BalanceBanner extends StatelessWidget {
+  const _BalanceBanner({required this.available, required this.pending, required this.hidden, required this.onToggleHidden, required this.onWithdraw, this.withdrawBusy = false});
+  final int available;
+  final int pending;
+  final bool hidden;
+  final bool withdrawBusy;
+  final VoidCallback onToggleHidden;
+  final VoidCallback onWithdraw;
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(AppDimens.lg),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(AppDimens.radiusLg),
-        border: Border.all(color: AppColors.border),
-        boxShadow: AppTheme.softShadow(),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(borderRadius: BorderRadius.circular(24), gradient: const LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [_WalletColors.forest, _WalletColors.forestDeep]), boxShadow: [BoxShadow(color: _WalletColors.forest.withValues(alpha: 0.32), blurRadius: 22, offset: const Offset(0, 12))]),
+      child: Stack(
         children: [
-          Container(
-            width: 38,
-            height: 38,
-            decoration: BoxDecoration(
-              color: tint,
-              borderRadius: BorderRadius.circular(11),
-            ),
-            alignment: Alignment.center,
-            child: Icon(icon, size: 19, color: accent),
-          ),
-          const SizedBox(height: AppDimens.md),
-          Text(
-            value,
-            style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w800,
-              color: AppColors.text,
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            label,
-            style: const TextStyle(
-              fontSize: 12,
-              color: AppColors.textSecondary,
-              fontWeight: FontWeight.w500,
+          Positioned(right: -46, top: -54, child: Container(width: 168, height: 168, decoration: BoxDecoration(shape: BoxShape.circle, gradient: RadialGradient(colors: [_WalletColors.mint.withValues(alpha: 0.16), _WalletColors.mint.withValues(alpha: 0)])))),
+          Positioned(right: -18, bottom: -26, child: Transform.rotate(angle: -0.18, child: Icon(Icons.moped_rounded, size: 132, color: Colors.white.withValues(alpha: 0.06)))),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(18, 16, 18, 18),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Expanded(child: Text('SOLDE DISPONIBLE', style: TextStyle(color: Color(0xFFB9D8C6), fontSize: 10, fontWeight: FontWeight.w800, letterSpacing: 1.3))),
+                    _Pressable(onTap: onToggleHidden, borderRadius: BorderRadius.circular(20), child: Padding(padding: const EdgeInsets.all(6), child: Icon(hidden ? Icons.visibility_off_outlined : Icons.visibility_outlined, size: 18, color: Colors.white.withValues(alpha: 0.8)))),
+                    const SizedBox(width: 6),
+                    Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6), decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(20), border: Border.all(color: Colors.white.withValues(alpha: 0.18))), child: const Text('Béninfood Pay', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700))),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                hidden
+                    ? const Text('••• •••', style: TextStyle(color: Colors.white, fontSize: 34, fontWeight: FontWeight.w800, letterSpacing: 2))
+                    : Row(crossAxisAlignment: CrossAxisAlignment.baseline, textBaseline: TextBaseline.alphabetic, children: [Flexible(child: FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft, child: Text(formatAmount(available, showSymbol: false), style: const TextStyle(color: Colors.white, fontSize: 36, fontWeight: FontWeight.w800, letterSpacing: -1, height: 1.05)))), const SizedBox(width: 6), const Text('FCFA', style: TextStyle(color: Color(0xFFD6EBDD), fontSize: 13, fontWeight: FontWeight.w700))]),
+                const SizedBox(height: 3),
+                const Row(children: [Icon(Icons.check_circle_rounded, size: 13, color: _WalletColors.mint), SizedBox(width: 5), Text('Retirable vers votre Mobile Money', style: TextStyle(color: _WalletColors.mint, fontSize: 11.5, fontWeight: FontWeight.w600))]),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: _Pressable(
+                          onTap: withdrawBusy ? null : () { HapticFeedback.selectionClick(); onWithdraw(); },
+                          borderRadius: BorderRadius.circular(14),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                            decoration: BoxDecoration(gradient: const LinearGradient(colors: [Color(0xFFFF8A3D), RestaurantPalette.orange]), borderRadius: BorderRadius.circular(14), boxShadow: [BoxShadow(color: RestaurantPalette.orange.withValues(alpha: 0.42), blurRadius: 14, offset: const Offset(0, 6))]),
+                            child: Row(mainAxisSize: MainAxisSize.min, children: [if (withdrawBusy) const SizedBox(width: 17, height: 17, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) else const Icon(Icons.account_balance_wallet_rounded, size: 17, color: Colors.white), const SizedBox(width: 8), Flexible(child: Text(withdrawBusy ? 'Demande en cours…' : 'Faire un retrait', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white, fontSize: 12.5, fontWeight: FontWeight.w800)))]),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Column(crossAxisAlignment: CrossAxisAlignment.end, children: [const Text('EN ATTENTE', style: TextStyle(color: Color(0xFF9FBFAE), fontSize: 8.5, fontWeight: FontWeight.w800, letterSpacing: 1)), const SizedBox(height: 2), Text(hidden ? '•••' : formatAmount(pending, showSymbol: false), style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w800))]),
+                  ],
+                ),
+              ],
             ),
           ),
         ],
@@ -583,572 +393,207 @@ class _FactCard extends StatelessWidget {
   }
 }
 
-// ------------------------------------------------------------ Transactions
+class _StatsGrid extends StatelessWidget {
+  const _StatsGrid({required this.pending, required this.commissionTotal, required this.commissionRate, required this.minPayout});
+  final int pending, commissionTotal, commissionRate, minPayout;
+  @override
+  Widget build(BuildContext context) {
+    return Row(children: [
+      Expanded(child: _StatCard(icon: Icons.hourglass_bottom_rounded, tint: _WalletColors.orangeWash, accent: RestaurantPalette.orange, label: 'En attente', value: formatAmount(pending, showSymbol: false), caption: 'Non encaissées')),
+      const SizedBox(width: 12),
+      Expanded(child: _StatCard(icon: Icons.percent_rounded, tint: _WalletColors.goldWash, accent: _WalletColors.goldDark, label: 'Commissions', value: formatAmount(commissionTotal, showSymbol: false), caption: '$commissionRate % prélevé')),
+      const SizedBox(width: 12),
+      Expanded(child: _StatCard(icon: Icons.south_west_rounded, tint: _WalletColors.greenWash, accent: RestaurantPalette.success, label: 'Retrait min.', value: formatAmount(minPayout, showSymbol: false), caption: 'FCFA')),
+    ]);
+  }
+}
 
-class _TransactionsCard extends StatelessWidget {
-  const _TransactionsCard({required this.transactions});
+class _StatCard extends StatelessWidget {
+  const _StatCard({required this.icon, required this.tint, required this.accent, required this.label, required this.value, required this.caption});
+  final IconData icon; final Color tint, accent; final String label, value, caption;
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(12, 11, 10, 11),
+      decoration: BoxDecoration(color: tint, borderRadius: BorderRadius.circular(18), border: Border.all(color: accent.withValues(alpha: 0.12))),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Container(width: 28, height: 28, decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.9), borderRadius: BorderRadius.circular(9)), child: Icon(icon, size: 15, color: accent)),
+        const SizedBox(height: 9),
+        Text(label.toUpperCase(), maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: accent.withValues(alpha: 0.9), fontSize: 8, fontWeight: FontWeight.w800, letterSpacing: 0.7)),
+        const SizedBox(height: 4),
+        FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft, child: Text(value, style: const TextStyle(color: RestaurantPalette.darkText, fontSize: 15, fontWeight: FontWeight.w800, letterSpacing: -0.3))),
+        const SizedBox(height: 1),
+        Text(caption, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: accent.withValues(alpha: 0.75), fontSize: 9.5, fontWeight: FontWeight.w600)),
+      ]),
+    );
+  }
+}
 
+class _FloatCard extends StatelessWidget {
+  const _FloatCard({required this.balance, required this.busy, required this.onTopUp});
+  final int balance; final bool busy; final VoidCallback onTopUp;
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(color: _WalletColors.goldWash, borderRadius: BorderRadius.circular(18), border: Border.all(color: _WalletColors.gold.withValues(alpha: 0.4)), boxShadow: AppTheme.softShadow()),
+      child: Row(children: [
+        Container(width: 40, height: 40, decoration: BoxDecoration(color: _WalletColors.gold.withValues(alpha: 0.18), borderRadius: BorderRadius.circular(12)), child: const Icon(Icons.payments_rounded, size: 20, color: _WalletColors.goldDark)),
+        const SizedBox(width: 12),
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [const Text('Flottant espèces', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: RestaurantPalette.darkText)), const SizedBox(height: 1), Text(formatAmount(balance), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: _WalletColors.goldDark))])),
+        _Pressable(onTap: busy ? null : onTopUp, borderRadius: BorderRadius.circular(12), child: Container(padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10), decoration: BoxDecoration(color: _WalletColors.gold, borderRadius: BorderRadius.circular(12)), child: Row(mainAxisSize: MainAxisSize.min, children: [if (busy) const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) else const Icon(Icons.add_rounded, size: 18, color: Colors.white), const SizedBox(width: 6), const Text('Recharger', style: TextStyle(color: Colors.white, fontSize: 12.5, fontWeight: FontWeight.w800))]))),
+      ]),
+    );
+  }
+}
+
+class _MovementsCard extends StatelessWidget {
+  const _MovementsCard({required this.tabs, required this.selected, required this.onSelect, required this.transactions, required this.payouts, required this.onSeeAllPayouts});
+  final List<String> tabs; final int selected; final ValueChanged<int> onSelect; final List<Map<String, dynamic>> transactions; final List<Map<String, dynamic>> payouts; final VoidCallback onSeeAllPayouts;
+  @override
+  Widget build(BuildContext context) {
+    return Container(decoration: RestaurantPalette.cardDecoration, child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Padding(padding: const EdgeInsets.fromLTRB(16, 14, 16, 10), child: Row(children: [Expanded(child: Text(tabs[selected], style: const TextStyle(color: RestaurantPalette.darkText, fontSize: 15, fontWeight: FontWeight.w800))), if (selected == 1 && payouts.isNotEmpty) TextButton(onPressed: onSeeAllPayouts, child: const Text('Voir tout', style: TextStyle(color: RestaurantPalette.orange, fontWeight: FontWeight.w700)))])),
+      Padding(padding: const EdgeInsets.symmetric(horizontal: 16), child: Row(children: [for (var i = 0; i < tabs.length; i++) ...[Expanded(child: _TabButton(label: tabs[i], active: selected == i, onTap: () => onSelect(i))), if (i != tabs.length - 1) const SizedBox(width: 8)]])),
+      const SizedBox(height: 10),
+      if (selected == 0) _TransactionsList(transactions: transactions) else _PayoutsList(payouts: payouts),
+    ]));
+  }
+}
+
+class _TabButton extends StatelessWidget {
+  const _TabButton({required this.label, required this.active, required this.onTap});
+  final String label; final bool active; final VoidCallback onTap;
+  @override
+  Widget build(BuildContext context) {
+    return _Pressable(onTap: onTap, borderRadius: BorderRadius.circular(12), child: AnimatedContainer(duration: const Duration(milliseconds: 200), padding: const EdgeInsets.symmetric(vertical: 9), decoration: BoxDecoration(color: active ? RestaurantPalette.orange.withValues(alpha: 0.12) : Colors.transparent, borderRadius: BorderRadius.circular(12), border: Border.all(color: active ? RestaurantPalette.orange : RestaurantPalette.borderColor)), alignment: Alignment.center, child: Text(label, style: TextStyle(color: active ? RestaurantPalette.orange : RestaurantPalette.grayText, fontSize: 12.5, fontWeight: FontWeight.w800))));
+  }
+}
+
+class _TransactionsList extends StatelessWidget {
+  const _TransactionsList({required this.transactions});
   final List<Map<String, dynamic>> transactions;
-
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(AppDimens.radiusLg),
-        border: Border.all(color: AppColors.border),
-        boxShadow: AppTheme.softShadow(),
-      ),
-      child: Column(
-        children: [
-          for (var i = 0; i < transactions.length; i++) ...[
-            _TransactionRow(tx: transactions[i]),
-            if (i != transactions.length - 1)
-              const Divider(height: 1, indent: 62, color: AppColors.border),
-          ],
-        ],
-      ),
-    );
+    if (transactions.isEmpty) return const Padding(padding: EdgeInsets.fromLTRB(16, 10, 16, 18), child: _EmptyInline(icon: Icons.receipt_long_outlined, message: 'Aucun mouvement pour le moment'));
+    return Column(children: [for (var i = 0; i < transactions.take(10).length; i++) ...[_TransactionTile(tx: transactions[i]), if (i != transactions.take(10).length - 1) const Divider(height: 1, indent: 62, color: RestaurantPalette.borderColor)], const SizedBox(height: 8)]);
   }
 }
 
-class _TransactionRow extends StatelessWidget {
-  const _TransactionRow({required this.tx});
-
+class _TransactionTile extends StatelessWidget {
+  const _TransactionTile({required this.tx});
   final Map<String, dynamic> tx;
-
   @override
   Widget build(BuildContext context) {
     final isCredit = (tx['type'] ?? 'credit') == 'credit';
     final amount = (tx['amount'] as num?)?.toInt() ?? 0;
     final description = (tx['description'] as String?)?.trim();
     final createdAt = tx['created_at'] as String?;
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppDimens.lg,
-        vertical: AppDimens.md,
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              color: isCredit ? AppColors.greenLight : AppColors.orangeLight,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            alignment: Alignment.center,
-            child: Icon(
-              isCredit ? Icons.south_west : Icons.north_east,
-              size: 19,
-              color: isCredit ? AppColors.green : AppColors.orangeDark,
-            ),
-          ),
-          const SizedBox(width: AppDimens.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  description?.isNotEmpty == true
-                      ? description!
-                      : (isCredit ? 'Crédit' : 'Débit'),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 13.5,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.text,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  _dateLabel(createdAt),
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: AppColors.textFaint,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: AppDimens.sm),
-          Text(
-            '${isCredit ? '+' : '-'}${formatAmount(amount)}',
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w800,
-              color: isCredit ? AppColors.green : AppColors.red,
-            ),
-          ),
-        ],
-      ),
-    );
+    return Padding(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12), child: Row(children: [
+      Container(width: 42, height: 42, decoration: BoxDecoration(color: isCredit ? _WalletColors.greenWash : _WalletColors.orangeWash, borderRadius: BorderRadius.circular(12)), alignment: Alignment.center, child: Icon(isCredit ? Icons.south_west_rounded : Icons.north_east_rounded, size: 19, color: isCredit ? RestaurantPalette.success : RestaurantPalette.orange)),
+      const SizedBox(width: 12),
+      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(description?.isNotEmpty == true ? description! : (isCredit ? 'Crédit' : 'Débit'), maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: RestaurantPalette.darkText)), const SizedBox(height: 2), Text(_dateLabel(createdAt), style: const TextStyle(fontSize: 11.5, color: RestaurantPalette.grayText))])),
+      const SizedBox(width: 10),
+      Text('${isCredit ? '+' : '-'}${formatAmount(amount)}', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: isCredit ? RestaurantPalette.success : RestaurantPalette.danger)),
+    ]));
   }
 }
 
-// ---------------------------------------------------------------- Payouts
-
-class _PayoutsCard extends StatelessWidget {
-  const _PayoutsCard({required this.payouts});
-
+class _PayoutsList extends StatelessWidget {
+  const _PayoutsList({required this.payouts});
   final List<Map<String, dynamic>> payouts;
-
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(AppDimens.radiusLg),
-        border: Border.all(color: AppColors.border),
-        boxShadow: AppTheme.softShadow(),
-      ),
-      child: Column(
-        children: [
-          for (var i = 0; i < payouts.length; i++) ...[
-            _PayoutRow(payout: payouts[i]),
-            if (i != payouts.length - 1)
-              const Divider(
-                height: 1,
-                indent: AppDimens.lg,
-                color: AppColors.border,
-              ),
-          ],
-        ],
-      ),
-    );
+    if (payouts.isEmpty) return const Padding(padding: EdgeInsets.fromLTRB(16, 10, 16, 18), child: _EmptyInline(icon: Icons.savings_outlined, message: 'Aucun retrait pour le moment'));
+    return Column(children: [for (var i = 0; i < payouts.take(5).length; i++) ...[_PayoutTile(payout: payouts[i]), if (i != payouts.take(5).length - 1) const Divider(height: 1, indent: 16, color: RestaurantPalette.borderColor)], const SizedBox(height: 8)]);
   }
 }
 
-class _PayoutRow extends StatelessWidget {
-  const _PayoutRow({required this.payout});
-
+class _PayoutTile extends StatelessWidget {
+  const _PayoutTile({required this.payout});
   final Map<String, dynamic> payout;
-
   @override
   Widget build(BuildContext context) {
     final status = (payout['status'] ?? '').toString();
     final palette = _payoutPalette(status);
     final amount = (payout['amount'] as num?)?.toInt() ?? 0;
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppDimens.lg,
-        vertical: AppDimens.md,
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  formatAmount(amount),
-                  style: const TextStyle(
-                    fontSize: 14.5,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.text,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  _dateLabel(payout['created_at'] as String?),
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: AppColors.textFaint,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-            decoration: BoxDecoration(
-              color: palette.$2,
-              borderRadius: BorderRadius.circular(AppDimens.radiusPill),
-            ),
-            child: Text(
-              palette.$1,
-              style: TextStyle(
-                fontSize: 11.5,
-                fontWeight: FontWeight.w700,
-                color: palette.$3,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
+    return Padding(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12), child: Row(children: [
+      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(formatAmount(amount), style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w800, color: RestaurantPalette.darkText)), const SizedBox(height: 2), Text(_dateLabel(payout['created_at'] as String?), style: const TextStyle(fontSize: 11.5, color: RestaurantPalette.grayText))])),
+      Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5), decoration: BoxDecoration(color: palette.$2, borderRadius: BorderRadius.circular(20)), child: Text(palette.$1, style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: palette.$3))),
+    ]));
   }
 }
 
 (String, Color, Color) _payoutPalette(String status) => switch (status) {
-  'executed' => ('Versé', AppColors.greenLight, AppColors.green),
-  'failed' => ('Échec', AppColors.redLight, AppColors.red),
-  'processing' => ('En cours', AppColors.goldLight, AppColors.goldDark),
-  _ => ('En attente', AppColors.orangeLight, AppColors.orangeDark),
+  'executed' => ('Versé', _WalletColors.greenWash, RestaurantPalette.success),
+  'failed' => ('Échec', const Color(0xFFFDECEC), RestaurantPalette.danger),
+  'processing' => ('En cours', _WalletColors.goldWash, _WalletColors.goldDark),
+  _ => ('En attente', _WalletColors.orangeWash, RestaurantPalette.orange),
 };
 
-// ------------------------------------------------------------ Section card
-
-class _SectionTitle extends StatelessWidget {
-  const _SectionTitle({required this.title, this.subtitle});
-
-  final String title;
-  final String? subtitle;
-
+class _EmptyInline extends StatelessWidget {
+  const _EmptyInline({required this.icon, required this.message});
+  final IconData icon; final String message;
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          title,
-          style: const TextStyle(
-            fontSize: 15.5,
-            fontWeight: FontWeight.w800,
-            color: AppColors.text,
-          ),
-        ),
-        if (subtitle != null) ...[
-          const SizedBox(height: 2),
-          Text(
-            subtitle!,
-            style: const TextStyle(
-              fontSize: 12.5,
-              color: AppColors.textSecondary,
-            ),
-          ),
-        ],
-      ],
-    );
-  }
-}
-
-class _EmptyCard extends StatelessWidget {
-  const _EmptyCard({required this.icon, required this.message});
-
-  final IconData icon;
-  final String message;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(
-        vertical: AppDimens.xl,
-        horizontal: AppDimens.lg,
-      ),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(AppDimens.radiusLg),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Column(
-        children: [
-          Container(
-            width: 56,
-            height: 56,
-            decoration: const BoxDecoration(
-              color: AppColors.orangeLight,
-              shape: BoxShape.circle,
-            ),
-            alignment: Alignment.center,
-            child: Icon(icon, color: AppColors.orange, size: 26),
-          ),
-          const SizedBox(height: AppDimens.md),
-          Text(
-            message,
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              fontSize: 13.5,
-              color: AppColors.textSecondary,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
-      ),
-    );
+    return Container(width: double.infinity, padding: const EdgeInsets.symmetric(vertical: 16), decoration: BoxDecoration(color: const Color(0xFFF8F9FA), borderRadius: BorderRadius.circular(14), border: Border.all(color: RestaurantPalette.borderColor)), child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(icon, size: 18, color: RestaurantPalette.grayText), const SizedBox(width: 8), Text(message, style: const TextStyle(fontSize: 12.5, color: RestaurantPalette.grayText, fontWeight: FontWeight.w600))]));
   }
 }
 
 String _dateLabel(String? iso) => formatDateTime(iso, fallback: '');
 
-// ---------------------------------------------------------------- Flottant
-
-/// Flottant prépayé du livreur pour les commandes en espèces (cahier v1.0).
-class _FloatCard extends StatelessWidget {
-  const _FloatCard({
-    required this.balance,
-    required this.transactions,
-    required this.busy,
-    required this.onTopUp,
-  });
-
-  final int balance;
-  final List<Map<String, dynamic>> transactions;
-  final bool busy;
-  final VoidCallback onTopUp;
-
+class _PayoutHistorySheet extends StatelessWidget {
+  const _PayoutHistorySheet({required this.payouts});
+  final List<Map<String, dynamic>> payouts;
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Container(
-      padding: const EdgeInsets.all(AppDimens.lg),
-      decoration: BoxDecoration(
-        color: AppColors.goldLight,
-        borderRadius: BorderRadius.circular(AppDimens.radiusLg),
-        border: Border.all(color: AppColors.gold.withValues(alpha: 0.4)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 38,
-                height: 38,
-                decoration: BoxDecoration(
-                  color: AppColors.gold.withValues(alpha: 0.18),
-                  borderRadius: BorderRadius.circular(11),
-                ),
-                child: const Icon(
-                  Icons.payments,
-                  size: 19,
-                  color: AppColors.goldDark,
-                ),
-              ),
-              const SizedBox(width: AppDimens.md),
-              const Expanded(
-                child: Text(
-                  'Flottant espèces (cash)',
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.text,
-                  ),
-                ),
-              ),
-              FilledButton.tonalIcon(
-                onPressed: busy ? null : onTopUp,
-                style: FilledButton.styleFrom(
-                  backgroundColor: AppColors.gold,
-                  foregroundColor: AppColors.goldDark,
-                ),
-                icon: busy
-                    ? const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: AppColors.goldDark,
-                        ),
-                      )
-                    : const Icon(Icons.add, size: 18),
-                label: const Text('Recharger'),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppDimens.md),
-          Text(
-            formatAmount(balance),
-            style: const TextStyle(
-              fontSize: 30,
-              fontWeight: FontWeight.w900,
-              color: AppColors.goldDark,
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            'Avance servant à régler les commandes payées en espèces à la livraison.',
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: AppColors.textSecondary,
-            ),
-          ),
-          if (transactions.isNotEmpty) ...[
-            const Divider(height: AppDimens.xl),
-            for (final tx in transactions.take(3))
-              Padding(
-                padding: const EdgeInsets.only(bottom: 6),
-                child: Row(
-                  children: [
-                    Icon(
-                      (tx['type'] ?? 'topup') == 'topup'
-                          ? Icons.add_circle_outline
-                          : Icons.remove_circle_outline,
-                      size: 16,
-                      color: (tx['type'] ?? 'topup') == 'topup'
-                          ? AppColors.green
-                          : AppColors.orangeDark,
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        (tx['description'] as String?) ?? 'Opération',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 12.5,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                    Text(
-                      '${(tx['type'] ?? 'topup') == 'topup' ? '+' : '-'}${formatAmount((tx['amount'] as num?)?.toInt() ?? 0)}',
-                      style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.text,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-          ],
-        ],
-      ),
-    );
+    final bottom = MediaQuery.of(context).viewInsets.bottom;
+    return Padding(padding: EdgeInsets.fromLTRB(18, 12, 18, 18 + bottom), child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Center(child: Container(width: 44, height: 5, decoration: BoxDecoration(color: RestaurantPalette.borderColor, borderRadius: BorderRadius.circular(20)))),
+      const SizedBox(height: 16),
+      const Text('Historique des retraits', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: RestaurantPalette.darkText)),
+      const SizedBox(height: 4),
+      const Text('Suivez le statut de vos demandes', style: TextStyle(fontSize: 12.5, color: RestaurantPalette.grayText)),
+      const SizedBox(height: 16),
+      if (payouts.isEmpty) const _EmptyInline(icon: Icons.savings_outlined, message: 'Aucun retrait pour le moment') else Flexible(child: ListView.separated(shrinkWrap: true, itemCount: payouts.length, separatorBuilder: (_, __) => const Divider(height: 1, color: RestaurantPalette.borderColor), itemBuilder: (context, index) { final payout = payouts[index]; final status = (payout['status'] ?? '').toString(); final palette = _payoutPalette(status); final amount = (payout['amount'] as num?)?.toInt() ?? 0; return Padding(padding: const EdgeInsets.symmetric(vertical: 12), child: Row(children: [Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(formatAmount(amount), style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: RestaurantPalette.darkText)), const SizedBox(height: 2), Text(_dateLabel(payout['created_at'] as String?), style: const TextStyle(fontSize: 11.5, color: RestaurantPalette.grayText))])), Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5), decoration: BoxDecoration(color: palette.$2, borderRadius: BorderRadius.circular(20)), child: Text(palette.$1, style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: palette.$3)))])); })),
+    ]));
   }
 }
 
-/// Récapitulatif des commissions prélevées au livreur sur ses livraisons
-/// (prix de livraison brut − commission = part livreur).
-class _CommissionCard extends StatelessWidget {
-  const _CommissionCard({
-    required this.total,
-    required this.count,
-    required this.rate,
-  });
-
-  final int total;
-  final int count;
-  final int rate;
-
+class _HelpSheet extends StatelessWidget {
+  const _HelpSheet({required this.minPayout, required this.commissionRate});
+  final int minPayout, commissionRate;
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(AppDimens.lg),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(AppDimens.radiusLg),
-        border: Border.all(color: AppColors.border),
-        boxShadow: AppTheme.softShadow(),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                  color: AppColors.orangeLight,
-                  borderRadius: BorderRadius.circular(11),
-                ),
-                alignment: Alignment.center,
-                child: const Icon(
-                  Icons.percent,
-                  size: 19,
-                  color: AppColors.orange,
-                ),
-              ),
-              const SizedBox(width: AppDimens.md),
-              const Text(
-                'Frais de commission',
-                style: TextStyle(
-                  fontSize: 14.5,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.text,
-                ),
-              ),
-              const Spacer(),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 5,
-                ),
-                decoration: BoxDecoration(
-                  color: AppColors.orangeLight,
-                  borderRadius: BorderRadius.circular(AppDimens.radiusPill),
-                ),
-                child: Text(
-                  '$rate %',
-                  style: const TextStyle(
-                    fontSize: 11.5,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.orangeDark,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppDimens.md),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      formatAmount(total),
-                      style: const TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w900,
-                        color: AppColors.text,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    const Text(
-                      'Total prélevé',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: AppColors.textSecondary,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '$count',
-                      style: const TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w900,
-                        color: AppColors.text,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    const Text(
-                      'Commissions',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: AppColors.textSecondary,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
+    final bottom = MediaQuery.of(context).viewInsets.bottom;
+    return Padding(padding: EdgeInsets.fromLTRB(18, 12, 18, 18 + bottom), child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Center(child: Container(width: 44, height: 5, decoration: BoxDecoration(color: RestaurantPalette.borderColor, borderRadius: BorderRadius.circular(20)))),
+      const SizedBox(height: 16),
+      const Text('Aide - Portefeuille livreur', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: RestaurantPalette.darkText)),
+      const SizedBox(height: 12),
+      _HelpRow(icon: Icons.south_west_rounded, title: 'Retrait minimum', value: '${formatAmount(minPayout)} par demande'),
+      _HelpRow(icon: Icons.percent_rounded, title: 'Commission plateforme', value: '$commissionRate % prélevée sur le prix de livraison'),
+      _HelpRow(icon: Icons.payments_rounded, title: 'Flottant espèces', value: 'À recharger pour honorer les commandes cash'),
+      _HelpRow(icon: Icons.account_balance_wallet_rounded, title: 'Solde disponible', value: 'Montant retirable vers votre Mobile Money'),
+    ]));
   }
 }
 
-/// Feuille de rechargement du flottant : montant (démo : crédit direct).
+class _HelpRow extends StatelessWidget {
+  const _HelpRow({required this.icon, required this.title, required this.value});
+  final IconData icon; final String title, value;
+  @override
+  Widget build(BuildContext context) {
+    return Padding(padding: const EdgeInsets.symmetric(vertical: 10), child: Row(children: [
+      Container(width: 38, height: 38, decoration: BoxDecoration(color: _WalletColors.orangeWash, borderRadius: BorderRadius.circular(11)), child: Icon(icon, size: 18, color: RestaurantPalette.orange)),
+      const SizedBox(width: 12),
+      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(title, style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: RestaurantPalette.darkText)), const SizedBox(height: 1), Text(value, style: const TextStyle(fontSize: 12, color: RestaurantPalette.grayText))])),
+    ]));
+  }
+}
+
 class _FloatSheet extends StatefulWidget {
   const _FloatSheet();
-
   @override
   State<_FloatSheet> createState() => _FloatSheetState();
 }
@@ -1156,85 +601,46 @@ class _FloatSheet extends StatefulWidget {
 class _FloatSheetState extends State<_FloatSheet> {
   final _amount = TextEditingController();
   String? _error;
-
   @override
-  void dispose() {
-    _amount.dispose();
-    super.dispose();
-  }
-
+  void dispose() { _amount.dispose(); super.dispose(); }
   void _submit() {
     final value = int.tryParse(_amount.text.trim());
-    if (value == null || value < 100) {
-      setState(() => _error = 'Montant minimum : ${formatAmount(100)}.');
-      return;
-    }
+    if (value == null || value < 100) { setState(() => _error = 'Montant minimum : ${formatAmount(100)}.'); return; }
     Navigator.of(context).pop(value);
   }
-
   @override
   Widget build(BuildContext context) {
     final bottom = MediaQuery.of(context).viewInsets.bottom;
-    return Padding(
-      padding: EdgeInsets.fromLTRB(
-        AppDimens.xl,
-        AppDimens.lg,
-        AppDimens.xl,
-        AppDimens.xl + bottom,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Center(
-            child: Container(
-              width: 44,
-              height: 5,
-              decoration: BoxDecoration(
-                color: AppColors.borderStrong,
-                borderRadius: BorderRadius.circular(AppDimens.radiusPill),
-              ),
-            ),
-          ),
-          const SizedBox(height: AppDimens.xl),
-          const Text(
-            'Recharger le flottant',
-            style: TextStyle(
-              fontSize: 19,
-              fontWeight: FontWeight.w800,
-              color: AppColors.text,
-            ),
-          ),
-          const SizedBox(height: 4),
-          const Text(
-            'Paiement sécurisé FedaPay : le montant est crédité sur votre flottant après confirmation.',
-            style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
-          ),
-          const SizedBox(height: AppDimens.xl),
-          TextField(
-            controller: _amount,
-            keyboardType: TextInputType.number,
-            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-            autofocus: true,
-            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
-            decoration: InputDecoration(
-              labelText: 'Montant (F CFA)',
-              prefixIcon: const Icon(Icons.payments_outlined),
-              suffixText: 'FCFA',
-              errorText: _error,
-              hintText: 'Minimum 100',
-            ),
-          ),
-          const SizedBox(height: AppDimens.xl),
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton(
-              onPressed: _submit,
-              child: const Text('Recharger'),
-            ),
-          ),
-        ],
-      ),
+    return Padding(padding: EdgeInsets.fromLTRB(18, 12, 18, 18 + bottom), child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Center(child: Container(width: 44, height: 5, decoration: BoxDecoration(color: RestaurantPalette.borderColor, borderRadius: BorderRadius.circular(20)))),
+      const SizedBox(height: 16),
+      const Text('Recharger le flottant', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: RestaurantPalette.darkText)),
+      const SizedBox(height: 4),
+      const Text('Paiement sécurisé FedaPay - crédité après confirmation', style: TextStyle(fontSize: 12.5, color: RestaurantPalette.grayText)),
+      const SizedBox(height: 16),
+      TextField(controller: _amount, keyboardType: TextInputType.number, inputFormatters: [FilteringTextInputFormatter.digitsOnly], autofocus: true, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800), decoration: InputDecoration(labelText: 'Montant (F CFA)', prefixIcon: const Icon(Icons.payments_outlined), suffixText: 'FCFA', errorText: _error, hintText: 'Minimum 100', filled: true, fillColor: const Color(0xFFF8F9FA), border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: RestaurantPalette.borderColor)), enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: RestaurantPalette.borderColor)))),
+      const SizedBox(height: 16),
+      SizedBox(width: double.infinity, child: FilledButton(onPressed: _submit, style: FilledButton.styleFrom(backgroundColor: RestaurantPalette.orange, padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))), child: const Text('Recharger', style: TextStyle(fontWeight: FontWeight.w800)))),
+    ]));
+  }
+}
+
+class _Pressable extends StatefulWidget {
+  const _Pressable({required this.child, this.onTap, this.borderRadius = const BorderRadius.all(Radius.circular(12))});
+  final Widget child; final VoidCallback? onTap; final BorderRadius borderRadius;
+  @override
+  State<_Pressable> createState() => _PressableState();
+}
+class _PressableState extends State<_Pressable> {
+  bool _pressed = false;
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTapDown: widget.onTap == null ? null : (_) => setState(() => _pressed = true),
+      onTapCancel: widget.onTap == null ? null : () => setState(() => _pressed = false),
+      onTapUp: widget.onTap == null ? null : (_) => setState(() => _pressed = false),
+      onTap: widget.onTap,
+      child: AnimatedScale(scale: _pressed ? 0.98 : 1, duration: const Duration(milliseconds: 120), curve: Curves.easeOut, child: widget.child),
     );
   }
 }
