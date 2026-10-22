@@ -14,6 +14,7 @@ import 'package:beninfood/features/vendor/restaurant/screens/documents_screen.da
 import 'package:beninfood/features/vendor/restaurant/screens/orders_screen.dart';
 import 'package:beninfood/features/vendor/restaurant/screens/revenues_screen.dart';
 import 'package:beninfood/features/vendor/restaurant/screens/reviews_screen.dart';
+import 'package:beninfood/features/vendor/restaurant/screens/shop_screen.dart';
 
 class _NoopTokenStore implements TokenStore {
   @override
@@ -190,7 +191,7 @@ void main() {
     expect(find.image(const AssetImage('assets/Logo.jpeg')), findsOneWidget);
     expect(find.byIcon(Icons.notifications_none), findsOneWidget);
     // Titre vert du tableau de bord + badge d'état, stats, commandes.
-    expect(find.text('Tableau de bord'), findsNWidgets(2)); // titre + barre inférieure
+    expect(find.text('Tableau de bord'), findsOneWidget); // titre de l'écran
     expect(find.text('Ouvert'), findsOneWidget);
     expect(find.text('Commandes du jour'), findsOneWidget);
     expect(find.text('CA du jour'), findsOneWidget);
@@ -198,30 +199,34 @@ void main() {
     expect(find.text('#BF1256'), findsOneWidget);
     expect(find.text('Accepter'), findsWidgets);
 
-    // Barre d'actions rapides en bas de l'écran.
-    expect(find.text('Produits'), findsOneWidget);
+    // Barre de navigation : 5 accès dont la Boutique surélevée au centre.
+    expect(find.text('Accueil'), findsOneWidget);
     expect(find.text('Commandes'), findsOneWidget);
-    expect(find.text('Revenus'), findsOneWidget);
+    expect(find.text('Boutique'), findsOneWidget);
+    expect(find.text('Portefeuille'), findsOneWidget);
     expect(find.text('Profil'), findsOneWidget);
 
     // Le drawer est fermé au départ.
-    expect(find.text('Boutique'), findsNothing);
+    expect(find.text('Vue d’ensemble'), findsNothing);
 
     // Ouvrir le menu latéral via le hamburger.
     await tester.tap(find.byIcon(Icons.menu));
     await tester.pumpAndSettle();
-    expect(find.text('Tableau de bord'), findsWidgets);
+    expect(find.text('Vue d’ensemble'), findsOneWidget);
     expect(find.text('LE DÉLICE FAST-FOOD'), findsNothing);
     expect(find.text('Ouvert'), findsWidgets);
-    expect(find.text('Boutique'), findsWidgets);
-    expect(find.text('Produits'), findsNWidgets(2)); // tiroir + barre
+    expect(find.text('Ma boutique'), findsOneWidget);
+    expect(find.text('Mes produits'), findsOneWidget);
     expect(find.text('Commandes'), findsNWidgets(2)); // tiroir + barre
-    expect(find.text('Revenus'), findsNWidgets(2)); // tiroir + barre
-    expect(find.text('Profil & Paramètres'), findsOneWidget);
-    expect(find.text('Déconnexion'), findsOneWidget);
+    expect(find.text('Revenus'), findsOneWidget); // tiroir (barre = Portefeuille)
+    expect(find.text('Mon dossier'), findsOneWidget);
+    expect(find.text('Se déconnecter'), findsOneWidget);
 
     // Cliquer « Boutique » : l'écran principale bascule sur Ma boutique.
-    await tester.tap(find.descendant(of: find.byType(Drawer), matching: find.text('Boutique')));
+    await tester.tap(find.descendant(
+      of: find.byType(Drawer),
+      matching: find.text('Ma boutique'),
+    ));
     await tester.pumpAndSettle();
     expect(find.text('Ma boutique'), findsWidgets);
     // La section Statut est plus bas avec la barre d'actions en pied d'écran.
@@ -243,41 +248,60 @@ void main() {
     final log = <String>[];
     await _pumpShell(tester, log, size: const Size(390, 844));
 
-    // Revenus
-    await tester.tap(find.text('Revenus'));
+    // Portefeuille
+    await tester.tap(find.text('Portefeuille'));
     await tester.pumpAndSettle();
     expect(find.byType(RevenusScreen), findsOneWidget);
     expect(find.text('BÉNINFOOD', findRichText: true), findsOneWidget);
-    expect(find.text('Solde disponible'), findsOneWidget);
-    expect(find.text('Ventes validées'), findsOneWidget);
-    expect(find.text('En attente de reversement'), findsOneWidget);
-    expect(find.text('Dernières transactions'), findsOneWidget);
-    expect(find.text('Voir tout'), findsWidgets);
-    // Montants calculés depuis les commandes du backend de test.
-    expect(find.text('6 750 FCFA'), findsOneWidget); // 7 500 livrées − 10 %
-    expect(find.text('28 500 FCFA'), findsOneWidget); // ventes validées
-    expect(find.text('25 650 FCFA'), findsWidgets); // net vendeur
-    expect(find.text('2 850 FCFA'), findsOneWidget); // commission 10 %
-    expect(find.text('25 500 FCFA'), findsOneWidget); // en attente
-    expect(find.text('Vente #BF1256'), findsOneWidget);
+    expect(find.text('Portefeuille'), findsWidgets); // titre + barre
+
+    // Bannière et synthèse calculées depuis les commandes du backend de test.
+    expect(find.text('SOLDE DISPONIBLE'), findsOneWidget);
+    expect(find.text('4 250'), findsWidgets); // 6 750 livrés − 2 500 retirés
+    expect(find.text('LIVRAISONS EN ATTENTE'), findsOneWidget);
+    expect(find.text('18 900'), findsWidgets); // 2 commandes en cours
+    expect(find.text('TOTAL GAGNÉ'), findsOneWidget);
+    expect(find.text('28 500'), findsOneWidget); // ventes validées
+    expect(find.text('COMMISSIONS PAYÉES'), findsOneWidget);
+    expect(find.text('2 850'), findsWidgets); // commission 10 %
+    expect(find.text('RÉPARTITION DES FONDS'), findsOneWidget);
+    expect(find.text('Séquentrés libérés'), findsWidgets);
+    expect(find.text('6 750'), findsOneWidget); // 7 500 livrés − 10 %
+
+    // Mouvements : séquestre libéré, ventes en cours, commissions et retraits.
+    await tester.scrollUntilVisible(
+      find.text('Historique des retraits'),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Mouvements'), findsWidgets); // titre + onglet
+    expect(find.text('Séquestre libéré'), findsOneWidget);
+    expect(find.text('Vente en cours'), findsWidgets);
+    expect(find.text('Commission prélevée'), findsWidgets);
+    expect(find.text('Voir tous les mouvements'), findsOneWidget);
+
+    // Historique des retraits.
+    expect(find.text('Historique des retraits'), findsOneWidget);
+    expect(find.text('Voir tout'), findsOneWidget);
 
     // Commandes
     await tester.tap(find.text('Commandes'));
     await tester.pumpAndSettle();
     expect(find.byType(OrdersScreen), findsOneWidget);
 
-    // Produits
-    await tester.tap(find.text('Produits'));
+    // Boutique (accès central surélevé)
+    await tester.tap(find.text('Boutique'));
     await tester.pumpAndSettle();
-    expect(find.byType(ProductsScreen), findsOneWidget);
+    expect(find.byType(ShopScreen), findsOneWidget);
 
     // Profil (session absente ici : écran d'attente du compte)
     await tester.tap(find.text('Profil'));
     await tester.pumpAndSettle();
     expect(find.text('Profil & Paramètres — bientôt disponible'), findsOneWidget);
 
-    // Retour au tableau de bord depuis la barre.
-    await tester.tap(find.text('Tableau de bord'));
+    // Retour à l'accueil depuis la barre.
+    await tester.tap(find.text('Accueil'));
     await tester.pumpAndSettle();
     expect(find.text('Commandes du jour'), findsOneWidget);
     expect(tester.takeException(), isNull);
@@ -289,7 +313,10 @@ void main() {
 
     await tester.tap(find.byIcon(Icons.menu));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Boutique'));
+    await tester.tap(find.descendant(
+      of: find.byType(Drawer),
+      matching: find.text('Ma boutique'),
+    ));
     await tester.pumpAndSettle();
 
     await tester.scrollUntilVisible(
@@ -323,7 +350,10 @@ void main() {
 
     await tester.tap(find.byIcon(Icons.menu));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Boutique'));
+    await tester.tap(find.descendant(
+      of: find.byType(Drawer),
+      matching: find.text('Ma boutique'),
+    ));
     await tester.pumpAndSettle();
 
     // Le profil affiche les infos issues de l'API.
@@ -352,7 +382,10 @@ void main() {
 
     await tester.tap(find.byIcon(Icons.menu));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Boutique'));
+    await tester.tap(find.descendant(
+      of: find.byType(Drawer),
+      matching: find.text('Ma boutique'),
+    ));
     await tester.pumpAndSettle();
 
     // La semaine est affichée et chaque jour ouvre l'éditeur.
@@ -410,7 +443,10 @@ void main() {
 
     await tester.tap(find.byIcon(Icons.menu));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Boutique'));
+    await tester.tap(find.descendant(
+      of: find.byType(Drawer),
+      matching: find.text('Ma boutique'),
+    ));
     await tester.pumpAndSettle();
 
     await tester.scrollUntilVisible(
@@ -445,7 +481,7 @@ void main() {
 
     await tester.tap(find.byIcon(Icons.menu));
     await tester.pumpAndSettle();
-    await tester.tap(find.descendant(of: find.byType(Drawer), matching: find.text('Produits')));
+    await tester.tap(find.descendant(of: find.byType(Drawer), matching: find.text('Mes produits')));
     await tester.pumpAndSettle();
 
     expect(find.text('BÉNINFOOD', findRichText: true), findsOneWidget);
@@ -455,7 +491,7 @@ void main() {
     await tester.tap(find.byIcon(Icons.menu));
     await tester.pumpAndSettle();
     expect(find.byType(Drawer), findsOneWidget);
-    await tester.tap(find.descendant(of: find.byType(Drawer), matching: find.text('Tableau de bord')));
+    await tester.tap(find.descendant(of: find.byType(Drawer), matching: find.text('Vue d’ensemble')));
     await tester.pumpAndSettle();
     expect(find.text('Commandes du jour'), findsOneWidget);
     expect(tester.takeException(), isNull);
@@ -525,7 +561,8 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('revenus (démo) : relevé du mois et sélecteur cliquable', (tester) async {
+  testWidgets('portefeuille (démo) : solde, répartition et sélecteur de mois',
+      (tester) async {
     tester.view.physicalSize = const Size(390, 844);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
@@ -533,35 +570,64 @@ void main() {
     await tester.pumpWidget(const MaterialApp(home: RestaurantShellScreen()));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Revenus'));
+    await tester.tap(find.text('Portefeuille'));
     await tester.pumpAndSettle();
     expect(find.byType(RevenusScreen), findsOneWidget);
     expect(find.text('BÉNINFOOD', findRichText: true), findsOneWidget);
-    expect(find.text('Revenus'), findsWidgets); // titre de carte + barre
-    expect(find.text('6 commandes'), findsWidgets);
+    expect(find.text('Portefeuille'), findsWidgets); // titre + barre
+    expect(find.text('5 commandes'), findsOneWidget);
 
-    // Résumé calculé dynamiquement depuis les commandes de démonstration.
-    expect(find.text('Solde disponible'), findsOneWidget);
-    expect(find.text('5 580 FCFA'), findsOneWidget); // 6 200 livrées − 10 %
-    expect(find.text('Ventes validées'), findsOneWidget);
-    expect(find.text('64 500 FCFA'), findsOneWidget);
-    expect(find.text('Net vendeur'), findsWidgets);
-    expect(find.text('58 050 FCFA'), findsWidgets); // 64 500 − commission
-    expect(find.text('Commission'), findsWidgets);
-    expect(find.text('6 450 FCFA'), findsOneWidget); // 10 % des ventes
-    expect(find.text('En attente de reversement'), findsOneWidget);
-    expect(find.text('73 500 FCFA'), findsOneWidget);
+    // Bannière : solde disponible issu des commandes de démonstration.
+    expect(find.text('SOLDE DISPONIBLE'), findsOneWidget);
+    expect(find.text('2 630'), findsWidgets); // 5 130 livrés − 2 500 retirés
+    expect(find.text('Disponible au retrait'), findsOneWidget);
+    expect(find.text('Faire un retrait'), findsOneWidget);
 
-    // Dernières transactions : ventes vertes (+), commission rouge (−).
-    expect(find.text('Dernières transactions'), findsOneWidget);
-    expect(find.text('Vente #BF1256'), findsOneWidget);
-    expect(find.text('+14 000 FCFA'), findsOneWidget);
-    expect(find.text('Commission'), findsWidgets);
-    expect(find.text('-1 400 FCFA'), findsOneWidget);
-    expect(find.text('Vente #BF1255'), findsOneWidget);
-    expect(find.text('+9 800 FCFA'), findsOneWidget);
+    // Cartes de synthèse.
+    expect(find.text('LIVRAISONS EN ATTENTE'), findsOneWidget);
+    expect(find.text('50 220'), findsWidgets); // 5 commandes en cours
+    expect(find.text('TOTAL GAGNÉ'), findsOneWidget);
+    expect(find.text('61 500'), findsOneWidget); // ventes validées
+    expect(find.text('TAUX DE COMMISSION'), findsOneWidget);
+    expect(find.text('10 %'), findsWidgets); // carte + part du donut
+    expect(find.text('COMMISSIONS PAYÉES'), findsOneWidget);
+    expect(find.text('6 150'), findsWidgets); // 10 % des ventes
+
+    // Répartition des fonds : donut + légende.
+    expect(find.text('RÉPARTITION DES FONDS'), findsOneWidget);
+    expect(find.text('Séquentrés libérés'), findsWidgets);
+    expect(find.text('5 130'), findsOneWidget); // 5 700 livrés − 10 %
+
+    // Mouvements : ventes vertes (+), commissions rouges (−), retraits.
+    await tester.scrollUntilVisible(
+      find.text('Historique des retraits'),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Mouvements'), findsWidgets); // titre + onglet
+    expect(find.text('Vente en cours'), findsWidgets);
+    expect(find.text('Commission prélevée'), findsWidgets);
+    expect(find.text('Retrait demandé'), findsOneWidget);
+    expect(find.text('+12 150'), findsOneWidget); // 13 500 − 10 %
+    expect(find.text('-1 350'), findsOneWidget);
+    expect(find.text('+7 200'), findsOneWidget); // 8 000 − 10 %
+    expect(find.textContaining('#BF1256'), findsWidgets);
+    expect(find.text('Voir tous les mouvements'), findsOneWidget);
+
+    // Historique des retraits.
+    expect(find.text('Historique des retraits'), findsOneWidget);
+    expect(find.text('4 500 FCFA vers Moov Money'), findsOneWidget);
+    expect(find.text('2 500 FCFA vers MTN Mobile Money'), findsOneWidget);
+    expect(find.text('Voir tout'), findsOneWidget);
 
     // Sélecteur de mois : réellement fonctionnel.
+    await tester.scrollUntilVisible(
+      find.byIcon(Icons.keyboard_arrow_down_rounded),
+      -300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
     await tester.tap(find.byIcon(Icons.keyboard_arrow_down_rounded));
     await tester.pumpAndSettle();
     expect(find.text('Période'), findsOneWidget);
@@ -569,8 +635,15 @@ void main() {
 
     await tester.tap(find.byType(ListTile).at(1));
     await tester.pumpAndSettle();
+    // Le mois précédent n'a ni vente ni retrait : les compteurs tombent à zéro.
+    expect(find.text('0'), findsWidgets);
+    await tester.scrollUntilVisible(
+      find.text('Aucune transaction ce mois-ci'),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
     expect(find.text('Aucune transaction ce mois-ci'), findsOneWidget);
-    expect(find.text('0 FCFA'), findsWidgets);
   });
 
   testWidgets('produits (démo) : recherche, onglets, bascule, archivage et FAB', (tester) async {
@@ -581,7 +654,12 @@ void main() {
     await tester.pumpWidget(const MaterialApp(home: RestaurantShellScreen()));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Produits'));
+    await tester.tap(find.byIcon(Icons.menu));
+    await tester.pumpAndSettle();
+    await tester.tap(find.descendant(
+      of: find.byType(Drawer),
+      matching: find.text('Mes produits'),
+    ));
     await tester.pumpAndSettle();
     expect(find.byType(ProductsScreen), findsOneWidget);
     expect(find.text('BÉNINFOOD', findRichText: true), findsOneWidget);
@@ -666,7 +744,7 @@ void main() {
     // Mes avis clients : note moyenne + commentaires (démo).
     await tester.tap(find.byIcon(Icons.menu));
     await tester.pumpAndSettle();
-    await tester.tap(find.descendant(of: find.byType(Drawer), matching: find.text('Mes avis clients')));
+    await tester.tap(find.descendant(of: find.byType(Drawer), matching: find.text('Avis clients')));
     await tester.pumpAndSettle();
     expect(find.byType(ReviewsScreen), findsOneWidget);
     expect(find.text('BÉNINFOOD', findRichText: true), findsOneWidget);
@@ -675,6 +753,15 @@ void main() {
 
     // Historique : chronologie des activités (démo).
     await tester.tap(find.byIcon(Icons.menu));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.text('Historique'),
+      240,
+      scrollable: find.descendant(
+        of: find.byType(Drawer),
+        matching: find.byType(Scrollable),
+      ),
+    );
     await tester.pumpAndSettle();
     await tester.tap(find.descendant(of: find.byType(Drawer), matching: find.text('Historique')));
     await tester.pumpAndSettle();

@@ -158,20 +158,24 @@ void main() {
     await tester.pumpAndSettle();
     expect(statsCalls(), 4);
 
-    // Footer vendeur : barre d'actions rapides vers les sections du shell.
-    expect(find.text('Tableau de bord'), findsOneWidget);
-    expect(find.text('Produits'), findsOneWidget);
+    // Footer vendeur : barre de navigation vers les sections du shell.
+    expect(find.text('Accueil'), findsOneWidget);
+    expect(find.text('Boutique'), findsOneWidget);
     expect(find.text('Commandes'), findsOneWidget);
-    expect(find.text('Revenus'), findsOneWidget);
+    expect(find.text('Portefeuille'), findsOneWidget);
     expect(find.text('Profil'), findsOneWidget);
 
     await tester.tap(find.text('Commandes'));
     await tester.pumpAndSettle();
     expect(selectedTab, 3);
 
-    await tester.tap(find.text('Revenus'));
+    await tester.tap(find.text('Portefeuille'));
     await tester.pumpAndSettle();
     expect(selectedTab, 4);
+
+    await tester.tap(find.text('Boutique'));
+    await tester.pumpAndSettle();
+    expect(selectedTab, 1);
 
     // Démonte l'écran pour annuler le minuteur de polling.
     await tester.pumpWidget(const SizedBox.shrink());
