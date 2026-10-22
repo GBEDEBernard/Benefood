@@ -20,6 +20,7 @@ import 'screens/revenue_history_screen.dart';
 import 'screens/revenues_screen.dart';
 import 'screens/reviews_screen.dart';
 import 'screens/shop_screen.dart';
+import 'screens/vendor_statistics_screen.dart';
 import 'widgets/restaurant_drawer.dart';
 import 'widgets/vendor_bottom_bar.dart';
 
@@ -365,13 +366,6 @@ class _RestaurantShellScreenState extends State<RestaurantShellScreen> {
         .toList();
   }
 
-  List<Order> get _recentOrders {
-    final newIds = _newOrders.map((o) => o.id).toSet();
-    final list = [..._orders];
-    list.sort((a, b) => _compareDates(a.createdAt, b.createdAt));
-    return list.where((o) => !newIds.contains(o.id)).take(4).toList();
-  }
-
   static int _compareDates(String? a, String? b) {
     final da = DateTime.tryParse(a ?? '');
     final db = DateTime.tryParse(b ?? '');
@@ -406,23 +400,30 @@ class _RestaurantShellScreenState extends State<RestaurantShellScreen> {
     return '128 avis';
   }
 
-  int get _revenueToday {
-    final today = DateTime.now();
-    var sum = 0;
-    for (final o in _orders) {
-      final created = DateTime.tryParse(o.createdAt ?? '')?.toLocal();
-      if (created != null &&
-          created.year == today.year &&
-          created.month == today.month &&
-          created.day == today.day &&
-          o.status != 'cancelled') {
-        sum += o.total;
-      }
-    }
-    return sum;
-  }
-
   void _openDrawer() => _scaffoldKey.currentState?.openDrawer();
+
+  /// Ouvre le tableau de bord statistique du vendeur (`/vendor/stats`).
+  /// En démonstration (sans API), l'action reste informative.
+  void _openStatistics() {
+    final api = widget.marketplace;
+    if (api == null) {
+      showToast(context, 'Les statistiques sont disponibles en mode connecté.');
+      return;
+    }
+    final router = GoRouter.maybeOf(context);
+    if (router != null) {
+      router.push('/vendor/stats');
+      return;
+    }
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => VendorStatisticsScreen(
+          marketplace: api,
+          onSelectShellTab: _select,
+        ),
+      ),
+    );
+  }
 
   /// Ouvre le détail d'une commande depuis le tableau de bord : on pousse
   /// l'écran au-dessus du shell (mêmes actions que la liste).
@@ -669,19 +670,22 @@ class _RestaurantShellScreenState extends State<RestaurantShellScreen> {
           isOpen: _isOpen,
           onOpenDrawer: _openDrawer,
           onToggleOpen: _toggleOpen,
-          orderCount: _orders.length,
+          orders: _orders,
           pendingCount: _pendingCount,
-          revenueToday: _revenueToday,
           rating: _ratingLabel,
           reviewCount: _reviewCountLabel,
           newOrders: _newOrders,
-          recentOrders: _recentOrders,
+          userName: widget.session?.user?.name,
           onAccept: _accept,
           onRefuse: _refuse,
           onAddProduct: () => _select(2),
           onGoToShop: () => _select(1),
           onOpenOrder: _openOrderDetail,
           onOpenOrders: () => _select(3),
+          onOpenProducts: () => _select(2),
+          onOpenStats: _openStatistics,
+          onOpenReviews: () => _select(6),
+          onRefresh: _reloadData,
           marketplace: widget.marketplace,
         );
       case 1:

@@ -42,13 +42,48 @@ MockClient _mockBackend(List<String> log) {
     'closed_at': null,
     'is_open': true,
     'hours': [
-      {'day_of_week': 0, 'opens_at': '08:00', 'closes_at': '22:00', 'is_closed': false},
-      {'day_of_week': 1, 'opens_at': '08:00', 'closes_at': '22:00', 'is_closed': false},
-      {'day_of_week': 2, 'opens_at': '08:00', 'closes_at': '22:00', 'is_closed': false},
-      {'day_of_week': 3, 'opens_at': '08:00', 'closes_at': '22:00', 'is_closed': false},
-      {'day_of_week': 4, 'opens_at': '08:00', 'closes_at': '22:00', 'is_closed': false},
-      {'day_of_week': 5, 'opens_at': null, 'closes_at': null, 'is_closed': true},
-      {'day_of_week': 6, 'opens_at': null, 'closes_at': null, 'is_closed': true},
+      {
+        'day_of_week': 0,
+        'opens_at': '08:00',
+        'closes_at': '22:00',
+        'is_closed': false,
+      },
+      {
+        'day_of_week': 1,
+        'opens_at': '08:00',
+        'closes_at': '22:00',
+        'is_closed': false,
+      },
+      {
+        'day_of_week': 2,
+        'opens_at': '08:00',
+        'closes_at': '22:00',
+        'is_closed': false,
+      },
+      {
+        'day_of_week': 3,
+        'opens_at': '08:00',
+        'closes_at': '22:00',
+        'is_closed': false,
+      },
+      {
+        'day_of_week': 4,
+        'opens_at': '08:00',
+        'closes_at': '22:00',
+        'is_closed': false,
+      },
+      {
+        'day_of_week': 5,
+        'opens_at': null,
+        'closes_at': null,
+        'is_closed': true,
+      },
+      {
+        'day_of_week': 6,
+        'opens_at': null,
+        'closes_at': null,
+        'is_closed': true,
+      },
     ],
   };
 
@@ -83,7 +118,13 @@ MockClient _mockBackend(List<String> log) {
       'subtotal': 4500,
       'delivery_fee': 0,
       'items': [
-        {'id': 'it_2', 'name': 'Frites', 'quantity': 1, 'unit_price': 4500, 'subtotal': 4500},
+        {
+          'id': 'it_2',
+          'name': 'Frites',
+          'quantity': 1,
+          'unit_price': 4500,
+          'subtotal': 4500,
+        },
       ],
       'created_at': ago(const Duration(minutes: 20)),
     },
@@ -96,7 +137,13 @@ MockClient _mockBackend(List<String> log) {
       'subtotal': 9000,
       'delivery_fee': 0,
       'items': [
-        {'id': 'it_3', 'name': 'Pizza', 'quantity': 1, 'unit_price': 9000, 'subtotal': 9000},
+        {
+          'id': 'it_3',
+          'name': 'Pizza',
+          'quantity': 1,
+          'unit_price': 9000,
+          'subtotal': 9000,
+        },
       ],
       'created_at': ago(const Duration(minutes: 50)),
     },
@@ -109,7 +156,13 @@ MockClient _mockBackend(List<String> log) {
       'subtotal': 7500,
       'delivery_fee': 0,
       'items': [
-        {'id': 'it_4', 'name': 'Wrap', 'quantity': 1, 'unit_price': 7500, 'subtotal': 7500},
+        {
+          'id': 'it_4',
+          'name': 'Wrap',
+          'quantity': 1,
+          'unit_price': 7500,
+          'subtotal': 7500,
+        },
       ],
       'created_at': ago(const Duration(hours: 2)),
     },
@@ -122,7 +175,9 @@ MockClient _mockBackend(List<String> log) {
 
     if (path.endsWith('/vendors/me/status')) {
       return http.Response(
-        jsonEncode({'data': {'vendor': vendor, 'documents': <dynamic>[]}}),
+        jsonEncode({
+          'data': {'vendor': vendor, 'documents': <dynamic>[]},
+        }),
         200,
         headers: headers,
       );
@@ -153,7 +208,11 @@ MockClient _mockBackend(List<String> log) {
         headers: headers,
       );
     }
-    return http.Response(jsonEncode({'message': 'Not found'}), 404, headers: headers);
+    return http.Response(
+      jsonEncode({'message': 'Not found'}),
+      404,
+      headers: headers,
+    );
   });
 }
 
@@ -172,16 +231,16 @@ Future<void> _pumpShell(
     baseUrl: 'http://api.test',
   );
   await tester.pumpWidget(
-    MaterialApp(
-      home: RestaurantShellScreen(marketplace: MarketplaceApi(api)),
-    ),
+    MaterialApp(home: RestaurantShellScreen(marketplace: MarketplaceApi(api))),
   );
   await tester.pump();
   await tester.pumpAndSettle();
 }
 
 void main() {
-  testWidgets('mobile : tableau de bord avec hamburger → drawer → boutique', (tester) async {
+  testWidgets('mobile : tableau de bord avec hamburger → drawer → boutique', (
+    tester,
+  ) async {
     final log = <String>[];
     await _pumpShell(tester, log, size: const Size(390, 844));
 
@@ -193,11 +252,39 @@ void main() {
     // Titre vert du tableau de bord + badge d'état, stats, commandes.
     expect(find.text('Tableau de bord'), findsOneWidget); // titre de l'écran
     expect(find.text('Ouvert'), findsOneWidget);
+    // Salutation personnalisée + accès aux statistiques.
+    expect(find.text('Bonjour 👋'), findsOneWidget);
+    expect(find.text('Voir les statistiques'), findsWidgets);
     expect(find.text('Commandes du jour'), findsOneWidget);
     expect(find.text('CA du jour'), findsOneWidget);
+
+    // Graphiques : courbe des ventes et répartition des commandes.
+    await tester.scrollUntilVisible(
+      find.text('Aperçu des ventes'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Aperçu des ventes'), findsOneWidget);
+    expect(find.text('Répartition'), findsOneWidget);
+
+    // Le flux continue avec les commandes à traiter et les meilleures ventes.
+    await tester.scrollUntilVisible(
+      find.text('Nouvelles commandes'),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
     expect(find.text('Nouvelles commandes'), findsOneWidget);
     expect(find.text('#BF1256'), findsOneWidget);
     expect(find.text('Accepter'), findsWidgets);
+    await tester.scrollUntilVisible(
+      find.text('Produits les plus vendus'),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Burger poulet'), findsOneWidget);
 
     // Barre de navigation : 5 accès dont la Boutique surélevée au centre.
     expect(find.text('Accueil'), findsOneWidget);
@@ -209,6 +296,14 @@ void main() {
     // Le drawer est fermé au départ.
     expect(find.text('Vue d’ensemble'), findsNothing);
 
+    // Retour en haut du tableau de bord avant d'ouvrir le menu latéral.
+    await tester.scrollUntilVisible(
+      find.text('Tableau de bord'),
+      -300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+
     // Ouvrir le menu latéral via le hamburger.
     await tester.tap(find.byIcon(Icons.menu));
     await tester.pumpAndSettle();
@@ -218,15 +313,20 @@ void main() {
     expect(find.text('Ma boutique'), findsOneWidget);
     expect(find.text('Mes produits'), findsOneWidget);
     expect(find.text('Commandes'), findsNWidgets(2)); // tiroir + barre
-    expect(find.text('Revenus'), findsOneWidget); // tiroir (barre = Portefeuille)
+    expect(
+      find.text('Revenus'),
+      findsOneWidget,
+    ); // tiroir (barre = Portefeuille)
     expect(find.text('Mon dossier'), findsOneWidget);
     expect(find.text('Se déconnecter'), findsOneWidget);
 
     // Cliquer « Boutique » : l'écran principale bascule sur Ma boutique.
-    await tester.tap(find.descendant(
-      of: find.byType(Drawer),
-      matching: find.text('Ma boutique'),
-    ));
+    await tester.tap(
+      find.descendant(
+        of: find.byType(Drawer),
+        matching: find.text('Ma boutique'),
+      ),
+    );
     await tester.pumpAndSettle();
     expect(find.text('Ma boutique'), findsWidgets);
     // La section Statut est plus bas avec la barre d'actions en pied d'écran.
@@ -244,7 +344,9 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('barre inférieure : navigation dynamique entre les écrans', (tester) async {
+  testWidgets('barre inférieure : navigation dynamique entre les écrans', (
+    tester,
+  ) async {
     final log = <String>[];
     await _pumpShell(tester, log, size: const Size(390, 844));
 
@@ -298,7 +400,10 @@ void main() {
     // Profil (session absente ici : écran d'attente du compte)
     await tester.tap(find.text('Profil'));
     await tester.pumpAndSettle();
-    expect(find.text('Profil & Paramètres — bientôt disponible'), findsOneWidget);
+    expect(
+      find.text('Profil & Paramètres — bientôt disponible'),
+      findsOneWidget,
+    );
 
     // Retour à l'accueil depuis la barre.
     await tester.tap(find.text('Accueil'));
@@ -307,53 +412,62 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('fermeture boutique : interrupteur → PATCH /vendors/me puis toast', (tester) async {
+  testWidgets(
+    'fermeture boutique : interrupteur → PATCH /vendors/me puis toast',
+    (tester) async {
+      final log = <String>[];
+      await _pumpShell(tester, log, size: const Size(390, 844));
+
+      await tester.tap(find.byIcon(Icons.menu));
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.descendant(
+          of: find.byType(Drawer),
+          matching: find.text('Ma boutique'),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.byType(Switch),
+        300,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byType(Switch));
+      await tester.pumpAndSettle();
+
+      // Fermeture temporaire : le motif est requis (J21 §3.2).
+      expect(find.text('Fermer la boutique'), findsOneWidget);
+      await tester.enterText(find.byType(TextField), 'Rupture de stock');
+      await tester.tap(find.widgetWithText(FilledButton, 'Fermer'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+
+      expect(log, contains('PATCH /vendors/me'));
+      expect(find.text('Boutique fermée.'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+
+      await tester.pump(const Duration(seconds: 5));
+      await tester.pumpAndSettle();
+      expect(find.text('Boutique fermée.'), findsNothing);
+    },
+  );
+
+  testWidgets('modification infos boutique : éditeur → PATCH /vendors/me', (
+    tester,
+  ) async {
     final log = <String>[];
     await _pumpShell(tester, log, size: const Size(390, 844));
 
     await tester.tap(find.byIcon(Icons.menu));
     await tester.pumpAndSettle();
-    await tester.tap(find.descendant(
-      of: find.byType(Drawer),
-      matching: find.text('Ma boutique'),
-    ));
-    await tester.pumpAndSettle();
-
-    await tester.scrollUntilVisible(
-      find.byType(Switch),
-      300,
-      scrollable: find.byType(Scrollable).first,
+    await tester.tap(
+      find.descendant(
+        of: find.byType(Drawer),
+        matching: find.text('Ma boutique'),
+      ),
     );
-    await tester.pumpAndSettle();
-    await tester.tap(find.byType(Switch));
-    await tester.pumpAndSettle();
-
-    // Fermeture temporaire : le motif est requis (J21 §3.2).
-    expect(find.text('Fermer la boutique'), findsOneWidget);
-    await tester.enterText(find.byType(TextField), 'Rupture de stock');
-    await tester.tap(find.widgetWithText(FilledButton, 'Fermer'));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 400));
-
-    expect(log, contains('PATCH /vendors/me'));
-    expect(find.text('Boutique fermée.'), findsOneWidget);
-    expect(tester.takeException(), isNull);
-
-    await tester.pump(const Duration(seconds: 5));
-    await tester.pumpAndSettle();
-    expect(find.text('Boutique fermée.'), findsNothing);
-  });
-
-  testWidgets('modification infos boutique : éditeur → PATCH /vendors/me', (tester) async {
-    final log = <String>[];
-    await _pumpShell(tester, log, size: const Size(390, 844));
-
-    await tester.tap(find.byIcon(Icons.menu));
-    await tester.pumpAndSettle();
-    await tester.tap(find.descendant(
-      of: find.byType(Drawer),
-      matching: find.text('Ma boutique'),
-    ));
     await tester.pumpAndSettle();
 
     // Le profil affiche les infos issues de l'API.
@@ -365,7 +479,10 @@ void main() {
     expect(find.text('Enregistrer'), findsOneWidget);
 
     // Renommer la boutique.
-    await tester.enterText(find.byType(TextFormField).first, 'Le Délice Gourmet');
+    await tester.enterText(
+      find.byType(TextFormField).first,
+      'Le Délice Gourmet',
+    );
     await tester.tap(find.text('Enregistrer'));
     await tester.pump();
     await tester.pumpAndSettle();
@@ -376,16 +493,20 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('ma boutique : carte horaires → éditeur → sélecteur d’heure', (tester) async {
+  testWidgets('ma boutique : carte horaires → éditeur → sélecteur d’heure', (
+    tester,
+  ) async {
     final log = <String>[];
     await _pumpShell(tester, log, size: const Size(390, 844));
 
     await tester.tap(find.byIcon(Icons.menu));
     await tester.pumpAndSettle();
-    await tester.tap(find.descendant(
-      of: find.byType(Drawer),
-      matching: find.text('Ma boutique'),
-    ));
+    await tester.tap(
+      find.descendant(
+        of: find.byType(Drawer),
+        matching: find.text('Ma boutique'),
+      ),
+    );
     await tester.pumpAndSettle();
 
     // La semaine est affichée et chaque jour ouvre l'éditeur.
@@ -437,51 +558,66 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('ma boutique : carte adresse → éditeur « Mes adresses » → PATCH', (tester) async {
+  testWidgets(
+    'ma boutique : carte adresse → éditeur « Mes adresses » → PATCH',
+    (tester) async {
+      final log = <String>[];
+      await _pumpShell(tester, log, size: const Size(390, 844));
+
+      await tester.tap(find.byIcon(Icons.menu));
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.descendant(
+          of: find.byType(Drawer),
+          matching: find.text('Ma boutique'),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Adresse'),
+        300,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Adresse'));
+      await tester.pumpAndSettle();
+
+      // Trois sections : boutique, retrait livreurs et informations.
+      expect(find.text('Mes adresses'), findsOneWidget);
+      expect(find.text('Adresse de la boutique'), findsOneWidget);
+      expect(find.text('Adresse de retrait (livreurs)'), findsOneWidget);
+      expect(find.text('Informations supplémentaires'), findsOneWidget);
+      expect(find.text('Instructions pour le livreur'), findsOneWidget);
+
+      // Édition de l'adresse de la boutique puis enregistrement.
+      await tester.enterText(
+        find.byType(TextFormField).first,
+        'Rue des Palmiers',
+      );
+      await tester.tap(find.text('Enregistrer'));
+      await tester.pump();
+      await tester.pumpAndSettle();
+
+      expect(log, contains('PATCH /vendors/me'));
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('produits : hamburger → tiroir, recherche et onglets', (
+    tester,
+  ) async {
     final log = <String>[];
     await _pumpShell(tester, log, size: const Size(390, 844));
 
     await tester.tap(find.byIcon(Icons.menu));
     await tester.pumpAndSettle();
-    await tester.tap(find.descendant(
-      of: find.byType(Drawer),
-      matching: find.text('Ma boutique'),
-    ));
-    await tester.pumpAndSettle();
-
-    await tester.scrollUntilVisible(
-      find.text('Adresse'),
-      300,
-      scrollable: find.byType(Scrollable).first,
+    await tester.tap(
+      find.descendant(
+        of: find.byType(Drawer),
+        matching: find.text('Mes produits'),
+      ),
     );
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Adresse'));
-    await tester.pumpAndSettle();
-
-    // Trois sections : boutique, retrait livreurs et informations.
-    expect(find.text('Mes adresses'), findsOneWidget);
-    expect(find.text('Adresse de la boutique'), findsOneWidget);
-    expect(find.text('Adresse de retrait (livreurs)'), findsOneWidget);
-    expect(find.text('Informations supplémentaires'), findsOneWidget);
-    expect(find.text('Instructions pour le livreur'), findsOneWidget);
-
-    // Édition de l'adresse de la boutique puis enregistrement.
-    await tester.enterText(find.byType(TextFormField).first, 'Rue des Palmiers');
-    await tester.tap(find.text('Enregistrer'));
-    await tester.pump();
-    await tester.pumpAndSettle();
-
-    expect(log, contains('PATCH /vendors/me'));
-    expect(tester.takeException(), isNull);
-  });
-
-  testWidgets('produits : hamburger → tiroir, recherche et onglets', (tester) async {
-    final log = <String>[];
-    await _pumpShell(tester, log, size: const Size(390, 844));
-
-    await tester.tap(find.byIcon(Icons.menu));
-    await tester.pumpAndSettle();
-    await tester.tap(find.descendant(of: find.byType(Drawer), matching: find.text('Mes produits')));
     await tester.pumpAndSettle();
 
     expect(find.text('BÉNINFOOD', findRichText: true), findsOneWidget);
@@ -491,13 +627,20 @@ void main() {
     await tester.tap(find.byIcon(Icons.menu));
     await tester.pumpAndSettle();
     expect(find.byType(Drawer), findsOneWidget);
-    await tester.tap(find.descendant(of: find.byType(Drawer), matching: find.text('Vue d’ensemble')));
+    await tester.tap(
+      find.descendant(
+        of: find.byType(Drawer),
+        matching: find.text('Vue d’ensemble'),
+      ),
+    );
     await tester.pumpAndSettle();
     expect(find.text('Commandes du jour'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('commandes (démo) : onglets dynamiques, actions et détail', (tester) async {
+  testWidgets('commandes (démo) : onglets dynamiques, actions et détail', (
+    tester,
+  ) async {
     tester.view.physicalSize = const Size(390, 844);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
@@ -538,7 +681,10 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Commande #BF1256'), findsOneWidget);
     expect(find.text('+229 97 00 00 00'), findsOneWidget);
-    expect(find.text('Bien cuire les frites, pas de sauce piquante.'), findsOneWidget);
+    expect(
+      find.text('Bien cuire les frites, pas de sauce piquante.'),
+      findsOneWidget,
+    );
     expect(find.text('Sous-total'), findsOneWidget);
     expect(find.text('13 500 FCFA'), findsWidgets);
     expect(find.text('Paiement à la livraison (Espèces)'), findsOneWidget);
@@ -561,8 +707,9 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('portefeuille (démo) : solde, répartition et sélecteur de mois',
-      (tester) async {
+  testWidgets('portefeuille (démo) : solde, répartition et sélecteur de mois', (
+    tester,
+  ) async {
     tester.view.physicalSize = const Size(390, 844);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
@@ -646,83 +793,93 @@ void main() {
     expect(find.text('Aucune transaction ce mois-ci'), findsOneWidget);
   });
 
-  testWidgets('produits (démo) : recherche, onglets, bascule, archivage et FAB', (tester) async {
-    tester.view.physicalSize = const Size(390, 844);
-    tester.view.devicePixelRatio = 1.0;
-    addTearDown(tester.view.reset);
+  testWidgets(
+    'produits (démo) : recherche, onglets, bascule, archivage et FAB',
+    (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
 
-    await tester.pumpWidget(const MaterialApp(home: RestaurantShellScreen()));
-    await tester.pumpAndSettle();
+      await tester.pumpWidget(const MaterialApp(home: RestaurantShellScreen()));
+      await tester.pumpAndSettle();
 
-    await tester.tap(find.byIcon(Icons.menu));
-    await tester.pumpAndSettle();
-    await tester.tap(find.descendant(
-      of: find.byType(Drawer),
-      matching: find.text('Mes produits'),
-    ));
-    await tester.pumpAndSettle();
-    expect(find.byType(ProductsScreen), findsOneWidget);
-    expect(find.text('BÉNINFOOD', findRichText: true), findsOneWidget);
-    expect(find.text('Rechercher un produit...'), findsOneWidget);
+      await tester.tap(find.byIcon(Icons.menu));
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.descendant(
+          of: find.byType(Drawer),
+          matching: find.text('Mes produits'),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.byType(ProductsScreen), findsOneWidget);
+      expect(find.text('BÉNINFOOD', findRichText: true), findsOneWidget);
+      expect(find.text('Rechercher un produit...'), findsOneWidget);
 
-    // Onglets dynamiques : 9 produits dont 2 archivés.
-    expect(find.text('Tous (9)'), findsOneWidget);
-    expect(find.text('Archives (2)'), findsOneWidget);
+      // Onglets dynamiques : 9 produits dont 2 archivés.
+      expect(find.text('Tous (9)'), findsOneWidget);
+      expect(find.text('Archives (2)'), findsOneWidget);
 
-    // Première carte : nom, prix orange, unité, stock et statistiques.
-    expect(find.text('Akassa sauce arachide'), findsOneWidget);
-    expect(find.text('1 200 FCFA'), findsOneWidget);
-    expect(find.text('portion'), findsWidgets);
-    expect(find.text('Stock : 35'), findsOneWidget);
-    expect(find.text('4,6'), findsOneWidget);
-    expect(find.text('(18 avis)'), findsOneWidget);
-    expect(find.text('32'), findsOneWidget);
+      // Première carte : nom, prix orange, unité, stock et statistiques.
+      expect(find.text('Akassa sauce arachide'), findsOneWidget);
+      expect(find.text('1 200 FCFA'), findsOneWidget);
+      expect(find.text('portion'), findsWidgets);
+      expect(find.text('Stock : 35'), findsOneWidget);
+      expect(find.text('4,6'), findsOneWidget);
+      expect(find.text('(18 avis)'), findsOneWidget);
+      expect(find.text('32'), findsOneWidget);
 
-    // Bascule Actif → inactif via le bouton unique : toast « Produit masqué ».
-    await tester.tap(find.byType(OutlinedButton).first);
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 400));
-    expect(find.text('Produit masqué'), findsOneWidget);
+      // Bascule Actif → inactif via le bouton unique : toast « Produit masqué ».
+      await tester.tap(find.byType(OutlinedButton).first);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(find.text('Produit masqué'), findsOneWidget);
 
-    // Recherche : seule la fiche correspondante reste visible.
-    await tester.enterText(find.byType(TextField), 'att');
-    await tester.pumpAndSettle();
-    expect(find.text('Attiéké poisson'), findsOneWidget);
-    expect(find.text('Akassa sauce arachide'), findsNothing);
-    await tester.enterText(find.byType(TextField), '');
-    await tester.pumpAndSettle();
-    expect(find.text('Akassa sauce arachide'), findsOneWidget);
+      // Recherche : seule la fiche correspondante reste visible.
+      await tester.enterText(find.byType(TextField), 'att');
+      await tester.pumpAndSettle();
+      expect(find.text('Attiéké poisson'), findsOneWidget);
+      expect(find.text('Akassa sauce arachide'), findsNothing);
+      await tester.enterText(find.byType(TextField), '');
+      await tester.pumpAndSettle();
+      expect(find.text('Akassa sauce arachide'), findsOneWidget);
 
-    // Onglet Archives : uniquement les produits archivés.
-    await tester.tap(find.text('Archives (2)'));
-    await tester.pumpAndSettle();
-    expect(find.text('Salade complète'), findsOneWidget);
-    expect(find.text('Glace artisanale'), findsOneWidget);
-    expect(find.text('Akassa sauce arachide'), findsNothing);
+      // Onglet Archives : uniquement les produits archivés.
+      await tester.tap(find.text('Archives (2)'));
+      await tester.pumpAndSettle();
+      expect(find.text('Salade complète'), findsOneWidget);
+      expect(find.text('Glace artisanale'), findsOneWidget);
+      expect(find.text('Akassa sauce arachide'), findsNothing);
 
-    // Retour sur Tous, puis menu contextuel → Archiver.
-    await tester.tap(find.text('Tous (9)'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.byIcon(Icons.more_vert).first);
-    await tester.pumpAndSettle();
-    expect(find.text('Modifier'), findsOneWidget);
-    expect(find.text('Archiver'), findsOneWidget);
-    expect(find.text('Supprimer'), findsOneWidget);
-    await tester.tap(find.text('Archiver'));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 400));
-    expect(find.text('Produit archivé'), findsOneWidget);
-    expect(find.text('Archives (3)'), findsOneWidget);
+      // Retour sur Tous, puis menu contextuel → Archiver.
+      await tester.tap(find.text('Tous (9)'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byIcon(Icons.more_vert).first);
+      await tester.pumpAndSettle();
+      expect(find.text('Modifier'), findsOneWidget);
+      expect(find.text('Archiver'), findsOneWidget);
+      expect(find.text('Supprimer'), findsOneWidget);
+      await tester.tap(find.text('Archiver'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(find.text('Produit archivé'), findsOneWidget);
+      expect(find.text('Archives (3)'), findsOneWidget);
 
-    // FAB « Ajouter un produit » : toast en mode démo.
-    await tester.tap(find.text('Ajouter un produit'));
-    await tester.pump();
-    expect(find.text('Formulaire produit bientôt disponible.'), findsOneWidget);
+      // FAB « Ajouter un produit » : toast en mode démo.
+      await tester.tap(find.text('Ajouter un produit'));
+      await tester.pump();
+      expect(
+        find.text('Formulaire produit bientôt disponible.'),
+        findsOneWidget,
+      );
 
-    expect(tester.takeException(), isNull);
-  });
+      expect(tester.takeException(), isNull);
+    },
+  );
 
-  testWidgets('menu latéral : mon dossier, mes avis clients et historique', (tester) async {
+  testWidgets('menu latéral : mon dossier, mes avis clients et historique', (
+    tester,
+  ) async {
     tester.view.physicalSize = const Size(390, 844);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
@@ -733,10 +890,18 @@ void main() {
     // Mon dossier : progression + documents (démo).
     await tester.tap(find.byIcon(Icons.menu));
     await tester.pumpAndSettle();
-    await tester.tap(find.descendant(of: find.byType(Drawer), matching: find.text('Mon dossier')));
+    await tester.tap(
+      find.descendant(
+        of: find.byType(Drawer),
+        matching: find.text('Mon dossier'),
+      ),
+    );
     await tester.pumpAndSettle();
     expect(find.byType(DocumentsScreen), findsOneWidget);
-    expect(find.text('BÉNINFOOD', findRichText: true), findsOneWidget); // en-tête comun brandé
+    expect(
+      find.text('BÉNINFOOD', findRichText: true),
+      findsOneWidget,
+    ); // en-tête comun brandé
     expect(find.text('VÉRIFICATION DU DOSSIER'), findsOneWidget);
     expect(find.text('Registre de commerce'), findsOneWidget);
     expect(find.text('Validé'), findsWidgets);
@@ -744,11 +909,19 @@ void main() {
     // Mes avis clients : note moyenne + commentaires (démo).
     await tester.tap(find.byIcon(Icons.menu));
     await tester.pumpAndSettle();
-    await tester.tap(find.descendant(of: find.byType(Drawer), matching: find.text('Avis clients')));
+    await tester.tap(
+      find.descendant(
+        of: find.byType(Drawer),
+        matching: find.text('Avis clients'),
+      ),
+    );
     await tester.pumpAndSettle();
     expect(find.byType(ReviewsScreen), findsOneWidget);
     expect(find.text('BÉNINFOOD', findRichText: true), findsOneWidget);
-    expect(find.text('Très bon, livraison rapide et plats bien chauds !'), findsOneWidget);
+    expect(
+      find.text('Très bon, livraison rapide et plats bien chauds !'),
+      findsOneWidget,
+    );
     expect(find.text('24 avis'), findsOneWidget);
 
     // Historique : chronologie des activités (démo).
@@ -763,12 +936,90 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    await tester.tap(find.descendant(of: find.byType(Drawer), matching: find.text('Historique')));
+    await tester.tap(
+      find.descendant(
+        of: find.byType(Drawer),
+        matching: find.text('Historique'),
+      ),
+    );
     await tester.pumpAndSettle();
     expect(find.byType(ActivityScreen), findsOneWidget);
     expect(find.text('BÉNINFOOD', findRichText: true), findsOneWidget);
     expect(find.text('Commande livrée'), findsOneWidget);
 
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+    'tableau de bord (démo) : périodes, statut et meilleures ventes',
+    (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      await tester.pumpWidget(const MaterialApp(home: RestaurantShellScreen()));
+      await tester.pumpAndSettle();
+
+      // Salutation de démonstration, période courante et raccourcis.
+      expect(find.text('Bonjour, Marion 👋'), findsOneWidget);
+      expect(find.text('Commandes du jour'), findsOneWidget);
+      expect(find.text('CA du jour'), findsOneWidget);
+      expect(find.text('Ajouter un produit'), findsOneWidget);
+      expect(find.text('Créer une promo'), findsOneWidget);
+
+      // Le sélecteur de période recalcule la carte principale et les KPI.
+      await tester.tap(find.text('Aujourd’hui'));
+      await tester.pumpAndSettle();
+      expect(find.text('Période'), findsOneWidget);
+      await tester.tap(find.text('Cette semaine'));
+      await tester.pumpAndSettle();
+      expect(find.text('CHIFFRE D’AFFAIRES DE LA SEMAINE'), findsOneWidget);
+      expect(find.text('Commandes de la semaine'), findsOneWidget);
+      expect(find.text('CA de la semaine'), findsOneWidget);
+
+      // Le statut de la boutique s'ouvre dans une feuille dédiée.
+      await tester.tap(find.text('Ouvert'));
+      await tester.pumpAndSettle();
+      expect(find.text('Statut de la boutique'), findsOneWidget);
+      await tester.tap(find.text('Ouvrir la boutique'));
+      await tester.pumpAndSettle();
+      expect(find.text('Statut de la boutique'), findsNothing);
+      expect(find.text('Ouvert'), findsOneWidget);
+
+      // Les meilleures ventes de démonstration sont proposées en carrousel.
+      await tester.scrollUntilVisible(
+        find.text('Produits les plus vendus'),
+        300,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Alloco poulet'), findsOneWidget);
+      expect(find.text('Riz sauce tomate'), findsOneWidget);
+      expect(find.text('42 vendus'), findsOneWidget);
+
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('tableau de bord : lisible sur un écran compact', (tester) async {
+    tester.view.physicalSize = const Size(320, 720);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(const MaterialApp(home: RestaurantShellScreen()));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Bonjour, Marion 👋'), findsOneWidget);
+    expect(find.text('Commandes du jour'), findsOneWidget);
+
+    // Les graphiques s'empilent et la page reste parcourable sans débordement.
+    await tester.scrollUntilVisible(
+      find.text('Produits les plus vendus'),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Alloco poulet'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }
