@@ -579,6 +579,9 @@ void main() {
     await tester.pumpAndSettle();
     expect(log, contains('PATCH /vendors/me'));
     expect(find.text('Horaires enregistrés.'), findsOneWidget);
+
+    // De retour sur Ma boutique, la nouvelle heure est déjà visible.
+    expect(find.text('14:00 – 22:00'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 

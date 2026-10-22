@@ -5,6 +5,8 @@ import '../../../../core/navigation/notification_router.dart';
 import '../../../../shared/widgets/notification_bell.dart';
 import '../../../../shared/models/vendor.dart';
 import '../../../../shared/widgets/app_network_image.dart';
+import '../../../../shared/widgets/food_decor.dart';
+
 import '../restaurant_palette.dart';
 import '../widgets/status_chip.dart';
 import 'shop_address_edit_screen.dart';
@@ -26,6 +28,7 @@ class ShopScreen extends StatelessWidget {
     this.statusLabel = 'Actif',
     this.marketplace,
     this.onDataChanged,
+    this.onHoursChanged,
   });
 
   final VoidCallback onBack;
@@ -38,6 +41,9 @@ class ShopScreen extends StatelessWidget {
 
   /// À rappeler après un enregistrement pour recharger les données.
   final VoidCallback? onDataChanged;
+
+  /// Remonte la nouvelle semaine d'horaires pour un affichage immédiat.
+  final ValueChanged<List<OpeningHour>>? onHoursChanged;
 
   Vendor get _vendor => vendor ??
       const Vendor(
@@ -55,6 +61,22 @@ class ShopScreen extends StatelessWidget {
     if (changed == true) {
       onDataChanged?.call();
     }
+  }
+
+  Future<void> _openHoursEditor(BuildContext context) async {
+    final hours = await Navigator.of(context).push<List<OpeningHour>>(
+      MaterialPageRoute<List<OpeningHour>>(
+        builder: (context) => ShopHoursEditScreen(
+          hours: _hours,
+          marketplace: marketplace,
+        ),
+      ),
+    );
+    if (hours == null || hours.isEmpty) {
+      return;
+    }
+    onHoursChanged?.call(hours);
+    onDataChanged?.call();
   }
 
   List<OpeningHour> get _hours => hours;
@@ -114,60 +136,53 @@ class ShopScreen extends StatelessWidget {
       child: SafeArea(
         bottom: false,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-          child: Stack(
-            alignment: Alignment.center,
+          padding: const EdgeInsets.fromLTRB(4, 6, 12, 6),
+          child: Row(
             children: [
-              Align(
-                alignment: Alignment.centerLeft,
-                child: IconButton(
-                  onPressed: onBack,
-                  icon: const Icon(Icons.arrow_back, color: RestaurantPalette.darkText),
-                  tooltip: 'Retour',
+              IconButton(
+                onPressed: onBack,
+                icon: const Icon(Icons.arrow_back, color: RestaurantPalette.darkText),
+                tooltip: 'Retour',
+              ),
+              const Expanded(
+                child: Text(
+                  'Ma boutique',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: RestaurantPalette.darkText,
+                    fontSize: 17,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
               ),
-              const Text(
-                'Ma boutique',
-                style: TextStyle(
-                  color: RestaurantPalette.darkText,
-                  fontSize: 17,
-                  fontWeight: FontWeight.w800,
+              if (marketplace != null) ...[
+                NotificationBell(
+                  api: marketplace!,
+                  audience: NotificationAudience.vendor,
                 ),
-              ),
-              Align(
-                alignment: Alignment.centerRight,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (marketplace != null)
-                      NotificationBell(
-                        api: marketplace!,
-                        audience: NotificationAudience.vendor,
-                      ),
-                    FilledButton(
-                      onPressed: () => _openEditor(
-                        context,
-                        ShopInfoEditScreen(
-                          vendor: _vendor,
-                          marketplace: marketplace,
-                        ),
-                      ),
-                      style: FilledButton.styleFrom(
-                        backgroundColor: RestaurantPalette.orange,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 18,
-                          vertical: 10,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                      ),
-                      child: const Text(
-                        'Modifier',
-                        style: TextStyle(fontWeight: FontWeight.w700),
-                      ),
-                    ),
-                  ],
+                const SizedBox(width: 4),
+              ],
+              FilledButton.icon(
+                onPressed: () => _openEditor(
+                  context,
+                  ShopInfoEditScreen(
+                    vendor: _vendor,
+                    marketplace: marketplace,
+                  ),
+                ),
+                icon: const Icon(Icons.edit_outlined, size: 16),
+                label: const Text('Modifier'),
+                style: FilledButton.styleFrom(
+                  backgroundColor: RestaurantPalette.orange,
+                  foregroundColor: RestaurantPalette.white,
+                  minimumSize: const Size(0, 38),
+                  padding: const EdgeInsets.symmetric(horizontal: 14),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
               ),
             ],
@@ -191,76 +206,24 @@ class ShopScreen extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Stack(
-            clipBehavior: Clip.none,
-            children: [
-              SizedBox(
-                height: 140,
-                width: double.infinity,
-                child: _CoverImage(url: v.coverUrl),
-              ),
-              if (v.logoUrl != null && v.logoUrl!.trim().isNotEmpty)
-                Positioned(
-                  left: 16,
-                  bottom: -26,
-                  child: _LogoCircle(url: v.logoUrl!),
-                ),
-            ],
+          _ProfileCover(
+            url: v.coverUrl,
+            logoUrl: v.logoUrl,
           ),
-          Padding(
-            padding: EdgeInsets.fromLTRB(16, (v.logoUrl != null && v.logoUrl!.trim().isNotEmpty) ? 40 : 14, 16, 16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Flexible(
-                      child: Text(
-                        v.businessName,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: RestaurantPalette.darkText,
-                          fontSize: 20,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    StatusChip(
-                      label: isOpen ? 'Ouvert' : 'Fermé',
-                      background: (isOpen ? RestaurantPalette.success : RestaurantPalette.danger)
-                          .withValues(alpha: 0.15),
-                      foreground: isOpen ? RestaurantPalette.success : RestaurantPalette.danger,
-                    ),
-                  ],
-                ),
-                if (hasDescription) ...[
-                  const SizedBox(height: 8),
-                  Text(
-                    v.description!,
-                    style: const TextStyle(color: RestaurantPalette.grayText, fontSize: 13, height: 1.4),
-                  ),
-                ],
-                const SizedBox(height: 12),
-                _InfoLine(
-                  icon: Icons.place_outlined,
-                  text: [
-                    if (hasCity) v.city!,
-                    if (hasAddress) v.address!,
-                  ].join(' · '),
-                ),
-                if (hasPhone) ...[
-                  const SizedBox(height: 6),
-                  _InfoLine(icon: Icons.phone_outlined, text: v.phone!),
-                ],
-                if (hasEmail) ...[
-                  const SizedBox(height: 6),
-                  _InfoLine(icon: Icons.mail_outline, text: v.email!),
-                ],
-              ],
-            ),
+          _ProfileBody(
+            businessName: v.businessName,
+            hasLogo: v.logoUrl != null && v.logoUrl!.trim().isNotEmpty,
+            isOpen: isOpen,
+            hasDescription: hasDescription,
+            description: v.description,
+            hasCity: hasCity,
+            city: v.city,
+            hasAddress: hasAddress,
+            address: v.address,
+            hasPhone: hasPhone,
+            phone: v.phone,
+            hasEmail: hasEmail,
+            email: v.email,
           ),
         ],
       ),
@@ -276,35 +239,26 @@ class ShopScreen extends StatelessWidget {
         color: Colors.transparent,
         child: InkWell(
           borderRadius: BorderRadius.circular(RestaurantPalette.radius),
-          onTap: () => _openEditor(context, ShopHoursEditScreen(hours: _hours, marketplace: marketplace)),
+          onTap: () => _openHoursEditor(context),
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 10),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  children: [
-                    const Icon(Icons.schedule_outlined, color: RestaurantPalette.orange, size: 22),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        _todaySummary,
-                        style: const TextStyle(
-                          color: RestaurantPalette.darkText,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 4),
-                    const Icon(Icons.chevron_right, color: Color(0xFF9CA3AF)),
-                  ],
+                _HoursCardHeader(
+                  todaySummary: _todaySummary,
+                  onEdit: () => _openHoursEditor(context),
                 ),
                 if (rows.isNotEmpty) ...[
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 14),
                   const Divider(height: 1, thickness: 1, color: Color(0xFFF1F1F1)),
-                  const SizedBox(height: 4),
-                  for (final row in rows) _WeekLine(day: row.$1, hour: row.$2, isToday: row.$3),
+                  const SizedBox(height: 6),
+                  for (final row in rows)
+                    _WeekLine(
+                      day: row.name,
+                      hour: row.hour,
+                      isToday: row.isToday,
+                    ),
                 ],
               ],
             ),
@@ -312,22 +266,6 @@ class ShopScreen extends StatelessWidget {
         ),
       ),
     );
-  }
-
-  /// (nom du jour, résumé horaire, est-ce aujourd'hui) pour les 7 jours.
-  List<(String, String, bool)> _weekRows() {
-    const dayNames = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
-    final list = [..._hours]..sort((a, b) => a.dayOfWeek.compareTo(b.dayOfWeek));
-    final todayIndex = DateTime.now().weekday - 1;
-    return [
-      for (final h in list)
-        if (h.dayOfWeek >= 0 && h.dayOfWeek < dayNames.length)
-          (
-            dayNames[h.dayOfWeek],
-            h.isClosed || h.opensAt == null ? 'Fermé' : '${h.opensAt} – ${h.closesAt ?? '--:--'}',
-            h.dayOfWeek == todayIndex,
-          ),
-    ];
   }
 
   Widget _buildSettingsList(BuildContext context) {
@@ -353,8 +291,8 @@ class ShopScreen extends StatelessWidget {
           _SettingTile(
             icon: Icons.schedule_outlined,
             label: 'Horaires d’ouverture',
-            subtitle: '$_hourCount j ouverts par semaine',
-            onTap: () => _openEditor(context, ShopHoursEditScreen(hours: _hours, marketplace: marketplace)),
+            subtitle: '$_hourCount jours ouverts par semaine',
+            onTap: () => _openHoursEditor(context),
           ),
           const _SettingDivider(),
           _SettingTile(
@@ -394,6 +332,175 @@ class ShopScreen extends StatelessWidget {
     }
     return _hours.where((h) => !h.isClosed).length;
   }
+
+  List<_DaySummary> _weekRows() {
+    const dayNames = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
+    final list = [..._hours]..sort((a, b) => a.dayOfWeek.compareTo(b.dayOfWeek));
+    final todayIndex = DateTime.now().weekday - 1;
+    return [
+      for (final h in list)
+        if (h.dayOfWeek >= 0 && h.dayOfWeek < dayNames.length)
+          _DaySummary(
+            name: dayNames[h.dayOfWeek],
+            hour: h.isClosed || h.opensAt == null
+                ? 'Fermé'
+                : '${h.opensAt} \u2013 ${h.closesAt ?? '--:--'}',
+            isToday: h.dayOfWeek == todayIndex,
+          ),
+    ];
+  }
+}
+
+class _DaySummary {
+  const _DaySummary({required this.name, required this.hour, required this.isToday});
+
+  final String name;
+  final String hour;
+  final bool isToday;
+}
+
+class _ProfileCover extends StatelessWidget {
+  const _ProfileCover({this.url, this.logoUrl});
+
+  final String? url;
+  final String? logoUrl;
+
+  @override
+  Widget build(BuildContext context) {
+    final hasLogo = logoUrl != null && logoUrl!.trim().isNotEmpty;
+    return SizedBox(
+      height: 150,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Positioned.fill(child: _CoverImage(url: url)),
+          Positioned.fill(
+            child: IgnorePointer(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    stops: const [0.5, 1],
+                    colors: [
+                      Colors.transparent,
+                      RestaurantPalette.forest.withValues(alpha: 0.45),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          if (hasLogo)
+            Positioned(
+              left: 16,
+              bottom: -30,
+              child: _LogoCircle(url: logoUrl!),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ProfileBody extends StatelessWidget {
+  const _ProfileBody({
+    required this.businessName,
+    required this.hasLogo,
+    required this.isOpen,
+    required this.hasDescription,
+    required this.description,
+    required this.hasCity,
+    required this.city,
+    required this.hasAddress,
+    required this.address,
+    required this.hasPhone,
+    required this.phone,
+    required this.hasEmail,
+    required this.email,
+  });
+
+  final String businessName;
+  final bool hasLogo;
+  final bool isOpen;
+  final bool hasDescription;
+  final String? description;
+  final bool hasCity;
+  final String? city;
+  final bool hasAddress;
+  final String? address;
+  final bool hasPhone;
+  final String? phone;
+  final bool hasEmail;
+  final String? email;
+
+  @override
+  Widget build(BuildContext context) {
+    final location = [
+      if (hasCity) city!,
+      if (hasAddress) address!,
+    ].join(' · ');
+    final hasContact = location.isNotEmpty || hasPhone || hasEmail;
+
+    return Padding(
+      padding: EdgeInsets.fromLTRB(16, hasLogo ? 44 : 18, 16, 18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Flexible(
+                child: Text(
+                  businessName,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: RestaurantPalette.darkText,
+                    fontSize: 21,
+                    height: 1.15,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              StatusChip(
+                label: isOpen ? 'Ouvert' : 'Fermé',
+                background: (isOpen ? RestaurantPalette.success : RestaurantPalette.danger)
+                    .withValues(alpha: 0.15),
+                foreground: isOpen ? RestaurantPalette.success : RestaurantPalette.danger,
+              ),
+            ],
+          ),
+          if (hasDescription) ...[
+            const SizedBox(height: 8),
+            Text(
+              description!,
+              style: const TextStyle(
+                color: RestaurantPalette.grayText,
+                fontSize: 13,
+                height: 1.45,
+              ),
+            ),
+          ],
+          if (hasContact) ...[
+            const SizedBox(height: 14),
+            const Divider(height: 1, color: Color(0xFFF3F4F6)),
+            const SizedBox(height: 12),
+            if (location.isNotEmpty)
+              _InfoLine(icon: Icons.place_outlined, text: location),
+            if (hasPhone) ...[
+              const SizedBox(height: 8),
+              _InfoLine(icon: Icons.phone_outlined, text: phone!),
+            ],
+            if (hasEmail) ...[
+              const SizedBox(height: 8),
+              _InfoLine(icon: Icons.mail_outline, text: email!),
+            ],
+          ],
+        ],
+      ),
+    );
+  }
 }
 
 class _CoverImage extends StatelessWidget {
@@ -419,20 +526,36 @@ class _CoverFallback extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const DecoratedBox(
-      decoration: BoxDecoration(
+    return DecoratedBox(
+      decoration: const BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [RestaurantPalette.forest, Color(0xFF134E2E)],
+          colors: [RestaurantPalette.forest, Color(0xFF14532D)],
         ),
       ),
-      child: Align(
-        alignment: Alignment.bottomRight,
-        child: Padding(
-          padding: EdgeInsets.all(16),
-          child: Icon(Icons.storefront, size: 56, color: Color(0x22FFFFFF)),
-        ),
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          const FoodDecor(
+            bowlWidth: 168,
+            herbsWidth: 124,
+            bowlRight: -20,
+            bowlBottom: -34,
+            herbsRight: -12,
+            herbsTop: -30,
+            bowlOpacity: 0.34,
+            herbsOpacity: 0.26,
+          ),
+          Align(
+            alignment: Alignment.center,
+            child: Icon(
+              Icons.storefront_rounded,
+              size: 58,
+              color: Colors.white.withValues(alpha: 0.2),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -446,17 +569,27 @@ class _LogoCircle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 60,
-      height: 60,
+      width: 68,
+      height: 68,
       padding: const EdgeInsets.all(3),
-      decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+      decoration: BoxDecoration(
+        color: RestaurantPalette.white,
+        shape: BoxShape.circle,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.18),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
       child: ClipOval(
         child: Image.network(
           resolveMediaUrl(url)!,
           fit: BoxFit.cover,
-          errorBuilder: (_, _, _) => ColoredBox(
+          errorBuilder: (_, _, _) => const ColoredBox(
             color: RestaurantPalette.orange,
-            child: Icon(Icons.storefront, color: Colors.white, size: 30),
+            child: Icon(Icons.storefront, color: Colors.white, size: 32),
           ),
         ),
       ),
@@ -475,12 +608,27 @@ class _InfoLine extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, color: RestaurantPalette.grayText, size: 16),
-        const SizedBox(width: 6),
+        Container(
+          width: 26,
+          height: 26,
+          decoration: BoxDecoration(
+            color: RestaurantPalette.background,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(icon, color: RestaurantPalette.grayText, size: 15),
+        ),
+        const SizedBox(width: 9),
         Expanded(
-          child: Text(
-            text,
-            style: const TextStyle(color: RestaurantPalette.grayText, fontSize: 13),
+          child: Padding(
+            padding: const EdgeInsets.only(top: 5),
+            child: Text(
+              text,
+              style: const TextStyle(
+                color: RestaurantPalette.grayText,
+                fontSize: 12.5,
+                height: 1.35,
+              ),
+            ),
           ),
         ),
       ],
@@ -488,7 +636,64 @@ class _InfoLine extends StatelessWidget {
   }
 }
 
-/// Ligne horaire « Lundi · 08:00 – 22:00 » (surlignée si c'est aujourd'hui).
+class _HoursCardHeader extends StatelessWidget {
+  const _HoursCardHeader({required this.todaySummary, this.onEdit});
+
+  final String todaySummary;
+  final VoidCallback? onEdit;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Container(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(
+            color: RestaurantPalette.orange.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: const Icon(
+            Icons.schedule_rounded,
+            color: RestaurantPalette.orange,
+            size: 21,
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Cette semaine',
+                style: TextStyle(
+                  color: RestaurantPalette.darkText,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                todaySummary,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: RestaurantPalette.grayText,
+                  fontSize: 12,
+                ),
+              ),
+            ],
+          ),
+        ),
+        if (onEdit != null) ...[
+          const SizedBox(width: 6),
+          const Icon(Icons.chevron_right_rounded, color: Color(0xFF9CA3AF)),
+        ],
+      ],
+    );
+  }
+}
+
 class _WeekLine extends StatelessWidget {
   const _WeekLine({required this.day, required this.hour, required this.isToday});
 
@@ -501,15 +706,25 @@ class _WeekLine extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
+      padding: const EdgeInsets.symmetric(vertical: 7),
       child: Row(
         children: [
+          Container(
+            width: 6,
+            height: 6,
+            margin: const EdgeInsets.only(right: 10),
+            decoration: BoxDecoration(
+              color: isToday ? RestaurantPalette.orange : Colors.transparent,
+              shape: BoxShape.circle,
+            ),
+          ),
           SizedBox(
-            width: 86,
+            width: 96,
             child: Text(
               day,
+              maxLines: 2,
               style: TextStyle(
-                color: isToday ? RestaurantPalette.orange : RestaurantPalette.darkText,
+                color: isToday ? RestaurantPalette.darkText : RestaurantPalette.grayText,
                 fontSize: 13,
                 fontWeight: isToday ? FontWeight.w700 : FontWeight.w500,
               ),
@@ -519,28 +734,12 @@ class _WeekLine extends StatelessWidget {
             child: Text(
               hour,
               style: TextStyle(
-                color: _closed ? RestaurantPalette.danger : RestaurantPalette.grayText,
+                color: _closed ? RestaurantPalette.danger : RestaurantPalette.darkText,
                 fontSize: 13,
                 fontWeight: isToday ? FontWeight.w700 : FontWeight.w500,
               ),
             ),
           ),
-          if (isToday)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-              decoration: BoxDecoration(
-                color: RestaurantPalette.orange.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(999),
-              ),
-              child: const Text(
-                'Aujourd’hui',
-                style: TextStyle(
-                  color: RestaurantPalette.orange,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
         ],
       ),
     );
@@ -586,15 +785,15 @@ class _SettingTile extends StatelessWidget {
     return InkWell(
       onTap: onTap,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
         child: Row(
           children: [
             Container(
-              width: 36,
-              height: 36,
+              width: 38,
+              height: 38,
               decoration: BoxDecoration(
                 color: RestaurantPalette.orange.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(11),
               ),
               child: Icon(icon, size: 20, color: RestaurantPalette.orange),
             ),

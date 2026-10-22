@@ -85,6 +85,49 @@ class VendorSettingsTest extends TestCase
         ]);
     }
 
+    public function test_vendor_hours_are_saved_in_their_own_table(): void
+    {
+        $user = $this->vendorUser();
+        $vendor = Vendor::factory()->create(['user_id' => $user->id, 'status' => 'active']);
+
+        Sanctum::actingAs($user);
+
+        $payload = [
+            'hours' => [
+                ['day_of_week' => 0, 'opens_at' => '08:00', 'closes_at' => '22:00', 'is_closed' => false],
+                ['day_of_week' => 1, 'opens_at' => null, 'closes_at' => null, 'is_closed' => true],
+            ],
+        ];
+
+        $this->patchJson('/api/v1/vendors/me', $payload)
+            ->assertOk()
+            ->assertJsonCount(2, 'data.hours');
+
+        $this->assertDatabaseHas('vendor_hours', [
+            'vendor_id' => $vendor->id,
+            'day_of_week' => 0,
+            'opens_at' => '08:00:00',
+            'closes_at' => '22:00:00',
+            'is_closed' => false,
+        ]);
+        $this->assertDatabaseHas('vendor_hours', [
+            'vendor_id' => $vendor->id,
+            'day_of_week' => 1,
+            'is_closed' => true,
+        ]);
+
+        // Un second enregistrement remplace la semaine sans doublon.
+        $payload['hours'][0]['opens_at'] = '09:30';
+        $this->patchJson('/api/v1/vendors/me', $payload)->assertOk();
+
+        $this->assertDatabaseCount('vendor_hours', 2);
+        $this->assertDatabaseHas('vendor_hours', [
+            'vendor_id' => $vendor->id,
+            'day_of_week' => 0,
+            'opens_at' => '09:30:00',
+        ]);
+    }
+
     public function test_vendor_can_report_order_incident(): void
     {
         $user = $this->vendorUser();

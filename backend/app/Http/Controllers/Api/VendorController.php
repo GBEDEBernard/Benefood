@@ -216,7 +216,10 @@ class VendorController extends Controller
         $closedAt = $data['closed_at'] ?? null;
         $closedReasonProvided = array_key_exists('closed_reason', $data);
         $closedReason = $data['closed_reason'] ?? null;
-        unset($data['closed_at'], $data['closed_reason']);
+        // `hours` est stocké dans la table `vendor_hours` (relation), pas dans
+        // une colonne de `vendors` : il ne doit pas partir dans l'UPDATE.
+        $hours = $data['hours'] ?? null;
+        unset($data['closed_at'], $data['closed_reason'], $data['hours']);
 
         $vendor->update(array_filter($data, fn ($v) => $v !== null && $v !== []));
 
@@ -230,11 +233,11 @@ class VendorController extends Controller
             $vendor->update(['closed_reason' => $closedReason]);
         }
 
-        if (isset($data['hours']) && is_array($data['hours'])) {
+        if (is_array($hours)) {
             // replace existing hours with provided set
             $vendor->hours()->delete();
 
-            foreach ($data['hours'] as $entry) {
+            foreach ($hours as $entry) {
                 $vendor->hours()->create([
                     'day_of_week' => $entry['day_of_week'],
                     'opens_at' => $entry['opens_at'] ?? null,

@@ -70,6 +70,7 @@ class _RestaurantShellScreenState extends State<RestaurantShellScreen> {
   Map<String, dynamic>? _revenue;
   Map<String, dynamic>? _reviews;
   List<Order> _orders = [];
+  List<OpeningHour>? _hoursOverride;
   final Set<String> _busyOrders = {};
 
   bool get _live => widget.marketplace != null;
@@ -680,10 +681,11 @@ class _RestaurantShellScreenState extends State<RestaurantShellScreen> {
           isOpen: _isOpen,
           onToggleOpen: _toggleOpen,
           vendor: _shopVendor,
-          hours: _shopHours,
+          hours: _hoursOverride ?? _shopHours,
           statusLabel: _accountStatusLabel,
           marketplace: widget.marketplace,
           onDataChanged: _reloadData,
+          onHoursChanged: (hours) => setState(() => _hoursOverride = hours),
         );
       case 2:
         return ProductsScreen(
@@ -711,7 +713,7 @@ class _RestaurantShellScreenState extends State<RestaurantShellScreen> {
           onOpenDrawer: _openDrawer,
           marketplace: widget.marketplace,
           phone: _shopVendor.phone,
-          onSeeAllTap: _revenue == null ? () => _select(7) : _showPayoutHistory,
+          onSeeAllTap: () => _select(7),
           onRefresh: _reloadData,
         );
       case 5:
