@@ -16,7 +16,6 @@ import 'screens/dashboard_screen.dart';
 import 'screens/documents_screen.dart';
 import 'screens/orders_screen.dart';
 import 'screens/order_details_screen.dart';
-import 'screens/revenue_history_screen.dart';
 import 'screens/revenues_screen.dart';
 import 'screens/reviews_screen.dart';
 import 'screens/shop_screen.dart';
@@ -444,19 +443,6 @@ class _RestaurantShellScreenState extends State<RestaurantShellScreen> {
     );
   }
 
-  /// Ouvre l'historique complet des revenus (écritures + reversements + CSV).
-  void _openRevenueHistory() {
-    final revenue = _revenue;
-    if (revenue == null) return;
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => RevenueHistoryScreen(
-          revenue: revenue,
-          marketplace: widget.marketplace,
-        ),
-      ),
-    );
-  }
 
   void _select(int index) {
     setState(() => _selectedIndex = index);
@@ -725,7 +711,7 @@ class _RestaurantShellScreenState extends State<RestaurantShellScreen> {
           onOpenDrawer: _openDrawer,
           marketplace: widget.marketplace,
           phone: _shopVendor.phone,
-          onSeeAllTap: _revenue == null ? () => _select(7) : _openRevenueHistory,
+          onSeeAllTap: _revenue == null ? () => _select(7) : _showPayoutHistory,
           onRefresh: _reloadData,
         );
       case 5:
