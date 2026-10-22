@@ -70,7 +70,7 @@ class _ActivityScreenState extends State<ActivityScreen> {
     final api = widget.marketplace!;
     if (event.orderId != null) {
       try {
-        final order = await api.order(event.orderId!);
+        final order = await api.vendorOrder(event.orderId!);
         if (!mounted) return;
         Navigator.of(context).push(
           MaterialPageRoute<void>(

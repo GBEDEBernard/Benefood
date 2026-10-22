@@ -7,7 +7,6 @@ import '../../features/driver/missions/mission_detail_screen.dart';
 import '../../features/vendor/orders/vendor_order_detail_screen.dart';
 import '../../shared/models/user.dart';
 import '../data/marketplace_api.dart';
-import '../../shared/widgets/feedback_widgets.dart';
 
 /// Espace depuis lequel une notification est lue (cloche, écran de la liste,
 /// push FCM). Il détermine l'écran ouvert quand l'utilisateur touche la
@@ -30,22 +29,41 @@ NotificationAudience notificationAudienceFromRole(String? role) {
 /// notification, ouvre le bon écran pour l'espace courant.
 ///
 /// Renvoie `true` quand un écran a été poussé.
+///
+/// [navigator], [router] et [messenger] peuvent être fournis par l'appelant
+/// quand le [context] d'origine est susceptible d'être désactivé entre-temps
+/// (feuille de détail fermée juste avant l'ouverture) : tous les accès au
+/// contexte sont alors évités après le moindre `await`.
 Future<bool> openNotificationTarget(
   BuildContext context, {
   required MarketplaceApi marketplace,
   required Map<String, dynamic> data,
   NotificationAudience audience = NotificationAudience.client,
   String? type,
+  NavigatorState? navigator,
+  GoRouter? router,
+  ScaffoldMessengerState? messenger,
 }) async {
+  // Résolution immédiate des dépendances du contexte : l'appelant peut fermer
+  // la feuille courante avant que la requête réseau ne réponde.
+  final nav = navigator ?? Navigator.of(context, rootNavigator: true);
+  final go = router ?? GoRouter.maybeOf(context);
+  final snack = messenger ?? ScaffoldMessenger.maybeOf(context);
+  // La couleur d'erreur est lue depuis le messenger : son contexte racine
+  // reste valide même si le contexte d'origine a été désactivé.
+  final errorColor = snack == null
+      ? null
+      : Theme.of(snack.context).colorScheme.error;
+
   // Livreurs favoris : la demande reçue par le livreur (à accepter/refuser) et
   // l'acceptation reçue par le client/vendeur ouvrent la liste correspondante.
   if (type != null && type.startsWith('driver.favorite.')) {
-    context.push(switch (audience) {
+    go?.push(switch (audience) {
       NotificationAudience.driver => '/driver/favorite-clients',
       NotificationAudience.vendor => '/vendor/favorite-drivers',
       NotificationAudience.client => '/client/favorite-drivers',
     });
-    return true;
+    return go != null;
   }
 
   // Livreur : la cible est la course (mission) portée par la notification.
@@ -56,7 +74,7 @@ Future<bool> openNotificationTarget(
         notificationString(data, 'delivery_id') ??
         notificationString(data, 'course_id');
     if (deliveryId != null) {
-      await Navigator.of(context).push(
+      await nav.push(
         MaterialPageRoute<void>(
           builder: (_) => MissionDetailScreen(
             marketplace: marketplace,
@@ -72,7 +90,7 @@ Future<bool> openNotificationTarget(
   // expéditeur). Le livreur garde ses courses dans son onglet Colis.
   final parcelId = notificationString(data, 'parcel_id');
   if (parcelId != null) {
-    await Navigator.of(context).push(
+    await nav.push(
       MaterialPageRoute<void>(
         builder: (_) => ParcelDetailScreen(
           marketplace: marketplace,
@@ -97,13 +115,15 @@ Future<bool> openNotificationTarget(
   }
 
   try {
-    final order = await marketplace.order(orderId);
-    if (!context.mounted) {
-      return true;
-    }
+    // Le vendeur n'a pas la permission `client.orders.manage` : la route
+    // client `/orders/{id}` lui répondrait 403. Son détail passe par
+    // `/vendors/me/orders/{id}`.
+    final order = audience == NotificationAudience.vendor
+        ? await marketplace.vendorOrder(orderId)
+        : await marketplace.order(orderId);
 
     if (audience == NotificationAudience.vendor) {
-      await Navigator.of(context).push(
+      await nav.push(
         MaterialPageRoute<void>(
           builder: (_) =>
               VendorOrderDetailScreen(marketplace: marketplace, order: order),
@@ -112,7 +132,7 @@ Future<bool> openNotificationTarget(
     } else {
       // Côté client : écran de suivi réel (pas de route push dédiée, le
       // shell client la rejouerait sous le détail).
-      await Navigator.of(context).push(
+      await nav.push(
         MaterialPageRoute<void>(
           builder: (_) => OrderTrackingScreen(
             marketplace: marketplace,
@@ -123,8 +143,15 @@ Future<bool> openNotificationTarget(
     }
     return true;
   } catch (_) {
-    if (context.mounted) {
-      showToast(context, 'Impossible d\'ouvrir cette commande.', isError: true);
+    if (snack != null) {
+      snack.hideCurrentSnackBar();
+      snack.showSnackBar(
+        SnackBar(
+          content: const Text('Impossible d\'ouvrir cette commande.'),
+          backgroundColor: errorColor,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
     }
     return false;
   }

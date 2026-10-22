@@ -43,7 +43,7 @@ class _VendorOrderDetailScreenState extends State<VendorOrderDetailScreen> {
       _error = null;
     });
     try {
-      final order = await widget.marketplace.order(widget.order.id);
+      final order = await widget.marketplace.vendorOrder(widget.order.id);
       if (mounted) {
         setState(() {
           _order = order;

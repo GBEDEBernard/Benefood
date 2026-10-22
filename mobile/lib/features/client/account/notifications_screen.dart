@@ -95,10 +95,15 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
               if (context.canPop()) {
                 context.pop();
               } else {
-                context.go('/client');
+                context.go(switch (widget.audience) {
+                  NotificationAudience.client => '/client',
+                  NotificationAudience.vendor => '/vendor',
+                  NotificationAudience.driver => '/driver',
+                });
               }
             },
             api: widget.marketplace,
+            audience: widget.audience,
           ),
           Expanded(child: _buildBody()),
         ],

@@ -82,6 +82,13 @@ Future<void> showNotificationDetail(
   NotificationAudience audience = NotificationAudience.client,
 }) {
   final outerContext = context;
+  // Dépendances résolues avant l'ouverture de la feuille : au moment où
+  // l'utilisateur touche « Ouvrir », la feuille est Refermée puis son
+  // contexte n'est plus utilisable. On garde donc le navigateur, le routeur
+  // et le messenger pour l'action de navigation.
+  final navigator = Navigator.of(context, rootNavigator: true);
+  final router = GoRouter.maybeOf(context);
+  final messenger = ScaffoldMessenger.maybeOf(context);
   final type = item['type'] is String ? item['type'] as String : '';
   final accent = notificationAccent(type);
 
@@ -144,7 +151,10 @@ Future<void> showNotificationDetail(
       }
 
       void openTarget() {
-        Navigator.of(sheetContext).pop();
+        // `navigator` est le navigateur racine qui héberge la feuille : on le
+        // garde pour la fermer et pour pousser l'écran cible sans réutiliser
+        // le contexte de la feuille après sa fermeture.
+        navigator.pop();
         if (orderId != null ||
             deliveryId != null ||
             parcelId != null ||
@@ -159,11 +169,14 @@ Future<void> showNotificationDetail(
             },
             audience: audience,
             type: type,
+            navigator: navigator,
+            router: router,
+            messenger: messenger,
           );
         } else if (complaintId != null) {
           // Seul l'espace client dispose d'une route de détail ; côté vendeur
           // et livreur on ouvre la liste des réclamations du contexte.
-          outerContext.push(
+          router?.push(
             audience == NotificationAudience.client
                 ? '/client/complaints/$complaintId'
                 : '/${audience.name}/complaints',

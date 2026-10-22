@@ -174,12 +174,19 @@ class _NotificationBellState extends State<NotificationBell>
         action: SnackBarAction(
           label: 'Voir',
           textColor: AppColors.orangeLight,
-          onPressed: () => showNotificationDetail(
-            context,
-            item: latest,
-            marketplace: widget.api,
-            audience: widget.audience,
-          ),
+          onPressed: () {
+            // Le bandeau survit à la cloche : on n'ouvre la feuille que si
+            // l'état est toujours monté (sinon le contexte est désactivé).
+            if (!mounted) {
+              return;
+            }
+            showNotificationDetail(
+              context,
+              item: latest,
+              marketplace: widget.api,
+              audience: widget.audience,
+            );
+          },
         ),
       ),
     );

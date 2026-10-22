@@ -312,10 +312,10 @@ class RefundService
     {
         $reference = $order->reference;
 
-        $this->notifications->notifyEvent('order.cancelled', [$order->user, $order->vendor?->user], ['reference' => $reference]);
+        $this->notifications->notifyEvent('order.cancelled', [$order->user, $order->vendor?->user], ['order_id' => $order->id, 'reference' => $reference]);
 
         if ($refund !== null && $refund->status === RefundStatus::Pending) {
-            $this->notifications->notifyEvent('order.refund_initiated', [$order->user], ['reference' => $reference, 'amount' => $refund->amount]);
+            $this->notifications->notifyEvent('order.refund_initiated', [$order->user], ['order_id' => $order->id, 'reference' => $reference, 'amount' => $refund->amount]);
         }
     }
 }

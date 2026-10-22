@@ -916,6 +916,15 @@ class MarketplaceApi {
     return _dataList(response).map(Order.fromJson).toList();
   }
 
+  /// Détail d'une commande du vendeur connecté
+  /// (`GET /vendors/me/orders/{order}`). À utiliser à la place de [order] :
+  /// la route client `/orders/{order}` est réservée à la permission
+  /// `client.orders.manage`, absente du rôle vendeur (403).
+  Future<Order> vendorOrder(String orderId) async {
+    final response = await _api.get('/vendors/me/orders/$orderId');
+    return Order.fromJson(_dataObject(response) ?? {});
+  }
+
   Future<Order> vendorAccept(String orderId) async {
     final response = await _api.post('/vendors/me/orders/$orderId/accept');
     return Order.fromJson(_dataObject(response) ?? {});
