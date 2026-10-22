@@ -37,7 +37,7 @@ import '../features/vendor/restaurant/screens/vendor_statistics_screen.dart';
 import '../features/driver/presentation/driver_shell.dart';
 import '../features/driver/account/favorite_clients_screen.dart';
 import '../features/driver/stats/driver_statistics_screen.dart';
-import '../features/wallet/wallet_screen.dart';
+import '../features/driver/wallet/driver_wallet_screen.dart';
 import '../shared/models/user.dart';
 import '../shared/models/vendor.dart';
 
@@ -93,10 +93,7 @@ GoRouter buildAppRouter(SessionProvider session, MarketplaceApi marketplace) {
       return null;
     },
     routes: [
-      GoRoute(
-        path: '/',
-        builder: (context, state) => const _SplashPage(),
-      ),
+      GoRoute(path: '/', builder: (context, state) => const _SplashPage()),
       GoRoute(
         path: '/landing',
         builder: (context, state) => LandingScreen(session: session),
@@ -127,7 +124,8 @@ GoRouter buildAppRouter(SessionProvider session, MarketplaceApi marketplace) {
       ),
       GoRoute(
         path: '/client',
-        builder: (context, state) => ClientShell(session: session, marketplace: marketplace),
+        builder: (context, state) =>
+            ClientShell(session: session, marketplace: marketplace),
       ),
       ShellRoute(
         builder: (context, state, child) =>
@@ -190,7 +188,8 @@ GoRouter buildAppRouter(SessionProvider session, MarketplaceApi marketplace) {
           ),
           GoRoute(
             path: '/client/parcels',
-            builder: (context, state) => ParcelsScreen(marketplace: marketplace),
+            builder: (context, state) =>
+                ParcelsScreen(marketplace: marketplace),
           ),
           GoRoute(
             path: '/client/parcels/new',
@@ -233,10 +232,8 @@ GoRouter buildAppRouter(SessionProvider session, MarketplaceApi marketplace) {
           ),
           GoRoute(
             path: '/client/profile/edit',
-            builder: (context, state) => ProfileEditScreen(
-              marketplace: marketplace,
-              session: session,
-            ),
+            builder: (context, state) =>
+                ProfileEditScreen(marketplace: marketplace, session: session),
           ),
           GoRoute(
             path: '/client/payment-methods',
@@ -265,7 +262,8 @@ GoRouter buildAppRouter(SessionProvider session, MarketplaceApi marketplace) {
           ),
           GoRoute(
             path: '/client/coupons',
-            builder: (context, state) => CouponsScreen(marketplace: marketplace),
+            builder: (context, state) =>
+                CouponsScreen(marketplace: marketplace),
           ),
         ],
       ),
@@ -274,22 +272,24 @@ GoRouter buildAppRouter(SessionProvider session, MarketplaceApi marketplace) {
         builder: (context, state) => VendorShell(
           session: session,
           marketplace: marketplace,
-          initialIndex: int.tryParse(state.uri.queryParameters['tab'] ?? '') ?? 0,
+          initialIndex:
+              int.tryParse(state.uri.queryParameters['tab'] ?? '') ?? 0,
         ),
       ),
       GoRoute(
         path: '/vendor/profile/edit',
-        builder: (context, state) => ProfileEditScreen(marketplace: marketplace, session: session),
+        builder: (context, state) =>
+            ProfileEditScreen(marketplace: marketplace, session: session),
       ),
       GoRoute(
         path: '/vendor/settings',
-        builder: (context, state) => VendorSettingsScreen(marketplace: marketplace),
+        builder: (context, state) =>
+            VendorSettingsScreen(marketplace: marketplace),
       ),
       GoRoute(
         path: '/vendor/stats',
-        builder: (context, state) => VendorStatisticsScreen(
-          marketplace: marketplace,
-        ),
+        builder: (context, state) =>
+            VendorStatisticsScreen(marketplace: marketplace),
       ),
       GoRoute(
         path: '/vendor/notifications',
@@ -329,13 +329,6 @@ GoRouter buildAppRouter(SessionProvider session, MarketplaceApi marketplace) {
         builder: (context, state) => ComplaintsScreen(marketplace: marketplace),
       ),
       GoRoute(
-        path: '/vendor/wallet',
-        builder: (context, state) => WalletScreen(
-          marketplace: marketplace,
-          role: WalletRole.vendor,
-        ),
-      ),
-      GoRoute(
         path: '/vendor/favorite-drivers',
         builder: (context, state) => FavoriteDriversScreen(
           marketplace: marketplace,
@@ -347,22 +340,24 @@ GoRouter buildAppRouter(SessionProvider session, MarketplaceApi marketplace) {
         builder: (context, state) => DriverShell(
           session: session,
           marketplace: marketplace,
-          initialIndex: int.tryParse(state.uri.queryParameters['tab'] ?? '') ?? 0,
+          initialIndex:
+              int.tryParse(state.uri.queryParameters['tab'] ?? '') ?? 0,
         ),
       ),
       GoRoute(
         path: '/driver/favorite-clients',
-        builder: (context, state) => FavoriteClientsScreen(marketplace: marketplace),
+        builder: (context, state) =>
+            FavoriteClientsScreen(marketplace: marketplace),
       ),
       GoRoute(
         path: '/driver/stats',
-        builder: (context, state) => DriverStatisticsScreen(
-          marketplace: marketplace,
-        ),
+        builder: (context, state) =>
+            DriverStatisticsScreen(marketplace: marketplace),
       ),
       GoRoute(
         path: '/driver/profile/edit',
-        builder: (context, state) => ProfileEditScreen(marketplace: marketplace, session: session),
+        builder: (context, state) =>
+            ProfileEditScreen(marketplace: marketplace, session: session),
       ),
       GoRoute(
         path: '/driver/notifications',
@@ -381,17 +376,18 @@ GoRouter buildAppRouter(SessionProvider session, MarketplaceApi marketplace) {
       ),
       GoRoute(
         path: '/driver/wallet',
-        builder: (context, state) => WalletScreen(
-          marketplace: marketplace,
-          role: WalletRole.driver,
-        ),
+        builder: (context, state) =>
+            DriverWalletScreen(marketplace: marketplace),
       ),
     ],
   );
 }
 
 bool _isAuthRoute(String location) =>
-    location == '/landing' || location == '/login' || location == '/register' || location == '/reset-password';
+    location == '/landing' ||
+    location == '/login' ||
+    location == '/register' ||
+    location == '/reset-password';
 
 String _homeFor(SessionProvider session) {
   switch (session.activeRole) {
@@ -404,7 +400,12 @@ String _homeFor(SessionProvider session) {
   }
 }
 
-bool _canAccess(BuildContext context, SessionProvider session, String role, String location) {
+bool _canAccess(
+  BuildContext context,
+  SessionProvider session,
+  String role,
+  String location,
+) {
   final user = session.user;
   if (user == null) {
     return false;
@@ -422,9 +423,17 @@ class _SplashPage extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Image.asset('assets/Logo.jpeg', width: 120, height: 120, errorBuilder: (_, _, _) => const SizedBox()),
+            Image.asset(
+              'assets/Logo.jpeg',
+              width: 120,
+              height: 120,
+              errorBuilder: (_, _, _) => const SizedBox(),
+            ),
             const SizedBox(height: 20),
-            const Text('Béninfood', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+            const Text(
+              'Béninfood',
+              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+            ),
             const SizedBox(height: 24),
             const CircularProgressIndicator(strokeWidth: 2.5),
           ],

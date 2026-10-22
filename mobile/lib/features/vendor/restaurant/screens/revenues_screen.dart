@@ -3,7 +3,6 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../../../core/data/marketplace_api.dart';
 import '../../../../core/errors/api_exception.dart';
@@ -14,7 +13,7 @@ import '../../../../shared/widgets/beninfood_header.dart';
 import '../../../../shared/widgets/food_decor.dart';
 import '../../../../shared/widgets/feedback_widgets.dart';
 import '../../../../shared/widgets/state_widgets.dart';
-import '../../../wallet/wallet_screen.dart';
+import '../../../wallet/widgets/payout_request_sheet.dart';
 import '../restaurant_palette.dart';
 
 /// Écran « Portefeuille » du vendeur.
@@ -23,7 +22,8 @@ import '../restaurant_palette.dart';
 /// répartition animée des fonds, journal des mouvements par onglets et
 /// historique des retraits. Les montants proviennent de
 /// `GET /vendors/me/revenues` (mois sélectionné, cache local, rafraîchissement
-/// silencieux) et les retraits sont gérés par [WalletScreen].
+/// silencieux). Le bouton « Faire un retrait » ouvre directement le formulaire
+/// Mobile Money, sans page intermédiaire.
 class RevenusScreen extends StatefulWidget {
   const RevenusScreen({
     super.key,
@@ -33,6 +33,7 @@ class RevenusScreen extends StatefulWidget {
     this.marketplace,
     this.onSeeAllTap,
     this.onRefresh,
+    this.phone,
   });
 
   /// Commandes du vendeur (source de vérité gérée par le shell).
@@ -45,6 +46,9 @@ class RevenusScreen extends StatefulWidget {
   final MarketplaceApi? marketplace;
   final VoidCallback? onSeeAllTap;
   final Future<void> Function()? onRefresh;
+
+  /// Numéro de la boutique, prérempli comme bénéficiaire du retrait.
+  final String? phone;
 
   @override
   State<RevenusScreen> createState() => _RevenusScreenState();
@@ -93,6 +97,7 @@ class _RevenusScreenState extends State<RevenusScreen>
   Timer? _autoRefresh;
 
   bool _hideAmounts = false;
+  bool _payoutBusy = false;
   int _tab = 0;
   final GlobalKey _tabsKey = GlobalKey();
 
@@ -192,21 +197,22 @@ class _RevenusScreenState extends State<RevenusScreen>
 
   Future<void> _pickMonth() async {
     final now = DateTime.now();
-    final months = List.generate(12, (i) => DateTime(now.year, now.month - i)).toList();
+    final months = List.generate(
+      12,
+      (i) => DateTime(now.year, now.month - i),
+    ).toList();
     final picked = await showModalBottomSheet<DateTime>(
       context: context,
       backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
       ),
-      builder: (ctx) => _MonthSheet(
-        months: months,
-        label: _label,
-        selected: _selectedMonth,
-      ),
+      builder: (ctx) =>
+          _MonthSheet(months: months, label: _label, selected: _selectedMonth),
     );
     if (picked == null || !mounted) return;
-    if (picked.year == _selectedMonth.year && picked.month == _selectedMonth.month) {
+    if (picked.year == _selectedMonth.year &&
+        picked.month == _selectedMonth.month) {
       return;
     }
     setState(() => _selectedMonth = picked);
@@ -221,7 +227,8 @@ class _RevenusScreenState extends State<RevenusScreen>
       final created = DateTime.tryParse(o.createdAt ?? '');
       if (created == null) return true;
       final same =
-          created.year == _selectedMonth.year && created.month == _selectedMonth.month;
+          created.year == _selectedMonth.year &&
+          created.month == _selectedMonth.month;
       if (same) return true;
       return _isCurrentMonth && created.isAfter(recent);
     }).toList();
@@ -247,24 +254,28 @@ class _RevenusScreenState extends State<RevenusScreen>
         final delivered = item['status'] == 'delivered';
         final subtitle = 'Commande ${ref.isEmpty ? '—' : ref} · ${_when(at)}';
         if (net > 0) {
-          txs.add(_Tx(
-            kind: _TxKind.release,
-            title: delivered ? 'Séquestre libéré' : 'Vente en cours',
-            subtitle: subtitle,
-            amount: net,
-            status: delivered ? _TxStatus.success : _TxStatus.pending,
-            at: at,
-          ));
+          txs.add(
+            _Tx(
+              kind: _TxKind.release,
+              title: delivered ? 'Séquestre libéré' : 'Vente en cours',
+              subtitle: subtitle,
+              amount: net,
+              status: delivered ? _TxStatus.success : _TxStatus.pending,
+              at: at,
+            ),
+          );
         }
         if (commission > 0) {
-          txs.add(_Tx(
-            kind: _TxKind.commission,
-            title: 'Commission prélevée',
-            subtitle: subtitle,
-            amount: -commission,
-            status: delivered ? _TxStatus.success : _TxStatus.pending,
-            at: at,
-          ));
+          txs.add(
+            _Tx(
+              kind: _TxKind.commission,
+              title: 'Commission prélevée',
+              subtitle: subtitle,
+              amount: -commission,
+              status: delivered ? _TxStatus.success : _TxStatus.pending,
+              at: at,
+            ),
+          );
         }
       }
     }
@@ -283,7 +294,9 @@ class _RevenusScreenState extends State<RevenusScreen>
       commission: commission,
       gross: gross,
       commissionRate: gross > 0 ? (commission * 100 / gross).round() : 10,
-      pendingOrders: orders.where((o) => _pendingStatuses.contains(o.status)).length,
+      pendingOrders: orders
+          .where((o) => _pendingStatuses.contains(o.status))
+          .length,
       minPayout: n('min_payout'),
       payouts: payouts,
       txs: _sorted(txs),
@@ -305,7 +318,8 @@ class _RevenusScreenState extends State<RevenusScreen>
           order.status == 'awaiting_payment') {
         continue;
       }
-      final commission = order.financials?.commissionAmount ?? order.subtotal * 10 ~/ 100;
+      final commission =
+          order.financials?.commissionAmount ?? order.subtotal * 10 ~/ 100;
       final net = order.financials?.vendorAmount ?? order.subtotal - commission;
       final delivered = order.status == 'delivered';
       final at = DateTime.tryParse(order.createdAt ?? '');
@@ -319,23 +333,27 @@ class _RevenusScreenState extends State<RevenusScreen>
         pending += net;
       }
 
-      txs.add(_Tx(
-        kind: _TxKind.release,
-        title: delivered ? 'Séquestre libéré' : 'Vente en cours',
-        subtitle: subtitle,
-        amount: net,
-        status: delivered ? _TxStatus.success : _TxStatus.pending,
-        at: at,
-      ));
-      if (commission > 0) {
-        txs.add(_Tx(
-          kind: _TxKind.commission,
-          title: 'Commission prélevée',
+      txs.add(
+        _Tx(
+          kind: _TxKind.release,
+          title: delivered ? 'Séquestre libéré' : 'Vente en cours',
           subtitle: subtitle,
-          amount: -commission,
+          amount: net,
           status: delivered ? _TxStatus.success : _TxStatus.pending,
           at: at,
-        ));
+        ),
+      );
+      if (commission > 0) {
+        txs.add(
+          _Tx(
+            kind: _TxKind.commission,
+            title: 'Commission prélevée',
+            subtitle: subtitle,
+            amount: -commission,
+            status: delivered ? _TxStatus.success : _TxStatus.pending,
+            at: at,
+          ),
+        );
       }
     }
 
@@ -347,25 +365,26 @@ class _RevenusScreenState extends State<RevenusScreen>
     }
 
     // Les retraits de démonstration suivent le mois consulté.
-    final payouts = [
-      _Payout(
-        amount: 4500,
-        method: 'moov',
-        status: 'processing',
-        at: inMonth(0),
-      ),
-      _Payout(
-        amount: 2500,
-        method: 'mtn_open',
-        status: 'executed',
-        at: inMonth(4),
-      ),
-    ].where((p) {
-      final at = p.at;
-      return at != null &&
-          at.year == _selectedMonth.year &&
-          at.month == _selectedMonth.month;
-    }).toList();
+    final payouts =
+        [
+          _Payout(
+            amount: 4500,
+            method: 'moov',
+            status: 'processing',
+            at: inMonth(0),
+          ),
+          _Payout(
+            amount: 2500,
+            method: 'mtn_open',
+            status: 'executed',
+            at: inMonth(4),
+          ),
+        ].where((p) {
+          final at = p.at;
+          return at != null &&
+              at.year == _selectedMonth.year &&
+              at.month == _selectedMonth.month;
+        }).toList();
     txs.addAll(payouts.map(_payoutTx));
 
     final executed = payouts
@@ -379,7 +398,9 @@ class _RevenusScreenState extends State<RevenusScreen>
       commission: commissionTotal,
       gross: gross,
       commissionRate: gross > 0 ? (commissionTotal * 100 / gross).round() : 10,
-      pendingOrders: orders.where((o) => _pendingStatuses.contains(o.status)).length,
+      pendingOrders: orders
+          .where((o) => _pendingStatuses.contains(o.status))
+          .length,
       minPayout: 1000,
       payouts: payouts,
       txs: _sorted(txs),
@@ -402,14 +423,16 @@ class _RevenusScreenState extends State<RevenusScreen>
     if (raw is! List) return const [];
     return raw
         .whereType<Map<String, dynamic>>()
-        .map((p) => _Payout(
-              amount: (p['amount'] as num?)?.toInt() ?? 0,
-              method: (p['method'] as String?) ?? '',
-              status: (p['status'] as String?) ?? 'pending',
-              at: DateTime.tryParse(
-                (p['executed_at'] ?? p['created_at']) as String? ?? '',
-              ),
-            ))
+        .map(
+          (p) => _Payout(
+            amount: (p['amount'] as num?)?.toInt() ?? 0,
+            method: (p['method'] as String?) ?? '',
+            status: (p['status'] as String?) ?? 'pending',
+            at: DateTime.tryParse(
+              (p['executed_at'] ?? p['created_at']) as String? ?? '',
+            ),
+          ),
+        )
         .toList();
   }
 
@@ -442,29 +465,81 @@ class _RevenusScreenState extends State<RevenusScreen>
     }
   }
 
-  Future<void> _openWallet() async {
-    if (widget.marketplace == null) {
+  /// Ouvre directement le formulaire de retrait Mobile Money.
+  ///
+  /// Il n'y a plus d'écran wallet intermédiaire côté vendeur : le solde et
+  /// l'historique sont déjà affichés sur cette page.
+  Future<void> _openWithdrawal() async {
+    final api = widget.marketplace;
+    if (api == null) {
       showToast(
         context,
         'Les retraits sont disponibles une fois connecté à votre espace vendeur.',
       );
       return;
     }
-    HapticFeedback.selectionClick();
-    final router = GoRouter.maybeOf(context);
-    if (router != null) {
-      await router.push('/vendor/wallet');
-    } else {
-      await Navigator.of(context).push(
-        MaterialPageRoute<void>(
-          builder: (_) => WalletScreen(
-            marketplace: widget.marketplace!,
-            role: WalletRole.vendor,
-          ),
-        ),
+
+    final overview = _overview;
+    if (overview.available < overview.minPayout) {
+      showToast(
+        context,
+        'Solde insuffisant : le retrait minimum est de ${formatAmount(overview.minPayout)}.',
+        isError: true,
       );
+      return;
     }
-    if (mounted) await _silentRefresh();
+
+    HapticFeedback.selectionClick();
+    final request = await showPayoutRequestSheet(
+      context,
+      available: overview.available,
+      minPayout: overview.minPayout,
+      phone: widget.phone,
+    );
+    if (request == null || !mounted) return;
+
+    setState(() => _payoutBusy = true);
+    try {
+      final payout = await api.requestVendorPayout(
+        request.amount,
+        method: request.method,
+        destination: request.destination,
+      );
+      if (!mounted) return;
+      final status = payout['status']?.toString();
+      final message = switch (status) {
+        'executed' => 'Retrait versé sur votre Mobile Money.',
+        'failed' =>
+          'Retrait échoué : le montant a été recrédité sur votre solde.',
+        _ => 'Demande de retrait enregistrée, en cours de traitement.',
+      };
+      showToast(context, message, isError: status == 'failed');
+      // Le portefeuille est déjà alimenté par l'API : on rafraîchit les
+      // montants sans repasser par un écran de chargement.
+      if (_data != null) {
+        await _load(silent: true);
+        if (mounted) setState(() => _lastUpdated = DateTime.now());
+      }
+    } on ApiException catch (e) {
+      if (mounted) showToast(context, e.message, isError: true);
+    } finally {
+      if (mounted) setState(() => _payoutBusy = false);
+    }
+  }
+
+  /// Affiche l'historique complet des retraits dans une feuille, sans page
+  /// intermédiaire.
+  Future<void> _showPayoutHistory() async {
+    HapticFeedback.selectionClick();
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
+      ),
+      builder: (_) => _PayoutHistorySheet(payouts: _overview.payouts),
+    );
   }
 
   Future<void> _showHelp() async {
@@ -521,69 +596,73 @@ class _RevenusScreenState extends State<RevenusScreen>
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
         children: [
-            _stagger(
-              0,
-              _PageHeader(
-                lastUpdated: _lastUpdated,
-                onHelp: _showHelp,
-              ),
+          _stagger(
+            0,
+            _PageHeader(lastUpdated: _lastUpdated, onHelp: _showHelp),
+          ),
+          const SizedBox(height: 16),
+          _stagger(
+            1,
+            _BalanceBanner(
+              available: overview.available,
+              pending: overview.pending,
+              hidden: _hideAmounts,
+              withdrawBusy: _payoutBusy,
+              onToggleHidden: () =>
+                  setState(() => _hideAmounts = !_hideAmounts),
+              onDetails: widget.onSeeAllTap,
+              onWithdraw: _openWithdrawal,
             ),
-            const SizedBox(height: 16),
-            _stagger(
-              1,
-              _BalanceBanner(
-                available: overview.available,
-                pending: overview.pending,
-                hidden: _hideAmounts,
-                onToggleHidden: () => setState(() => _hideAmounts = !_hideAmounts),
-                onDetails: widget.onSeeAllTap,
-                onWithdraw: _openWallet,
-              ),
+          ),
+          const SizedBox(height: 14),
+          _stagger(
+            2,
+            _StatsGrid(
+              overview: overview,
+              monthLabel: _label(_selectedMonth),
+              onTap: _selectTab,
             ),
-            const SizedBox(height: 14),
-            _stagger(
-              2,
-              _StatsGrid(
-                overview: overview,
-                monthLabel: _label(_selectedMonth),
-                onTap: _selectTab,
-              ),
+          ),
+          const SizedBox(height: 14),
+          _stagger(
+            3,
+            _AllocationCard(
+              overview: overview,
+              monthLabel: _label(_selectedMonth),
+              onPickMonth: _pickMonth,
             ),
-            const SizedBox(height: 14),
-            _stagger(
-              3,
-              _AllocationCard(
-                overview: overview,
-                monthLabel: _label(_selectedMonth),
-                onPickMonth: _pickMonth,
-              ),
+          ),
+          const SizedBox(height: 14),
+          _stagger(
+            4,
+            _MovementsCard(
+              key: _tabsKey,
+              tabs: _tabs,
+              selected: _tab,
+              onSelect: (index) => setState(() => _tab = index),
+              txs: switch (_tab) {
+                1 =>
+                  overview.txs.where((t) => t.kind == _TxKind.release).toList(),
+                2 =>
+                  overview.txs
+                      .where((t) => t.kind == _TxKind.commission)
+                      .toList(),
+                3 =>
+                  overview.txs.where((t) => t.kind == _TxKind.payout).toList(),
+                _ => overview.txs,
+              },
+              onSeeAll: widget.onSeeAllTap,
             ),
-            const SizedBox(height: 14),
-            _stagger(
-              4,
-              _MovementsCard(
-                key: _tabsKey,
-                tabs: _tabs,
-                selected: _tab,
-                onSelect: (index) => setState(() => _tab = index),
-                txs: switch (_tab) {
-                  1 => overview.txs.where((t) => t.kind == _TxKind.release).toList(),
-                  2 => overview.txs.where((t) => t.kind == _TxKind.commission).toList(),
-                  3 => overview.txs.where((t) => t.kind == _TxKind.payout).toList(),
-                  _ => overview.txs,
-                },
-                onSeeAll: widget.onSeeAllTap,
-              ),
+          ),
+          const SizedBox(height: 14),
+          _stagger(
+            5,
+            _PayoutsCard(
+              payouts: overview.payouts,
+              onSeeAll: _showPayoutHistory,
             ),
-            const SizedBox(height: 14),
-            _stagger(
-              5,
-              _PayoutsCard(
-                payouts: overview.payouts,
-                onSeeAll: _openWallet,
-              ),
-            ),
-          ],
+          ),
+        ],
       ),
     );
   }
@@ -755,7 +834,11 @@ class _PageHeader extends StatelessWidget {
             child: const Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.help_outline_rounded, size: 15, color: RestaurantPalette.orange),
+                Icon(
+                  Icons.help_outline_rounded,
+                  size: 15,
+                  color: RestaurantPalette.orange,
+                ),
                 SizedBox(width: 5),
                 Text(
                   'Aide',
@@ -783,12 +866,14 @@ class _BalanceBanner extends StatelessWidget {
     required this.hidden,
     required this.onToggleHidden,
     required this.onWithdraw,
+    this.withdrawBusy = false,
     this.onDetails,
   });
 
   final int available;
   final int pending;
   final bool hidden;
+  final bool withdrawBusy;
   final VoidCallback onToggleHidden;
   final Future<void> Function() onWithdraw;
   final VoidCallback? onDetails;
@@ -902,11 +987,16 @@ class _BalanceBanner extends StatelessWidget {
                     _Pressable(
                       onTap: onDetails,
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 6,
+                        ),
                         decoration: BoxDecoration(
                           color: Colors.white.withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
+                          border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.18),
+                          ),
                         ),
                         child: const Row(
                           mainAxisSize: MainAxisSize.min,
@@ -919,8 +1009,11 @@ class _BalanceBanner extends StatelessWidget {
                                 fontWeight: FontWeight.w700,
                               ),
                             ),
-                            Icon(Icons.chevron_right_rounded,
-                                size: 15, color: Colors.white),
+                            Icon(
+                              Icons.chevron_right_rounded,
+                              size: 15,
+                              color: Colors.white,
+                            ),
                           ],
                         ),
                       ),
@@ -933,8 +1026,10 @@ class _BalanceBanner extends StatelessWidget {
                   transitionBuilder: (child, anim) => FadeTransition(
                     opacity: anim,
                     child: SlideTransition(
-                      position: Tween(begin: const Offset(0, 0.25), end: Offset.zero)
-                          .animate(anim),
+                      position: Tween(
+                        begin: const Offset(0, 0.25),
+                        end: Offset.zero,
+                      ).animate(anim),
                       child: child,
                     ),
                   ),
@@ -960,7 +1055,10 @@ class _BalanceBanner extends StatelessWidget {
                                 alignment: Alignment.centerLeft,
                                 child: _CountUp(
                                   value: available,
-                                  formatter: (v) => formatAmount(v.round(), showSymbol: false),
+                                  formatter: (v) => formatAmount(
+                                    v.round(),
+                                    showSymbol: false,
+                                  ),
                                   style: const TextStyle(
                                     color: Colors.white,
                                     fontSize: 36,
@@ -987,7 +1085,11 @@ class _BalanceBanner extends StatelessWidget {
                 const SizedBox(height: 3),
                 const Row(
                   children: [
-                    Icon(Icons.check_circle_rounded, size: 13, color: _WalletColors.mint),
+                    Icon(
+                      Icons.check_circle_rounded,
+                      size: 13,
+                      color: _WalletColors.mint,
+                    ),
                     SizedBox(width: 5),
                     Text(
                       'Disponible au retrait',
@@ -1006,38 +1108,63 @@ class _BalanceBanner extends StatelessWidget {
                       child: Align(
                         alignment: Alignment.centerLeft,
                         child: _Pressable(
-                          onTap: () {
-                            HapticFeedback.selectionClick();
-                            onWithdraw();
-                          },
+                          onTap: withdrawBusy
+                              ? null
+                              : () {
+                                  HapticFeedback.selectionClick();
+                                  onWithdraw();
+                                },
                           borderRadius: BorderRadius.circular(14),
                           child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 12,
+                            ),
                             decoration: BoxDecoration(
                               gradient: const LinearGradient(
-                                colors: [Color(0xFFFF8A3D), RestaurantPalette.orange],
+                                colors: [
+                                  Color(0xFFFF8A3D),
+                                  RestaurantPalette.orange,
+                                ],
                               ),
                               borderRadius: BorderRadius.circular(14),
                               boxShadow: [
                                 BoxShadow(
-                                  color: RestaurantPalette.orange.withValues(alpha: 0.42),
+                                  color: RestaurantPalette.orange.withValues(
+                                    alpha: 0.42,
+                                  ),
                                   blurRadius: 14,
                                   offset: const Offset(0, 6),
                                 ),
                               ],
                             ),
-                            child: const Row(
+                            child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Icon(Icons.account_balance_wallet_rounded,
-                                    size: 17, color: Colors.white),
-                                SizedBox(width: 8),
+                                if (withdrawBusy)
+                                  const SizedBox(
+                                    width: 17,
+                                    height: 17,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Colors.white,
+                                    ),
+                                  )
+                                else
+                                  const Icon(
+                                    Icons.account_balance_wallet_rounded,
+                                    size: 17,
+                                    color: Colors.white,
+                                  ),
+                                const SizedBox(width: 8),
                                 Flexible(
                                   child: Text(
-                                    'Faire un retrait',
+                                    withdrawBusy
+                                        ? 'Demande en cours…'
+                                        : 'Faire un retrait',
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(
+                                    style: const TextStyle(
                                       color: Colors.white,
                                       fontSize: 12.5,
                                       fontWeight: FontWeight.w800,
@@ -1132,7 +1259,8 @@ class _StatsGrid extends StatelessWidget {
                   label: 'Total gagné',
                   value: _CountUp(
                     value: overview.gross,
-                    formatter: (v) => formatAmount(v.round(), showSymbol: false),
+                    formatter: (v) =>
+                        formatAmount(v.round(), showSymbol: false),
                     style: _valueStyle,
                   ),
                   caption: monthLabel,
@@ -1153,7 +1281,10 @@ class _StatsGrid extends StatelessWidget {
                   tint: _WalletColors.redWash,
                   accent: RestaurantPalette.danger,
                   label: 'Taux de commission',
-                  value: Text('${overview.commissionRate} %', style: _valueStyle),
+                  value: Text(
+                    '${overview.commissionRate} %',
+                    style: _valueStyle,
+                  ),
                   caption: 'Sur chaque commande',
                   onTap: () => onTap(2),
                 ),
@@ -1167,7 +1298,8 @@ class _StatsGrid extends StatelessWidget {
                   label: 'Commissions payées',
                   value: _CountUp(
                     value: overview.commission,
-                    formatter: (v) => formatAmount(v.round(), showSymbol: false),
+                    formatter: (v) =>
+                        formatAmount(v.round(), showSymbol: false),
                     style: _valueStyle,
                   ),
                   caption: monthLabel,
@@ -1342,7 +1474,10 @@ class _AllocationCard extends StatelessWidget {
                       curve: Curves.easeOutCubic,
                       builder: (context, progress, _) => CustomPaint(
                         size: const Size.square(128),
-                        painter: _DonutPainter(slices: slices, progress: progress),
+                        painter: _DonutPainter(
+                          slices: slices,
+                          progress: progress,
+                        ),
                       ),
                     ),
                     Container(
@@ -1401,7 +1536,11 @@ class _Slice {
 }
 
 class _LegendRow extends StatelessWidget {
-  const _LegendRow({required this.slice, required this.percent, required this.empty});
+  const _LegendRow({
+    required this.slice,
+    required this.percent,
+    required this.empty,
+  });
 
   final _Slice slice;
   final int percent;
@@ -1416,7 +1555,10 @@ class _LegendRow extends StatelessWidget {
           Container(
             width: 8,
             height: 8,
-            decoration: BoxDecoration(color: slice.color, shape: BoxShape.circle),
+            decoration: BoxDecoration(
+              color: slice.color,
+              shape: BoxShape.circle,
+            ),
           ),
           const SizedBox(width: 8),
           Expanded(
@@ -1433,7 +1575,9 @@ class _LegendRow extends StatelessWidget {
           ),
           const SizedBox(width: 6),
           Text(
-            empty ? '0' : formatAmount(math.max(slice.value, 0), showSymbol: false),
+            empty
+                ? '0'
+                : formatAmount(math.max(slice.value, 0), showSymbol: false),
             style: const TextStyle(
               color: RestaurantPalette.darkText,
               fontSize: 11.5,
@@ -1576,8 +1720,10 @@ class _MovementsCard extends StatelessWidget {
             transitionBuilder: (child, anim) => FadeTransition(
               opacity: anim,
               child: SlideTransition(
-                position: Tween(begin: const Offset(0, 0.04), end: Offset.zero)
-                    .animate(anim),
+                position: Tween(
+                  begin: const Offset(0, 0.04),
+                  end: Offset.zero,
+                ).animate(anim),
                 child: child,
               ),
             ),
@@ -1588,7 +1734,10 @@ class _MovementsCard extends StatelessWidget {
                   : Column(
                       children: [
                         for (var i = 0; i < visible.length; i++) ...[
-                          _Reveal(index: i, child: _TxTile(tx: visible[i])),
+                          _Reveal(
+                            index: i,
+                            child: _TxTile(tx: visible[i]),
+                          ),
                           if (i < visible.length - 1)
                             const Divider(
                               height: 1,
@@ -1618,8 +1767,11 @@ class _MovementsCard extends StatelessWidget {
                         fontWeight: FontWeight.w800,
                       ),
                     ),
-                    Icon(Icons.chevron_right_rounded,
-                        size: 18, color: RestaurantPalette.orange),
+                    Icon(
+                      Icons.chevron_right_rounded,
+                      size: 18,
+                      color: RestaurantPalette.orange,
+                    ),
                   ],
                 ),
               ),
@@ -1632,7 +1784,11 @@ class _MovementsCard extends StatelessWidget {
 }
 
 class _TabButton extends StatelessWidget {
-  const _TabButton({required this.label, required this.active, required this.onTap});
+  const _TabButton({
+    required this.label,
+    required this.active,
+    required this.onTap,
+  });
 
   final String label;
   final bool active;
@@ -1660,7 +1816,9 @@ class _TabButton extends StatelessWidget {
           child: AnimatedDefaultTextStyle(
             duration: const Duration(milliseconds: 220),
             style: TextStyle(
-              color: active ? RestaurantPalette.orange : RestaurantPalette.grayText,
+              color: active
+                  ? RestaurantPalette.orange
+                  : RestaurantPalette.grayText,
               fontSize: 12,
               fontWeight: active ? FontWeight.w800 : FontWeight.w600,
             ),
@@ -1681,20 +1839,20 @@ class _TxTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final (icon, tint, amountColor) = switch (tx.kind) {
       _TxKind.release => (
-          Icons.lock_open_rounded,
-          RestaurantPalette.success,
-          RestaurantPalette.success,
-        ),
+        Icons.lock_open_rounded,
+        RestaurantPalette.success,
+        RestaurantPalette.success,
+      ),
       _TxKind.commission => (
-          Icons.percent_rounded,
-          RestaurantPalette.danger,
-          RestaurantPalette.danger,
-        ),
+        Icons.percent_rounded,
+        RestaurantPalette.danger,
+        RestaurantPalette.danger,
+      ),
       _TxKind.payout => (
-          Icons.account_balance_wallet_rounded,
-          _WalletColors.goldDark,
-          RestaurantPalette.darkText,
-        ),
+        Icons.account_balance_wallet_rounded,
+        _WalletColors.goldDark,
+        RestaurantPalette.darkText,
+      ),
     };
     final (badgeLabel, badgeColor) = switch (tx.status) {
       _TxStatus.success => ('Réussi', RestaurantPalette.success),
@@ -1800,13 +1958,22 @@ class _EmptyTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (title, hint) = switch (index) {
-      1 => ('Aucun séquestre libéré', 'Les fonds sont libérés après chaque livraison.'),
-      2 => ('Aucune commission prélevée', 'Les commissions apparaissent après livraison.'),
-      3 => ('Aucun retrait pour l’instant', 'Vos demandes de retrait seront listées ici.'),
+      1 => (
+        'Aucun séquestre libéré',
+        'Les fonds sont libérés après chaque livraison.',
+      ),
+      2 => (
+        'Aucune commission prélevée',
+        'Les commissions apparaissent après livraison.',
+      ),
+      3 => (
+        'Aucun retrait pour l’instant',
+        'Vos demandes de retrait seront listées ici.',
+      ),
       _ => (
-          'Aucune transaction ce mois-ci',
-          'Les ventes validées apparaîtront ici dès leur encaissement.',
-        ),
+        'Aucune transaction ce mois-ci',
+        'Les ventes validées apparaîtront ici dès leur encaissement.',
+      ),
     };
 
     return Padding(
@@ -1924,8 +2091,11 @@ class _PayoutsCard extends StatelessWidget {
                           fontWeight: FontWeight.w700,
                         ),
                       ),
-                      Icon(Icons.chevron_right_rounded,
-                          size: 17, color: RestaurantPalette.orange),
+                      Icon(
+                        Icons.chevron_right_rounded,
+                        size: 17,
+                        color: RestaurantPalette.orange,
+                      ),
                     ],
                   ),
                 ),
@@ -1963,10 +2133,10 @@ class _PayoutsCard extends StatelessWidget {
 }
 
 class _PayoutTile extends StatelessWidget {
-  const _PayoutTile({required this.payout, required this.onTap});
+  const _PayoutTile({required this.payout, this.onTap});
 
   final _Payout payout;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -2025,12 +2195,100 @@ class _PayoutTile extends StatelessWidget {
             ),
             const SizedBox(width: 8),
             _StatusBadge(label: label, color: color),
-            const Icon(
-              Icons.chevron_right_rounded,
-              size: 18,
-              color: RestaurantPalette.grayText,
-            ),
+            if (onTap != null)
+              const Icon(
+                Icons.chevron_right_rounded,
+                size: 18,
+                color: RestaurantPalette.grayText,
+              ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Historique complet des retraits, affiché sans quitter le portefeuille.
+class _PayoutHistorySheet extends StatelessWidget {
+  const _PayoutHistorySheet({required this.payouts});
+
+  final List<_Payout> payouts;
+
+  @override
+  Widget build(BuildContext context) {
+    final maxHeight = MediaQuery.sizeOf(context).height * 0.72;
+
+    return SafeArea(
+      top: false,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxHeight: maxHeight),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(18, 10, 18, 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 38,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: RestaurantPalette.borderColor,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
+              const Text(
+                'Historique des retraits',
+                style: TextStyle(
+                  color: RestaurantPalette.darkText,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.4,
+                ),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                payouts.isEmpty
+                    ? 'Aucune demande pour le moment.'
+                    : '${payouts.length} demande${payouts.length > 1 ? 's' : ''} enregistrée${payouts.length > 1 ? 's' : ''}',
+                style: const TextStyle(
+                  color: RestaurantPalette.grayText,
+                  fontSize: 11,
+                ),
+              ),
+              const SizedBox(height: 8),
+              if (payouts.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 26),
+                  child: Center(
+                    child: Text(
+                      'Vos retraits apparaîtront ici.',
+                      style: TextStyle(
+                        color: RestaurantPalette.grayText,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                )
+              else
+                Flexible(
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    padding: const EdgeInsets.only(top: 4),
+                    itemCount: payouts.length,
+                    separatorBuilder: (_, _) => const Divider(
+                      height: 1,
+                      indent: 54,
+                      color: RestaurantPalette.borderColor,
+                    ),
+                    itemBuilder: (_, index) =>
+                        _PayoutTile(payout: payouts[index]),
+                  ),
+                ),
+            ],
+          ),
         ),
       ),
     );
@@ -2074,8 +2332,11 @@ class _HelpSheet extends StatelessWidget {
                     color: RestaurantPalette.orange.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(13),
                   ),
-                  child: const Icon(Icons.support_agent_rounded,
-                      size: 21, color: RestaurantPalette.orange),
+                  child: const Icon(
+                    Icons.support_agent_rounded,
+                    size: 21,
+                    color: RestaurantPalette.orange,
+                  ),
                 ),
                 const SizedBox(width: 12),
                 const Expanded(
@@ -2220,7 +2481,9 @@ class _MonthChip extends StatelessWidget {
     return Material(
       color: Colors.white,
       shape: StadiumBorder(
-        side: BorderSide(color: RestaurantPalette.orange.withValues(alpha: 0.35)),
+        side: BorderSide(
+          color: RestaurantPalette.orange.withValues(alpha: 0.35),
+        ),
       ),
       child: InkWell(
         onTap: onTap,
@@ -2230,8 +2493,11 @@ class _MonthChip extends StatelessWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.calendar_month_outlined,
-                  size: 14, color: RestaurantPalette.orange),
+              const Icon(
+                Icons.calendar_month_outlined,
+                size: 14,
+                color: RestaurantPalette.orange,
+              ),
               const SizedBox(width: 5),
               Text(
                 label,
@@ -2242,8 +2508,11 @@ class _MonthChip extends StatelessWidget {
                   fontWeight: FontWeight.w800,
                 ),
               ),
-              const Icon(Icons.keyboard_arrow_down_rounded,
-                  size: 16, color: RestaurantPalette.orange),
+              const Icon(
+                Icons.keyboard_arrow_down_rounded,
+                size: 16,
+                color: RestaurantPalette.orange,
+              ),
             ],
           ),
         ),
@@ -2283,7 +2552,10 @@ class _MonthSheet extends StatelessWidget {
             const SizedBox(height: 2),
             const Text(
               'Portefeuille par mois',
-              style: TextStyle(color: RestaurantPalette.grayText, fontSize: 12.5),
+              style: TextStyle(
+                color: RestaurantPalette.grayText,
+                fontSize: 12.5,
+              ),
             ),
             const SizedBox(height: 6),
             Flexible(
@@ -2292,7 +2564,8 @@ class _MonthSheet extends StatelessWidget {
                 itemCount: months.length,
                 itemBuilder: (_, i) {
                   final m = months[i];
-                  final sel = m.year == selected.year && m.month == selected.month;
+                  final sel =
+                      m.year == selected.year && m.month == selected.month;
                   return ListTile(
                     dense: true,
                     contentPadding: EdgeInsets.zero,
@@ -2332,17 +2605,17 @@ class _Skeleton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     Widget box(double h, {double radius = 18}) => Padding(
-          padding: const EdgeInsets.only(bottom: 12),
-          child: _Shimmer(
-            child: Container(
-              height: h,
-              decoration: BoxDecoration(
-                color: RestaurantPalette.borderColor,
-                borderRadius: BorderRadius.circular(radius),
-              ),
-            ),
+      padding: const EdgeInsets.only(bottom: 12),
+      child: _Shimmer(
+        child: Container(
+          height: h,
+          decoration: BoxDecoration(
+            color: RestaurantPalette.borderColor,
+            borderRadius: BorderRadius.circular(radius),
           ),
-        );
+        ),
+      ),
+    );
 
     return ListView(
       physics: const NeverScrollableScrollPhysics(),
@@ -2361,7 +2634,8 @@ class _Shimmer extends StatefulWidget {
   State<_Shimmer> createState() => _ShimmerState();
 }
 
-class _ShimmerState extends State<_Shimmer> with SingleTickerProviderStateMixin {
+class _ShimmerState extends State<_Shimmer>
+    with SingleTickerProviderStateMixin {
   late final AnimationController _c = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 1400),
@@ -2382,11 +2656,13 @@ class _ShimmerState extends State<_Shimmer> with SingleTickerProviderStateMixin 
         blendMode: BlendMode.srcATop,
         shaderCallback: (bounds) {
           final s = _c.value;
-          return LinearGradient(colors: const [
-            Color(0xFFE9ECE8),
-            Color(0xFFF7F9F6),
-            Color(0xFFE9ECE8),
-          ]).createShader(
+          return LinearGradient(
+            colors: const [
+              Color(0xFFE9ECE8),
+              Color(0xFFF7F9F6),
+              Color(0xFFE9ECE8),
+            ],
+          ).createShader(
             Rect.fromLTWH(
               bounds.width * (s - 0.4),
               0,
@@ -2404,7 +2680,11 @@ class _ShimmerState extends State<_Shimmer> with SingleTickerProviderStateMixin 
 // ───────────────────────── Animations ─────────────────────────
 
 class _Stagger extends StatelessWidget {
-  const _Stagger({required this.anim, required this.index, required this.child});
+  const _Stagger({
+    required this.anim,
+    required this.index,
+    required this.child,
+  });
 
   final Animation<double> anim;
   final int index;
@@ -2420,7 +2700,10 @@ class _Stagger extends StatelessWidget {
     return FadeTransition(
       opacity: curved,
       child: SlideTransition(
-        position: Tween(begin: const Offset(0, 0.06), end: Offset.zero).animate(curved),
+        position: Tween(
+          begin: const Offset(0, 0.06),
+          end: Offset.zero,
+        ).animate(curved),
         child: child,
       ),
     );
@@ -2452,11 +2735,7 @@ class _CountUp extends StatelessWidget {
 
 /// Effet d'appui : léger enfoncement élastique (boutons, cartes, chips).
 class _Pressable extends StatefulWidget {
-  const _Pressable({
-    required this.child,
-    this.onTap,
-    this.borderRadius,
-  });
+  const _Pressable({required this.child, this.onTap, this.borderRadius});
 
   final Widget child;
   final VoidCallback? onTap;
@@ -2519,7 +2798,9 @@ String _when(DateTime? date) {
   final time =
       '${local.hour.toString().padLeft(2, '0')}:${local.minute.toString().padLeft(2, '0')}';
   final sameDay =
-      local.year == now.year && local.month == now.month && local.day == now.day;
+      local.year == now.year &&
+      local.month == now.month &&
+      local.day == now.day;
   if (sameDay) return "Aujourd'hui, $time";
   return '${local.day} ${_shortMonths[local.month - 1]}, $time';
 }

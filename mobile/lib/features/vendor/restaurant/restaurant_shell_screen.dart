@@ -724,6 +724,7 @@ class _RestaurantShellScreenState extends State<RestaurantShellScreen> {
           revenue: _revenue,
           onOpenDrawer: _openDrawer,
           marketplace: widget.marketplace,
+          phone: _shopVendor.phone,
           onSeeAllTap: _revenue == null ? () => _select(7) : _openRevenueHistory,
           onRefresh: _reloadData,
         );

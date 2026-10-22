@@ -2,42 +2,40 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../core/data/marketplace_api.dart';
-import '../../core/errors/api_exception.dart';
-import '../../core/theme/app_colors.dart';
-import '../../core/theme/app_dimens.dart';
-import '../../core/theme/app_theme.dart';
-import '../../core/utils/formatters.dart';
-import '../../shared/widgets/beninfood_header.dart';
-import '../../shared/widgets/feedback_widgets.dart';
-import '../../shared/widgets/fedapay_checkout_screen.dart';
-import '../../shared/widgets/state_widgets.dart';
+import '../../../core/data/marketplace_api.dart';
+import '../../../core/errors/api_exception.dart';
+import '../../../core/navigation/notification_router.dart';
+import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_dimens.dart';
+import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/formatters.dart';
+import '../../../shared/widgets/beninfood_header.dart';
+import '../../../shared/widgets/feedback_widgets.dart';
+import '../../../shared/widgets/fedapay_checkout_screen.dart';
+import '../../../shared/widgets/state_widgets.dart';
+import '../../wallet/widgets/payout_request_sheet.dart';
 
-/// Rôle propriétaire du wallet : le libellé et les endpoints diffèrent.
-enum WalletRole { vendor, driver }
-
-/// Écran **Wallet & retraits** — vendeur ou livreur (cahier de conception v1.0).
+/// Écran **Wallet & retraits** du livreur (cahier de conception v1.0).
 ///
-/// Design premium : carte gradient avec solde disponible, séquestre « en
-/// attente », demande de retrait vers Mobile Money et journal des mouvements.
-/// Les données proviennent de `GET /{vendors|driver}/me/wallet[/payouts]`.
-class WalletScreen extends StatefulWidget {
-  const WalletScreen({
+/// Carte gradient avec solde disponible, séquestre « en attente », demande
+/// de retrait vers Mobile Money, flottant espèces et journal des mouvements.
+/// Les données proviennent de `GET /driver/me/wallet[/payouts]` et
+/// `GET /driver/me/float`.
+class DriverWalletScreen extends StatefulWidget {
+  const DriverWalletScreen({
     super.key,
     required this.marketplace,
-    required this.role,
     this.onOpenDrawer,
   });
 
   final MarketplaceApi marketplace;
-  final WalletRole role;
   final VoidCallback? onOpenDrawer;
 
   @override
-  State<WalletScreen> createState() => _WalletScreenState();
+  State<DriverWalletScreen> createState() => _DriverWalletScreenState();
 }
 
-class _WalletScreenState extends State<WalletScreen> {
+class _DriverWalletScreenState extends State<DriverWalletScreen> {
   Map<String, dynamic> _wallet = const {};
   Map<String, dynamic> _float = const {};
   List<Map<String, dynamic>> _payouts = const [];
@@ -50,9 +48,12 @@ class _WalletScreenState extends State<WalletScreen> {
   int get _available => (_wallet['available_balance'] as num?)?.toInt() ?? 0;
   int get _minPayout => (_wallet['min_payout'] as num?)?.toInt() ?? 1000;
   int get _floatBalance => (_float['prepaid_balance'] as num?)?.toInt() ?? 0;
-  int get _commissionTotal => (_wallet['commission_total'] as num?)?.toInt() ?? 0;
-  int get _commissionCount => (_wallet['commission_count'] as num?)?.toInt() ?? 0;
-  int get _commissionRate => (_wallet['commission_rate'] as num?)?.toInt() ?? 20;
+  int get _commissionTotal =>
+      (_wallet['commission_total'] as num?)?.toInt() ?? 0;
+  int get _commissionCount =>
+      (_wallet['commission_count'] as num?)?.toInt() ?? 0;
+  int get _commissionRate =>
+      (_wallet['commission_rate'] as num?)?.toInt() ?? 20;
 
   String? get _phone {
     final phone = (_wallet['phone'] as String?)?.trim();
@@ -60,10 +61,16 @@ class _WalletScreenState extends State<WalletScreen> {
   }
 
   List<Map<String, dynamic>> get _floatTransactions =>
-      (_float['transactions'] as List?)?.whereType<Map<String, dynamic>>().toList() ?? const [];
+      (_float['transactions'] as List?)
+          ?.whereType<Map<String, dynamic>>()
+          .toList() ??
+      const [];
 
   List<Map<String, dynamic>> get _transactions =>
-      (_wallet['transactions'] as List?)?.whereType<Map<String, dynamic>>().toList() ?? const [];
+      (_wallet['transactions'] as List?)
+          ?.whereType<Map<String, dynamic>>()
+          .toList() ??
+      const [];
 
   @override
   void initState() {
@@ -77,22 +84,16 @@ class _WalletScreenState extends State<WalletScreen> {
       _error = null;
     });
     try {
-      final wallet = widget.role == WalletRole.vendor
-          ? await widget.marketplace.vendorWallet()
-          : await widget.marketplace.driverWallet();
+      final wallet = await widget.marketplace.driverWallet();
       Map<String, dynamic> floatData = const {};
-      if (widget.role == WalletRole.driver) {
-        try {
-          floatData = await widget.marketplace.driverFloat();
-        } on ApiException {
-          floatData = const {};
-        }
+      try {
+        floatData = await widget.marketplace.driverFloat();
+      } on ApiException {
+        floatData = const {};
       }
       List<Map<String, dynamic>> payouts = const [];
       try {
-        payouts = widget.role == WalletRole.vendor
-            ? await widget.marketplace.vendorPayouts()
-            : await widget.marketplace.driverPayouts();
+        payouts = await widget.marketplace.driverPayouts();
       } on ApiException {
         payouts = const [];
       }
@@ -122,36 +123,28 @@ class _WalletScreenState extends State<WalletScreen> {
       return;
     }
 
-    final result = await showModalBottomSheet<_PayoutRequest>(
-      context: context,
-      isScrollControlled: true,
-      builder: (context) => _PayoutSheet(
-        available: _available,
-        minPayout: _minPayout,
-        phone: _phone,
-      ),
+    final result = await showPayoutRequestSheet(
+      context,
+      available: _available,
+      minPayout: _minPayout,
+      phone: _phone,
     );
 
     if (result == null || !mounted) return;
 
     setState(() => _requesting = true);
     try {
-      final payout = widget.role == WalletRole.vendor
-          ? await widget.marketplace.requestVendorPayout(
-              result.amount,
-              method: result.method,
-              destination: result.destination,
-            )
-          : await widget.marketplace.requestDriverPayout(
-              result.amount,
-              method: result.method,
-              destination: result.destination,
-            );
+      final payout = await widget.marketplace.requestDriverPayout(
+        result.amount,
+        method: result.method,
+        destination: result.destination,
+      );
       if (!mounted) return;
       final status = payout['status']?.toString();
       final message = switch (status) {
         'executed' => 'Retrait versé sur votre Mobile Money.',
-        'failed' => 'Retrait échoué : le montant a été recrédité sur votre solde.',
+        'failed' =>
+          'Retrait échoué : le montant a été recrédité sur votre solde.',
         _ => 'Demande de retrait enregistrée, en cours de traitement.',
       };
       showToast(context, message, isError: status == 'failed');
@@ -211,26 +204,24 @@ class _WalletScreenState extends State<WalletScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final home = widget.role == WalletRole.vendor ? '/vendor' : '/driver';
-
     return Scaffold(
       backgroundColor: AppColors.background,
       body: Column(
         children: [
           BeninfoodAppBar(
-            onMenu: widget.onOpenDrawer ??
+            onMenu:
+                widget.onOpenDrawer ??
                 () {
                   if (context.canPop()) {
                     context.pop();
                   } else {
-                    context.go(home);
+                    context.go('/driver');
                   }
                 },
             api: widget.marketplace,
+            audience: NotificationAudience.driver,
           ),
-          Expanded(
-            child: _buildBody(),
-          ),
+          Expanded(child: _buildBody()),
         ],
       ),
     );
@@ -262,22 +253,20 @@ class _WalletScreenState extends State<WalletScreen> {
             onWithdraw: _openPayoutSheet,
           ),
           const SizedBox(height: AppDimens.lg),
-          if (widget.role == WalletRole.driver) ...[
-            _FloatCard(
-              balance: _floatBalance,
-              transactions: _floatTransactions,
-              busy: _floatBusy,
-              onTopUp: _openFloatSheet,
-            ),
-            const SizedBox(height: AppDimens.lg),
-            _CommissionCard(
-              total: _commissionTotal,
-              count: _commissionCount,
-              rate: _commissionRate,
-            ),
-            const SizedBox(height: AppDimens.lg),
-          ],
-          _QuickFacts(minPayout: _minPayout, role: widget.role),
+          _FloatCard(
+            balance: _floatBalance,
+            transactions: _floatTransactions,
+            busy: _floatBusy,
+            onTopUp: _openFloatSheet,
+          ),
+          const SizedBox(height: AppDimens.lg),
+          _CommissionCard(
+            total: _commissionTotal,
+            count: _commissionCount,
+            rate: _commissionRate,
+          ),
+          const SizedBox(height: AppDimens.lg),
+          _QuickFacts(minPayout: _minPayout),
           const SizedBox(height: AppDimens.xl),
           _SectionTitle(
             title: 'Mouvements',
@@ -335,7 +324,11 @@ class _BalanceCard extends StatelessWidget {
         ),
         borderRadius: BorderRadius.circular(AppDimens.radiusXl),
         boxShadow: const [
-          BoxShadow(color: Color(0x2618231F), blurRadius: 22, offset: Offset(0, 10)),
+          BoxShadow(
+            color: Color(0x2618231F),
+            blurRadius: 22,
+            offset: Offset(0, 10),
+          ),
         ],
       ),
       child: Padding(
@@ -352,12 +345,21 @@ class _BalanceCard extends StatelessWidget {
                     color: Colors.white.withValues(alpha: 0.14),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: const Icon(Icons.account_balance_wallet_outlined, color: Colors.white, size: 21),
+                  child: const Icon(
+                    Icons.account_balance_wallet_outlined,
+                    color: Colors.white,
+                    size: 21,
+                  ),
                 ),
                 const SizedBox(width: AppDimens.md),
                 const Text(
                   'Solde disponible',
-                  style: TextStyle(color: Colors.white70, fontSize: 13.5, fontWeight: FontWeight.w600, letterSpacing: 0.2),
+                  style: TextStyle(
+                    color: Colors.white70,
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.2,
+                  ),
                 ),
                 const Spacer(),
                 const _GoldDot(),
@@ -377,11 +379,17 @@ class _BalanceCard extends StatelessWidget {
             const SizedBox(height: 6),
             Text(
               'Retirable vers votre Mobile Money',
-              style: TextStyle(color: Colors.white.withValues(alpha: 0.72), fontSize: 12.5),
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.72),
+                fontSize: 12.5,
+              ),
             ),
             const SizedBox(height: AppDimens.lg),
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: AppDimens.md, vertical: 10),
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppDimens.md,
+                vertical: 10,
+              ),
               decoration: BoxDecoration(
                 color: Colors.white.withValues(alpha: 0.10),
                 borderRadius: BorderRadius.circular(AppDimens.radiusMd),
@@ -389,17 +397,29 @@ class _BalanceCard extends StatelessWidget {
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.hourglass_bottom, size: 17, color: AppColors.gold),
+                  const Icon(
+                    Icons.hourglass_bottom,
+                    size: 17,
+                    color: AppColors.gold,
+                  ),
                   const SizedBox(width: 8),
                   const Expanded(
                     child: Text(
                       'En attente de livraison',
-                      style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600),
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
                   Text(
                     formatAmount(pending),
-                    style: const TextStyle(color: AppColors.gold, fontSize: 14.5, fontWeight: FontWeight.w800),
+                    style: const TextStyle(
+                      color: AppColors.gold,
+                      fontSize: 14.5,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
                 ],
               ),
@@ -412,17 +432,25 @@ class _BalanceCard extends StatelessWidget {
                   backgroundColor: AppColors.gold,
                   foregroundColor: AppColors.goldDark,
                   minimumSize: const Size(0, 50),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
                 ),
                 onPressed: busy ? null : onWithdraw,
                 icon: busy
                     ? const SizedBox(
                         width: 18,
                         height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2.2, color: AppColors.goldDark),
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2.2,
+                          color: AppColors.goldDark,
+                        ),
                       )
                     : const Icon(Icons.arrow_downward_rounded, size: 20),
-                label: const Text('Retirer', style: TextStyle(fontSize: 15.5, fontWeight: FontWeight.w800)),
+                label: const Text(
+                  'Retirer',
+                  style: TextStyle(fontSize: 15.5, fontWeight: FontWeight.w800),
+                ),
               ),
             ),
           ],
@@ -445,7 +473,12 @@ class _GoldDot extends StatelessWidget {
       ),
       child: const Text(
         'Béninfood Pay',
-        style: TextStyle(color: AppColors.gold, fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.3),
+        style: TextStyle(
+          color: AppColors.gold,
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 0.3,
+        ),
       ),
     );
   }
@@ -454,14 +487,13 @@ class _GoldDot extends StatelessWidget {
 // ------------------------------------------------------------- Quick facts
 
 class _QuickFacts extends StatelessWidget {
-  const _QuickFacts({required this.minPayout, required this.role});
+  const _QuickFacts({required this.minPayout});
 
   final int minPayout;
-  final WalletRole role;
 
   @override
   Widget build(BuildContext context) {
-    final commission = role == WalletRole.vendor ? '10 %' : '20 %';
+    const commission = '20 %';
 
     return Row(
       children: [
@@ -520,14 +552,31 @@ class _FactCard extends StatelessWidget {
           Container(
             width: 38,
             height: 38,
-            decoration: BoxDecoration(color: tint, borderRadius: BorderRadius.circular(11)),
+            decoration: BoxDecoration(
+              color: tint,
+              borderRadius: BorderRadius.circular(11),
+            ),
             alignment: Alignment.center,
             child: Icon(icon, size: 19, color: accent),
           ),
           const SizedBox(height: AppDimens.md),
-          Text(value, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.text)),
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w800,
+              color: AppColors.text,
+            ),
+          ),
           const SizedBox(height: 2),
-          Text(label, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary, fontWeight: FontWeight.w500)),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 12,
+              color: AppColors.textSecondary,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
         ],
       ),
     );
@@ -576,7 +625,10 @@ class _TransactionRow extends StatelessWidget {
     final createdAt = tx['created_at'] as String?;
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppDimens.lg, vertical: AppDimens.md),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppDimens.lg,
+        vertical: AppDimens.md,
+      ),
       child: Row(
         children: [
           Container(
@@ -599,15 +651,24 @@ class _TransactionRow extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  description?.isNotEmpty == true ? description! : (isCredit ? 'Crédit' : 'Débit'),
+                  description?.isNotEmpty == true
+                      ? description!
+                      : (isCredit ? 'Crédit' : 'Débit'),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: AppColors.text),
+                  style: const TextStyle(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.text,
+                  ),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   _dateLabel(createdAt),
-                  style: const TextStyle(fontSize: 12, color: AppColors.textFaint),
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: AppColors.textFaint,
+                  ),
                 ),
               ],
             ),
@@ -648,7 +709,11 @@ class _PayoutsCard extends StatelessWidget {
           for (var i = 0; i < payouts.length; i++) ...[
             _PayoutRow(payout: payouts[i]),
             if (i != payouts.length - 1)
-              const Divider(height: 1, indent: AppDimens.lg, color: AppColors.border),
+              const Divider(
+                height: 1,
+                indent: AppDimens.lg,
+                color: AppColors.border,
+              ),
           ],
         ],
       ),
@@ -668,7 +733,10 @@ class _PayoutRow extends StatelessWidget {
     final amount = (payout['amount'] as num?)?.toInt() ?? 0;
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppDimens.lg, vertical: AppDimens.md),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppDimens.lg,
+        vertical: AppDimens.md,
+      ),
       child: Row(
         children: [
           Expanded(
@@ -677,12 +745,19 @@ class _PayoutRow extends StatelessWidget {
               children: [
                 Text(
                   formatAmount(amount),
-                  style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w800, color: AppColors.text),
+                  style: const TextStyle(
+                    fontSize: 14.5,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.text,
+                  ),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   _dateLabel(payout['created_at'] as String?),
-                  style: const TextStyle(fontSize: 12, color: AppColors.textFaint),
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: AppColors.textFaint,
+                  ),
                 ),
               ],
             ),
@@ -695,7 +770,11 @@ class _PayoutRow extends StatelessWidget {
             ),
             child: Text(
               palette.$1,
-              style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: palette.$3),
+              style: TextStyle(
+                fontSize: 11.5,
+                fontWeight: FontWeight.w700,
+                color: palette.$3,
+              ),
             ),
           ),
         ],
@@ -705,11 +784,11 @@ class _PayoutRow extends StatelessWidget {
 }
 
 (String, Color, Color) _payoutPalette(String status) => switch (status) {
-      'executed' => ('Versé', AppColors.greenLight, AppColors.green),
-      'failed' => ('Échec', AppColors.redLight, AppColors.red),
-      'processing' => ('En cours', AppColors.goldLight, AppColors.goldDark),
-      _ => ('En attente', AppColors.orangeLight, AppColors.orangeDark),
-    };
+  'executed' => ('Versé', AppColors.greenLight, AppColors.green),
+  'failed' => ('Échec', AppColors.redLight, AppColors.red),
+  'processing' => ('En cours', AppColors.goldLight, AppColors.goldDark),
+  _ => ('En attente', AppColors.orangeLight, AppColors.orangeDark),
+};
 
 // ------------------------------------------------------------ Section card
 
@@ -726,11 +805,21 @@ class _SectionTitle extends StatelessWidget {
       children: [
         Text(
           title,
-          style: const TextStyle(fontSize: 15.5, fontWeight: FontWeight.w800, color: AppColors.text),
+          style: const TextStyle(
+            fontSize: 15.5,
+            fontWeight: FontWeight.w800,
+            color: AppColors.text,
+          ),
         ),
         if (subtitle != null) ...[
           const SizedBox(height: 2),
-          Text(subtitle!, style: const TextStyle(fontSize: 12.5, color: AppColors.textSecondary)),
+          Text(
+            subtitle!,
+            style: const TextStyle(
+              fontSize: 12.5,
+              color: AppColors.textSecondary,
+            ),
+          ),
         ],
       ],
     );
@@ -747,7 +836,10 @@ class _EmptyCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(vertical: AppDimens.xl, horizontal: AppDimens.lg),
+      padding: const EdgeInsets.symmetric(
+        vertical: AppDimens.xl,
+        horizontal: AppDimens.lg,
+      ),
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(AppDimens.radiusLg),
@@ -758,7 +850,10 @@ class _EmptyCard extends StatelessWidget {
           Container(
             width: 56,
             height: 56,
-            decoration: const BoxDecoration(color: AppColors.orangeLight, shape: BoxShape.circle),
+            decoration: const BoxDecoration(
+              color: AppColors.orangeLight,
+              shape: BoxShape.circle,
+            ),
             alignment: Alignment.center,
             child: Icon(icon, color: AppColors.orange, size: 26),
           ),
@@ -766,217 +861,13 @@ class _EmptyCard extends StatelessWidget {
           Text(
             message,
             textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 13.5, color: AppColors.textSecondary, fontWeight: FontWeight.w600),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ------------------------------------------------------------ Payout sheet
-
-class _PayoutRequest {
-  const _PayoutRequest({
-    required this.amount,
-    required this.method,
-    required this.destination,
-  });
-
-  final int amount;
-  final String method;
-  final String destination;
-}
-
-class _PayoutSheet extends StatefulWidget {
-  const _PayoutSheet({
-    required this.available,
-    required this.minPayout,
-    this.phone,
-  });
-
-  final int available;
-  final int minPayout;
-  final String? phone;
-
-  @override
-  State<_PayoutSheet> createState() => _PayoutSheetState();
-}
-
-class _PayoutSheetState extends State<_PayoutSheet> {
-  late final TextEditingController _amount = TextEditingController(
-    text: widget.available.toString(),
-  );
-  late final TextEditingController _destination = TextEditingController(
-    text: widget.phone ?? '',
-  );
-  String _method = 'mtn_open';
-  String? _error;
-  String? _phoneError;
-
-  @override
-  void dispose() {
-    _amount.dispose();
-    _destination.dispose();
-    super.dispose();
-  }
-
-  void _submit() {
-    final value = int.tryParse(_amount.text.trim());
-    final phone = _destination.text.trim();
-
-    setState(() {
-      _error = null;
-      _phoneError = null;
-    });
-
-    if (value == null || value < widget.minPayout) {
-      setState(() => _error = 'Minimum ${formatAmount(widget.minPayout)}.');
-      return;
-    }
-    if (value > widget.available) {
-      setState(() => _error = 'Solde disponible insuffisant.');
-      return;
-    }
-    if (phone.isEmpty) {
-      setState(() => _phoneError = 'Numéro Mobile Money requis.');
-      return;
-    }
-
-    Navigator.of(context).pop(
-      _PayoutRequest(amount: value, method: _method, destination: phone),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final bottom = MediaQuery.of(context).viewInsets.bottom;
-
-    return Padding(
-      padding: EdgeInsets.fromLTRB(AppDimens.xl, AppDimens.lg, AppDimens.xl, AppDimens.xl + bottom),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Center(
-            child: Container(
-              width: 44,
-              height: 5,
-              decoration: BoxDecoration(
-                color: AppColors.borderStrong,
-                borderRadius: BorderRadius.circular(AppDimens.radiusPill),
-              ),
-            ),
-          ),
-          const SizedBox(height: AppDimens.xl),
-          const Text(
-            'Demander un retrait',
-            style: TextStyle(fontSize: 19, fontWeight: FontWeight.w800, color: AppColors.text),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Disponible : ${formatAmount(widget.available)} · minimum ${formatAmount(widget.minPayout)}',
-            style: const TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
-          ),
-          const SizedBox(height: AppDimens.xl),
-          TextField(
-            controller: _amount,
-            keyboardType: TextInputType.number,
-            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
-            decoration: InputDecoration(
-              labelText: 'Montant (F CFA)',
-              prefixIcon: const Icon(Icons.payments_outlined),
-              suffixText: 'FCFA',
-              errorText: _error,
-            ),
-          ),
-          const SizedBox(height: AppDimens.lg),
-          const Text(
-            'Recevoir sur',
-            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.text),
-          ),
-          const SizedBox(height: AppDimens.sm),
-          Row(
-            children: [
-              Expanded(child: _MethodChip(label: 'MTN', value: 'mtn_open', selected: _method, onTap: (v) => setState(() => _method = v))),
-              const SizedBox(width: AppDimens.sm),
-              Expanded(child: _MethodChip(label: 'Moov', value: 'moov', selected: _method, onTap: (v) => setState(() => _method = v))),
-              const SizedBox(width: AppDimens.sm),
-              Expanded(child: _MethodChip(label: 'Celtiis', value: 'sbin', selected: _method, onTap: (v) => setState(() => _method = v))),
-            ],
-          ),
-          const SizedBox(height: AppDimens.lg),
-          TextField(
-            controller: _destination,
-            keyboardType: TextInputType.phone,
-            decoration: InputDecoration(
-              labelText: 'Numéro Mobile Money',
-              prefixIcon: const Icon(Icons.phone_iphone),
-              hintText: 'Ex. +229 96 00 00 00',
-              errorText: _phoneError,
-            ),
-          ),
-          const SizedBox(height: AppDimens.xl),
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton(
-              onPressed: _submit,
-              child: const Text('Confirmer la demande'),
+            style: const TextStyle(
+              fontSize: 13.5,
+              color: AppColors.textSecondary,
+              fontWeight: FontWeight.w600,
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _MethodChip extends StatelessWidget {
-  const _MethodChip({
-    required this.label,
-    required this.value,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final String label;
-  final String value;
-  final String selected;
-  final ValueChanged<String> onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final isSelected = selected == value;
-    return InkWell(
-      onTap: () => onTap(value),
-      borderRadius: BorderRadius.circular(AppDimens.radiusMd),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: AppDimens.md),
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: isSelected ? AppColors.orangeLight : AppColors.surface,
-          borderRadius: BorderRadius.circular(AppDimens.radiusMd),
-          border: Border.all(color: isSelected ? AppColors.orange : AppColors.border, width: isSelected ? 1.6 : 1),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              isSelected ? Icons.radio_button_checked : Icons.radio_button_unchecked,
-              size: 18,
-              color: isSelected ? AppColors.orange : AppColors.textFaint,
-            ),
-            const SizedBox(width: 6),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-                color: isSelected ? AppColors.orangeDark : AppColors.textSecondary,
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }
@@ -1023,13 +914,21 @@ class _FloatCard extends StatelessWidget {
                   color: AppColors.gold.withValues(alpha: 0.18),
                   borderRadius: BorderRadius.circular(11),
                 ),
-                child: const Icon(Icons.payments, size: 19, color: AppColors.goldDark),
+                child: const Icon(
+                  Icons.payments,
+                  size: 19,
+                  color: AppColors.goldDark,
+                ),
               ),
               const SizedBox(width: AppDimens.md),
               const Expanded(
                 child: Text(
                   'Flottant espèces (cash)',
-                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: AppColors.text),
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.text,
+                  ),
                 ),
               ),
               FilledButton.tonalIcon(
@@ -1042,7 +941,10 @@ class _FloatCard extends StatelessWidget {
                     ? const SizedBox(
                         width: 16,
                         height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.goldDark),
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: AppColors.goldDark,
+                        ),
                       )
                     : const Icon(Icons.add, size: 18),
                 label: const Text('Recharger'),
@@ -1052,12 +954,18 @@ class _FloatCard extends StatelessWidget {
           const SizedBox(height: AppDimens.md),
           Text(
             formatAmount(balance),
-            style: const TextStyle(fontSize: 30, fontWeight: FontWeight.w900, color: AppColors.goldDark),
+            style: const TextStyle(
+              fontSize: 30,
+              fontWeight: FontWeight.w900,
+              color: AppColors.goldDark,
+            ),
           ),
           const SizedBox(height: 2),
           Text(
             'Avance servant à régler les commandes payées en espèces à la livraison.',
-            style: theme.textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: AppColors.textSecondary,
+            ),
           ),
           if (transactions.isNotEmpty) ...[
             const Divider(height: AppDimens.xl),
@@ -1067,9 +975,13 @@ class _FloatCard extends StatelessWidget {
                 child: Row(
                   children: [
                     Icon(
-                      (tx['type'] ?? 'topup') == 'topup' ? Icons.add_circle_outline : Icons.remove_circle_outline,
+                      (tx['type'] ?? 'topup') == 'topup'
+                          ? Icons.add_circle_outline
+                          : Icons.remove_circle_outline,
                       size: 16,
-                      color: (tx['type'] ?? 'topup') == 'topup' ? AppColors.green : AppColors.orangeDark,
+                      color: (tx['type'] ?? 'topup') == 'topup'
+                          ? AppColors.green
+                          : AppColors.orangeDark,
                     ),
                     const SizedBox(width: 8),
                     Expanded(
@@ -1077,12 +989,19 @@ class _FloatCard extends StatelessWidget {
                         (tx['description'] as String?) ?? 'Opération',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600),
+                        style: const TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
                     Text(
                       '${(tx['type'] ?? 'topup') == 'topup' ? '+' : '-'}${formatAmount((tx['amount'] as num?)?.toInt() ?? 0)}',
-                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: AppColors.text),
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.text,
+                      ),
                     ),
                   ],
                 ),
@@ -1130,23 +1049,38 @@ class _CommissionCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(11),
                 ),
                 alignment: Alignment.center,
-                child: const Icon(Icons.percent, size: 19, color: AppColors.orange),
+                child: const Icon(
+                  Icons.percent,
+                  size: 19,
+                  color: AppColors.orange,
+                ),
               ),
               const SizedBox(width: AppDimens.md),
               const Text(
                 'Frais de commission',
-                style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w800, color: AppColors.text),
+                style: TextStyle(
+                  fontSize: 14.5,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.text,
+                ),
               ),
               const Spacer(),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 5,
+                ),
                 decoration: BoxDecoration(
                   color: AppColors.orangeLight,
                   borderRadius: BorderRadius.circular(AppDimens.radiusPill),
                 ),
                 child: Text(
                   '$rate %',
-                  style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800, color: AppColors.orangeDark),
+                  style: const TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.orangeDark,
+                  ),
                 ),
               ),
             ],
@@ -1161,12 +1095,20 @@ class _CommissionCard extends StatelessWidget {
                   children: [
                     Text(
                       formatAmount(total),
-                      style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: AppColors.text),
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w900,
+                        color: AppColors.text,
+                      ),
                     ),
                     const SizedBox(height: 2),
                     const Text(
                       'Total prélevé',
-                      style: TextStyle(fontSize: 12, color: AppColors.textSecondary, fontWeight: FontWeight.w500),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: AppColors.textSecondary,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                   ],
                 ),
@@ -1177,12 +1119,20 @@ class _CommissionCard extends StatelessWidget {
                   children: [
                     Text(
                       '$count',
-                      style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: AppColors.text),
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w900,
+                        color: AppColors.text,
+                      ),
                     ),
                     const SizedBox(height: 2),
                     const Text(
                       'Commissions',
-                      style: TextStyle(fontSize: 12, color: AppColors.textSecondary, fontWeight: FontWeight.w500),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: AppColors.textSecondary,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                   ],
                 ),
@@ -1226,7 +1176,12 @@ class _FloatSheetState extends State<_FloatSheet> {
   Widget build(BuildContext context) {
     final bottom = MediaQuery.of(context).viewInsets.bottom;
     return Padding(
-      padding: EdgeInsets.fromLTRB(AppDimens.xl, AppDimens.lg, AppDimens.xl, AppDimens.xl + bottom),
+      padding: EdgeInsets.fromLTRB(
+        AppDimens.xl,
+        AppDimens.lg,
+        AppDimens.xl,
+        AppDimens.xl + bottom,
+      ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1244,7 +1199,11 @@ class _FloatSheetState extends State<_FloatSheet> {
           const SizedBox(height: AppDimens.xl),
           const Text(
             'Recharger le flottant',
-            style: TextStyle(fontSize: 19, fontWeight: FontWeight.w800, color: AppColors.text),
+            style: TextStyle(
+              fontSize: 19,
+              fontWeight: FontWeight.w800,
+              color: AppColors.text,
+            ),
           ),
           const SizedBox(height: 4),
           const Text(

@@ -15,6 +15,7 @@ import 'package:beninfood/features/vendor/restaurant/screens/orders_screen.dart'
 import 'package:beninfood/features/vendor/restaurant/screens/revenues_screen.dart';
 import 'package:beninfood/features/vendor/restaurant/screens/reviews_screen.dart';
 import 'package:beninfood/features/vendor/restaurant/screens/shop_screen.dart';
+import 'package:beninfood/features/wallet/widgets/payout_request_sheet.dart';
 
 class _NoopTokenStore implements TokenStore {
   @override
@@ -184,6 +185,29 @@ MockClient _mockBackend(List<String> log) {
     }
     if (path.endsWith('/vendors/me/orders')) {
       return http.Response(jsonEncode({'data': orders}), 200, headers: headers);
+    }
+    if (path.endsWith('/vendors/me/wallet/payouts') &&
+        request.method == 'POST') {
+      final body = jsonDecode(request.body) as Map<String, dynamic>;
+      return http.Response(
+        jsonEncode({
+          'data': {
+            'id': 'payout_test',
+            'amount': body['amount'],
+            'method': body['method'],
+            'status': 'pending',
+          },
+        }),
+        201,
+        headers: headers,
+      );
+    }
+    if (path.endsWith('/me/notifications')) {
+      return http.Response(
+        jsonEncode({'data': <dynamic>[]}),
+        200,
+        headers: headers,
+      );
     }
     if (request.method == 'PATCH' && path.endsWith('/vendors/me')) {
       final body = jsonDecode(request.body) as Map<String, dynamic>;
@@ -997,6 +1021,51 @@ void main() {
       expect(find.text('Riz sauce tomate'), findsOneWidget);
       expect(find.text('42 vendus'), findsOneWidget);
 
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'portefeuille : le retrait ouvre directement le formulaire Mobile Money',
+    (tester) async {
+      final log = <String>[];
+      await _pumpShell(tester, log, size: const Size(390, 844));
+
+      await tester.tap(find.text('Portefeuille'));
+      await tester.pumpAndSettle();
+      expect(find.text('Faire un retrait'), findsOneWidget);
+
+      // Plus de page wallet intermédiaire : le formulaire s'ouvre sur place.
+      await tester.tap(find.text('Faire un retrait'));
+      await tester.pumpAndSettle();
+      expect(find.text('Retirer mes gains'), findsOneWidget);
+      expect(find.text('Confirmer le retrait'), findsOneWidget);
+
+      // Le numéro de la boutique n'est pas exposé par ce backend de test.
+      await tester.enterText(
+        find.byKey(PayoutRequestSheet.phoneFieldKey),
+        '+22996000000',
+      );
+      await tester.tap(find.text('Confirmer le retrait'));
+      await tester.pumpAndSettle();
+
+      expect(log, contains('POST /vendors/me/wallet/payouts'));
+      expect(
+        find.text('Demande de retrait enregistrée, en cours de traitement.'),
+        findsOneWidget,
+      );
+      expect(find.text('Retirer mes gains'), findsNothing);
+
+      // « Voir tout » ouvre l'historique complet en feuille, sans page dédiée.
+      await tester.scrollUntilVisible(
+        find.text('Historique des retraits'),
+        300,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Voir tout'));
+      await tester.pumpAndSettle();
+      expect(find.text('Historique des retraits'), findsNWidgets(2));
       expect(tester.takeException(), isNull);
     },
   );

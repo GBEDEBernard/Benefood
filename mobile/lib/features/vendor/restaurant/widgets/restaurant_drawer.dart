@@ -6,7 +6,6 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../shared/widgets/app_network_image.dart';
 import '../../../../shared/widgets/drawer_kit.dart';
-import '../restaurant_palette.dart';
 
 /// Menu latéral premium de l'espace vendeur Béninfood.
 ///
@@ -31,12 +30,9 @@ class RestaurantDrawer extends StatelessWidget {
   final VoidCallback? onLogout;
 
   static const _ink = Color(0xFF173B2D);
-  static const _inkSoft = Color(0xFF315846);
   static const _orange = Color(0xFFF07835);
   static const _cream = Color(0xFFFFFBF5);
   static const _muted = Color(0xFF7A887F);
-  static const _line = Color(0xFFECE7DE);
-  static const _greenWash = Color(0xFFEAF3EC);
 
   static const List<_DrawerItem> _items = [
     _DrawerItem(
@@ -197,7 +193,11 @@ class RestaurantDrawer extends StatelessWidget {
                           icon: Icons.account_balance_wallet_outlined,
                           label: 'Portefeuille',
                           color: const Color(0xFF5274A5),
-                          onTap: () => _open(context, '/vendor/wallet'),
+                          onTap: () {
+                            HapticFeedback.selectionClick();
+                            Navigator.of(context).pop();
+                            onSelect(4);
+                          },
                         ),
                       ),
                     ],
@@ -285,8 +285,11 @@ class RestaurantDrawer extends StatelessWidget {
                     child: const Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.restaurant_rounded,
-                            color: Color(0xFFFFC078), size: 13),
+                        Icon(
+                          Icons.restaurant_rounded,
+                          color: Color(0xFFFFC078),
+                          size: 13,
+                        ),
                         SizedBox(width: 5),
                         Text(
                           'MON ESPACE',
@@ -338,10 +341,7 @@ class RestaurantDrawer extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 17),
-              Container(
-                height: 1,
-                color: Colors.white.withValues(alpha: 0.13),
-              ),
+              Container(height: 1, color: Colors.white.withValues(alpha: 0.13)),
               const SizedBox(height: 12),
               Row(
                 children: [
@@ -389,9 +389,9 @@ class RestaurantDrawer extends StatelessWidget {
             if (onLogout != null) {
               onLogout!();
             } else {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Déconnexion…')),
-              );
+              ScaffoldMessenger.of(
+                context,
+              ).showSnackBar(const SnackBar(content: Text('Déconnexion…')));
             }
           },
           child: Container(
@@ -402,8 +402,7 @@ class RestaurantDrawer extends StatelessWidget {
             ),
             child: const Row(
               children: [
-                Icon(Icons.logout_rounded,
-                    size: 20, color: Color(0xFFCE5738)),
+                Icon(Icons.logout_rounded, size: 20, color: Color(0xFFCE5738)),
                 SizedBox(width: 11),
                 Expanded(
                   child: Text(
@@ -415,8 +414,11 @@ class RestaurantDrawer extends StatelessWidget {
                     ),
                   ),
                 ),
-                Icon(Icons.chevron_right_rounded,
-                    size: 20, color: Color(0xFFCE8B75)),
+                Icon(
+                  Icons.chevron_right_rounded,
+                  size: 20,
+                  color: Color(0xFFCE8B75),
+                ),
               ],
             ),
           ),
@@ -506,7 +508,9 @@ class _NavTile extends StatelessWidget {
                         style: TextStyle(
                           color: active ? _ink : const Color(0xFF34483B),
                           fontSize: 13,
-                          fontWeight: active ? FontWeight.w800 : FontWeight.w700,
+                          fontWeight: active
+                              ? FontWeight.w800
+                              : FontWeight.w700,
                         ),
                       ),
                       const SizedBox(height: 3),
@@ -615,8 +619,7 @@ class _StatusPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color =
-        isOpen ? const Color(0xFF9BE2AF) : const Color(0xFFFFB3A1);
+    final color = isOpen ? const Color(0xFF9BE2AF) : const Color(0xFFFFB3A1);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
       decoration: BoxDecoration(
