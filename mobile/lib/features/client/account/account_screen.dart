@@ -10,6 +10,7 @@ import '../../../core/theme/app_dimens.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../shared/models/user.dart';
 import '../../../shared/widgets/feedback_widgets.dart';
+import '../../../shared/widgets/food_decor.dart';
 import '../../../shared/widgets/profile_widgets.dart';
 
 /// Profil client (J153) : carte verte, statistiques, menu « Mon compte ».
@@ -183,46 +184,52 @@ class _AccountScreenState extends State<AccountScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      body: Stack(
         children: [
-          ProfileHeader(
-            marketplace: widget.marketplace,
-            uploadingAvatar: _uploadingAvatar,
-            onMenu: widget.onOpenMenu,
-          ),
-          Expanded(
-            child: RefreshIndicator(
-              onRefresh: _loadStats,
-              child: ListView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: EdgeInsets.zero,
-                children: [
-                  const ProfilePageTitle('Mon profil'),
-                  ProfileHero(
-                    user: user,
-                    badges: _buildBadges(),
-                    stats: _buildStats(),
-                    uploadingAvatar: _uploadingAvatar,
-                    onEditAvatar: _pickAvatar,
-                    onShowQr: () => showContactQrSheet(context, user),
-                  ),
-                  const SizedBox(height: AppDimens.xl),
-                  const ProfileSectionTitle('Mon compte'),
-                  ProfileMenuCard(entries: _buildMenuEntries()),
-                  if ((user?.contexts.length ?? 1) > 1) ...[
-                    const ProfileSectionTitle('Espaces accessibles'),
-                    ProfileSpacesMenu(
-                      session: widget.session,
-                      currentContext: AppContext.client,
-                    ),
-                  ],
-                  const SizedBox(height: AppDimens.lg),
-                  ProfileLogoutButton(onConfirm: _confirmLogout),
-                  const SizedBox(height: AppDimens.xl),
-                ],
+          // Décor food discret en fond de profil.
+          const Positioned.fill(child: FoodDecorPageBackground()),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              ProfileHeader(
+                marketplace: widget.marketplace,
+                uploadingAvatar: _uploadingAvatar,
+                onMenu: widget.onOpenMenu,
               ),
-            ),
+              Expanded(
+                child: RefreshIndicator(
+                  onRefresh: _loadStats,
+                  child: ListView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: EdgeInsets.zero,
+                    children: [
+                      const ProfilePageTitle('Mon profil'),
+                      ProfileHero(
+                        user: user,
+                        badges: _buildBadges(),
+                        stats: _buildStats(),
+                        uploadingAvatar: _uploadingAvatar,
+                        onEditAvatar: _pickAvatar,
+                        onShowQr: () => showContactQrSheet(context, user),
+                      ),
+                      const SizedBox(height: AppDimens.xl),
+                      const ProfileSectionTitle('Mon compte'),
+                      ProfileMenuCard(entries: _buildMenuEntries()),
+                      if ((user?.contexts.length ?? 1) > 1) ...[
+                        const ProfileSectionTitle('Espaces accessibles'),
+                        ProfileSpacesMenu(
+                          session: widget.session,
+                          currentContext: AppContext.client,
+                        ),
+                      ],
+                      const SizedBox(height: AppDimens.lg),
+                      ProfileLogoutButton(onConfirm: _confirmLogout),
+                      const SizedBox(height: AppDimens.xl),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ),

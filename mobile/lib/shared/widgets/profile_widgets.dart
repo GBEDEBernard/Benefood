@@ -11,6 +11,7 @@ import '../../core/theme/app_theme.dart';
 import '../models/user.dart';
 import 'app_network_image.dart';
 import 'beninfood_header.dart';
+import 'food_decor.dart';
 
 /// Vert profond de la bannière d'identité (dégradé de la carte verte).
 const Color _greenDeep = Color(0xFF0E3B1D);
@@ -333,6 +334,15 @@ class _GreenIdentityCard extends StatelessWidget {
             right: 30,
             bottom: -64,
             child: _halo(120, AppColors.gold.withValues(alpha: 0.12)),
+          ),
+          // Décor food : bol garni et herbes estompés dans le vert profond.
+          const Positioned.fill(
+            child: IgnorePointer(
+              child: FoodDecor(
+                bowlOpacity: 0.20,
+                herbsOpacity: 0.16,
+              ),
+            ),
           ),
           Padding(
             padding: const EdgeInsets.all(AppDimens.lg),

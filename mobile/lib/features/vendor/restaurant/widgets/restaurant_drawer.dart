@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../shared/widgets/app_network_image.dart';
+import '../../../../shared/widgets/drawer_kit.dart';
 import '../restaurant_palette.dart';
 
 /// Menu latéral premium de l'espace vendeur Béninfood.
@@ -262,6 +263,8 @@ class RestaurantDrawer extends StatelessWidget {
               ),
             ),
           ),
+          // Décor food : bol garni et herbes estompés dans le vert profond.
+          const DrawerFoodDecor(intensity: 1.15),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [

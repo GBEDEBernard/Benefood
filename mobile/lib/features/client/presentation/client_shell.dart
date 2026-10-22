@@ -5,14 +5,13 @@ import '../../../core/auth/session_provider.dart';
 import '../../../core/data/marketplace_api.dart';
 import '../../../core/errors/api_exception.dart';
 import '../../../core/theme/app_colors.dart';
-import '../../../core/theme/app_dimens.dart';
-import '../../../shared/widgets/brand_logo.dart';
 import '../account/account_screen.dart';
 import '../cart/cart_screen.dart';
 import '../categories/categories_screen.dart';
 import '../home/home_screen.dart';
 import '../onboarding/client_onboarding_screen.dart';
 import '../orders/orders_screen.dart';
+import '../widgets/client_drawer.dart';
 
 /// Passerelle de navigation vers les onglets de l'espace client depuis une
 /// page secondaire (produit, boutique, recherche…). Une page demandant un
@@ -48,6 +47,9 @@ class _ClientShellState extends State<ClientShell> {
 
   bool _statusLoading = true;
   bool _needsOnboarding = false;
+
+  /// Statut du dossier client (carte d'identité du tiroir latéral).
+  Map<String, dynamic>? _status;
 
   /// Indicateur : ne montre le spinner de chargement du statut qu'à la
   /// toute première vérification. Les rafraîchissements suivants (uploads de
@@ -98,6 +100,7 @@ class _ClientShellState extends State<ClientShell> {
       final profile = status['profile'];
       final active = profile is Map<String, dynamic> && profile['status'] == 'active';
       setState(() {
+        _status = status;
         _needsOnboarding = !active;
         _statusLoading = false;
         _loadedOnce = true;
@@ -135,6 +138,14 @@ class _ClientShellState extends State<ClientShell> {
     _refreshCartCount();
   }
 
+  /// Déconnexion depuis le tiroir latéral.
+  Future<void> _logout() async {
+    await widget.session.logout();
+    if (mounted) {
+      context.go('/landing');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_statusLoading) {
@@ -149,9 +160,24 @@ class _ClientShellState extends State<ClientShell> {
       );
     }
 
+    final rawProfile = _status?['profile'];
+    final profile = rawProfile is Map<String, dynamic> ? rawProfile : null;
+    final rawStatus = profile?['status'];
+    final palette = ClientDrawer.statusPalette(
+      rawStatus is String ? rawStatus : null,
+    );
+
     return Scaffold(
       key: _scaffoldKey,
-      drawer: _ClientDrawer(session: widget.session, onSelectTab: _selectTab),
+      drawer: ClientDrawer(
+        session: widget.session,
+        currentIndex: _index,
+        onSelectTab: _selectTab,
+        cartCount: _cartCount,
+        statusLabel: palette.$1,
+        statusColor: palette.$2,
+        onLogout: _logout,
+      ),
       body: IndexedStack(
         index: _index,
         children: [
@@ -409,167 +435,6 @@ class _CartButton extends StatelessWidget {
           ),
         ),
       ),
-    );
-  }
-}
-
-/// Tiroir latéral ouvert par le hamburger de l'accueil.
-class _ClientDrawer extends StatelessWidget {
-  const _ClientDrawer({required this.session, required this.onSelectTab});
-
-  final SessionProvider session;
-  final ValueChanged<int> onSelectTab;
-
-  @override
-  Widget build(BuildContext context) {
-    final user = session.user;
-    final name = (user?.name ?? '').trim();
-    final detail = (user?.email?.isNotEmpty ?? false)
-        ? user!.email!
-        : (user?.phone ?? '');
-
-    return Drawer(
-      backgroundColor: AppColors.surface,
-      child: SafeArea(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(AppDimens.pagePadding),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Image.asset(
-                    'assets/Logo.jpeg',
-                    height: 44,
-                    fit: BoxFit.contain,
-                    errorBuilder: (_, _, _) =>
-                        const BrandMark(iconSize: 26, fontSize: 18),
-                  ),
-                  const SizedBox(height: 8),
-                  if (name.isNotEmpty)
-                    Text(
-                      name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  if (detail.isNotEmpty)
-                    Text(
-                      detail,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 12.5,
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                ],
-              ),
-            ),
-            const Divider(height: 1),
-            Expanded(
-              child: ListView(
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                children: [
-                  _DrawerTile(
-                    icon: Icons.person_outline,
-                    label: 'Mon compte',
-                    onTap: () {
-                      Navigator.of(context).pop();
-                      onSelectTab(4);
-                    },
-                  ),
-                  _DrawerTile(
-                    icon: Icons.receipt_long_outlined,
-                    label: 'Mes commandes',
-                    onTap: () {
-                      Navigator.of(context).pop();
-                      onSelectTab(3);
-                    },
-                  ),
-                  _DrawerTile(
-                    icon: Icons.local_shipping_outlined,
-                    label: 'Mes colis',
-                    onTap: () {
-                      Navigator.of(context).pop();
-                      context.push('/client/parcels');
-                    },
-                  ),
-                  _DrawerTile(
-                    icon: Icons.shopping_cart_outlined,
-                    label: 'Mon panier',
-                    onTap: () {
-                      Navigator.of(context).pop();
-                      onSelectTab(2);
-                    },
-                  ),
-                  _DrawerTile(
-                    icon: Icons.location_on_outlined,
-                    label: 'Mes adresses',
-                    onTap: () {
-                      Navigator.of(context).pop();
-                      context.push('/client/addresses');
-                    },
-                  ),
-                  _DrawerTile(
-                    icon: Icons.support_agent,
-                    label: 'Mes réclamations',
-                    onTap: () {
-                      Navigator.of(context).pop();
-                      context.push('/client/complaints');
-                    },
-                  ),
-                ],
-              ),
-            ),
-            const Divider(height: 1),
-            const Padding(
-              padding: EdgeInsets.all(AppDimens.pagePadding),
-              child: Text(
-                'Béninfood • Le goût du Bénin, livré chez vous',
-                style: TextStyle(fontSize: 12, color: AppColors.textFaint),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// Ligne de menu du tiroir latéral.
-class _DrawerTile extends StatelessWidget {
-  const _DrawerTile({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return ListTile(
-      leading: Container(
-        width: 40,
-        height: 40,
-        decoration: BoxDecoration(
-          color: AppColors.orangeLight,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Icon(icon, size: 20, color: AppColors.orange),
-      ),
-      title: Text(
-        label,
-        style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w600),
-      ),
-      onTap: onTap,
     );
   }
 }
