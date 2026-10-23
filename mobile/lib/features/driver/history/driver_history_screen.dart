@@ -162,7 +162,7 @@ class _HistoryCard extends StatelessWidget {
                   ),
                   const Spacer(),
                   AmountText(
-                    delivery.fee,
+                    delivery.netEarnings,
                     style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
                 ],

@@ -104,9 +104,10 @@ void main() {
     expect(find.text('J\'ai récupéré le colis'), findsOneWidget);
     expect(tester.takeException(), isNull);
 
-    // Le livreur voit le prix de livraison BRUT, pas sa part nette.
-    expect(find.text('Prix de livraison'), findsNWidgets(2));
-    expect(find.textContaining('600'), findsOneWidget);
-    expect(find.textContaining('400'), findsNothing);
+    // Le livreur voit sa part nette, pas le prix de livraison payé par le client.
+    expect(find.text('Votre gain'), findsNWidgets(2));
+    expect(find.textContaining('400'), findsOneWidget);
+    expect(find.textContaining('500'), findsOneWidget);
+    expect(find.textContaining('600'), findsNothing);
   });
 }

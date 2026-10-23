@@ -120,8 +120,8 @@ void main() {
     expect(find.text('Mission créée'), findsOneWidget);
     expect(find.text('Livraison terminée'), findsOneWidget);
     expect(find.text('Montants'), findsOneWidget);
-    expect(find.text('Frais de livraison'), findsOneWidget);
-    expect(find.text('Part livreur'), findsOneWidget);
+    expect(find.text('Frais de livraison client'), findsOneWidget);
+    expect(find.text('Votre gain'), findsOneWidget);
     expect(find.text('Collecte'), findsOneWidget);
     expect(find.text('Chez Aïcha'), findsOneWidget);
     expect(find.text('Livraison'), findsOneWidget);

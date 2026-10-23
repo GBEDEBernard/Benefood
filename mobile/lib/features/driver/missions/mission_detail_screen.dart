@@ -867,10 +867,10 @@ class _FeeCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                Text('Prix de livraison', style: theme.textTheme.bodyMedium),
+                Text('Votre gain', style: theme.textTheme.bodyMedium),
                 const Spacer(),
                 AmountText(
-                  delivery.fee,
+                  delivery.netEarnings,
                   style: const TextStyle(
                     fontWeight: FontWeight.w700,
                     color: AppColors.orange,
@@ -878,6 +878,22 @@ class _FeeCard extends StatelessWidget {
                 ),
               ],
             ),
+            if (delivery.fee != delivery.netEarnings) ...[
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Text(
+                    'Frais de livraison payés par le client',
+                    style: theme.textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+                  ),
+                  const Spacer(),
+                  AmountText(
+                    delivery.fee,
+                    style: theme.textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+                  ),
+                ],
+              ),
+            ],
           ],
         ),
       ),

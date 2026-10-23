@@ -133,6 +133,7 @@ class Delivery {
     required this.status,
     required this.fee,
     this.partnerAmount,
+    this.driverEarnings,
     this.order,
     this.vendor,
     this.proofCode,
@@ -147,6 +148,7 @@ class Delivery {
   final String status;
   final int fee;
   final int? partnerAmount;
+  final int? driverEarnings;
   final DeliveryOrder? order;
   final DeliveryVendor? vendor;
   final String? proofCode;
@@ -155,6 +157,8 @@ class Delivery {
   final String? pickedUpAt;
   final String? deliveredAt;
   final String currency;
+
+  int get netEarnings => driverEarnings ?? partnerAmount ?? 0;
 
   bool get isAvailable => status == 'available' || status == 'proposed';
   bool get isAssigned => status == 'assigned';
@@ -192,6 +196,7 @@ class Delivery {
       status: _s(json['status']),
       fee: _i(json['fee']),
       partnerAmount: _iNull(json['partner_amount']),
+      driverEarnings: _iNull(json['driver_earnings']),
       order: order,
       vendor: vendor,
       proofCode: json['proof_code'] is String ? json['proof_code'] as String : null,

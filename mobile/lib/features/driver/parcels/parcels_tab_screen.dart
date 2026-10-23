@@ -398,13 +398,13 @@ class _RunCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Prix de livraison',
+                        'Votre gain',
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: AppColors.textSecondary,
                         ),
                       ),
                       AmountText(
-                        parcel.deliveryFee,
+                        parcel.partnerAmount,
                         style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w800,
@@ -513,13 +513,13 @@ class _OfferCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Prix de livraison',
+                        'Votre gain',
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: AppColors.textSecondary,
                         ),
                       ),
                       AmountText(
-                        parcel.deliveryFee,
+                        parcel.partnerAmount,
                         style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w800,

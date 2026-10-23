@@ -139,27 +139,20 @@ class _DriverHistoryDetails extends StatelessWidget {
                       icon: Icons.payments_outlined,
                       children: [
                         _AmountRow(
-                          label: 'Frais de livraison',
+                          label: 'Frais de livraison client',
                           amount: delivery.fee,
                           accent: AppColors.orange,
                         ),
-                        if (delivery.partnerAmount != null)
-                          _AmountRow(
-                            label: 'Part livreur',
-                            amount: delivery.partnerAmount,
-                            accent: AppColors.green,
-                          ),
+                        _AmountRow(
+                          label: 'Votre gain',
+                          amount: delivery.netEarnings,
+                          accent: AppColors.green,
+                        ),
                         if (order?.total != null)
                           _AmountRow(
                             label: 'Total de la commande',
                             amount: order!.total,
                             accent: AppColors.text,
-                          ),
-                        if (order?.deliveryFee != null)
-                          _AmountRow(
-                            label: 'Frais indiqués sur la commande',
-                            amount: order!.deliveryFee,
-                            accent: AppColors.textSecondary,
                           ),
                       ],
                     ),

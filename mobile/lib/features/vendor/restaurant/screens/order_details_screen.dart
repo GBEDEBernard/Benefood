@@ -291,6 +291,8 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
             const Divider(height: 16, color: RestaurantPalette.borderColor),
             _SummaryRow(label: 'Sous-total', value: formatAmount(_order.subtotal)),
             _SummaryRow(label: 'Livraison', value: formatAmount(_order.deliveryFee)),
+            if ((_order.financials?.serviceFee ?? 0) > 0)
+              _SummaryRow(label: 'Frais de service client', value: formatAmount(_order.financials!.serviceFee!)),
             const SizedBox(height: 4),
             Row(
               children: [

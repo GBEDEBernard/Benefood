@@ -33,7 +33,9 @@ class DeliveryResource extends JsonResource
             'id' => $this->id,
             'status' => $this->status?->value,
             'fee' => $this->fee,
+            'client_delivery_fee' => (int) $this->fee,
             'partner_amount' => $partnerAmount,
+            'driver_earnings' => $partnerAmount,
             'targeted_driver_id' => $this->targeted_driver_profile_id,
             'currency' => $order !== null ? ($order->currency ?? 'XOF') : 'XOF',
             'order' => $this->whenLoaded('order', fn () => [

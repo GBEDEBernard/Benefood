@@ -86,6 +86,37 @@ void main() {
     });
   });
 
+  group('Delivery — rémunération livreur', () {
+    test('utilise le gain net renvoyé par le serveur', () {
+      final delivery = Delivery.fromJson({
+        'id': 'del-1',
+        'status': 'assigned',
+        'fee': 1306,
+        'partner_amount': 1045,
+        'driver_earnings': 1110,
+      });
+
+      expect(delivery.netEarnings, 1110);
+    });
+
+    test('retombe sur partner_amount puis sur zéro', () {
+      final withPartner = Delivery.fromJson({
+        'id': 'del-1',
+        'status': 'assigned',
+        'fee': 1306,
+        'partner_amount': 1110,
+      });
+      final withoutPartner = Delivery.fromJson({
+        'id': 'del-2',
+        'status': 'assigned',
+        'fee': 1306,
+      });
+
+      expect(withPartner.netEarnings, 1110);
+      expect(withoutPartner.netEarnings, 0);
+    });
+  });
+
   group('Order — carte de suivi client (J177)', () {
     test('expose la destination et la position du livreur', () {
       final order = Order.fromJson({

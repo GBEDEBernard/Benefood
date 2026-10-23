@@ -537,10 +537,10 @@ class _OfferCardState extends State<_OfferCard> {
                     child: const Icon(Icons.payments_outlined, size: 20, color: AppColors.orange),
                   ),
                   const SizedBox(width: 8),
-                  AmountText(widget.offer.fee, style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.text)),
+                  AmountText(widget.offer.netEarnings, style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.text)),
                   const SizedBox(width: 8),
                   Text(
-                    'Prix de livraison',
+                    'Votre gain',
                     style: theme.textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
                   ),
                 ],

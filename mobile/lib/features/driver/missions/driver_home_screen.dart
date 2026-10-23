@@ -243,7 +243,7 @@ class DriverHomeScreenState extends State<DriverHomeScreen>
     final delivered = _deliveries.where((d) => d.status == 'delivered').toList();
     final earnings = delivered.fold<int>(
       0,
-      (sum, d) => sum + (d.partnerAmount ?? d.fee),
+      (sum, d) => sum + d.netEarnings,
     );
 
     return ListView(
@@ -573,7 +573,7 @@ class _MissionCardState extends State<_MissionCard> {
     final reference = widget.delivery.order?.reference ?? 'Mission';
     final vendorName = widget.delivery.vendor?.businessName ?? 'Vendeur';
     final clientAddress = widget.delivery.order?.address;
-    final amount = widget.delivery.fee;
+    final amount = widget.delivery.netEarnings;
 
     return MouseRegion(
       cursor: SystemMouseCursors.click,
@@ -714,6 +714,11 @@ class _MissionCardState extends State<_MissionCard> {
                     ),
                     const SizedBox(width: 8),
                     AmountText(amount, style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.text)),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Votre gain',
+                      style: theme.textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+                    ),
                     const Spacer(),
                     TextButton(
                       onPressed: widget.onIncident,
