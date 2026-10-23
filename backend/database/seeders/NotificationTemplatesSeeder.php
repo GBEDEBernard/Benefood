@@ -33,6 +33,12 @@ class NotificationTemplatesSeeder extends Seeder
                 'body' => 'Votre commande #{reference} a été livrée.',
             ],
             [
+                'event' => 'order.confirmation_code',
+                'channel' => NotificationTemplateChannel::Push->value,
+                'subject' => 'Code de confirmation',
+                'body' => 'Code de confirmation de la commande #{reference} : {code}. À communiquer au livreur uniquement à la réception.',
+            ],
+            [
                 'event' => 'delivery.offered',
                 'channel' => NotificationTemplateChannel::Push->value,
                 'subject' => 'Nouvelle course disponible',
@@ -61,6 +67,12 @@ class NotificationTemplatesSeeder extends Seeder
                 'channel' => NotificationTemplateChannel::Push->value,
                 'subject' => 'Colis livré',
                 'body' => 'Votre colis #{reference} a été livré.',
+            ],
+            [
+                'event' => 'parcel.confirmation_code',
+                'channel' => NotificationTemplateChannel::Push->value,
+                'subject' => 'Code de confirmation du colis',
+                'body' => 'Code de confirmation du colis #{reference} : {code}. À remettre au destinataire et à communiquer au livreur à la réception.',
             ],
             [
                 'event' => 'parcel.refund_initiated',

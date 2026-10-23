@@ -37,6 +37,7 @@ class OrderService
         private readonly FinanceService $finance,
         private readonly CashService $cash,
         private readonly FavoriteDriverService $favoriteDrivers,
+        private readonly ConfirmationCodeService $confirmationCodes,
     ) {}
 
     // ------------------------------------------------------------------ J82
@@ -159,7 +160,9 @@ class OrderService
 
         $paymentDeadline = $paymentMethod->isCash() ? null : now()->addMinutes((int) config('beninfood.orders.payment_deadline_minutes', 15));
 
-        return DB::transaction(function () use ($cart, $address, $notes, $delivery, $lines, $subtotal, $commissionRate, $breakdown, $deliveryFee, $total, $reference, $paymentMethod, $paymentDeadline, $preferredDriver) {
+        $confirmationCode = null;
+
+        $order = DB::transaction(function () use ($cart, $address, $notes, $delivery, $lines, $subtotal, $commissionRate, $breakdown, $deliveryFee, $total, $reference, $paymentMethod, $paymentDeadline, $preferredDriver, &$confirmationCode) {
             $order = Order::create([
                 'reference' => $reference,
                 'user_id' => $cart->user_id,
@@ -226,6 +229,8 @@ class OrderService
 
             $this->cartService->markConverted($cart);
 
+            $confirmationCode = $this->confirmationCodes->generate($order, 'order');
+
             return $order->fresh([
                 'items',
                 'financials',
@@ -234,6 +239,17 @@ class OrderService
                 'statusHistory',
             ]);
         });
+
+        if ($confirmationCode !== null) {
+            $this->notifications->notifyEvent('order.confirmation_code', [$order->user], [
+                'reference' => $order->reference,
+                'order_id' => $order->id,
+                'code' => $confirmationCode,
+                'image_url' => $this->firstItemImageUrl($order),
+            ]);
+        }
+
+        return $order;
     }
 
     // ------------------------------------------------------------------ J85
@@ -512,51 +528,56 @@ class OrderService
         return $order->fresh(['statusHistory', 'delivery']);
     }
 
-    /** Le livreur confirme la livraison (in_delivery → delivered). */
-    public function markDelivered(Order $order, ?string $actorId = null): Order
+    /**
+     * Le livreur confirme la livraison avec le code fourni par le client.
+     *
+     * Aucun séquestre n'est libéré sans code valide. Le code est à usage
+     * unique, expire et bloque après trop de tentatives.
+     */
+    public function markDelivered(Order $order, ?string $confirmationCode = null, ?string $actorId = null): Order
     {
         $this->assertTransition($order, OrderStatus::Delivered);
+
+        $this->confirmationCodes->validate($order, $confirmationCode, 'order');
 
         $from = $order->status;
         $isCash = (bool) $order->payment_method?->isCash();
 
-        $order->update([
-            'status' => OrderStatus::Delivered->value,
-            'delivered_at' => now(),
-            'auto_confirm_at' => $isCash
-                ? now()->addMinutes((int) config('beninfood.orders.delivery_auto_confirm_minutes', 30))
-                : null,
-        ]);
-
-        if ($order->delivery->exists()) {
-            $order->delivery->update([
-                'status' => DeliveryStatus::Delivered->value,
-                'delivered_at' => now(),
-            ]);
-        }
-
-        $this->logTransition($order, $from, OrderStatus::Delivered, 'driver', $actorId, null);
-
-        if ($isCash) {
-            // Commande cash : le livreur encaisse sur place, le règlement est
-            // immédiat (flottant débité, parts vendeur/livreur payées).
-            if ($order->delivery?->driverProfile) {
-                $this->cash->settle($order->fresh('financials'), $order->delivery->driverProfile);
-            }
-        } else {
-            // Paiement en ligne déjà encaissé : dès que le livreur ratifie la
-            // fin de course, les séquestres vendeur + livreur sont libérés dans
-            // leurs portefeuilles respectifs (plus d'attente de la confirmation
-            // client ni du délai d'auto-confirmation).
+        DB::transaction(function () use ($order, $from, $actorId, $isCash): void {
             $order->update([
-                'delivery_confirmed_at' => now(),
+                'status' => OrderStatus::Delivered->value,
+                'delivered_at' => now(),
                 'auto_confirm_at' => null,
             ]);
 
-            $this->logTransition($order, OrderStatus::Delivered, OrderStatus::Delivered, 'driver', $actorId, 'Réception confirmée à la livraison');
+            if ($order->delivery->exists()) {
+                $order->delivery->update([
+                    'status' => DeliveryStatus::Delivered->value,
+                    'delivered_at' => now(),
+                ]);
+            }
 
-            $this->finance->releaseOrderFunds($order->fresh(['financials', 'vendor', 'delivery.driverProfile']));
-        }
+            $this->logTransition($order, $from, OrderStatus::Delivered, 'driver', $actorId, 'Code de confirmation validé');
+
+            if ($isCash) {
+                // Commande cash : le livreur encaisse sur place, le règlement est
+                // immédiat (flottant débité, parts vendeur/livreur payées).
+                if ($order->delivery?->driverProfile) {
+                    $this->cash->settle($order->fresh('financials'), $order->delivery->driverProfile);
+                }
+            } else {
+                // Paiement en ligne déjà encaissé : le code validé libère les
+                // séquestres vendeur + livreur et crédite la plateforme.
+                $order->update([
+                    'delivery_confirmed_at' => now(),
+                    'auto_confirm_at' => null,
+                ]);
+
+                $this->finance->releaseOrderFunds($order->fresh(['financials', 'vendor', 'delivery.driverProfile']));
+            }
+
+            $this->confirmationCodes->markConfirmed($order);
+        });
 
         $this->notifications->notifyEvent('order.delivered', [$order->user], [
             'reference' => $order->reference,
@@ -571,7 +592,7 @@ class OrderService
      * Confirme la réception par le client (ou automatiquement) : libère les
      * séquestres vendeur et livreur. Idempotent.
      */
-    public function confirmDelivery(Order $order, string $actorType = 'client', ?string $actorId = null): Order
+    public function confirmDelivery(Order $order, string $actorType = 'client', ?string $actorId = null, ?string $confirmationCode = null): Order
     {
         if ($order->status !== OrderStatus::Delivered) {
             throw new DomainException('order.not_delivered', 'Cette commande n\'est pas livrée.', 422);
@@ -585,10 +606,16 @@ class OrderService
             throw new DomainException('order.disputed', 'Un litige est en cours sur cette commande.', 409);
         }
 
+        if ($actorType !== 'system') {
+            $this->confirmationCodes->validate($order, $confirmationCode, 'order');
+        }
+
         $order->update([
             'delivery_confirmed_at' => now(),
             'auto_confirm_at' => null,
         ]);
+
+        $this->confirmationCodes->markConfirmed($order);
 
         $this->logTransition($order, OrderStatus::Delivered, OrderStatus::Delivered, $actorType, $actorId, 'Réception confirmée');
 

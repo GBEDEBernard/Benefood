@@ -467,7 +467,7 @@ class ShopDataSeeder extends Seeder
     private function progressToDelivered(OrderService $orderService, Order $order, $driverProfiles): void
     {
         $this->progressToInDelivery($orderService, $order, $driverProfiles);
-        $orderService->markDelivered($order);
+        $orderService->markDelivered($order, (string) $order->confirmation_code);
     }
 
     private function cancelByClient(OrderService $orderService, Order $order): void

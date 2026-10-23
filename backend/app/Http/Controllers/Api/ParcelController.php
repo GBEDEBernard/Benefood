@@ -143,7 +143,15 @@ class ParcelController extends Controller
     {
         $this->assertOwned($request, $parcel);
 
-        return Api::ok(new ParcelResource($this->parcels->markDelivered($parcel, $this->driverProfile($request)->user_id)));
+        $data = $request->validate([
+            'proof_code' => ['required', 'string', 'max:10'],
+        ]);
+
+        $driver = $this->driverProfile($request);
+
+        return Api::ok(new ParcelResource(
+            $this->parcels->markDelivered($parcel, $data['proof_code'], $driver->user_id),
+        ));
     }
 
     // ------------------------------------------------------------------ Helpers

@@ -81,6 +81,17 @@ class AdminPayoutsTest extends TestCase
             ->assertSee('En cours');
     }
 
+    public function test_admin_can_view_the_platform_wallet(): void
+    {
+        app(FinanceService::class)->creditPlatform(1000, 'order', 'order-1', 'Commission commande');
+
+        $this->actingAs($this->admin())
+            ->get(route('admin.platform-wallet.index'))
+            ->assertOk()
+            ->assertSee('Wallet plateforme')
+            ->assertSee('Commission commande');
+    }
+
     public function test_admin_executes_a_payout(): void
     {
         $wallet = $this->walletWithAvailable(5000);

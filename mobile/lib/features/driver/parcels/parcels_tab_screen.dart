@@ -72,7 +72,88 @@ class _DriverParcelsScreenState extends State<DriverParcelsScreen> {
     }
   }
 
-  Future<void> _runAction(Parcel parcel, Future<Parcel> Function(String id) action) async {
+  Future<void> _advance(Parcel parcel) async {
+    switch (parcel.status) {
+      case 'assigned':
+        await _runAction(parcel, widget.marketplace.pickupParcelDelivery);
+      case 'picked_up':
+        await _runAction(parcel, widget.marketplace.startParcelDelivery);
+      case 'in_delivery':
+        final code = await _askConfirmationCode();
+        if (!mounted || code == null || code.isEmpty) {
+          return;
+        }
+        await _runAction(
+          parcel,
+          (id) => widget.marketplace.deliverParcelDelivery(id, proofCode: code),
+        );
+    }
+  }
+
+  Future<String?> _askConfirmationCode() async {
+    final controller = TextEditingController();
+    final code = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+        ),
+        title: const Text('Code de confirmation'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Demandez le code à 6 chiffres au destinataire. Sans ce code, le colis ne peut pas être confirmé et les fonds restent bloqués.',
+              style: TextStyle(fontSize: 13, height: 1.4),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: controller,
+              autofocus: true,
+              keyboardType: TextInputType.number,
+              maxLength: 6,
+              decoration: InputDecoration(
+                labelText: 'Code à 6 chiffres *',
+                hintText: '000000',
+                counterText: '',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(AppDimens.radiusSm),
+                ),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Annuler'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.orange,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () {
+              final value = controller.text.trim();
+              if (value.length != 6) {
+                return;
+              }
+              Navigator.of(context).pop(value);
+            },
+            child: const Text('Confirmer'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    return code;
+  }
+
+  Future<void> _runAction(
+    Parcel parcel,
+    Future<Parcel> Function(String id) action,
+  ) async {
     setState(() => _actionId = parcel.id);
     try {
       await action(parcel.id);
@@ -136,17 +217,7 @@ class _DriverParcelsScreenState extends State<DriverParcelsScreen> {
             )
           else
             for (final run in _runs) ...[
-              _RunCard(parcel: run, busy: _actionId, onAction: (parcel) {
-                final action = switch (parcel.status) {
-                  'assigned' => widget.marketplace.pickupParcelDelivery,
-                  'picked_up' => widget.marketplace.startParcelDelivery,
-                  'in_delivery' => widget.marketplace.deliverParcelDelivery,
-                  _ => null,
-                };
-                if (action != null) {
-                  _runAction(parcel, action);
-                }
-              }),
+              _RunCard(parcel: run, busy: _actionId, onAction: _advance),
               const SizedBox(height: AppDimens.sm),
             ],
           const SizedBox(height: AppDimens.xl),
@@ -164,9 +235,13 @@ class _DriverParcelsScreenState extends State<DriverParcelsScreen> {
             )
           else
             for (final offer in _offers) ...[
-              _OfferCard(parcel: offer, busy: _actionId, onAccept: (parcel) {
-                _runAction(parcel, widget.marketplace.acceptParcelDelivery);
-              }),
+              _OfferCard(
+                parcel: offer,
+                busy: _actionId,
+                onAccept: (parcel) {
+                  _runAction(parcel, widget.marketplace.acceptParcelDelivery);
+                },
+              ),
               const SizedBox(height: AppDimens.sm),
             ],
           const SizedBox(height: AppDimens.xxl),
@@ -195,11 +270,18 @@ class _SectionHeader extends StatelessWidget {
       children: [
         Icon(icon, size: 20, color: color),
         const SizedBox(width: 8),
-        Text(label, style: const TextStyle(fontSize: 15.5, fontWeight: FontWeight.w800)),
+        Text(
+          label,
+          style: const TextStyle(fontSize: 15.5, fontWeight: FontWeight.w800),
+        ),
         const Spacer(),
         Text(
           '$count',
-          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: color),
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w800,
+            color: color,
+          ),
         ),
       ],
     );
@@ -222,7 +304,15 @@ class _EmptyNote extends StatelessWidget {
           children: [
             Icon(icon, color: AppColors.textSecondary),
             const SizedBox(width: 12),
-            Expanded(child: Text(text, style: const TextStyle(fontSize: 13, color: AppColors.textSecondary))),
+            Expanded(
+              child: Text(
+                text,
+                style: const TextStyle(
+                  fontSize: 13,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ),
           ],
         ),
       ),
@@ -231,7 +321,11 @@ class _EmptyNote extends StatelessWidget {
 }
 
 class _RunCard extends StatelessWidget {
-  const _RunCard({required this.parcel, required this.busy, required this.onAction});
+  const _RunCard({
+    required this.parcel,
+    required this.busy,
+    required this.onAction,
+  });
 
   final Parcel parcel;
   final String? busy;
@@ -257,15 +351,34 @@ class _RunCard extends StatelessWidget {
             Row(
               children: [
                 Expanded(
-                  child: Text(parcel.reference, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14.5)),
+                  child: Text(
+                    parcel.reference,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 14.5,
+                    ),
+                  ),
                 ),
-                if (palette != null) StatusBadge(label: palette.$1, color: palette.$2, small: true),
+                if (palette != null)
+                  StatusBadge(
+                    label: palette.$1,
+                    color: palette.$2,
+                    small: true,
+                  ),
               ],
             ),
             const SizedBox(height: AppDimens.sm),
-            _RouteLine(icon: Icons.trip_origin, color: AppColors.green, text: parcel.pickup?.display ?? '—'),
+            _RouteLine(
+              icon: Icons.trip_origin,
+              color: AppColors.green,
+              text: parcel.pickup?.display ?? '—',
+            ),
             const SizedBox(height: 4),
-            _RouteLine(icon: Icons.place, color: AppColors.orange, text: parcel.dropoff?.display ?? '—'),
+            _RouteLine(
+              icon: Icons.place,
+              color: AppColors.orange,
+              text: parcel.dropoff?.display ?? '—',
+            ),
             if (parcel.pickupPoint != null || parcel.dropoffPoint != null) ...[
               const SizedBox(height: AppDimens.sm),
               AppMap(
@@ -284,8 +397,19 @@ class _RunCard extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Prix de livraison', style: theme.textTheme.bodySmall?.copyWith(color: AppColors.textSecondary)),
-                      AmountText(parcel.deliveryFee, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+                      Text(
+                        'Prix de livraison',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                      AmountText(
+                        parcel.deliveryFee,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -307,7 +431,11 @@ class _RunCard extends StatelessWidget {
 }
 
 class _OfferCard extends StatelessWidget {
-  const _OfferCard({required this.parcel, required this.busy, required this.onAccept});
+  const _OfferCard({
+    required this.parcel,
+    required this.busy,
+    required this.onAccept,
+  });
 
   final Parcel parcel;
   final String? busy;
@@ -326,24 +454,46 @@ class _OfferCard extends StatelessWidget {
             Row(
               children: [
                 Expanded(
-                  child: Text(parcel.reference, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14.5)),
+                  child: Text(
+                    parcel.reference,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 14.5,
+                    ),
+                  ),
                 ),
-                StatusBadge(label: 'Disponible', color: AppColors.gold, small: true, icon: Icons.local_offer),
+                StatusBadge(
+                  label: 'Disponible',
+                  color: AppColors.gold,
+                  small: true,
+                  icon: Icons.local_offer,
+                ),
               ],
             ),
-            if (parcel.description != null && parcel.description!.isNotEmpty) ...[
+            if (parcel.description != null &&
+                parcel.description!.isNotEmpty) ...[
               const SizedBox(height: 6),
               Text(
                 parcel.description!,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: AppColors.textSecondary,
+                ),
               ),
             ],
             const SizedBox(height: AppDimens.sm),
-            _RouteLine(icon: Icons.trip_origin, color: AppColors.green, text: parcel.pickup?.display ?? '—'),
+            _RouteLine(
+              icon: Icons.trip_origin,
+              color: AppColors.green,
+              text: parcel.pickup?.display ?? '—',
+            ),
             const SizedBox(height: 4),
-            _RouteLine(icon: Icons.place, color: AppColors.orange, text: parcel.dropoff?.display ?? '—'),
+            _RouteLine(
+              icon: Icons.place,
+              color: AppColors.orange,
+              text: parcel.dropoff?.display ?? '—',
+            ),
             if (parcel.pickupPoint != null || parcel.dropoffPoint != null) ...[
               const SizedBox(height: AppDimens.sm),
               AppMap(
@@ -362,8 +512,19 @@ class _OfferCard extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Prix de livraison', style: theme.textTheme.bodySmall?.copyWith(color: AppColors.textSecondary)),
-                      AmountText(parcel.deliveryFee, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+                      Text(
+                        'Prix de livraison',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                      AmountText(
+                        parcel.deliveryFee,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -384,7 +545,11 @@ class _OfferCard extends StatelessWidget {
 }
 
 class _RouteLine extends StatelessWidget {
-  const _RouteLine({required this.icon, required this.color, required this.text});
+  const _RouteLine({
+    required this.icon,
+    required this.color,
+    required this.text,
+  });
 
   final IconData icon;
   final Color color;
@@ -401,7 +566,10 @@ class _RouteLine extends StatelessWidget {
             text,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
+            style: const TextStyle(
+              fontSize: 13,
+              color: AppColors.textSecondary,
+            ),
           ),
         ),
       ],

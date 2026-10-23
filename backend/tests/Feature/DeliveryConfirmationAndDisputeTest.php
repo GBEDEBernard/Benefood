@@ -34,6 +34,8 @@ class DeliveryConfirmationAndDisputeTest extends TestCase
             'subtotal' => 5000,
             'delivery_fee' => 1000,
             'total' => $breakdown['total_client'],
+            'confirmation_code' => '123456',
+            'confirmation_code_expires_at' => now()->addDay(),
         ]);
 
         OrderFinancial::create(array_merge(['order_id' => $order->id, 'discount' => 0], $breakdown));
@@ -71,6 +73,35 @@ class DeliveryConfirmationAndDisputeTest extends TestCase
         return $driver;
     }
 
+    /**
+     * @return array{0: Order, 1: DriverProfile}
+     */
+    private function inDeliveryOrder(User $client, Vendor $vendor): array
+    {
+        $order = $this->orderWithFinancials($client, $vendor);
+
+        app(OrderService::class)->confirmPayment($order, $order->total);
+
+        $driver = DriverProfile::factory()->create([
+            'user_id' => User::factory()->create()->id,
+            'status' => 'active',
+            'available' => true,
+        ]);
+
+        Delivery::create([
+            'order_id' => $order->id,
+            'driver_profile_id' => $driver->id,
+            'vendor_id' => $vendor->id,
+            'status' => 'in_delivery',
+            'fee' => $order->delivery_fee,
+            'partner_amount' => $order->financials->delivery_partner_amount,
+        ]);
+
+        $order->update(['status' => OrderStatus::InDelivery->value]);
+
+        return [$order->fresh('delivery.driverProfile', 'financials'), $driver];
+    }
+
     public function test_delivery_keeps_funds_pending_until_client_confirms(): void
     {
         $client = User::factory()->create();
@@ -91,7 +122,7 @@ class DeliveryConfirmationAndDisputeTest extends TestCase
         $this->assertSame(4500, (int) $vendorWallet->fresh()->pending_balance);
         $this->assertSame(0, (int) $vendorWallet->fresh()->available_balance);
 
-        $orders->confirmDelivery($order->fresh());
+        $orders->confirmDelivery($order->fresh(), 'client', null, '123456');
 
         $this->assertSame(0, (int) $vendorWallet->fresh()->pending_balance);
         $this->assertSame(4500, (int) $vendorWallet->fresh()->available_balance);
@@ -129,16 +160,72 @@ class DeliveryConfirmationAndDisputeTest extends TestCase
         $finance = app(FinanceService::class);
         $finance->creditDriverForDelivery($order->fresh('financials'), $driver);
 
-        $orders->markDelivered($order->fresh(['delivery.driverProfile']));
+        $orders->markDelivered($order->fresh(['delivery.driverProfile']), '123456', $driver->user_id);
 
         $delivered = $order->fresh();
         $this->assertNotNull($delivered->delivery_confirmed_at);
+        $this->assertNotNull($delivered->confirmation_code_confirmed_at);
         $this->assertNull($delivered->auto_confirm_at);
 
         $this->assertSame(0, (int) $finance->walletFor($vendor)->fresh()->pending_balance);
         $this->assertSame(4500, (int) $finance->walletFor($vendor)->fresh()->available_balance);
         $this->assertSame(0, (int) $finance->walletFor($driver)->fresh()->pending_balance);
         $this->assertSame(800, (int) $finance->walletFor($driver)->fresh()->available_balance);
+        $this->assertSame(1000, (int) $finance->platformWallet()->fresh()->available_balance);
+    }
+
+    public function test_a_wrong_confirmation_code_blocks_delivery_and_counts_attempts(): void
+    {
+        $client = User::factory()->create();
+        $vendor = Vendor::factory()->create(['status' => 'active']);
+        [$order, $driver] = $this->inDeliveryOrder($client, $vendor);
+
+        try {
+            app(OrderService::class)->markDelivered($order->fresh('delivery'), '000000', $driver->user_id);
+            $this->fail('La livraison ne doit pas être confirmée avec un mauvais code.');
+        } catch (DomainException $exception) {
+            $this->assertSame('order.wrong_confirmation_code', $exception->errorCode);
+        }
+
+        $this->assertSame(OrderStatus::InDelivery, $order->fresh()->status);
+        $this->assertSame(1, (int) $order->fresh()->confirmation_code_attempts);
+    }
+
+    public function test_an_expired_confirmation_code_blocks_delivery(): void
+    {
+        $client = User::factory()->create();
+        $vendor = Vendor::factory()->create(['status' => 'active']);
+        [$order, $driver] = $this->inDeliveryOrder($client, $vendor);
+
+        $order->update(['confirmation_code_expires_at' => now()->subMinute()]);
+
+        try {
+            app(OrderService::class)->markDelivered($order->fresh('delivery'), '123456', $driver->user_id);
+            $this->fail('Un code expiré ne doit pas libérer les fonds.');
+        } catch (DomainException $exception) {
+            $this->assertSame('order.confirmation_code_expired', $exception->errorCode);
+        }
+
+        $this->assertSame(OrderStatus::InDelivery, $order->fresh()->status);
+        $this->assertNull($order->fresh()->delivery_confirmed_at);
+    }
+
+    public function test_too_many_wrong_attempts_lock_the_confirmation_code(): void
+    {
+        $client = User::factory()->create();
+        $vendor = Vendor::factory()->create(['status' => 'active']);
+        [$order, $driver] = $this->inDeliveryOrder($client, $vendor);
+
+        $order->update(['confirmation_code_attempts' => 5]);
+
+        try {
+            app(OrderService::class)->markDelivered($order->fresh('delivery'), '123456', $driver->user_id);
+            $this->fail('Un code verrouillé ne doit pas libérer les fonds.');
+        } catch (DomainException $exception) {
+            $this->assertSame('order.confirmation_code_locked', $exception->errorCode);
+        }
+
+        $this->assertSame(OrderStatus::InDelivery, $order->fresh()->status);
     }
 
     public function test_auto_confirm_releases_after_deadline(): void

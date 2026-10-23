@@ -217,23 +217,34 @@ class _ParcelDetailScreenState extends State<ParcelDetailScreen> {
                       Expanded(
                         child: Text(
                           parcel.reference,
-                          style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800),
+                          style: const TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w800,
+                          ),
                         ),
                       ),
-                      if (palette != null) StatusBadge(label: palette.$1, color: palette.$2),
+                      if (palette != null)
+                        StatusBadge(label: palette.$1, color: palette.$2),
                     ],
                   ),
-                  if (parcel.description != null && parcel.description!.isNotEmpty) ...[
+                  if (parcel.description != null &&
+                      parcel.description!.isNotEmpty) ...[
                     const SizedBox(height: AppDimens.sm),
                     Text(
                       parcel.description!,
-                      style: theme.textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
                     ),
                   ],
                   const SizedBox(height: AppDimens.md),
                   Row(
                     children: [
-                      Icon(Icons.event_outlined, size: 16, color: theme.colorScheme.onSurfaceVariant),
+                      Icon(
+                        Icons.event_outlined,
+                        size: 16,
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
                       const SizedBox(width: 6),
                       Text(
                         formatDateTime(parcel.createdAt, fallback: '—'),
@@ -259,6 +270,11 @@ class _ParcelDetailScreenState extends State<ParcelDetailScreen> {
           ],
           _RouteCard(parcel: parcel),
           const SizedBox(height: AppDimens.md),
+          if (!parcel.isCancelled &&
+              (parcel.confirmationCode?.isNotEmpty ?? false)) ...[
+            _ConfirmationCodeCard(code: parcel.confirmationCode!),
+            const SizedBox(height: AppDimens.md),
+          ],
           if (parcel.driver != null) _DriverCard(parcel: parcel),
           if (parcel.driver == null && parcel.isPaid) ...[
             const SizedBox(height: AppDimens.md),
@@ -266,8 +282,16 @@ class _ParcelDetailScreenState extends State<ParcelDetailScreen> {
               color: AppColors.goldLight,
               child: const ListTile(
                 leading: Icon(Icons.hourglass_top, color: AppColors.goldDark),
-                title: Text('Colis payé', style: TextStyle(color: AppColors.goldDark, fontWeight: FontWeight.w600)),
-                subtitle: Text('Un livreur sera bientôt affecté à votre colis.'),
+                title: Text(
+                  'Colis payé',
+                  style: TextStyle(
+                    color: AppColors.goldDark,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                subtitle: Text(
+                  'Un livreur sera bientôt affecté à votre colis.',
+                ),
               ),
             ),
           ],
@@ -277,9 +301,15 @@ class _ParcelDetailScreenState extends State<ParcelDetailScreen> {
               child: ListTile(
                 leading: const Icon(Icons.payments_outlined),
                 title: const Text('Paiement requis'),
-                subtitle: Text('Frais de livraison : ${formatAmount(parcel.deliveryFee)}'),
+                subtitle: Text(
+                  'Frais de livraison : ${formatAmount(parcel.deliveryFee)}',
+                ),
                 trailing: _actionId == 'pay'
-                    ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2))
+                    ? const SizedBox(
+                        width: 22,
+                        height: 22,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
                     : null,
                 onTap: _actionId == null ? _pay : null,
               ),
@@ -291,7 +321,10 @@ class _ParcelDetailScreenState extends State<ParcelDetailScreen> {
             const SizedBox(height: AppDimens.md),
             Card(
               child: ListTile(
-                leading: Icon(Icons.cancel_outlined, color: theme.colorScheme.error),
+                leading: Icon(
+                  Icons.cancel_outlined,
+                  color: theme.colorScheme.error,
+                ),
                 title: const Text('Motif d\'annulation'),
                 subtitle: Text(parcel.cancellationReason!),
               ),
@@ -348,9 +381,18 @@ class _RouteCard extends StatelessWidget {
             Row(
               children: [
                 const Expanded(
-                  child: Text('Frais de livraison', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
+                  child: Text(
+                    'Frais de livraison',
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+                  ),
                 ),
-                AmountText(parcel.deliveryFee, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900)),
+                AmountText(
+                  parcel.deliveryFee,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
               ],
             ),
           ],
@@ -361,7 +403,12 @@ class _RouteCard extends StatelessWidget {
 }
 
 class _RouteRow extends StatelessWidget {
-  const _RouteRow({required this.icon, required this.color, required this.title, required this.text});
+  const _RouteRow({
+    required this.icon,
+    required this.color,
+    required this.title,
+    required this.text,
+  });
 
   final IconData icon;
   final Color color;
@@ -379,9 +426,22 @@ class _RouteRow extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(title, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary, fontWeight: FontWeight.w700)),
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: AppColors.textSecondary,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
               const SizedBox(height: 2),
-              Text(text, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+              Text(
+                text,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
             ],
           ),
         ),
@@ -404,9 +464,15 @@ class _DriverCard extends StatelessWidget {
           backgroundColor: AppColors.goldLight,
           child: Icon(Icons.delivery_dining, color: AppColors.goldDark),
         ),
-        title: Text(driver.name ?? 'Livreur Béninfood', style: const TextStyle(fontWeight: FontWeight.w700)),
+        title: Text(
+          driver.name ?? 'Livreur Béninfood',
+          style: const TextStyle(fontWeight: FontWeight.w700),
+        ),
         subtitle: Text(
-          [driver.vehicle, driver.phone].whereType<String>().where((e) => e.isNotEmpty).join(' · '),
+          [
+            driver.vehicle,
+            driver.phone,
+          ].whereType<String>().where((e) => e.isNotEmpty).join(' · '),
         ),
       ),
     );
@@ -429,12 +495,17 @@ class _Timeline extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Suivi', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
+            const Text(
+              'Suivi',
+              style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15),
+            ),
             const SizedBox(height: AppDimens.md),
             for (var i = 0; i < history.length; i++) ...[
-              _TimelineStep(step: history[history.length - 1 - i], isLast: i == 0),
-              if (i != history.length - 1)
-                const SizedBox(height: AppDimens.sm),
+              _TimelineStep(
+                step: history[history.length - 1 - i],
+                isLast: i == 0,
+              ),
+              if (i != history.length - 1) const SizedBox(height: AppDimens.sm),
             ],
           ],
         ),
@@ -455,16 +526,16 @@ class _TimelineStep extends StatelessWidget {
   }
 
   String _statusLabel(String status) => switch (status) {
-        'awaiting_payment' => 'En attente de paiement',
-        'paid' => 'Colis payé',
-        'assigned' => 'Livreur affecté',
-        'picked_up' => 'Colis récupéré',
-        'in_delivery' => 'En livraison',
-        'delivered' => 'Livré',
-        'cancelled' => 'Annulé',
-        'refunded' => 'Remboursé',
-        _ => status,
-      };
+    'awaiting_payment' => 'En attente de paiement',
+    'paid' => 'Colis payé',
+    'assigned' => 'Livreur affecté',
+    'picked_up' => 'Colis récupéré',
+    'in_delivery' => 'En livraison',
+    'delivered' => 'Livré',
+    'cancelled' => 'Annulé',
+    'refunded' => 'Remboursé',
+    _ => status,
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -484,16 +555,81 @@ class _TimelineStep extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(_label, style: TextStyle(fontSize: 13.5, fontWeight: isLast ? FontWeight.w800 : FontWeight.w600)),
+              Text(
+                _label,
+                style: TextStyle(
+                  fontSize: 13.5,
+                  fontWeight: isLast ? FontWeight.w800 : FontWeight.w600,
+                ),
+              ),
               if (step.createdAt != null)
                 Text(
                   formatDateTime(step.createdAt, fallback: ''),
-                  style: theme.textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
                 ),
             ],
           ),
         ),
       ],
+    );
+  }
+}
+
+class _ConfirmationCodeCard extends StatelessWidget {
+  const _ConfirmationCodeCard({required this.code});
+
+  final String code;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      color: AppColors.goldLight,
+      child: Padding(
+        padding: const EdgeInsets.all(AppDimens.lg),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Row(
+              children: [
+                Icon(Icons.lock_outline, color: AppColors.goldDark),
+                SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Code de confirmation',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.goldDark,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Center(
+              child: SelectableText(
+                code,
+                style: const TextStyle(
+                  fontSize: 30,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 8,
+                  color: AppColors.goldDark,
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+            const Text(
+              'Communiquez ce code au livreur uniquement au moment de la réception. Sans ce code, le colis ne peut pas être confirmé.',
+              style: TextStyle(
+                fontSize: 12,
+                height: 1.4,
+                color: AppColors.goldDark,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

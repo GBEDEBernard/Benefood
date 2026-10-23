@@ -12,6 +12,7 @@ use App\Http\Controllers\Admin\AdminOrdersController;
 use App\Http\Controllers\Admin\AdminParcelsController;
 use App\Http\Controllers\Admin\AdminPaymentsController;
 use App\Http\Controllers\Admin\AdminPayoutsController;
+use App\Http\Controllers\Admin\AdminPlatformWalletController;
 use App\Http\Controllers\Admin\AdminPricingController;
 use App\Http\Controllers\Admin\AdminProductsController;
 use App\Http\Controllers\Admin\AdminRatesController;
@@ -154,8 +155,10 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function (): v
     Route::post('refunds/{refund}/execute', [AdminRefundsController::class, 'execute'])->name('refunds.execute');
 
     // ---------- Wallets & retraits (cahier v1.0) ----------
+    Route::get('platform-wallet', [AdminPlatformWalletController::class, 'index'])->name('platform-wallet.index');
     Route::get('payouts', [AdminPayoutsController::class, 'index'])->name('payouts.index');
     Route::post('payouts/{payout}/execute', [AdminPayoutsController::class, 'execute'])->name('payouts.execute');
+    Route::post('payouts/{payout}/send', [AdminPayoutsController::class, 'send'])->name('payouts.send');
     Route::post('payouts/{payout}/fail', [AdminPayoutsController::class, 'fail'])->name('payouts.fail');
 
     // ---------- Retraits groupés (Mode B, cahier v1.0) ----------

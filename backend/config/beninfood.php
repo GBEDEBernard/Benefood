@@ -128,9 +128,12 @@ return [
         'client_withdrawal_minutes' => (int) env('BENINFOOD_CLIENT_WITHDRAWAL_MINUTES', 10),
         'driver_offer_seconds' => (int) env('BENINFOOD_DRIVER_OFFER_SECONDS', 60),
         'driver_acceptance_seconds' => (int) env('BENINFOOD_DRIVER_ACCEPTANCE_SECONDS', 45),
-        // Cahier v1.0 : sans confirmation du client, la livraison est validée
-        // (et le séquestre libéré) automatiquement après ce délai.
+        // Délai historique de validation automatique (commandes legacy).
+        // Les nouvelles livraisons exigent le code de confirmation du client.
         'delivery_auto_confirm_minutes' => (int) env('BENINFOOD_DELIVERY_AUTO_CONFIRM_MINUTES', 30),
+        // Code de confirmation remis au client / destinataire.
+        'confirmation_code_ttl_hours' => (int) env('BENINFOOD_CONFIRMATION_CODE_TTL_HOURS', 72),
+        'confirmation_code_max_attempts' => (int) env('BENINFOOD_CONFIRMATION_CODE_MAX_ATTEMPTS', 5),
     ],
 
     /*

@@ -26,7 +26,14 @@ class ParcelResource extends JsonResource
             'commission_amount' => (int) $this->commission_amount,
             'partner_amount' => (int) $this->partner_amount,
             'platform_amount' => (int) $this->platform_amount,
-            'proof_code' => $this->proof_code,
+            'confirmation_code' => $this->when(
+                $request->user()?->id === $this->user_id,
+                $this->confirmation_code,
+            ),
+            'confirmation_code_expires_at' => $this->when(
+                $request->user()?->id === $this->user_id,
+                $this->confirmation_code_expires_at?->toIso8601String(),
+            ),
             'targeted_driver_id' => $this->targeted_driver_profile_id,
             'targeted_driver' => $this->whenLoaded('targetedDriverProfile', fn () => $this->targetedDriverProfile === null ? null : [
                 'id' => $this->targetedDriverProfile->id,

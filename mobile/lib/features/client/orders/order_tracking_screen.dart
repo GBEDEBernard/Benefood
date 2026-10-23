@@ -26,7 +26,11 @@ import '../../../shared/widgets/state_widgets.dart';
 
 /// Écran de suivi / détail d'une commande (J152, J177).
 class OrderTrackingScreen extends StatefulWidget {
-  const OrderTrackingScreen({super.key, required this.marketplace, required this.orderId});
+  const OrderTrackingScreen({
+    super.key,
+    required this.marketplace,
+    required this.orderId,
+  });
 
   final MarketplaceApi marketplace;
   final String orderId;
@@ -198,7 +202,10 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
     }
     setState(() => _actionLoading = true);
     try {
-      final order = await widget.marketplace.cancelOrder(widget.orderId, reason);
+      final order = await widget.marketplace.cancelOrder(
+        widget.orderId,
+        reason,
+      );
       if (mounted) {
         setState(() {
           _order = order;
@@ -224,7 +231,9 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
           controller: controller,
           autofocus: true,
           maxLines: 3,
-          decoration: const InputDecoration(labelText: 'Raison de l\'annulation *'),
+          decoration: const InputDecoration(
+            labelText: 'Raison de l\'annulation *',
+          ),
         ),
         actions: [
           TextButton(
@@ -282,7 +291,11 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
         onCancel: () => Navigator.of(dialogContext).pop(),
         onSubmit: (rating, driverRating, comment) {
           Navigator.of(dialogContext).pop();
-          _submitReview(rating: rating, driverRating: driverRating, comment: comment);
+          _submitReview(
+            rating: rating,
+            driverRating: driverRating,
+            comment: comment,
+          );
         },
       ),
     );
@@ -443,7 +456,11 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                   color: AppColors.greenLight,
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.delivery_dining, color: AppColors.green, size: 26),
+                child: const Icon(
+                  Icons.delivery_dining,
+                  color: AppColors.green,
+                  size: 26,
+                ),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -461,18 +478,37 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                     const SizedBox(height: 2),
                     Row(
                       children: [
-                        if (driver.vehicle != null && driver.vehicle!.isNotEmpty) ...[
-                          const Icon(Icons.two_wheeler, size: 14, color: AppColors.textSecondary),
+                        if (driver.vehicle != null &&
+                            driver.vehicle!.isNotEmpty) ...[
+                          const Icon(
+                            Icons.two_wheeler,
+                            size: 14,
+                            color: AppColors.textSecondary,
+                          ),
                           const SizedBox(width: 4),
-                          Text(driver.vehicle!, style: const TextStyle(fontSize: 12.5, color: AppColors.textSecondary)),
+                          Text(
+                            driver.vehicle!,
+                            style: const TextStyle(
+                              fontSize: 12.5,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
                           const SizedBox(width: 10),
                         ],
                         if (driver.rating != null) ...[
-                          const Icon(Icons.star, size: 14, color: AppColors.gold),
+                          const Icon(
+                            Icons.star,
+                            size: 14,
+                            color: AppColors.gold,
+                          ),
                           const SizedBox(width: 3),
                           Text(
                             driver.rating!.toStringAsFixed(1),
-                            style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: AppColors.text),
+                            style: const TextStyle(
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.text,
+                            ),
                           ),
                         ],
                       ],
@@ -487,7 +523,11 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
             const SizedBox(height: 12),
             Row(
               children: [
-                const Icon(Icons.near_me_outlined, size: 15, color: AppColors.orange),
+                const Icon(
+                  Icons.near_me_outlined,
+                  size: 15,
+                  color: AppColors.orange,
+                ),
                 const SizedBox(width: 6),
                 Expanded(
                   child: Text(
@@ -521,7 +561,11 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
           CallButton(
             label: 'Appeler le livreur',
             phone: driver.phone,
-            onEmptyPhone: () => showToast(context, 'Numéro du livreur indisponible.', isError: true),
+            onEmptyPhone: () => showToast(
+              context,
+              'Numéro du livreur indisponible.',
+              isError: true,
+            ),
           ),
         ],
       ),
@@ -537,8 +581,11 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
       return '—';
     }
     final dropoff = order.dropoffPoint;
-    final km = position.distanceKm ??
-        (dropoff == null ? null : distanceKm(position.point.latLng, dropoff.latLng));
+    final km =
+        position.distanceKm ??
+        (dropoff == null
+            ? null
+            : distanceKm(position.point.latLng, dropoff.latLng));
     final label = 'À ${formatDistance(km)} de vous';
     final routeMinutes = _route?.etaMinutes;
     final minutes = routeMinutes ?? estimateMinutes(km ?? 0);
@@ -569,14 +616,23 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
           const SizedBox(height: 16),
           _liveTrackingMap(order),
           const SizedBox(height: 16),
-          if (order.canCancel || order.isAwaitingPayment || order.isPaid || order.status == 'accepted')
+          if (order.canCancel ||
+              order.isAwaitingPayment ||
+              order.isPaid ||
+              order.status == 'accepted')
             _ProgressStepper(order: order, accent: accent),
           const SizedBox(height: 8),
           if (order.paymentStatus.isNotEmpty) ...[
             _PaymentStatusRow(order: order),
             const SizedBox(height: 12),
           ],
-          if (order.statusHistory.isNotEmpty) _Timeline(history: order.statusHistory),
+          if (!order.isCancelled &&
+              (order.confirmationCode?.isNotEmpty ?? false)) ...[
+            _ConfirmationCodeCard(code: order.confirmationCode!),
+            const SizedBox(height: 12),
+          ],
+          if (order.statusHistory.isNotEmpty)
+            _Timeline(history: order.statusHistory),
           const SizedBox(height: 20),
           Card(
             child: Padding(
@@ -584,7 +640,10 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Articles', style: TextStyle(fontWeight: FontWeight.bold)),
+                  const Text(
+                    'Articles',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
                   const SizedBox(height: 4),
                   for (final item in order.items)
                     PackageItemTile(
@@ -597,12 +656,17 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                   _SummaryRow(label: 'Sous-total', amount: order.subtotal),
                   _SummaryRow(label: 'Livraison', amount: order.deliveryFee),
                   const SizedBox(height: 4),
-                  _SummaryRow(label: 'Total', amount: order.total, emphasized: true),
+                  _SummaryRow(
+                    label: 'Total',
+                    amount: order.total,
+                    emphasized: true,
+                  ),
                 ],
               ),
             ),
           ),
-          if (order.deliveryAddress != null && order.deliveryAddress!.isNotEmpty) ...[
+          if (order.deliveryAddress != null &&
+              order.deliveryAddress!.isNotEmpty) ...[
             const SizedBox(height: 12),
             Card(
               child: ListTile(
@@ -620,7 +684,10 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
             const SizedBox(height: 12),
             Card(
               child: ListTile(
-                leading: Icon(Icons.cancel_outlined, color: Theme.of(context).colorScheme.error),
+                leading: Icon(
+                  Icons.cancel_outlined,
+                  color: Theme.of(context).colorScheme.error,
+                ),
                 title: const Text('Motif d\'annulation'),
                 subtitle: Text(order.cancellationReason!),
               ),
@@ -635,12 +702,15 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
               loading: _actionLoading,
             ),
           const SizedBox(height: 8),
-AppButton(
-              label: 'Signaler un problème',
-              variant: AppButtonVariant.outline,
-              icon: Icons.support_agent,
-              onPressed: () => context.push('/client/complaints/new', extra: {'order_id': order.id}),
+          AppButton(
+            label: 'Signaler un problème',
+            variant: AppButtonVariant.outline,
+            icon: Icons.support_agent,
+            onPressed: () => context.push(
+              '/client/complaints/new',
+              extra: {'order_id': order.id},
             ),
+          ),
           if (order.isDelivered) ...[
             const SizedBox(height: AppDimens.md),
             if (order.hasReview) ...[
@@ -686,7 +756,13 @@ class _StatusHero extends StatelessWidget {
           colors: [accent, accent.withValues(alpha: 0.75)],
         ),
         borderRadius: BorderRadius.circular(20),
-        boxShadow: [BoxShadow(color: accent.withValues(alpha: 0.35), blurRadius: 16, offset: const Offset(0, 6))],
+        boxShadow: [
+          BoxShadow(
+            color: accent.withValues(alpha: 0.35),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -731,7 +807,10 @@ class _StatusHero extends StatelessWidget {
                     const SizedBox(height: 6),
                     Text(
                       '${order.vendor?.businessName ?? 'Béninfood'} · $date',
-                      style: const TextStyle(color: Colors.white70, fontSize: 12.5),
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 12.5,
+                      ),
                     ),
                   ],
                 ),
@@ -766,8 +845,13 @@ class _StatusHero extends StatelessWidget {
                   style: TextButton.styleFrom(
                     foregroundColor: Colors.white,
                     backgroundColor: Colors.white.withValues(alpha: 0.18),
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 8,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
                   icon: const Icon(Icons.cancel_outlined, size: 18),
                   label: const Text('Annuler la commande'),
@@ -796,7 +880,11 @@ class _RefChip extends StatelessWidget {
       ),
       child: Text(
         '#$abbr',
-        style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700),
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+        ),
       ),
     );
   }
@@ -840,7 +928,8 @@ class _ProgressStepper extends StatelessWidget {
                   child: Container(
                     height: 2,
                     margin: const EdgeInsets.only(top: 24),
-                    decoration: BoxDecoration(                        color: i < current ? accent : AppColors.border,
+                    decoration: BoxDecoration(
+                      color: i < current ? accent : AppColors.border,
                       borderRadius: BorderRadius.circular(2),
                     ),
                   ),
@@ -874,13 +963,13 @@ class _StepItem extends StatelessWidget {
     final Color color = done
         ? accent
         : active
-            ? accent
-            : AppColors.borderStrong;
+        ? accent
+        : AppColors.borderStrong;
     final IconData icon = done
         ? Icons.check_circle
         : active
-            ? Icons.radio_button_checked
-            : Icons.radio_button_off;
+        ? Icons.radio_button_checked
+        : Icons.radio_button_off;
 
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -911,7 +1000,8 @@ class _PaymentStatusRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final paid = order.paymentStatus == 'confirmed' ||
+    final paid =
+        order.paymentStatus == 'confirmed' ||
         order.paymentStatus == 'paid' ||
         order.status == 'paid' ||
         order.isDelivered;
@@ -956,7 +1046,11 @@ class _PaymentStatusRow extends StatelessWidget {
         const SizedBox(width: 10),
         Text(
           label,
-          style: TextStyle(fontSize: 13.5, color: color, fontWeight: FontWeight.w600),
+          style: TextStyle(
+            fontSize: 13.5,
+            color: color,
+            fontWeight: FontWeight.w600,
+          ),
         ),
       ],
     );
@@ -998,30 +1092,42 @@ class TrackingResultScreen extends StatelessWidget {
               const SizedBox(height: 20),
               Text(
                 success
-                    ? (isCash ? 'Commande enregistrée !' : 'Paiement confirmé !')
+                    ? (isCash
+                          ? 'Commande enregistrée !'
+                          : 'Paiement confirmé !')
                     : 'Commande créée',
-                style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
+                style: theme.textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 8),
               Text(
                 success
                     ? (isCash
-                        ? 'Votre commande ${order.reference} part en préparation. Vous réglerez ${formatAmount(order.total)} en espèces au livreur.'
-                        : 'Votre commande ${order.reference} a été réglée et est en préparation.')
+                          ? 'Votre commande ${order.reference} part en préparation. Vous réglerez ${formatAmount(order.total)} en espèces au livreur.'
+                          : 'Votre commande ${order.reference} a été réglée et est en préparation.')
                     : 'Votre commande ${order.reference} est en attente de paiement.',
                 style: theme.textTheme.bodyMedium,
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 8),
-              AmountText(order.total, style: theme.textTheme.titleMedium?.copyWith(color: theme.colorScheme.primary)),
+              AmountText(
+                order.total,
+                style: theme.textTheme.titleMedium?.copyWith(
+                  color: theme.colorScheme.primary,
+                ),
+              ),
               const SizedBox(height: 32),
               AppButton(
                 label: 'Suivre ma commande',
                 icon: Icons.track_changes,
                 onPressed: () => Navigator.of(context).pushReplacement(
                   MaterialPageRoute<void>(
-                    builder: (_) => OrderTrackingScreen(marketplace: marketplace, orderId: order.id),
+                    builder: (_) => OrderTrackingScreen(
+                      marketplace: marketplace,
+                      orderId: order.id,
+                    ),
                   ),
                 ),
               ),
@@ -1053,7 +1159,10 @@ class _Timeline extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Historique', style: TextStyle(fontWeight: FontWeight.bold)),
+            const Text(
+              'Historique',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
             const SizedBox(height: 12),
             ...List.generate(history.length, (index) {
               final entry = history[history.length - 1 - index];
@@ -1064,9 +1173,13 @@ class _Timeline extends StatelessWidget {
                   Column(
                     children: [
                       Icon(
-                        isLast ? Icons.radio_button_checked : Icons.radio_button_off,
+                        isLast
+                            ? Icons.radio_button_checked
+                            : Icons.radio_button_off,
                         size: 18,
-                        color: isLast ? theme.colorScheme.primary : theme.colorScheme.outline,
+                        color: isLast
+                            ? theme.colorScheme.primary
+                            : theme.colorScheme.outline,
                       ),
                       if (index < history.length - 1)
                         Container(
@@ -1088,10 +1201,15 @@ class _Timeline extends StatelessWidget {
                             style: const TextStyle(fontWeight: FontWeight.w600),
                           ),
                           if (entry.reason != null && entry.reason!.isNotEmpty)
-                            Text(entry.reason!, style: theme.textTheme.bodySmall),
+                            Text(
+                              entry.reason!,
+                              style: theme.textTheme.bodySmall,
+                            ),
                           Text(
                             formatDateTime(entry.createdAt, fallback: ''),
-                            style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
                           ),
                         ],
                       ),
@@ -1124,7 +1242,11 @@ class _Timeline extends StatelessWidget {
 }
 
 class _SummaryRow extends StatelessWidget {
-  const _SummaryRow({required this.label, this.amount, this.emphasized = false});
+  const _SummaryRow({
+    required this.label,
+    this.amount,
+    this.emphasized = false,
+  });
 
   final String label;
   final int? amount;
@@ -1133,7 +1255,9 @@ class _SummaryRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final style = emphasized
-        ? Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)
+        ? Theme.of(
+            context,
+          ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)
         : Theme.of(context).textTheme.bodyMedium;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
@@ -1188,7 +1312,11 @@ class _ReviewCard extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(Icons.fact_check_outlined, size: 22, color: AppColors.goldDark),
+            Icon(
+              Icons.fact_check_outlined,
+              size: 22,
+              color: AppColors.goldDark,
+            ),
             const SizedBox(width: AppDimens.md),
             Expanded(
               child: Column(
@@ -1196,14 +1324,22 @@ class _ReviewCard extends StatelessWidget {
                 children: [
                   const Text(
                     'Avis déposé',
-                    style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w800),
+                    style: TextStyle(
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
                   const SizedBox(height: 4),
                   Row(
                     children: [
                       _Stars(rating: review.rating),
                       const SizedBox(width: 8),
-                      Text('Vendeur', style: theme.textTheme.bodySmall?.copyWith(color: AppColors.textSecondary)),
+                      Text(
+                        'Vendeur',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
                     ],
                   ),
                   if (review.driverRating != null) ...[
@@ -1212,7 +1348,12 @@ class _ReviewCard extends StatelessWidget {
                       children: [
                         _Stars(rating: review.driverRating!),
                         const SizedBox(width: 8),
-                        Text('Livreur', style: theme.textTheme.bodySmall?.copyWith(color: AppColors.textSecondary)),
+                        Text(
+                          'Livreur',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
                       ],
                     ),
                   ],
@@ -1232,7 +1373,11 @@ class _ReviewCard extends StatelessWidget {
 
 /// Dialogue de notation vendeur + livreur (cahier v1.0, J29 §9).
 class _ReviewDialog extends StatefulWidget {
-  const _ReviewDialog({required this.canRateDriver, required this.onCancel, required this.onSubmit});
+  const _ReviewDialog({
+    required this.canRateDriver,
+    required this.onCancel,
+    required this.onSubmit,
+  });
 
   final bool canRateDriver;
   final VoidCallback onCancel;
@@ -1258,7 +1403,11 @@ class _ReviewDialogState extends State<_ReviewDialog> {
       showToast(context, 'Indiquez une note (1 à 5 étoiles).', isError: true);
       return;
     }
-    widget.onSubmit(_rating, widget.canRateDriver ? _driverRating : null, _comment.text.trim());
+    widget.onSubmit(
+      _rating,
+      widget.canRateDriver ? _driverRating : null,
+      _comment.text.trim(),
+    );
   }
 
   @override
@@ -1270,17 +1419,29 @@ class _ReviewDialogState extends State<_ReviewDialog> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Votre note pour le vendeur *', style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700)),
+            const Text(
+              'Votre note pour le vendeur *',
+              style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700),
+            ),
             const SizedBox(height: 4),
             Center(
-              child: _StarsInput(rating: _rating, onChanged: (v) => setState(() => _rating = v)),
+              child: _StarsInput(
+                rating: _rating,
+                onChanged: (v) => setState(() => _rating = v),
+              ),
             ),
             if (widget.canRateDriver) ...[
               const SizedBox(height: AppDimens.md),
-              const Text('Note pour le livreur (optionnel)', style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700)),
+              const Text(
+                'Note pour le livreur (optionnel)',
+                style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700),
+              ),
               const SizedBox(height: 4),
               Center(
-                child: _StarsInput(rating: _driverRating ?? 0, onChanged: (v) => setState(() => _driverRating = v)),
+                child: _StarsInput(
+                  rating: _driverRating ?? 0,
+                  onChanged: (v) => setState(() => _driverRating = v),
+                ),
               ),
             ],
             const SizedBox(height: AppDimens.md),
@@ -1348,6 +1509,63 @@ class _StarsInput extends StatelessWidget {
             ),
           ),
       ],
+    );
+  }
+}
+
+class _ConfirmationCodeCard extends StatelessWidget {
+  const _ConfirmationCodeCard({required this.code});
+
+  final String code;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      color: AppColors.goldLight,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.lock_outline, color: AppColors.goldDark),
+                const SizedBox(width: 8),
+                const Expanded(
+                  child: Text(
+                    'Code de confirmation',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.goldDark,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Center(
+              child: SelectableText(
+                code,
+                style: const TextStyle(
+                  fontSize: 30,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 8,
+                  color: AppColors.goldDark,
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+            const Text(
+              'Communiquez ce code au livreur uniquement au moment de la réception. Sans ce code, la livraison ne peut pas être confirmée.',
+              style: TextStyle(
+                fontSize: 12,
+                height: 1.4,
+                color: AppColors.goldDark,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

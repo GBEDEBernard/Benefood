@@ -51,6 +51,7 @@ class Wallet extends Model
         return match ($this->owner_type) {
             'vendor', Vendor::class => Vendor::query()->whereKey($this->owner_id)->value('business_name') ?? 'Vendeur',
             'driver', DriverProfile::class => DriverProfile::query()->whereKey($this->owner_id)->with('user')->first()?->user?->name ?? 'Livreur',
+            'platform' => 'Béninfood',
             default => '—',
         };
     }
@@ -61,6 +62,7 @@ class Wallet extends Model
         return match ($this->owner_type) {
             'vendor', Vendor::class => 'Vendeur',
             'driver', DriverProfile::class => 'Livreur',
+            'platform' => 'Plateforme',
             default => '—',
         };
     }

@@ -2,6 +2,9 @@
 
 @section('content')
 <x-admin.page-header title="Wallets & retraits" subtitle="Cahier v1.0 — Demandes de reversement des vendeurs et livreurs">
+    <a href="{{ route('admin.platform-wallet.index') }}" class="btn btn-sm" style="background: #FFFFFF; border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-dark);">
+        <i class="ti ti-building-bank"></i> Wallet plateforme
+    </a>
     <a href="{{ route('admin.payouts.batches.index') }}" class="btn btn-sm" style="background-color: var(--benin-green); color: #FFFFFF; border-radius: 8px; font-weight: 600; border: none;">
         <i class="ti ti-stack-2"></i> Lots groupés (Mode B)
     </a>
@@ -140,10 +143,16 @@
                                 <td class="py-3" style="color: var(--text-muted);">{{ $payout->created_at?->format('d/m/Y H:i') ?? '—' }}</td>
                                 <td class="py-3 text-right">
                                     @if ($status === 'pending' || $status === 'processing')
-                                        <form method="POST" action="{{ route('admin.payouts.execute', $payout) }}" class="d-inline">
+                                        <form method="POST" action="{{ route('admin.payouts.execute', $payout) }}" class="d-inline" onsubmit="return confirm('Confirmer que ce retrait a été payé manuellement au bénéficiaire ?');">
                                             @csrf
                                             <button type="submit" class="btn btn-sm" style="background-color: var(--benin-green); color: #FFFFFF; border-radius: 8px; font-weight: 600;">
                                                 <i class="ti ti-check"></i> Marquer versé
+                                            </button>
+                                        </form>
+                                        <form method="POST" action="{{ route('admin.payouts.send', $payout) }}" class="d-inline">
+                                            @csrf
+                                            <button type="submit" class="btn btn-sm" style="background: #FFFFFF; border: 1px solid var(--border-color); border-radius: 8px; color: var(--benin-green); font-weight: 600;">
+                                                <i class="ti ti-send"></i> FedaPay
                                             </button>
                                         </form>
                                         <form method="POST" action="{{ route('admin.payouts.fail', $payout) }}" class="d-inline" onsubmit="return confirm('Marquer ce retrait en échec et re-créditer le wallet ?');">

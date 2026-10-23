@@ -221,24 +221,30 @@ class DeliveryService
     /**
      * Confirme la livraison au client (in_delivery → delivered).
      *
+     * Le code de confirmation fourni par le client est obligatoire : sans lui,
+     * aucun fonds n'est libéré.
+     *
      * @param  array{proof_code?: string, proof_photo?: string}  $proof
      */
     public function markDelivered(Delivery $delivery, DriverProfile $driver, array $proof = []): Delivery
     {
         $this->assertDeliveryOwned($delivery, $driver);
 
-        $code = $proof['proof_code'] ?? null;
+        $code = trim((string) ($proof['proof_code'] ?? ''));
 
-        if ($code !== null && $code !== '' && $delivery->proof_code !== null && $code !== $delivery->proof_code) {
-            throw new DomainException('delivery.wrong_proof_code', 'Le code de confirmation ne correspond pas.', 422);
+        if ($code === '') {
+            throw new DomainException(
+                'delivery.confirmation_code_required',
+                'Saisissez le code de confirmation fourni par le client.',
+                422,
+            );
         }
 
         $delivery->order->load('delivery');
-        $this->orders->markDelivered($delivery->order, $driver->user_id);
+        $this->orders->markDelivered($delivery->order, $code, $driver->user_id);
 
         $delivery->refresh();
         $delivery->update([
-            'proof_code' => $delivery->proof_code ?? $code,
             'proof_photo_path' => $proof['proof_photo'] ?? $delivery->proof_photo_path,
         ]);
 

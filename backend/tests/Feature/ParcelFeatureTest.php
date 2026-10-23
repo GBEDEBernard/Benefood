@@ -256,7 +256,7 @@ class ParcelFeatureTest extends TestCase
 
         $this->postJson("/api/v1/driver/me/parcels/{$parcel->id}/pickup")->assertOk()->assertJsonPath('data.status', 'picked_up');
         $this->postJson("/api/v1/driver/me/parcels/{$parcel->id}/start")->assertOk()->assertJsonPath('data.status', 'in_delivery');
-        $this->postJson("/api/v1/driver/me/parcels/{$parcel->id}/deliver")->assertOk()->assertJsonPath('data.status', 'delivered');
+        $this->postJson("/api/v1/driver/me/parcels/{$parcel->id}/deliver", ['proof_code' => (string) $parcel->fresh()->confirmation_code])->assertOk()->assertJsonPath('data.status', 'delivered');
 
         $wallet = app(FinanceService::class)->walletFor($driver);
         $this->assertSame(800, (int) $wallet->fresh()->available_balance);
@@ -276,7 +276,7 @@ class ParcelFeatureTest extends TestCase
         $this->postJson("/api/v1/driver/me/parcels/{$parcel->id}/accept")->assertOk();
         $this->postJson("/api/v1/driver/me/parcels/{$parcel->id}/pickup")->assertOk();
         $this->postJson("/api/v1/driver/me/parcels/{$parcel->id}/start")->assertOk();
-        $this->postJson("/api/v1/driver/me/parcels/{$parcel->id}/deliver")->assertOk();
+        $this->postJson("/api/v1/driver/me/parcels/{$parcel->id}/deliver", ['proof_code' => (string) $parcel->fresh()->confirmation_code])->assertOk();
 
         $wallet = app(FinanceService::class)->walletFor($driver)->fresh();
 
@@ -362,7 +362,7 @@ class ParcelFeatureTest extends TestCase
         $this->postJson("/api/v1/driver/me/parcels/{$parcel->id}/accept")->assertOk();
         $this->postJson("/api/v1/driver/me/parcels/{$parcel->id}/pickup")->assertOk();
         $this->postJson("/api/v1/driver/me/parcels/{$parcel->id}/start")->assertOk();
-        $this->postJson("/api/v1/driver/me/parcels/{$parcel->id}/deliver")->assertOk();
+        $this->postJson("/api/v1/driver/me/parcels/{$parcel->id}/deliver", ['proof_code' => (string) $parcel->fresh()->confirmation_code])->assertOk();
 
         $this->assertSame(1000 - (int) $parcel->platform_amount, (int) $driver->fresh()->prepaid_balance);
         $this->assertSame(1, $driver->fresh()->floatTransactions()->where('type', 'debit')->where('reference_type', 'parcel_cash_settle')->count());
@@ -433,7 +433,7 @@ class ParcelFeatureTest extends TestCase
         $parcels->assignDriver($parcel->fresh(), $driver);
         $parcels->markPickedUp($parcel->fresh());
         $parcels->markInDelivery($parcel->fresh());
-        $parcels->markDelivered($parcel->fresh());
+        $parcels->markDelivered($parcel->fresh(), (string) $parcel->fresh()->confirmation_code);
 
         $this->assertDatabaseHas('financial_journal', [
             'entry_type' => 'transfer',
@@ -454,7 +454,7 @@ class ParcelFeatureTest extends TestCase
         $parcels->assignDriver($parcel->fresh(), $driver);
         $parcels->markPickedUp($parcel->fresh());
         $parcels->markInDelivery($parcel->fresh());
-        $parcels->markDelivered($parcel->fresh());
+        $parcels->markDelivered($parcel->fresh(), (string) $parcel->fresh()->confirmation_code);
 
         $this->assertDatabaseHas('financial_journal', [
             'entry_type' => 'commission',
@@ -595,7 +595,7 @@ class ParcelFeatureTest extends TestCase
         $this->postJson("/api/v1/driver/me/parcels/{$parcel->id}/accept")->assertOk();
         $this->postJson("/api/v1/driver/me/parcels/{$parcel->id}/pickup")->assertOk();
         $this->postJson("/api/v1/driver/me/parcels/{$parcel->id}/start")->assertOk();
-        $this->postJson("/api/v1/driver/me/parcels/{$parcel->id}/deliver")->assertOk();
+        $this->postJson("/api/v1/driver/me/parcels/{$parcel->id}/deliver", ['proof_code' => (string) $parcel->fresh()->confirmation_code])->assertOk();
 
         $notification = Notification::where('type', 'parcel.delivered')
             ->where('user_id', $client->id)
@@ -614,6 +614,6 @@ class ParcelFeatureTest extends TestCase
         $parcels = app(ParcelService::class);
         $parcel = $parcels->create($client, $this->pickup(), $this->dropoff());
 
-        $parcels->markDelivered($parcel->fresh());
+        $parcels->markDelivered($parcel->fresh(), (string) $parcel->fresh()->confirmation_code);
     }
 }

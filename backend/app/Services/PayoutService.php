@@ -110,11 +110,20 @@ class PayoutService
         return $payout->fresh();
     }
 
+    public function gatewayConfigured(): bool
+    {
+        return $this->gateway->configured();
+    }
+
     /**
      * Envoie le retrait vers la passerelle (FedaPay) puis marque le statut.
      *
      * Sans passerelle configurée (ou sans destinataire), on retombe sur la
      * validation manuelle afin de ne jamais bloquer le back-office.
+     *
+     * En cas d'échec de la passerelle, le retrait reste **en attente** avec sa
+     * raison : le montant demeure réservé et l'admin peut le verser manuellement
+     * depuis le back-office ou réessayer l'envoi FedaPay.
      */
     public function sendToGateway(Payout $payout, ?string $actorId = null): Payout
     {
@@ -136,13 +145,34 @@ class PayoutService
             return $this->execute($payout, $actorId, $result['payout_id'] ?? $result['reference'] ?? null);
         }
 
-        return $this->fail($payout, $result['message'] ?? 'Échec du virement FedaPay.');
+        return $this->holdForManualReview(
+            $payout,
+            $result['message'] ?? 'Échec du virement FedaPay.',
+        );
+    }
+
+    /**
+     * Conserve le retrait en attente (fonds déjà réservés) pour traitement
+     * manuel par le back-office, avec la raison de l'échec de la passerelle.
+     */
+    public function holdForManualReview(Payout $payout, ?string $reason = null): Payout
+    {
+        if ($payout->status === PayoutStatus::Executed) {
+            return $payout->fresh();
+        }
+
+        $payout->update([
+            'status' => PayoutStatus::Pending->value,
+            'failed_reason' => $reason,
+        ]);
+
+        return $payout->fresh();
     }
 
     /** Marque un retrait en échec et re-crédite le solde disponible. */
     public function fail(Payout $payout, ?string $reason = null): Payout
     {
-        if ($payout->status === PayoutStatus::Failed) {
+        if (in_array($payout->status, [PayoutStatus::Failed, PayoutStatus::Executed], true)) {
             return $payout->fresh();
         }
 
@@ -297,10 +327,6 @@ class PayoutService
         }
 
         $payout = $this->fail($payout, $reason);
-
-        if ($reason !== null) {
-            $payout->update(['failed_reason' => $reason]);
-        }
 
         $batch->refresh();
 

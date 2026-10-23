@@ -51,6 +51,8 @@ class CashPaymentTest extends TestCase
             'subtotal' => 5000,
             'delivery_fee' => 1000,
             'total' => $breakdown['total_client'],
+            'confirmation_code' => '123456',
+            'confirmation_code_expires_at' => now()->addDay(),
         ]);
 
         OrderFinancial::create(array_merge(['order_id' => $order->id, 'discount' => 0], $breakdown));
@@ -125,7 +127,7 @@ class CashPaymentTest extends TestCase
         $orders->markPickedUp($assigned, $driver->user_id);
         $orders->markInDelivery($assigned, $driver->user_id);
 
-        $delivered = $orders->markDelivered($order->fresh('delivery', 'financials'), $driver->user_id);
+        $delivered = $orders->markDelivered($order->fresh('delivery', 'financials'), '123456', $driver->user_id);
 
         $this->assertSame(OrderStatus::Delivered, $delivered->status);
 
@@ -163,7 +165,7 @@ class CashPaymentTest extends TestCase
         $assigned = $orders->assignDriver($order->fresh(), $driver->id, $driver->user_id);
         $orders->markPickedUp($assigned, $driver->user_id);
         $orders->markInDelivery($assigned, $driver->user_id);
-        $orders->markDelivered($order->fresh('delivery', 'financials'), $driver->user_id);
+        $orders->markDelivered($order->fresh('delivery', 'financials'), '123456', $driver->user_id);
 
         $order->refresh()->load('financials');
 

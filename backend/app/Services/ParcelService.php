@@ -28,6 +28,7 @@ class ParcelService
         private readonly FavoriteDriverService $favoriteDrivers,
         private readonly CashService $cash,
         private readonly RefundService $refunds,
+        private readonly ConfirmationCodeService $confirmationCodes,
     ) {}
 
     /**
@@ -72,7 +73,9 @@ class ParcelService
             ? $this->favoriteDrivers->acceptedDriverFor($client, $targetedDriverProfileId)
             : null;
 
-        $parcel = DB::transaction(function () use ($client, $pickup, $dropoff, $description, $breakdown, $targetedDriver, $method, $isCash): Parcel {
+        $confirmationCode = null;
+
+        $parcel = DB::transaction(function () use ($client, $pickup, $dropoff, $description, $breakdown, $targetedDriver, $method, $isCash, &$confirmationCode): Parcel {
             /** @var Parcel $parcel */
             $parcel = Parcel::create([
                 'reference' => $this->generateReference(),
@@ -114,8 +117,18 @@ class ParcelService
                 $isCash ? 'Paiement à la livraison (espèces)' : null,
             );
 
+            $confirmationCode = $this->confirmationCodes->generate($parcel, 'parcel');
+
             return $parcel->fresh(['payment']);
         });
+
+        if ($confirmationCode !== null) {
+            $this->notifications->notifyEvent('parcel.confirmation_code', [$client], [
+                'reference' => $parcel->reference,
+                'parcel_id' => $parcel->id,
+                'code' => $confirmationCode,
+            ]);
+        }
 
         if ($isCash && $targetedDriver?->user !== null) {
             $this->notifications->notifyEvent('parcel.offered', [$targetedDriver->user], [
@@ -217,49 +230,67 @@ class ParcelService
         return $this->transition($parcel, ParcelStatus::InDelivery, 'driver', $actorId);
     }
 
-    /** Livraison confirmée : la part livreur devient retirable. */
-    public function markDelivered(Parcel $parcel, ?string $actorId = null): Parcel
+    /**
+     * Livraison confirmée par le code du destinataire : la part livreur
+     * devient retirable et la commission plateforme est encaissée.
+     */
+    public function markDelivered(Parcel $parcel, ?string $confirmationCode = null, ?string $actorId = null): Parcel
     {
-        $parcel = $this->transition($parcel, ParcelStatus::Delivered, 'driver', $actorId, ['delivered_at' => now()]);
+        $this->confirmationCodes->validate($parcel, $confirmationCode, 'parcel');
 
-        $driver = $parcel->driverProfile;
+        $parcel = DB::transaction(function () use ($parcel, $actorId): Parcel {
+            $parcel = $this->transition($parcel, ParcelStatus::Delivered, 'driver', $actorId, ['delivered_at' => now()]);
 
-        if ($driver !== null) {
-            if ($parcel->isCash()) {
-                // Espèces : le livreur a encaissé les frais ; la commission
-                // plateforme est déduite de son flottant et son gain lui est
-                // crédité directement (aucun séquestre en amont).
-                $this->cash->debitFloat(
-                    $driver,
-                    (int) $parcel->platform_amount,
-                    'parcel_cash_settle',
-                    $parcel->id,
-                    'Commission colis espèces — '.$parcel->reference,
-                );
+            $driver = $parcel->driverProfile;
 
-                $this->finance->creditDriverEarning(
-                    $this->finance->walletFor($driver),
-                    (int) $parcel->delivery_fee,
-                    (int) $parcel->commission_amount,
-                    'parcel_driver_earning',
-                    $parcel->id,
-                    $parcel->reference,
-                );
+            if ($driver !== null) {
+                if ($parcel->isCash()) {
+                    // Espèces : le livreur a encaissé les frais ; la commission
+                    // plateforme est déduite de son flottant et son gain lui est
+                    // crédité directement (aucun séquestre en amont).
+                    $this->cash->debitFloat(
+                        $driver,
+                        (int) $parcel->platform_amount,
+                        'parcel_cash_settle',
+                        $parcel->id,
+                        'Commission colis espèces — '.$parcel->reference,
+                    );
 
-                $parcel->update(['payment_status' => PaymentStatus::Confirmed->value]);
-            } else {
-                $this->finance->releaseDriverEarning(
-                    $this->finance->walletFor($driver),
-                    (int) $parcel->delivery_fee,
-                    (int) $parcel->commission_amount,
-                    'parcel_driver_release',
-                    $parcel->id,
-                    $parcel->reference,
-                );
+                    $this->finance->creditDriverEarning(
+                        $this->finance->walletFor($driver),
+                        (int) $parcel->delivery_fee,
+                        (int) $parcel->commission_amount,
+                        'parcel_driver_earning',
+                        $parcel->id,
+                        $parcel->reference,
+                    );
+
+                    $parcel->update(['payment_status' => PaymentStatus::Confirmed->value]);
+                } else {
+                    $this->finance->releaseDriverEarning(
+                        $this->finance->walletFor($driver),
+                        (int) $parcel->delivery_fee,
+                        (int) $parcel->commission_amount,
+                        'parcel_driver_release',
+                        $parcel->id,
+                        $parcel->reference,
+                    );
+                }
+
+                $this->finance->recordParcelDelivery($parcel, $driver);
             }
 
-            $this->finance->recordParcelDelivery($parcel, $driver);
-        }
+            $this->finance->creditPlatform(
+                (int) $parcel->platform_amount,
+                'parcel_platform_credit',
+                $parcel->id,
+                'Commission plateforme — '.$parcel->reference,
+            );
+
+            $this->confirmationCodes->markConfirmed($parcel);
+
+            return $parcel->fresh(['driverProfile.user', 'statusHistory']);
+        });
 
         // Notification « colis » dédiée : le mobile ouvre le suivi du colis
         // (et non une commande) via `parcel_id`.
@@ -268,7 +299,7 @@ class ParcelService
             'parcel_id' => $parcel->id,
         ]);
 
-        return $parcel->fresh(['driverProfile.user', 'statusHistory']);
+        return $parcel;
     }
 
     /** Annule un colis (rembourse si payé) et contre-passe les séquestres. */

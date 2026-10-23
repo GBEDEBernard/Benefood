@@ -148,6 +148,13 @@ class CashService
                 $order->reference,
             );
 
+            $this->finance->creditPlatform(
+                (int) ($order->financials?->platform_amount ?? 0),
+                'order_platform_credit',
+                $order->id,
+                'Commissions et frais plateforme (cash) — '.$order->reference,
+            );
+
             $this->finance->recordCashOrderSettlement($order, $driver);
 
             $order->update([

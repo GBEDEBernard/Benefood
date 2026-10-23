@@ -115,7 +115,7 @@ class DeliveryController extends Controller
     public function deliver(Request $request, Delivery $delivery): JsonResponse
     {
         $data = $request->validate([
-            'proof_code' => ['sometimes', 'nullable', 'string', 'max:10'],
+            'proof_code' => ['required', 'string', 'max:10'],
             'proof_photo' => ['sometimes', 'nullable', 'string', 'max:255'],
         ]);
 

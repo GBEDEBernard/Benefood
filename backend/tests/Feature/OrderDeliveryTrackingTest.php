@@ -223,7 +223,7 @@ class OrderDeliveryTrackingTest extends TestCase
         );
 
         $this->actAs($driver->user);
-        $this->postJson("/api/v1/driver/me/deliveries/{$deliveryId}/deliver", ['proof_code' => 'ok'])
+        $this->postJson("/api/v1/driver/me/deliveries/{$deliveryId}/deliver", ['proof_code' => (string) $order->fresh()->confirmation_code])
             ->assertOk();
 
         // Fin de course : la position est effacée en base (confidentialité).

@@ -21,6 +21,9 @@ use Illuminate\Support\Facades\DB;
  */
 class FinanceService
 {
+    /** Identifiant fixe du wallet interne Béninfood (commissions et frais). */
+    public const PLATFORM_WALLET_ID = '00000000-0000-0000-0000-000000000001';
+
     public function __construct(private readonly FinancialJournalService $journal) {}
 
     /**
@@ -91,6 +94,34 @@ class FinanceService
             ['owner_type' => $owner->getMorphClass(), 'owner_id' => $owner->id],
             ['balance' => 0, 'pending_balance' => 0, 'available_balance' => 0],
         );
+    }
+
+    /** Wallet interne Béninfood : commissions, frais de service et de livraison. */
+    public function platformWallet(): Wallet
+    {
+        return Wallet::firstOrCreate(
+            ['owner_type' => 'platform', 'owner_id' => self::PLATFORM_WALLET_ID],
+            ['balance' => 0, 'pending_balance' => 0, 'available_balance' => 0],
+        );
+    }
+
+    /**
+     * Crédite la part plateforme (idempotent par référence) au moment de la
+     * libération des fonds, c'est-à-dire après confirmation de la livraison.
+     */
+    public function creditPlatform(int $amount, string $refType, ?string $refId, string $description): ?WalletTransaction
+    {
+        if ($amount <= 0) {
+            return null;
+        }
+
+        $wallet = $this->platformWallet();
+
+        if ($this->alreadyRecorded($wallet, $refType, $refId)) {
+            return null;
+        }
+
+        return $this->creditAvailable($wallet, $amount, $refType, $refId, $description);
     }
 
     /** Crédite le séquestre (solde en attente) d'un wallet. */
@@ -382,6 +413,13 @@ class FinanceService
                 'actor' => 'system',
             ]);
         }
+
+        $this->creditPlatform(
+            (int) $financials->platform_amount,
+            'order_platform_credit',
+            $order->id,
+            'Commissions et frais plateforme — '.$order->reference,
+        );
     }
 
     /**

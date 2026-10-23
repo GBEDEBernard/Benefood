@@ -203,7 +203,7 @@ class FedaPayWalletTest extends TestCase
         $this->assertSame(['moov', '+22996000000'], [$fake->payoutCalls[0][2], $fake->payoutCalls[0][1]]);
     }
 
-    public function test_send_to_gateway_failure_credits_the_wallet_back(): void
+    public function test_send_to_gateway_failure_keeps_the_payout_pending_for_manual_review(): void
     {
         $fake = new PaymentGatewayFake;
         $fake->payoutResult = ['ok' => false, 'status' => 'failed', 'message' => 'Échec fournisseur'];
@@ -215,9 +215,31 @@ class FedaPayWalletTest extends TestCase
         $payout = app(PayoutService::class)->request($profile, 2000, 'moov', '+22996000000');
         $result = app(PayoutService::class)->sendToGateway($payout);
 
-        $this->assertSame(PayoutStatus::Failed, $result->status);
+        $this->assertSame(PayoutStatus::Pending, $result->status);
         $this->assertSame('Échec fournisseur', $result->failed_reason);
-        $this->assertSame(5000, (int) $wallet->fresh()->available_balance);
+        $this->assertSame(3000, (int) $wallet->fresh()->available_balance);
+    }
+
+    public function test_admin_can_mark_a_failed_gateway_payout_as_manually_settled(): void
+    {
+        $fake = new PaymentGatewayFake;
+        $fake->payoutResult = ['ok' => false, 'status' => 'failed', 'message' => 'Opération non autorisée'];
+        $this->app->instance(PaymentGateway::class, $fake);
+
+        [, $profile] = $this->driver();
+        $wallet = $this->fundedWallet($profile);
+
+        $payout = app(PayoutService::class)->request($profile, 2000, 'moov', '+22996000000');
+
+        $this->assertSame(PayoutStatus::Pending, $payout->status);
+        $this->assertSame(3000, (int) $wallet->fresh()->available_balance);
+
+        $admin = User::factory()->create();
+        $settled = app(PayoutService::class)->execute($payout->fresh(), $admin->id);
+
+        $this->assertSame(PayoutStatus::Executed, $settled->status);
+        $this->assertSame($admin->id, $settled->executed_by);
+        $this->assertSame(3000, (int) $wallet->fresh()->available_balance);
     }
 
     public function test_send_to_gateway_without_gateway_validates_manually(): void

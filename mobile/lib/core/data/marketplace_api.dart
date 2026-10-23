@@ -1203,8 +1203,13 @@ class MarketplaceApi {
     return Parcel.fromJson(_dataObject(response) ?? {});
   }
 
-  Future<Parcel> deliverParcelDelivery(String id) async {
-    final response = await _api.post('/driver/me/parcels/$id/deliver');
+  Future<Parcel> deliverParcelDelivery(String id, {String? proofCode}) async {
+    final response = await _api.post(
+      '/driver/me/parcels/$id/deliver',
+      body: {
+        if (proofCode != null && proofCode.isNotEmpty) 'proof_code': proofCode,
+      },
+    );
     return Parcel.fromJson(_dataObject(response) ?? {});
   }
 

@@ -20,18 +20,19 @@ class OrderVendor {
   final double? longitude;
 
   /// Point de la boutique (point de collecte) si géolocalisée.
-  GeoPoint? get point =>
-      latitude != null && longitude != null ? GeoPoint(latitude!, longitude!) : null;
+  GeoPoint? get point => latitude != null && longitude != null
+      ? GeoPoint(latitude!, longitude!)
+      : null;
 
   factory OrderVendor.fromJson(Map<String, dynamic> json) => OrderVendor(
-        id: _s(json['id']),
-        businessName: _s(json['business_name']),
-        logoUrl: json['logo_url'] is String ? json['logo_url'] as String : null,
-        address: json['address'] is String ? json['address'] as String : null,
-        city: json['city'] is String ? json['city'] as String : null,
-        latitude: _dNull(json['latitude']),
-        longitude: _dNull(json['longitude']),
-      );
+    id: _s(json['id']),
+    businessName: _s(json['business_name']),
+    logoUrl: json['logo_url'] is String ? json['logo_url'] as String : null,
+    address: json['address'] is String ? json['address'] as String : null,
+    city: json['city'] is String ? json['city'] as String : null,
+    latitude: _dNull(json['latitude']),
+    longitude: _dNull(json['longitude']),
+  );
 }
 
 class OrderPayment {
@@ -54,13 +55,13 @@ class OrderPayment {
   bool get isPaid => status == 'confirmed' || status == 'paid';
 
   factory OrderPayment.fromJson(Map<String, dynamic> json) => OrderPayment(
-        id: _s(json['id']),
-        reference: _s(json['reference']),
-        gateway: json['gateway'] is String ? json['gateway'] as String : null,
-        amount: _i(json['amount']),
-        status: _s(json['status']),
-        currency: _s(json['currency'], 'XOF'),
-      );
+    id: _s(json['id']),
+    reference: _s(json['reference']),
+    gateway: json['gateway'] is String ? json['gateway'] as String : null,
+    amount: _i(json['amount']),
+    status: _s(json['status']),
+    currency: _s(json['currency'], 'XOF'),
+  );
 }
 
 class OrderFinancials {
@@ -84,7 +85,8 @@ class OrderFinancials {
   /// Frais de service client (5 %, cahier v1.0).
   final int? serviceFee;
 
-  factory OrderFinancials.fromJson(Map<String, dynamic> json) => OrderFinancials(
+  factory OrderFinancials.fromJson(Map<String, dynamic> json) =>
+      OrderFinancials(
         commissionRate: _iNull(json['commission_rate']),
         commissionAmount: _iNull(json['commission_amount']),
         vendorAmount: _iNull(json['vendor_amount']),
@@ -119,15 +121,15 @@ class OrderItem {
   final String? imageUrl;
 
   factory OrderItem.fromJson(Map<String, dynamic> json) => OrderItem(
-        id: _s(json['id']),
-        productId: _s(json['product_id']),
-        name: _s(json['name']),
-        quantity: _i(json['quantity']),
-        unitPrice: _i(json['unit_price']),
-        subtotal: _i(json['subtotal']),
-        currency: _s(json['currency'], 'XOF'),
-        imageUrl: json['image_url'] is String ? json['image_url'] as String : null,
-      );
+    id: _s(json['id']),
+    productId: _s(json['product_id']),
+    name: _s(json['name']),
+    quantity: _i(json['quantity']),
+    unitPrice: _i(json['unit_price']),
+    subtotal: _i(json['subtotal']),
+    currency: _s(json['currency'], 'XOF'),
+    imageUrl: json['image_url'] is String ? json['image_url'] as String : null,
+  );
 }
 
 class OrderStatusHistory {
@@ -145,12 +147,19 @@ class OrderStatusHistory {
   final String? reason;
   final String? createdAt;
 
-  factory OrderStatusHistory.fromJson(Map<String, dynamic> json) => OrderStatusHistory(
-        fromStatus: json['from_status'] is String ? json['from_status'] as String : null,
+  factory OrderStatusHistory.fromJson(Map<String, dynamic> json) =>
+      OrderStatusHistory(
+        fromStatus: json['from_status'] is String
+            ? json['from_status'] as String
+            : null,
         toStatus: _s(json['to_status']),
-        actorType: json['actor_type'] is String ? json['actor_type'] as String : null,
+        actorType: json['actor_type'] is String
+            ? json['actor_type'] as String
+            : null,
         reason: json['reason'] is String ? json['reason'] as String : null,
-        createdAt: json['created_at'] is String ? json['created_at'] as String : null,
+        createdAt: json['created_at'] is String
+            ? json['created_at'] as String
+            : null,
       );
 }
 
@@ -170,16 +179,24 @@ class OrderRefund {
   final String? createdAt;
 
   factory OrderRefund.fromJson(Map<String, dynamic> json) => OrderRefund(
-        id: _s(json['id']),
-        amount: _i(json['amount']),
-        reason: json['reason'] is String ? json['reason'] as String : null,
-        status: _s(json['status']),
-        createdAt: json['created_at'] is String ? json['created_at'] as String : null,
-      );
+    id: _s(json['id']),
+    amount: _i(json['amount']),
+    reason: json['reason'] is String ? json['reason'] as String : null,
+    status: _s(json['status']),
+    createdAt: json['created_at'] is String
+        ? json['created_at'] as String
+        : null,
+  );
 }
 
 class OrderDriver {
-  const OrderDriver({required this.id, this.name, this.vehicle, this.rating, this.phone});
+  const OrderDriver({
+    required this.id,
+    this.name,
+    this.vehicle,
+    this.rating,
+    this.phone,
+  });
 
   final String id;
   final String? name;
@@ -191,12 +208,12 @@ class OrderDriver {
   final String? phone;
 
   factory OrderDriver.fromJson(Map<String, dynamic> json) => OrderDriver(
-        id: _s(json['id']),
-        name: json['name'] is String ? json['name'] as String : null,
-        vehicle: json['vehicle'] is String ? json['vehicle'] as String : null,
-        rating: _dNull(json['rating']),
-        phone: json['phone'] is String ? json['phone'] as String : null,
-      );
+    id: _s(json['id']),
+    name: json['name'] is String ? json['name'] as String : null,
+    vehicle: json['vehicle'] is String ? json['vehicle'] as String : null,
+    rating: _dNull(json['rating']),
+    phone: json['phone'] is String ? json['phone'] as String : null,
+  );
 }
 
 class OrderDeliveryPosition {
@@ -218,10 +235,13 @@ class OrderDeliveryPosition {
 
   GeoPoint get point => GeoPoint(latitude, longitude);
 
-  factory OrderDeliveryPosition.fromJson(Map<String, dynamic> json) => OrderDeliveryPosition(
+  factory OrderDeliveryPosition.fromJson(Map<String, dynamic> json) =>
+      OrderDeliveryPosition(
         latitude: _d(json['latitude']),
         longitude: _d(json['longitude']),
-        lastLocationAt: json['last_location_at'] is String ? json['last_location_at'] as String : null,
+        lastLocationAt: json['last_location_at'] is String
+            ? json['last_location_at'] as String
+            : null,
         distanceKm: _dNull(json['distance_km']),
         heading: _dNull(json['heading']),
       );
@@ -250,8 +270,12 @@ class OrderDelivery {
     return OrderDelivery(
       id: _s(json['id']),
       status: _s(json['status']),
-      driver: rawDriver is Map<String, dynamic> ? OrderDriver.fromJson(rawDriver) : null,
-      position: rawPosition is Map<String, dynamic> ? OrderDeliveryPosition.fromJson(rawPosition) : null,
+      driver: rawDriver is Map<String, dynamic>
+          ? OrderDriver.fromJson(rawDriver)
+          : null,
+      position: rawPosition is Map<String, dynamic>
+          ? OrderDeliveryPosition.fromJson(rawPosition)
+          : null,
     );
   }
 }
@@ -280,6 +304,7 @@ class Order {
     this.paymentDeadlineAt,
     this.vendorAcceptanceDeadlineAt,
     this.acceptedAt,
+    this.confirmationCode,
     this.cancellationReason,
     this.cancelledBy,
     this.cancelledAt,
@@ -320,6 +345,9 @@ class Order {
   final String? paymentDeadlineAt;
   final String? vendorAcceptanceDeadlineAt;
   final String? acceptedAt;
+
+  /// Code à communiquer au livreur lors de la réception (jamais exposé au livreur).
+  final String? confirmationCode;
   final String? cancellationReason;
   final String? cancelledBy;
   final String? cancelledAt;
@@ -351,7 +379,10 @@ class Order {
   GeoPoint? get dropoffPoint => deliveryAddressSnapshot?.point;
 
   bool get canCancel =>
-      status == 'awaiting_payment' || status == 'paid' || status == 'accepted' || status == 'preparing';
+      status == 'awaiting_payment' ||
+      status == 'paid' ||
+      status == 'accepted' ||
+      status == 'preparing';
 
   bool get canVendorAccept => status == 'awaiting_payment' || status == 'paid';
   bool get canVendorPrepare => status == 'accepted';
@@ -362,44 +393,48 @@ class Order {
   /// du vendeur pour mettre à jour l'état local (mode démo et mise à jour
   /// optimiste) sans reconstruire toute la liste.
   Order withStatus(String status) => Order(
-        id: id,
-        reference: reference,
-        status: status,
-        paymentStatus: paymentStatus,
-        paymentMethod: paymentMethod,
-        items: items,
-        subtotal: subtotal,
-        deliveryFee: deliveryFee,
-        total: total,
-        vendor: vendor,
-        payment: payment,
-        financials: financials,
-        deliveryAddress: deliveryAddress,
-        deliveryAddressSnapshot: deliveryAddressSnapshot,
-        delivery: delivery,
-        statusHistory: statusHistory,
-        refunds: refunds,
-        currency: currency,
-        discount: discount,
-        paymentDeadlineAt: paymentDeadlineAt,
-        vendorAcceptanceDeadlineAt: vendorAcceptanceDeadlineAt,
-        acceptedAt: acceptedAt,
-        cancellationReason: cancellationReason,
-        cancelledBy: cancelledBy,
-        cancelledAt: cancelledAt,
-        createdAt: createdAt,
-        updatedAt: updatedAt,
-        customerName: customerName,
-        customerPhone: customerPhone,
-        notes: notes,
-        review: review,
-      );
+    id: id,
+    reference: reference,
+    status: status,
+    paymentStatus: paymentStatus,
+    paymentMethod: paymentMethod,
+    items: items,
+    subtotal: subtotal,
+    deliveryFee: deliveryFee,
+    total: total,
+    vendor: vendor,
+    payment: payment,
+    financials: financials,
+    deliveryAddress: deliveryAddress,
+    deliveryAddressSnapshot: deliveryAddressSnapshot,
+    delivery: delivery,
+    statusHistory: statusHistory,
+    refunds: refunds,
+    currency: currency,
+    discount: discount,
+    paymentDeadlineAt: paymentDeadlineAt,
+    vendorAcceptanceDeadlineAt: vendorAcceptanceDeadlineAt,
+    acceptedAt: acceptedAt,
+    confirmationCode: confirmationCode,
+    cancellationReason: cancellationReason,
+    cancelledBy: cancelledBy,
+    cancelledAt: cancelledAt,
+    createdAt: createdAt,
+    updatedAt: updatedAt,
+    customerName: customerName,
+    customerPhone: customerPhone,
+    notes: notes,
+    review: review,
+  );
 
   factory Order.fromJson(Map<String, dynamic> json) {
     final rawItems = json['items'];
     List<OrderItem> items = [];
     if (rawItems is List) {
-      items = rawItems.whereType<Map<String, dynamic>>().map(OrderItem.fromJson).toList();
+      items = rawItems
+          .whereType<Map<String, dynamic>>()
+          .map(OrderItem.fromJson)
+          .toList();
     }
 
     final rawVendor = json['vendor'];
@@ -429,13 +464,19 @@ class Order {
     final rawHistory = json['status_history'];
     List<OrderStatusHistory> history = [];
     if (rawHistory is List) {
-      history = rawHistory.whereType<Map<String, dynamic>>().map(OrderStatusHistory.fromJson).toList();
+      history = rawHistory
+          .whereType<Map<String, dynamic>>()
+          .map(OrderStatusHistory.fromJson)
+          .toList();
     }
 
     final rawRefunds = json['refunds'];
     List<OrderRefund> refunds = [];
     if (rawRefunds is List) {
-      refunds = rawRefunds.whereType<Map<String, dynamic>>().map(OrderRefund.fromJson).toList();
+      refunds = rawRefunds
+          .whereType<Map<String, dynamic>>()
+          .map(OrderRefund.fromJson)
+          .toList();
     }
 
     return Order(
@@ -461,15 +502,26 @@ class Order {
       currency: _s(json['currency'], 'XOF'),
       discount: _i(json['discount']),
       paymentDeadlineAt: _nullable(json['payment_deadline_at']),
-      vendorAcceptanceDeadlineAt: _nullable(json['vendor_acceptance_deadline_at']),
+      vendorAcceptanceDeadlineAt: _nullable(
+        json['vendor_acceptance_deadline_at'],
+      ),
       acceptedAt: _nullable(json['accepted_at']),
-      cancellationReason: json['cancellation_reason'] is String ? json['cancellation_reason'] as String : null,
-      cancelledBy: json['cancelled_by'] is String ? json['cancelled_by'] as String : null,
+      confirmationCode: _stringOrNull(json['confirmation_code']),
+      cancellationReason: json['cancellation_reason'] is String
+          ? json['cancellation_reason'] as String
+          : null,
+      cancelledBy: json['cancelled_by'] is String
+          ? json['cancelled_by'] as String
+          : null,
       cancelledAt: _nullable(json['cancelled_at']),
       createdAt: _nullable(json['created_at']),
       updatedAt: _nullable(json['updated_at']),
-      customerName: _customerField(json['customer'], 'name') ?? _stringOrNull(json['customer_name']),
-      customerPhone: _customerField(json['customer'], 'phone') ?? _stringOrNull(json['customer_phone']),
+      customerName:
+          _customerField(json['customer'], 'name') ??
+          _stringOrNull(json['customer_name']),
+      customerPhone:
+          _customerField(json['customer'], 'phone') ??
+          _stringOrNull(json['customer_phone']),
       notes: _stringOrNull(json['notes']),
       review: json['review'] is Map<String, dynamic>
           ? OrderReview.fromJson(json['review'] as Map<String, dynamic>)
@@ -493,11 +545,13 @@ class OrderReview {
   final String? comment;
 
   factory OrderReview.fromJson(Map<String, dynamic> json) => OrderReview(
-        id: _s(json['id']),
-        rating: _i(json['rating']),
-        driverRating: json['driver_rating'] is int ? json['driver_rating'] as int : null,
-        comment: _stringOrNull(json['comment']),
-      );
+    id: _s(json['id']),
+    rating: _i(json['rating']),
+    driverRating: json['driver_rating'] is int
+        ? json['driver_rating'] as int
+        : null,
+    comment: _stringOrNull(json['comment']),
+  );
 }
 
 /// Champ d'un objet client `{"name": …, "phone": …}` renvoyé par l'API.
@@ -516,7 +570,8 @@ String? _stringOrNull(dynamic value) {
   return null;
 }
 
-String _s(dynamic value, [String fallback = '']) => value is String ? value : fallback;
+String _s(dynamic value, [String fallback = '']) =>
+    value is String ? value : fallback;
 
 /// Libellé de l'adresse de livraison, compatible objet `address_snapshot` et
 /// ancienne chaîne.

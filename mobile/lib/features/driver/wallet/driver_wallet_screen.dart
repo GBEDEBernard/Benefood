@@ -196,6 +196,10 @@ class _DriverWalletScreenState extends State<DriverWalletScreen>
           'Retrait échoué ($reason) : le montant a été recrédité sur votre solde.',
         'failed' =>
           'Retrait échoué : le montant a été recrédité sur votre solde.',
+        'pending' when reason != null && reason.isNotEmpty =>
+          'Retrait en attente de traitement manuel ($reason).',
+        'processing' when reason != null && reason.isNotEmpty =>
+          'Retrait en cours de traitement manuel ($reason).',
         _ => 'Demande de retrait enregistrée, en cours de traitement.',
       };
       showToast(context, message, isError: status == 'failed');
@@ -2171,6 +2175,7 @@ class _PayoutHistorySheet extends StatelessWidget {
                   final status = (payout['status'] ?? '').toString();
                   final palette = _payoutPalette(status);
                   final amount = (payout['amount'] as num?)?.toInt() ?? 0;
+                  final reason = (payout['failed_reason'] ?? '').toString();
                   return Padding(
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     child: Row(
@@ -2195,6 +2200,18 @@ class _PayoutHistorySheet extends StatelessWidget {
                                   color: RestaurantPalette.grayText,
                                 ),
                               ),
+                              if (reason.isNotEmpty) ...[
+                                const SizedBox(height: 3),
+                                Text(
+                                  reason,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    color: RestaurantPalette.grayText,
+                                  ),
+                                ),
+                              ],
                             ],
                           ),
                         ),

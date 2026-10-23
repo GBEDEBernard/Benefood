@@ -79,7 +79,6 @@ class DeliveryResource extends JsonResource
                 'vehicle' => $this->driverProfile->vehicle,
                 'rating' => $this->driverProfile->rating,
             ]),
-            'proof_code' => $this->proof_code,
             'created_at' => $this->created_at?->toIso8601String(),
             'assigned_at' => $this->assigned_at?->toIso8601String(),
             'picked_up_at' => $this->picked_up_at?->toIso8601String(),

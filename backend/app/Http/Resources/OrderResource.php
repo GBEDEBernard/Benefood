@@ -85,6 +85,14 @@ class OrderResource extends JsonResource
             'accepted_at' => $this->accepted_at?->toIso8601String(),
             'delivered_at' => $this->delivered_at?->toIso8601String(),
             'delivery_confirmed_at' => $this->delivery_confirmed_at?->toIso8601String(),
+            'confirmation_code' => $this->when(
+                $request->user()?->id === $this->user_id,
+                $this->confirmation_code,
+            ),
+            'confirmation_code_expires_at' => $this->when(
+                $request->user()?->id === $this->user_id,
+                $this->confirmation_code_expires_at?->toIso8601String(),
+            ),
             'auto_confirm_at' => $this->auto_confirm_at?->toIso8601String(),
             'disputed_at' => $this->disputed_at?->toIso8601String(),
             'dispute_reason' => $this->dispute_reason,

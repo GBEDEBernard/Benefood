@@ -223,7 +223,11 @@ class OrderController extends Controller
             return Api::error('Ressource introuvable.', 'not_found', 404);
         }
 
-        $order = $this->orders->confirmDelivery($order, 'client', $request->user()->id);
+        $data = $request->validate([
+            'proof_code' => ['required', 'string', 'max:10'],
+        ]);
+
+        $order = $this->orders->confirmDelivery($order, 'client', $request->user()->id, $data['proof_code']);
 
         return Api::ok(new OrderResource($order->load(['statusHistory', 'delivery'])));
     }

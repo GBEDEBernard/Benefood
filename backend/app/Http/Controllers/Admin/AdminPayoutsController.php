@@ -66,9 +66,46 @@ class AdminPayoutsController extends Controller
             return back()->with('error', 'Ce retrait est déjà exécuté.');
         }
 
-        $this->payouts->sendToGateway($payout, (string) Auth::id());
+        if ($payout->status === PayoutStatus::Failed) {
+            return back()->with('error', 'Ce retrait est en échec : re-créez une demande.');
+        }
 
-        return back()->with('success', 'Retrait traité (virement FedaPay envoyé ou validé manuellement).');
+        $this->payouts->execute($payout, (string) Auth::id());
+
+        return back()->with('success', 'Retrait marqué comme versé manuellement.');
+    }
+
+    /**
+     * Réessaie l'envoi du retrait vers FedaPay. En cas de refus de la
+     * passerelle, la demande reste en attente pour traitement manuel.
+     */
+    public function send(Request $request, Payout $payout): RedirectResponse
+    {
+        $this->authorize('manage', User::class);
+
+        if (! $request->user()->hasPermission('payments.refund')) {
+            abort(403, 'Vous n\'avez pas le droit d\'exécuter des retraits.');
+        }
+
+        if ($payout->status === PayoutStatus::Executed) {
+            return back()->with('error', 'Ce retrait est déjà exécuté.');
+        }
+
+        if (! $this->payouts->gatewayConfigured()) {
+            return back()->with('error', 'FedaPay n\'est pas configuré : utilisez « Marquer versé » après le paiement manuel.');
+        }
+
+        if (! $payout->destination) {
+            return back()->with('error', 'Ce retrait n\'a pas de numéro de destination.');
+        }
+
+        $result = $this->payouts->sendToGateway($payout, (string) Auth::id());
+
+        return match ($result->status) {
+            PayoutStatus::Executed => back()->with('success', 'Retrait envoyé via FedaPay.'),
+            PayoutStatus::Failed => back()->with('error', 'Échec du virement : le montant a été re-crédité au wallet.'),
+            default => back()->with('error', 'Virement non envoyé : '.($result->failed_reason ?? 'en attente de traitement manuel.')),
+        };
     }
 
     public function fail(Request $request, Payout $payout): RedirectResponse
@@ -81,6 +118,10 @@ class AdminPayoutsController extends Controller
 
         if ($payout->status === PayoutStatus::Failed) {
             return back()->with('error', 'Ce retrait est déjà en échec.');
+        }
+
+        if ($payout->status === PayoutStatus::Executed) {
+            return back()->with('error', 'Ce retrait a déjà été versé.');
         }
 
         $this->payouts->fail($payout);
