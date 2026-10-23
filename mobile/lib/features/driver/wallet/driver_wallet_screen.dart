@@ -189,8 +189,11 @@ class _DriverWalletScreenState extends State<DriverWalletScreen>
       );
       if (!mounted) return;
       final status = payout['status']?.toString();
+      final reason = payout['failed_reason']?.toString();
       final message = switch (status) {
         'executed' => 'Retrait versé sur votre Mobile Money.',
+        'failed' when reason != null && reason.isNotEmpty =>
+          'Retrait échoué ($reason) : le montant a été recrédité sur votre solde.',
         'failed' =>
           'Retrait échoué : le montant a été recrédité sur votre solde.',
         _ => 'Demande de retrait enregistrée, en cours de traitement.',
@@ -911,7 +914,7 @@ class _EarningsCard extends StatelessWidget {
                     ),
                     SizedBox(height: 1),
                     Text(
-                      'Vos revenus encaissés',
+                      'Missions livrées sur la période',
                       style: TextStyle(
                         color: RestaurantPalette.grayText,
                         fontSize: 11,

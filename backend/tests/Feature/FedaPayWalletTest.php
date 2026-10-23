@@ -174,7 +174,10 @@ class FedaPayWalletTest extends TestCase
 
         $this->getJson('/api/v1/driver/me/wallet')
             ->assertOk()
-            ->assertJsonPath('data.phone', $user->phone);
+            ->assertJsonPath('data.phone', $user->phone)
+            ->assertJsonPath('data.earnings_total', 5000)
+            ->assertJsonPath('data.withdrawn_total', 0)
+            ->assertJsonPath('data.pending_payout_total', 2000);
 
         $this->getJson('/api/v1/driver/me/wallet/payouts')
             ->assertOk()
@@ -213,6 +216,7 @@ class FedaPayWalletTest extends TestCase
         $result = app(PayoutService::class)->sendToGateway($payout);
 
         $this->assertSame(PayoutStatus::Failed, $result->status);
+        $this->assertSame('Échec fournisseur', $result->failed_reason);
         $this->assertSame(5000, (int) $wallet->fresh()->available_balance);
     }
 

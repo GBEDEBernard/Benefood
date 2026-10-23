@@ -146,7 +146,7 @@ class PayoutService
             return $payout->fresh();
         }
 
-        return DB::transaction(function () use ($payout): Payout {
+        return DB::transaction(function () use ($payout, $reason): Payout {
             $wallet = $payout->wallet;
 
             if ($wallet !== null) {
@@ -159,7 +159,10 @@ class PayoutService
                 );
             }
 
-            $payout->update(['status' => PayoutStatus::Failed->value]);
+            $payout->update([
+                'status' => PayoutStatus::Failed->value,
+                'failed_reason' => $reason,
+            ]);
 
             return $payout->fresh();
         });

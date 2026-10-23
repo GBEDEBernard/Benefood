@@ -62,8 +62,10 @@ class DriverAccountScreen extends StatefulWidget {
 
 class _DriverAccountScreenState extends State<DriverAccountScreen> {
   Map<String, dynamic>? _status;
+  Map<String, dynamic>? _wallet;
   List<Delivery> _deliveries = [];
   bool _statsLoaded = false;
+  bool _walletLoaded = false;
   bool _loading = true;
   String? _error;
   bool _available = false;
@@ -98,10 +100,20 @@ class _DriverAccountScreenState extends State<DriverAccountScreen> {
       } on ApiException catch (_) {
         // Les compteurs restent au dernier état connu (ou « … »).
       }
+      Map<String, dynamic>? wallet = _wallet;
+      var walletLoaded = _walletLoaded;
+      try {
+        wallet = await widget.marketplace.driverWallet();
+        walletLoaded = true;
+      } on ApiException catch (_) {
+        // Le solde reste au dernier état connu (ou « … »).
+      }
       if (mounted) {
         setState(() {
           _status = status;
           _available = profile?['available'] == true;
+          _wallet = wallet;
+          _walletLoaded = walletLoaded;
           _deliveries = deliveries;
           _statsLoaded = _statsLoaded || statsLoaded;
           _loading = false;
@@ -120,9 +132,14 @@ class _DriverAccountScreenState extends State<DriverAccountScreen> {
   int get _deliveredCount =>
       _deliveries.where((d) => d.status == 'delivered').length;
 
-  int get _earnings => _deliveries
-      .where((d) => d.status == 'delivered')
-      .fold(0, (sum, d) => sum + (d.partnerAmount ?? d.fee));
+  int get _walletEarnings =>
+      (_wallet?['earnings_total'] as num?)?.toInt() ?? 0;
+
+  int get _walletAvailable =>
+      (_wallet?['available_balance'] as num?)?.toInt() ?? 0;
+
+  int get _walletPending =>
+      (_wallet?['pending_balance'] as num?)?.toInt() ?? 0;
 
   Future<void> _openRoute(String path) async {
     await context.push(path);
@@ -258,8 +275,10 @@ class _DriverAccountScreenState extends State<DriverAccountScreen> {
     final earnings = _reveal(
       2,
       _EarningsCard(
-        loaded: _statsLoaded,
-        earnings: _earnings,
+        loaded: _walletLoaded,
+        earnings: _walletEarnings,
+        available: _walletAvailable,
+        pending: _walletPending,
         delivered: _deliveredCount,
         total: _deliveries.length,
         scale: s,
@@ -1382,6 +1401,8 @@ class _EarningsCard extends StatefulWidget {
   const _EarningsCard({
     required this.loaded,
     required this.earnings,
+    required this.available,
+    required this.pending,
     required this.delivered,
     required this.total,
     required this.scale,
@@ -1390,6 +1411,8 @@ class _EarningsCard extends StatefulWidget {
 
   final bool loaded;
   final int earnings;
+  final int available;
+  final int pending;
   final int delivered;
   final int total;
   final double scale;
@@ -1582,6 +1605,18 @@ class _EarningsCardState extends State<_EarningsCard>
                           ),
                         ],
                       ),
+                      if (widget.loaded && widget.pending > 0) ...[
+                        const SizedBox(height: 6),
+                        Text(
+                          '${formatAmount(widget.available, showSymbol: false).trim()} FCFA disponibles'
+                          ' · ${formatAmount(widget.pending, showSymbol: false).trim()} en attente',
+                          style: const TextStyle(
+                            color: Color(0xFFFFE9C7),
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
                       const SizedBox(height: 16),
                       Row(
                         children: [

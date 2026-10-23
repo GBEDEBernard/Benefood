@@ -43,6 +43,14 @@ MockClient _mockBackend() {
     {'id': 'd2', 'status': 'delivered', 'fee': 300},
     {'id': 'd3', 'status': 'assigned', 'fee': 200},
   ];
+  const wallet = {
+    'pending_balance': 0,
+    'available_balance': 700,
+    'balance': 700,
+    'earnings_total': 700,
+    'withdrawn_total': 0,
+    'pending_payout_total': 0,
+  };
   const stats = {'orders_count': 23, 'unread_notifications': 2};
   const notifications = [
     {
@@ -67,6 +75,9 @@ MockClient _mockBackend() {
         200,
         headers: json,
       );
+    }
+    if (path.endsWith('/driver/me/wallet')) {
+      return http.Response(jsonEncode({'data': wallet}), 200, headers: json);
     }
     if (path.endsWith('/me/stats')) {
       return http.Response(jsonEncode({'data': stats}), 200, headers: json);

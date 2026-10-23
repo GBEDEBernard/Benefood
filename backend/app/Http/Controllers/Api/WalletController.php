@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Enums\PayoutStatus;
 use App\Exceptions\DomainException;
 use App\Http\Controllers\Controller;
 use App\Models\DriverProfile;
@@ -130,10 +131,31 @@ class WalletController extends Controller
     /** @return array<string, mixed> */
     private function summary(Wallet $wallet, ?string $phone = null, bool $withCommissions = false): array
     {
+        $payouts = $wallet->payouts();
+
+        $withdrawn = (int) (clone $payouts)
+            ->where('status', PayoutStatus::Executed->value)
+            ->sum('amount');
+
+        $pendingPayouts = (int) (clone $payouts)
+            ->whereIn('status', [
+                PayoutStatus::Pending->value,
+                PayoutStatus::Processing->value,
+            ])
+            ->sum('amount');
+
         $payload = [
             'pending_balance' => (int) $wallet->pending_balance,
             'available_balance' => (int) $wallet->available_balance,
             'balance' => (int) $wallet->balance,
+            // Gains réellement crédités au wallet (net de commissions et de
+            // retraits), y compris ceux déjà versés ou en cours de retrait.
+            'earnings_total' => (int) $wallet->pending_balance
+                + (int) $wallet->available_balance
+                + $withdrawn
+                + $pendingPayouts,
+            'withdrawn_total' => $withdrawn,
+            'pending_payout_total' => $pendingPayouts,
             'currency' => config('beninfood.currency', 'XOF'),
             'min_payout' => app(PlatformPricingSettings::class)->get('minimum_payout'),
             'phone' => $phone,
@@ -184,6 +206,7 @@ class WalletController extends Controller
             'method' => $payout->method,
             'destination' => $payout->destination,
             'status' => $payout->status->value,
+            'failed_reason' => $payout->failed_reason,
             'gateway_ref' => $payout->gateway_ref,
             'executed_at' => $payout->executed_at?->toIso8601String(),
             'created_at' => $payout->created_at?->toIso8601String(),
