@@ -96,7 +96,7 @@ class ShopDataSeeder extends Seeder
     ];
 
     private const DRIVER_ACCOUNTS = [
-        ['name' => 'Rachid Orou', 'email' => 'rachid@shop.demo', 'phone' => '+22963000012', 'vehicle' => 'Moto Bajaj 150'],
+        ['name' => 'Rachid Orou', 'email' => '', 'phone' => '+22963000012', 'vehicle' => 'Moto Bajaj 150'],
         ['name' => 'Sylvain Kpoviessi', 'email' => 'sylvain@shop.demo', 'phone' => '+22963000013', 'vehicle' => 'Moto Djakarta'],
     ];
 
