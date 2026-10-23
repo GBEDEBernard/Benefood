@@ -17,6 +17,9 @@ return [
     */
     'currency' => env('BENINFOOD_CURRENCY', 'XOF'),
     'currency_precision' => 0,
+    // Parité fixe du franc CFA : 1 EUR = 655,957 XOF. Utilisée uniquement
+    // pour l'affichage indicatif en euros (les débits restent en XOF).
+    'eur_rate' => (float) env('BENINFOOD_EUR_RATE', 655.957),
 
     /*
     |--------------------------------------------------------------------------

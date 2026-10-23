@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Exceptions\DomainException;
 use App\Http\Controllers\Controller;
 use App\Models\DriverProfile;
+use App\Services\DriverEarningsService;
 use App\Services\DriverStatsService;
 use App\Support\Api;
 use Illuminate\Http\JsonResponse;
@@ -12,15 +13,14 @@ use Illuminate\Http\Request;
 
 class DriverStatsController extends Controller
 {
-    public function __construct(private readonly DriverStatsService $statsService) {}
+    public function __construct(
+        private readonly DriverStatsService $statsService,
+        private readonly DriverEarningsService $earningsService,
+    ) {}
 
     public function index(Request $request): JsonResponse
     {
-        $driver = DriverProfile::query()->where('user_id', $request->user()->id)->first();
-
-        if ($driver === null) {
-            throw new DomainException('stats.no_driver_profile', 'Profil livreur introuvable.', 404);
-        }
+        $driver = $this->driver($request);
 
         $data = $request->validate([
             'period' => ['nullable', 'string', 'in:7d,30d,90d,12m'],
@@ -30,5 +30,26 @@ class DriverStatsController extends Controller
             $driver,
             $data['period'] ?? '30d',
         ));
+    }
+
+    /**
+     * Gains du jour, de la semaine et du mois (portefeuille livreur).
+     */
+    public function earnings(Request $request): JsonResponse
+    {
+        return Api::ok($this->earningsService->forDriver($this->driver($request)));
+    }
+
+    private function driver(Request $request): DriverProfile
+    {
+        $driver = DriverProfile::query()
+            ->where('user_id', $request->user()->id)
+            ->first();
+
+        if ($driver === null) {
+            throw new DomainException('stats.no_driver_profile', 'Profil livreur introuvable.', 404);
+        }
+
+        return $driver;
     }
 }

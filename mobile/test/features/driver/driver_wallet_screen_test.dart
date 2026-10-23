@@ -63,6 +63,45 @@ MockClient _driverBackend({
     ],
   };
   const float = {'prepaid_balance': 2500, 'transactions': []};
+  const earnings = {
+    'currency': 'XOF',
+    'eur_rate': 655.957,
+    'periods': {
+      'day': {'earnings': 800, 'missions': 2, 'comparison': 12.5},
+      'week': {'earnings': 3200, 'missions': 8, 'comparison': -4.2},
+      'month': {'earnings': 12500, 'missions': 31, 'comparison': 18.0},
+    },
+    'series': {
+      'day': [
+        {'label': 'Jeu', 'earnings': 0, 'missions': 0, 'current': false},
+        {'label': 'Ven', 'earnings': 300, 'missions': 1, 'current': false},
+        {'label': 'Sam', 'earnings': 500, 'missions': 2, 'current': false},
+        {'label': 'Dim', 'earnings': 200, 'missions': 1, 'current': false},
+        {'label': 'Lun', 'earnings': 400, 'missions': 1, 'current': false},
+        {'label': 'Mar', 'earnings': 600, 'missions': 2, 'current': false},
+        {'label': 'Mer', 'earnings': 800, 'missions': 2, 'current': true},
+      ],
+      'week': [
+        {'label': 'Sem. 39', 'earnings': 1800, 'missions': 5, 'current': false},
+        {'label': 'Sem. 40', 'earnings': 2400, 'missions': 6, 'current': false},
+        {'label': 'Sem. 41', 'earnings': 2100, 'missions': 5, 'current': false},
+        {
+          'label': 'Cette sem.',
+          'earnings': 3200,
+          'missions': 8,
+          'current': true,
+        },
+      ],
+      'month': [
+        {'label': 'Mai', 'earnings': 8200, 'missions': 20, 'current': false},
+        {'label': 'Juin', 'earnings': 9300, 'missions': 22, 'current': false},
+        {'label': 'Juil', 'earnings': 10100, 'missions': 24, 'current': false},
+        {'label': 'Août', 'earnings': 11400, 'missions': 27, 'current': false},
+        {'label': 'Sept', 'earnings': 12000, 'missions': 29, 'current': false},
+        {'label': 'Oct', 'earnings': 12500, 'missions': 31, 'current': true},
+      ],
+    },
+  };
   final created = {
     'id': 'p1',
     'amount': 3200,
@@ -79,6 +118,9 @@ MockClient _driverBackend({
         request.method == 'POST') {
       posts.add(jsonDecode(request.body) as Map<String, dynamic>);
       return http.Response(jsonEncode({'data': created}), 201, headers: json);
+    }
+    if (path.endsWith('/driver/me/earnings')) {
+      return http.Response(jsonEncode({'data': earnings}), 200, headers: json);
     }
     if (path.endsWith('/driver/me/float')) {
       return http.Response(jsonEncode({'data': float}), 200, headers: json);
@@ -103,7 +145,11 @@ Future<void> _pump(WidgetTester tester, MockClient client) async {
     baseUrl: 'http://api.test',
   );
   await tester.pumpWidget(
-    MaterialApp(home: DriverWalletScreen(marketplace: MarketplaceApi(api))),
+    MaterialApp(
+      home: Scaffold(
+        body: DriverWalletScreen(marketplace: MarketplaceApi(api)),
+      ),
+    ),
   );
   await tester.pump();
   await tester.pump(const Duration(milliseconds: 300));
@@ -118,26 +164,40 @@ void main() {
     expect(find.byType(BeninfoodAppBar), findsOneWidget);
     expect(find.byType(BeninfoodBrand), findsOneWidget);
     expect(find.byType(NotificationBell), findsOneWidget);
-    expect(find.text('Solde disponible'), findsOneWidget);
-    expect(find.text(formatAmount(3200)), findsWidgets);
-    expect(find.text('En attente de livraison'), findsOneWidget);
-    expect(find.text(formatAmount(1000)), findsWidgets);
+    expect(find.text('SOLDE DISPONIBLE'), findsOneWidget);
+    expect(find.text(formatAmount(3200, showSymbol: false)), findsWidgets);
+    expect(find.text('EN ATTENTE'), findsWidgets);
+    expect(find.text(formatAmount(1000, showSymbol: false)), findsWidgets);
 
-    // Flottant et commissions du livreur.
-    expect(find.text('Flottant espèces (cash)'), findsOneWidget);
-    expect(find.text(formatAmount(2500)), findsOneWidget);
-    expect(find.text('Frais de commission'), findsOneWidget);
-    expect(find.text('20 %'), findsOneWidget);
-    expect(find.text(formatAmount(800)), findsWidgets);
-    expect(find.text('Total prélevé'), findsOneWidget);
-    expect(find.text('Commissions'), findsOneWidget);
+    // Gains par période et conversion de devises.
+    expect(find.text('Gains'), findsOneWidget);
+    expect(find.text('Jour'), findsOneWidget);
+    expect(find.text('Semaine'), findsOneWidget);
+    expect(find.text('Mois'), findsOneWidget);
+    expect(find.text(formatAmount(3200, showSymbol: false)), findsWidgets);
 
     await tester.scrollUntilVisible(
-      find.text('Retrait minimum'),
+      find.text('Devises'),
       300,
       scrollable: find.byType(Scrollable).first,
     );
-    expect(find.text('Retrait minimum'), findsOneWidget);
+    expect(find.text('Devises'), findsOneWidget);
+    expect(find.text('FCFA'), findsWidgets);
+    expect(find.text('EUR'), findsOneWidget);
+    expect(find.textContaining('parité fixe'), findsOneWidget);
+
+    // Flottant et commissions du livreur.
+    await tester.scrollUntilVisible(
+      find.text('Flottant espèces'),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(find.text('Flottant espèces'), findsOneWidget);
+    expect(find.text(formatAmount(2500)), findsOneWidget);
+    expect(find.text('COMMISSIONS'), findsOneWidget);
+    expect(find.text('20 % prélevé'), findsOneWidget);
+    expect(find.text(formatAmount(800, showSymbol: false)), findsWidgets);
+    expect(find.text('RETRAIT MIN.'), findsOneWidget);
 
     await tester.scrollUntilVisible(
       find.textContaining('Commission Béninfood'),
@@ -148,13 +208,45 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('wallet livreur : gains par jour/semaine/mois et devises', (
+    tester,
+  ) async {
+    await _pump(tester, _driverBackend());
+
+    // Période par défaut : la semaine.
+    expect(find.text(formatAmount(3200, showSymbol: false)), findsWidgets);
+
+    await tester.tap(find.text('Jour'));
+    await tester.pumpAndSettle();
+    expect(find.text(formatAmount(800, showSymbol: false)), findsWidgets);
+
+    await tester.tap(find.text('Mois'));
+    await tester.pumpAndSettle();
+    expect(find.text(formatAmount(12500, showSymbol: false)), findsWidgets);
+
+    await tester.scrollUntilVisible(
+      find.text('Devises'),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(find.text('EUR'));
+    await tester.pumpAndSettle();
+    await tester.drag(find.byType(Scrollable).first, const Offset(0, 400));
+    await tester.pumpAndSettle();
+    expect(
+      find.text(formatEuroFromXof(12500, showSymbol: false)),
+      findsWidgets,
+    );
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('wallet livreur : retrait direct dans la feuille Mobile Money', (
     tester,
   ) async {
     final posts = <Map<String, dynamic>>[];
     await _pump(tester, _driverBackend(posts: posts));
 
-    await tester.tap(find.text('Retirer'));
+    await tester.tap(find.text('Faire un retrait'));
     await tester.pumpAndSettle();
 
     // Le formulaire s'ouvre seul : pas de seconde page de solde.
@@ -192,7 +284,7 @@ void main() {
     final posts = <Map<String, dynamic>>[];
     await _pump(tester, _driverBackend(posts: posts));
 
-    await tester.tap(find.text('Retirer'));
+    await tester.tap(find.text('Faire un retrait'));
     await tester.pumpAndSettle();
 
     await tester.enterText(

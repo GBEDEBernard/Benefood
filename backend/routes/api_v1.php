@@ -134,6 +134,9 @@ Route::middleware('auth:sanctum')->group(function (): void {
         Route::post('/documents', [DriverController::class, 'uploadDocument'])->name('api.v1.driver.me.documents');
         Route::get('/status', [DriverController::class, 'status'])->name('api.v1.driver.me.status');
         Route::get('/stats', [DriverStatsController::class, 'index'])->name('api.v1.driver.me.stats');
+        Route::get('/earnings', [DriverStatsController::class, 'earnings'])
+            ->middleware('permission:driver.finance.earnings')
+            ->name('api.v1.driver.me.earnings');
 
         // ---------- Wallet & retraits livreur (cahier v1.0) ----------
         Route::get('/wallet', [WalletController::class, 'driverWallet'])->name('api.v1.driver.me.wallet');

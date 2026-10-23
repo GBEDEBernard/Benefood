@@ -368,12 +368,16 @@ class MarketplaceApi {
   }
 
   Future<FavoriteDriver> acceptFavoriteClient(String favoriteId) async {
-    final response = await _api.post('/driver/me/favorite-clients/$favoriteId/accept');
+    final response = await _api.post(
+      '/driver/me/favorite-clients/$favoriteId/accept',
+    );
     return FavoriteDriver.fromJson(_dataObject(response) ?? {});
   }
 
   Future<FavoriteDriver> declineFavoriteClient(String favoriteId) async {
-    final response = await _api.post('/driver/me/favorite-clients/$favoriteId/decline');
+    final response = await _api.post(
+      '/driver/me/favorite-clients/$favoriteId/decline',
+    );
     return FavoriteDriver.fromJson(_dataObject(response) ?? {});
   }
 
@@ -781,10 +785,13 @@ class MarketplaceApi {
     required int rating,
     String? comment,
   }) async {
-    final response = await _api.post('/products/$productId/review', body: {
-      'rating': rating,
-      if (comment != null && comment.isNotEmpty) 'comment': comment,
-    });
+    final response = await _api.post(
+      '/products/$productId/review',
+      body: {
+        'rating': rating,
+        if (comment != null && comment.isNotEmpty) 'comment': comment,
+      },
+    );
     final data = _dataObject(response) ?? const <String, dynamic>{};
     return ProductReviewResult(
       rating: (data['product_rating'] as num?)?.toDouble(),
@@ -1014,6 +1021,12 @@ class MarketplaceApi {
       '/driver/me/stats',
       query: {'period': period},
     );
+    return _dataObject(response) ?? {};
+  }
+
+  /// Gains du livreur : aujourd'hui, cette semaine, ce mois + séries.
+  Future<Map<String, dynamic>> driverEarnings() async {
+    final response = await _api.get('/driver/me/earnings');
     return _dataObject(response) ?? {};
   }
 
@@ -1556,13 +1569,21 @@ String _s(dynamic value, [String fallback = '']) =>
 
 /// Résultat d'un avis produit : note moyenne et nombre d'avis recalculés.
 class ProductReviewResult {
-  const ProductReviewResult({this.rating, this.reviewsCount = 0, this.likesCount});
+  const ProductReviewResult({
+    this.rating,
+    this.reviewsCount = 0,
+    this.likesCount,
+  });
 
   final double? rating;
   final int reviewsCount;
   final int? likesCount;
 
-  ProductReviewResult copyWith({double? rating, int? reviewsCount, int? likesCount}) {
+  ProductReviewResult copyWith({
+    double? rating,
+    int? reviewsCount,
+    int? likesCount,
+  }) {
     return ProductReviewResult(
       rating: rating ?? this.rating,
       reviewsCount: reviewsCount ?? this.reviewsCount,

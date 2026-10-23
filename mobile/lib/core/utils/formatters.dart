@@ -1,11 +1,27 @@
 /// Utilitaires de formatage (montants XOF, dates, numéros).
 library;
 
+/// Parité fixe du franc CFA (XOF) avec l'euro.
+const double kXofPerEuro = 655.957;
+
 /// Montants XOF : entiers sans décimale (précision 0 côté serveur).
 /// Exemple : 1500 = 1 500 FCFA.
 String formatAmount(int amount, {bool showSymbol = true}) {
   final formatted = _formatXof(amount.toDouble());
   return showSymbol ? '$formatted FCFA' : formatted;
+}
+
+/// Conversion indicative d'un montant XOF en euros (1 EUR = 655,957 XOF).
+/// Utilisée uniquement à l'affichage : les débits restent libellés en FCFA.
+String formatEuroFromXof(
+  int amount, {
+  double rate = kXofPerEuro,
+  bool showSymbol = true,
+}) {
+  final safeRate = rate > 0 ? rate : kXofPerEuro;
+  final parts = (amount / safeRate).toStringAsFixed(2).split('.');
+  final formatted = '${_thousands(parts[0])},${parts[1]}';
+  return showSymbol ? '$formatted €' : formatted;
 }
 
 String _formatXof(double value) {
@@ -81,7 +97,8 @@ String formatDateTime(String? iso, {String fallback = ''}) {
   }
   try {
     final date = DateTime.parse(iso).toLocal();
-    final time = '${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+    final time =
+        '${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
     return '${formatDate(iso, fallback: '$date')} $time';
   } catch (_) {
     return fallback;

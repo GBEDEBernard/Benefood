@@ -11,11 +11,13 @@ use App\Models\OrderItem;
 use App\Models\Parcel;
 use App\Models\Product;
 use App\Models\Review;
+use App\Models\Role;
 use App\Models\User;
 use App\Models\Vendor;
 use App\Services\FinanceService;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
@@ -219,6 +221,80 @@ class StatsDashboardTest extends TestCase
         $this->getJson('/api/v1/driver/me/stats')
             ->assertNotFound()
             ->assertJsonPath('errors.0.code', 'stats.no_driver_profile');
+    }
+
+    public function test_driver_earnings_expose_day_week_month_totals_and_series(): void
+    {
+        $this->travelTo(Carbon::parse('2026-10-21 12:00:00'));
+
+        $driver = DriverProfile::factory()->create();
+        $driver->user->roles()->attach(
+            Role::where('slug', 'driver-independent')->firstOrFail(),
+            ['is_active' => true],
+        );
+        $client = User::factory()->create();
+        $vendor = Vendor::factory()->create(['status' => 'active']);
+
+        // Aujourd'hui, hier, plus tôt ce mois, et le mois précédent.
+        $this->delivery($driver, $vendor, $client, 800, now());
+        $this->delivery($driver, $vendor, $client, 400, now()->subDay());
+        $this->delivery($driver, $vendor, $client, 300, now()->startOfMonth()->addDay());
+        $this->delivery($driver, $vendor, $client, 900, now()->subMonthNoOverflow()->startOfMonth()->addDays(14));
+
+        Sanctum::actingAs($driver->user);
+
+        $response = $this->getJson('/api/v1/driver/me/earnings');
+
+        $response->assertOk()
+            ->assertJsonPath('data.currency', 'XOF')
+            ->assertJsonPath('data.eur_rate', 655.957)
+            ->assertJsonPath('data.periods.day.earnings', 800)
+            ->assertJsonPath('data.periods.day.missions', 1)
+            ->assertJsonPath('data.periods.week.earnings', 1200)
+            ->assertJsonPath('data.periods.week.missions', 2)
+            ->assertJsonPath('data.periods.month.earnings', 1500)
+            ->assertJsonPath('data.periods.month.missions', 3)
+            ->assertJsonPath('data.series.day.6.earnings', 800)
+            ->assertJsonPath('data.series.day.6.current', true)
+            ->assertJsonPath('data.series.month.5.earnings', 1500);
+
+        $this->assertCount(7, $response->json('data.series.day'));
+        $this->assertCount(4, $response->json('data.series.week'));
+        $this->assertCount(6, $response->json('data.series.month'));
+    }
+
+    public function test_driver_earnings_require_a_driver_profile(): void
+    {
+        $user = User::factory()->create();
+        $user->roles()->attach(
+            Role::where('slug', 'driver-independent')->firstOrFail(),
+            ['is_active' => true],
+        );
+        Sanctum::actingAs($user);
+
+        $this->getJson('/api/v1/driver/me/earnings')
+            ->assertNotFound()
+            ->assertJsonPath('errors.0.code', 'stats.no_driver_profile');
+    }
+
+    private function delivery(
+        DriverProfile $driver,
+        Vendor $vendor,
+        User $client,
+        int $partnerAmount,
+        Carbon $deliveredAt,
+    ): Delivery {
+        $order = $this->order($vendor, $client, OrderStatus::Delivered, 5000);
+
+        return Delivery::create([
+            'order_id' => $order->id,
+            'vendor_id' => $vendor->id,
+            'driver_profile_id' => $driver->id,
+            'status' => 'delivered',
+            'fee' => 1000,
+            'partner_amount' => $partnerAmount,
+            'delivered_at' => $deliveredAt,
+        ]);
     }
 
     private function order(
