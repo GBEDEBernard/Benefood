@@ -7,6 +7,7 @@ import '../../../../core/data/marketplace_api.dart';
 import '../../../../core/navigation/notification_router.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../shared/models/order.dart';
+import '../../../../shared/widgets/app_network_image.dart';
 import '../../../../shared/widgets/beninfood_header.dart';
 import '../../../../shared/widgets/feedback_widgets.dart';
 import '../../../../shared/widgets/food_decor.dart';
@@ -402,99 +403,109 @@ class _DashboardScreenState extends State<DashboardScreen>
             audience: NotificationAudience.vendor,
           ),
           Expanded(
-            child: RefreshIndicator(
-              onRefresh: _refresh,
-              color: RestaurantPalette.orange,
-              child: ListView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.fromLTRB(16, 10, 16, 30),
-                children: [
-                  _stagger(
-                    0,
-                    _DashboardHeader(
-                      greeting: _greeting,
-                      isOpen: widget.isOpen,
-                      onStatusTap: _pickStatus,
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 960),
+                child: RefreshIndicator(
+                  onRefresh: _refresh,
+                  color: RestaurantPalette.orange,
+                  child: ListView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: EdgeInsets.fromLTRB(
+                      MediaQuery.sizeOf(context).width >= 700 ? 24 : 16,
+                      10,
+                      MediaQuery.sizeOf(context).width >= 700 ? 24 : 16,
+                      30,
                     ),
-                  ),
-                  const SizedBox(height: 16),
-                  _stagger(
-                    1,
-                    _RevenueHero(
-                      title: _range.heroTitle,
-                      rangeLabel: _range.chip,
-                      amount: revenue,
-                      trend: revenueTrend,
-                      comparison: _trendCaption(
-                        revenueTrend,
-                        revenue,
-                        previousLabel,
+                    children: [
+                      _stagger(
+                        0,
+                        _DashboardHeader(
+                          greeting: _greeting,
+                          isOpen: widget.isOpen,
+                          onStatusTap: _pickStatus,
+                        ),
                       ),
-                      onPickRange: _pickRange,
-                      onInfo: _showRevenueInfo,
-                      onStats: _openStats,
-                    ),
+                      const SizedBox(height: 16),
+                      _stagger(
+                        1,
+                        _RevenueHero(
+                          title: _range.heroTitle,
+                          rangeLabel: _range.chip,
+                          amount: revenue,
+                          trend: revenueTrend,
+                          comparison: _trendCaption(
+                            revenueTrend,
+                            revenue,
+                            previousLabel,
+                          ),
+                          onPickRange: _pickRange,
+                          onInfo: _showRevenueInfo,
+                          onStats: _openStats,
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                      _stagger(
+                        2,
+                        _StatsGrid(
+                          range: _range,
+                          orders: currentOrders.length,
+                          pending: widget.pendingCount,
+                          revenue: revenue,
+                          rating: widget.rating,
+                          reviewCount: widget.reviewCount,
+                          ordersTrend: ordersTrend,
+                          revenueTrend: revenueTrend,
+                          previousLabel: previousLabel,
+                          onOpenOrders: widget.onOpenOrders,
+                          onOpenStats: _openStats,
+                          onOpenReviews: _openReviews,
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      _stagger(
+                        3,
+                        _QuickActions(
+                          onAddProduct: widget.onAddProduct,
+                          onEditShop: widget.onGoToShop,
+                          onCreatePromo: _openPromo,
+                          onStats: _openStats,
+                          onSeeAll: _openStats,
+                        ),
+                      ),
+                      const SizedBox(height: 18),
+                      _stagger(
+                        4,
+                        _ChartsRow(
+                          sales: sales,
+                          slices: slices,
+                          selected: _selectedSale,
+                          onSelect: (index) =>
+                              setState(() => _selectedSale = index),
+                        ),
+                      ),
+                      const SizedBox(height: 18),
+                      _stagger(
+                        5,
+                        _NewOrdersSection(
+                          orders: widget.newOrders,
+                          onAccept: widget.onAccept,
+                          onRefuse: widget.onRefuse,
+                          onOpenOrder: _openOrder,
+                          onSeeAll: widget.onOpenOrders,
+                        ),
+                      ),
+                      const SizedBox(height: 18),
+                      _stagger(
+                        6,
+                        _TopProductsSection(
+                          products: products,
+                          onSeeAll: widget.onOpenProducts ?? widget.onGoToShop,
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 14),
-                  _stagger(
-                    2,
-                    _StatsGrid(
-                      range: _range,
-                      orders: currentOrders.length,
-                      pending: widget.pendingCount,
-                      revenue: revenue,
-                      rating: widget.rating,
-                      reviewCount: widget.reviewCount,
-                      ordersTrend: ordersTrend,
-                      revenueTrend: revenueTrend,
-                      previousLabel: previousLabel,
-                      onOpenOrders: widget.onOpenOrders,
-                      onOpenStats: _openStats,
-                      onOpenReviews: _openReviews,
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  _stagger(
-                    3,
-                    _QuickActions(
-                      onAddProduct: widget.onAddProduct,
-                      onEditShop: widget.onGoToShop,
-                      onCreatePromo: _openPromo,
-                      onStats: _openStats,
-                      onSeeAll: _openStats,
-                    ),
-                  ),
-                  const SizedBox(height: 18),
-                  _stagger(
-                    4,
-                    _ChartsRow(
-                      sales: sales,
-                      slices: slices,
-                      selected: _selectedSale,
-                      onSelect: (index) =>
-                          setState(() => _selectedSale = index),
-                    ),
-                  ),
-                  const SizedBox(height: 18),
-                  _stagger(
-                    5,
-                    _NewOrdersSection(
-                      orders: widget.newOrders,
-                      onAccept: widget.onAccept,
-                      onRefuse: widget.onRefuse,
-                      onOpenOrder: _openOrder,
-                      onSeeAll: widget.onOpenOrders,
-                    ),
-                  ),
-                  const SizedBox(height: 18),
-                  _stagger(
-                    6,
-                    _TopProductsSection(
-                      products: products,
-                      onSeeAll: widget.onOpenProducts ?? widget.onGoToShop,
-                    ),
-                  ),
-                ],
+                ),
               ),
             ),
           ),
@@ -1558,44 +1569,39 @@ class _QuickActions extends StatelessWidget {
       children: [
         _SectionHeader(title: 'Actions rapides', onSeeAll: onSeeAll),
         const SizedBox(height: 8),
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          padding: const EdgeInsets.symmetric(vertical: 2),
-          child: Row(
-            children: [
-              _QuickAction(
-                label: 'Ajouter un produit',
-                icon: Icons.add_rounded,
-                accent: _DashColors.green,
-                tint: _DashColors.greenWash,
-                onTap: onAddProduct,
-              ),
-              const SizedBox(width: 8),
-              _QuickAction(
-                label: 'Modifier la boutique',
-                icon: Icons.storefront_outlined,
-                accent: _DashColors.peachDeep,
-                tint: _DashColors.orangeWash,
-                onTap: onEditShop,
-              ),
-              const SizedBox(width: 8),
-              _QuickAction(
-                label: 'Créer une promo',
-                icon: Icons.percent_rounded,
-                accent: _DashColors.violet,
-                tint: _DashColors.violetWash,
-                onTap: onCreatePromo,
-              ),
-              const SizedBox(width: 8),
-              _QuickAction(
-                label: 'Voir les statistiques',
-                icon: Icons.insights_rounded,
-                accent: _DashColors.blue,
-                tint: _DashColors.blueWash,
-                onTap: onStats,
-              ),
-            ],
-          ),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            _QuickAction(
+              label: 'Ajouter un produit',
+              icon: Icons.add_rounded,
+              accent: _DashColors.green,
+              tint: _DashColors.greenWash,
+              onTap: onAddProduct,
+            ),
+            _QuickAction(
+              label: 'Modifier la boutique',
+              icon: Icons.storefront_outlined,
+              accent: _DashColors.peachDeep,
+              tint: _DashColors.orangeWash,
+              onTap: onEditShop,
+            ),
+            _QuickAction(
+              label: 'Créer une promo',
+              icon: Icons.percent_rounded,
+              accent: _DashColors.violet,
+              tint: _DashColors.violetWash,
+              onTap: onCreatePromo,
+            ),
+            _QuickAction(
+              label: 'Voir les statistiques',
+              icon: Icons.insights_rounded,
+              accent: _DashColors.blue,
+              tint: _DashColors.blueWash,
+              onTap: onStats,
+            ),
+          ],
         ),
       ],
     );
@@ -1649,12 +1655,16 @@ class _QuickAction extends StatelessWidget {
               child: Icon(icon, size: 16, color: accent),
             ),
             const SizedBox(width: 7),
-            Text(
-              label,
-              style: const TextStyle(
-                color: _DashColors.ink,
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
+            Flexible(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: _DashColors.ink,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ),
           ],
@@ -2299,15 +2309,37 @@ class _NewOrdersSection extends StatelessWidget {
                 'Les prochaines commandes apparaîtront ici en temps réel.',
           )
         else
-          for (final order in orders) ...[
-            _NewOrderCard(
-              order: order,
-              onAccept: onAccept == null ? null : () => onAccept!(order),
-              onRefuse: onRefuse == null ? null : () => onRefuse!(order),
-              onDetails: () => onOpenOrder(order),
-            ),
-            if (order != orders.last) const SizedBox(height: 10),
-          ],
+          LayoutBuilder(
+            builder: (context, constraints) {
+              Widget card(Order order) => _NewOrderCard(
+                order: order,
+                onAccept: onAccept == null ? null : () => onAccept!(order),
+                onRefuse: onRefuse == null ? null : () => onRefuse!(order),
+                onDetails: () => onOpenOrder(order),
+              );
+
+              if (constraints.maxWidth < 720) {
+                return Column(
+                  children: [
+                    for (final order in orders) ...[
+                      card(order),
+                      if (order != orders.last) const SizedBox(height: 10),
+                    ],
+                  ],
+                );
+              }
+
+              final width = (constraints.maxWidth - 10) / 2;
+              return Wrap(
+                spacing: 10,
+                runSpacing: 10,
+                children: [
+                  for (final order in orders)
+                    SizedBox(width: width, child: card(order)),
+                ],
+              );
+            },
+          ),
       ],
     );
   }
@@ -2471,18 +2503,14 @@ class _OrderThumbnail extends StatelessWidget {
     final item = order.items.isEmpty ? null : order.items.first;
     final image = item?.imageUrl;
 
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(12),
-      child: SizedBox(
-        width: 48,
-        height: 48,
-        child: image == null || image.isEmpty
-            ? _thumbFallback(item?.name ?? '')
-            : Image.network(
-                image,
-                fit: BoxFit.cover,
-                errorBuilder: (_, _, _) => _thumbFallback(item?.name ?? ''),
-              ),
+    return SizedBox(
+      width: 48,
+      height: 48,
+      child: AppNetworkImage(
+        url: image,
+        fit: BoxFit.cover,
+        borderRadius: BorderRadius.circular(12),
+        fallback: _thumbFallback(item?.name ?? ''),
       ),
     );
   }
@@ -2597,17 +2625,29 @@ class _TopProductsSection extends StatelessWidget {
                 'Vos meilleures ventes s’afficheront dès la première commande.',
           )
         else
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(vertical: 2),
-            child: Row(
-              children: [
-                for (var index = 0; index < products.length; index++) ...[
-                  _ProductCard(product: products[index], index: index),
-                  if (index != products.length - 1) const SizedBox(width: 10),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final width = constraints.maxWidth;
+              final columns = width >= 820 ? 4 : (width >= 560 ? 3 : 2);
+              const gap = 10.0;
+              final cardWidth = (width - gap * (columns - 1)) / columns;
+
+              return Wrap(
+                spacing: gap,
+                runSpacing: gap,
+                children: [
+                  for (var index = 0; index < products.length; index++)
+                    SizedBox(
+                      width: cardWidth,
+                      child: _ProductCard(
+                        product: products[index],
+                        index: index,
+                        width: cardWidth,
+                      ),
+                    ),
                 ],
-              ],
-            ),
+              );
+            },
           ),
       ],
     );
@@ -2615,10 +2655,15 @@ class _TopProductsSection extends StatelessWidget {
 }
 
 class _ProductCard extends StatelessWidget {
-  const _ProductCard({required this.product, required this.index});
+  const _ProductCard({
+    required this.product,
+    required this.index,
+    required this.width,
+  });
 
   final _ProductStat product;
   final int index;
+  final double width;
 
   @override
   Widget build(BuildContext context) {
@@ -2630,26 +2675,25 @@ class _ProductCard extends StatelessWidget {
       onTap: () => HapticFeedback.selectionClick(),
       borderRadius: BorderRadius.circular(16),
       child: Container(
-        width: 142,
+        width: width,
         clipBehavior: Clip.antiAlias,
         decoration: RestaurantPalette.cardDecoration,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            SizedBox(
-              height: 84,
+            AspectRatio(
+              aspectRatio: 1.6,
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  if (image != null && image.isNotEmpty)
-                    Image.network(
-                      image,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, _, _) =>
-                          _ProductThumb(icon: product.icon, gradient: gradient),
-                    )
-                  else
-                    _ProductThumb(icon: product.icon, gradient: gradient),
+                  AppNetworkImage(
+                    url: image,
+                    fit: BoxFit.cover,
+                    fallback: _ProductThumb(
+                      icon: product.icon,
+                      gradient: gradient,
+                    ),
+                  ),
                   Positioned(
                     top: 7,
                     left: 7,

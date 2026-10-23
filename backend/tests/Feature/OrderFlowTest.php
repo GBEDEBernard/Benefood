@@ -9,6 +9,7 @@ use App\Models\DeliveryRate;
 use App\Models\DeliveryZone;
 use App\Models\Order;
 use App\Models\Product;
+use App\Models\ProductImage;
 use App\Models\Role;
 use App\Models\User;
 use App\Models\Vendor;
@@ -373,5 +374,29 @@ class OrderFlowTest extends TestCase
             ->assertJsonCount(1, 'data')
             ->assertJsonPath('data.0.status', 'awaiting_payment')
             ->assertJsonPath('data.0.items.0.image_url', fn (string $url) => str_ends_with($url, '/storage/products/piment-frais-01.webp'));
+    }
+
+    public function test_order_items_fall_back_to_the_product_gallery_image(): void
+    {
+        $client = $this->actingUser('client');
+        $vendor = $this->activeVendor($client);
+        $product = $this->vendorProduct($vendor);
+        $product->update(['image_main' => null]);
+        ProductImage::create([
+            'product_id' => $product->id,
+            'path' => 'products/gallery-piment.webp',
+            'is_main' => true,
+            'sort_order' => 0,
+        ]);
+        $this->deliverySetup($vendor);
+        $address = $this->clientAddress($client);
+
+        $this->addToCart($client, $product);
+        $this->placeOrder($client, $address);
+
+        $this->actAs($client);
+        $this->getJson('/api/v1/orders')
+            ->assertOk()
+            ->assertJsonPath('data.0.items.0.image_url', fn (string $url) => str_ends_with($url, '/storage/products/gallery-piment.webp'));
     }
 }

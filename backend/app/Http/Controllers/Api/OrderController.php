@@ -82,7 +82,7 @@ class OrderController extends Controller
     public function index(Request $request): JsonResponse
     {
         $orders = $request->user()->orders()
-            ->with(['vendor', 'items.product'])
+            ->with(['vendor', 'items.product.images'])
             ->orderByDesc('created_at')
             ->paginate((int) $request->query('per_page', config('beninfood.pagination.per_page')));
 
@@ -102,7 +102,7 @@ class OrderController extends Controller
             return Api::error('Ressource introuvable.', 'not_found', 404);
         }
 
-        $order->load(['vendor', 'items.product', 'payment', 'financials', 'statusHistory', 'refunds', 'review', 'delivery.driverProfile.user']);
+        $order->load(['vendor', 'items.product.images', 'payment', 'financials', 'statusHistory', 'refunds', 'review', 'delivery.driverProfile.user']);
 
         return Api::ok(new OrderResource($order));
     }
@@ -116,7 +116,7 @@ class OrderController extends Controller
         }
 
         $orders = $vendor->orders()
-            ->with(['user', 'items.product'])
+            ->with(['user', 'items.product.images'])
             ->orderByDesc('created_at')
             ->paginate((int) $request->query('per_page', config('beninfood.pagination.per_page')));
 

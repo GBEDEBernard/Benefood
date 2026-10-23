@@ -63,6 +63,7 @@ class AppNetworkImage extends StatelessWidget {
     this.iconColor,
     this.iconBackground,
     this.borderRadius,
+    this.fallback,
   });
 
   final String? url;
@@ -72,11 +73,16 @@ class AppNetworkImage extends StatelessWidget {
   final Color? iconBackground;
   final BorderRadius? borderRadius;
 
+  /// Rendu personnalisé quand l'URL est absente ou ne charge pas.
+  final Widget? fallback;
+
   @override
   Widget build(BuildContext context) {
     final resolved = _resolve(url);
     if (resolved == null || resolved.isEmpty) {
-      return _fallback(context);
+      final placeholder = fallback ?? _fallback(context);
+      if (borderRadius == null) return placeholder;
+      return ClipRRect(borderRadius: borderRadius!, child: placeholder);
     }
 
     return ClipRRect(
@@ -85,7 +91,7 @@ class AppNetworkImage extends StatelessWidget {
         child: Image.network(
           resolved,
           fit: fit,
-          errorBuilder: (_, _, _) => _fallback(context),
+          errorBuilder: (_, _, _) => fallback ?? _fallback(context),
           loadingBuilder: (context, child, progress) {
             if (progress == null) {
               return child;

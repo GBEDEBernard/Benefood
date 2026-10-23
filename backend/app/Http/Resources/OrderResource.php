@@ -4,6 +4,7 @@ namespace App\Http\Resources;
 
 use App\Enums\DeliveryStatus;
 use App\Models\DriverProfile;
+use App\Models\OrderItem;
 use App\Services\DeliveryPricingService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -20,7 +21,7 @@ class OrderResource extends JsonResource
             'quantity' => $item->quantity,
             'unit_price' => $item->unit_price_snapshot,
             'subtotal' => $item->subtotal,
-            'image_url' => $this->mediaUrl($item->product?->image_main),
+            'image_url' => $this->mediaUrl($this->productImagePath($item)),
             'currency' => 'XOF',
         ])->values());
 
@@ -120,6 +121,29 @@ class OrderResource extends JsonResource
     }
 
     /**
+     * Photo d'une ligne de commande : la galerie produit est prioritaire
+     * (comme ProductResource), avec repli sur l'ancien champ image_main.
+     */
+    private function productImagePath(OrderItem $item): ?string
+    {
+        $product = $item->product;
+
+        if ($product === null) {
+            return null;
+        }
+
+        $path = $product->image_main;
+
+        if ($product->relationLoaded('images')) {
+            $primary = $product->images->firstWhere('is_main', true)
+                ?? $product->images->first();
+            $path = $primary?->path ?? $path;
+        }
+
+        return $path;
+    }
+
+    /**
      * Normalise un chemin de média en URL publique (même convention que
      * VendorResource) : les chemins relatifs sont résolus sur le disque
      * public, les URL absolues sont renvoyées telles quelles.
@@ -132,6 +156,11 @@ class OrderResource extends JsonResource
 
         if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
             return $path;
+        }
+
+        $path = ltrim($path, '/');
+        if (str_starts_with($path, 'storage/')) {
+            $path = substr($path, strlen('storage/'));
         }
 
         return Storage::disk('public')->url($path);
