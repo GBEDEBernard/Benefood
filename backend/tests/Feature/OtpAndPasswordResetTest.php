@@ -27,6 +27,7 @@ class OtpAndPasswordResetTest extends TestCase
         $response = $this->postJson('/api/v1/auth/register', [
             'name' => 'Awa',
             'phone' => '97000040',
+            'email' => 'awa40@mail.com',
             'password' => 'secret123',
             'password_confirmation' => 'secret123',
         ])->assertCreated();

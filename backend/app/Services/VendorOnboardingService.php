@@ -36,7 +36,7 @@ class VendorOnboardingService
             'description' => $data['description'] ?? null,
             'type' => $data['type'] ?? VendorType::Boutique->value,
             'phone' => Phone::normalize($data['phone']),
-            'email' => $data['email'] ?? null,
+            'email' => mb_strtolower(trim((string) ($data['email'] ?? ''))),
             'city' => $data['city'] ?? null,
             'area' => $data['area'] ?? null,
             'address' => $data['address'] ?? null,

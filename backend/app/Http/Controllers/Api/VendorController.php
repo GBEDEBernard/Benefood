@@ -43,7 +43,7 @@ class VendorController extends Controller
             'description' => ['sometimes', 'nullable', 'string'],
             'type' => ['sometimes', 'nullable', 'string', 'in:'.implode(',', VendorType::values())],
             'phone' => ['required', 'string', 'regex:/^(?:\+?229|00229|0)?0?1?[0-9]{8}$/'],
-            'email' => ['sometimes', 'nullable', 'email', 'max:255'],
+            'email' => ['required', 'string', 'email', 'max:255'],
             'city' => ['sometimes', 'nullable', 'string', 'max:100'],
             'area' => ['sometimes', 'nullable', 'string', 'max:120'],
             'address' => ['sometimes', 'nullable', 'string'],
@@ -51,6 +51,7 @@ class VendorController extends Controller
         ]);
 
         $data['phone'] = Phone::normalize($data['phone']);
+        $data['email'] = mb_strtolower(trim((string) $data['email']));
         $vendor = $this->vendorService->onboard($request->user(), $data);
 
         return Api::created(new VendorResource($vendor));
@@ -208,6 +209,10 @@ class VendorController extends Controller
 
         if (isset($data['phone'])) {
             $data['phone'] = Phone::normalize($data['phone']);
+        }
+
+        if (isset($data['email']) && $data['email'] !== null) {
+            $data['email'] = mb_strtolower(trim((string) $data['email']));
         }
 
         // `closed_at` peut être null (réouverture) : traité hors de

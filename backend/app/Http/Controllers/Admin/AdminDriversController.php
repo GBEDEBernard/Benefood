@@ -97,9 +97,12 @@ class AdminDriversController extends Controller
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'phone' => ['required', 'string', 'max:20'],
+            'email' => ['required', 'string', 'email', 'max:255'],
             'password' => ['nullable', 'string', 'min:8'],
             'vehicle' => ['nullable', 'string', 'max:255'],
         ]);
+
+        $data['email'] = mb_strtolower(trim((string) $data['email']));
 
         try {
             $result = $this->driverService->createInternal($request->user(), $data);

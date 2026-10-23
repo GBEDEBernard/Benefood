@@ -85,7 +85,7 @@ delivery.wrong_state
 
 ### Auth & Users
 ```
-POST   /auth/register                {name, phone, email?, password, roles[]}
+POST   /auth/register                {name, phone, email, password, roles[]}
 POST   /auth/login                   {login, password}
 POST   /auth/logout
 POST   /auth/forgot-password         {login}

@@ -169,6 +169,7 @@ class AdminPhase16Test extends TestCase
             ->post(route('admin.drivers.store'), [
                 'name' => 'Issa Kora',
                 'phone' => '+22997100003',
+                'email' => 'issa.kora@mail.com',
                 'vehicle' => 'Moto',
             ])
             ->assertRedirect();

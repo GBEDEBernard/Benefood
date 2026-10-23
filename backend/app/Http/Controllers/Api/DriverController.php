@@ -88,11 +88,13 @@ class DriverController extends Controller
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'phone' => ['required', 'string', 'regex:/^(?:\+?229|00229|0)?0?1?[0-9]{8}$/'],
+            'email' => ['required', 'string', 'email', 'max:255'],
             'password' => ['sometimes', 'nullable', 'string', 'min:8'],
             'vehicle' => ['sometimes', 'nullable', 'string', 'max:255'],
         ]);
 
         $data['phone'] = Phone::normalize($data['phone']);
+        $data['email'] = mb_strtolower(trim((string) $data['email']));
         $result = $this->driverService->createInternal($request->user(), $data);
 
         return Api::created([

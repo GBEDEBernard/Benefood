@@ -10,11 +10,9 @@ import '../../shared/models/user.dart';
 /// Consomme `POST /auth/login`, `POST /auth/register`, `GET /me`,
 /// `POST /me/active-role` et stocke le token dans le secure storage.
 class SessionProvider extends ChangeNotifier {
-  SessionProvider({
-    required ApiClient api,
-    SecureTokenStore? tokenStore,
-  })  : _api = api,
-        _tokenStore = tokenStore ?? SecureTokenStore();
+  SessionProvider({required ApiClient api, SecureTokenStore? tokenStore})
+    : _api = api,
+      _tokenStore = tokenStore ?? SecureTokenStore();
 
   final ApiClient _api;
   final SecureTokenStore _tokenStore;
@@ -53,7 +51,9 @@ class SessionProvider extends ChangeNotifier {
     } finally {
       _initialized = true;
       _restoring = false;
-      debugPrint('restoreSession: _restoring=false, calling notifyListeners in finally');
+      debugPrint(
+        'restoreSession: _restoring=false, calling notifyListeners in finally',
+      );
       notifyListeners();
       debugPrint('restoreSession: END (finally completed)');
     }
@@ -63,28 +63,39 @@ class SessionProvider extends ChangeNotifier {
     debugPrint('_restoreSession: START');
     Map<String, dynamic>? session;
     try {
-      debugPrint('_restoreSession: reading session from tokenStore (5s timeout)');
-      session = await _tokenStore.readSession().timeout(const Duration(seconds: 5));
-      debugPrint('_restoreSession: readSession completed, result is ${session == null ? 'null' : 'non-null'}');
+      debugPrint(
+        '_restoreSession: reading session from tokenStore (5s timeout)',
+      );
+      session = await _tokenStore.readSession().timeout(
+        const Duration(seconds: 5),
+      );
+      debugPrint(
+        '_restoreSession: readSession completed, result is ${session == null ? 'null' : 'non-null'}',
+      );
     } catch (e) {
       debugPrint('restoreSession: session illisible ($e)');
       return;
     }
 
     if (session == null) {
-      debugPrint('_restoreSession: session is null, returning early (no cached session)');
+      debugPrint(
+        '_restoreSession: session is null, returning early (no cached session)',
+      );
       return;
     }
 
     debugPrint('_restoreSession: session found, checking _me');
-    _activeRole = session[_activeRoleKey] is String ? session[_activeRoleKey] as String : null;
+    _activeRole = session[_activeRoleKey] is String
+        ? session[_activeRoleKey] as String
+        : null;
 
     try {
       debugPrint('_restoreSession: calling GET /me');
       final response = await _api.get('/me');
       debugPrint('_restoreSession: GET /me completed');
       _user = User.fromJson(_dataOf(response));
-      if (_user != null && (_activeRole == null || !_user!.contexts.contains(_activeRole))) {
+      if (_user != null &&
+          (_activeRole == null || !_user!.contexts.contains(_activeRole))) {
         _activeRole = _defaultRoleFor(_user!);
       }
     } on ApiException catch (e) {
@@ -112,10 +123,10 @@ class SessionProvider extends ChangeNotifier {
   }
 
   Future<void> login(String login, String password) async {
-    final response = await _api.post('/auth/login', body: {
-      'login': login,
-      'password': password,
-    });
+    final response = await _api.post(
+      '/auth/login',
+      body: {'login': login, 'password': password},
+    );
 
     final payload = _dataOf(response);
     await _tokenStore.write(payload);
@@ -127,19 +138,22 @@ class SessionProvider extends ChangeNotifier {
   Future<void> register({
     required String name,
     required String phone,
-    String? email,
+    required String email,
     required String password,
     required String passwordConfirmation,
     List<String> roles = const ['client'],
   }) async {
-    final response = await _api.post('/auth/register', body: {
-      'name': name,
-      'phone': phone,
-      if (email != null && email.isNotEmpty) 'email': email,
-      'password': password,
-      'password_confirmation': passwordConfirmation,
-      'roles': roles,
-    });
+    final response = await _api.post(
+      '/auth/register',
+      body: {
+        'name': name,
+        'phone': phone,
+        'email': email,
+        'password': password,
+        'password_confirmation': passwordConfirmation,
+        'roles': roles,
+      },
+    );
 
     final payload = _dataOf(response);
     await _tokenStore.write(payload);
@@ -158,12 +172,15 @@ class SessionProvider extends ChangeNotifier {
     required String password,
     required String passwordConfirmation,
   }) async {
-    await _api.post('/auth/reset-password', body: {
-      'login': login,
-      'password': password,
-      'password_confirmation': passwordConfirmation,
-      'code': code,
-    });
+    await _api.post(
+      '/auth/reset-password',
+      body: {
+        'login': login,
+        'password': password,
+        'password_confirmation': passwordConfirmation,
+        'code': code,
+      },
+    );
   }
 
   /// Bascule de contexte (J19 §2.6).

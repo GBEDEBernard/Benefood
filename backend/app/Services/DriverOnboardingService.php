@@ -72,9 +72,14 @@ class DriverOnboardingService
     public function createInternal(User $creator, array $data): array
     {
         $phone = Phone::normalize($data['phone']);
+        $email = mb_strtolower(trim((string) $data['email']));
 
         if (User::where('phone', $phone)->exists()) {
             throw new DomainException('driver.phone_taken', 'Ce numéro de téléphone est déjà utilisé.', 409);
+        }
+
+        if (User::where('email', $email)->exists()) {
+            throw new DomainException('driver.email_taken', 'Cet email est déjà utilisé.', 409);
         }
 
         $password = $data['password'] ?? Str::random(12);
@@ -82,6 +87,7 @@ class DriverOnboardingService
         $user = User::create([
             'name' => $data['name'],
             'phone' => $phone,
+            'email' => $email,
             'password' => $password,
             'status' => UserStatus::Active->value,
         ]);

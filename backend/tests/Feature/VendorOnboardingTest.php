@@ -67,11 +67,13 @@ class VendorOnboardingTest extends TestCase
         $this->postJson('/api/v1/vendors/me/onboarding', [
             'business_name' => 'Resto Chez Awa',
             'phone' => '97000011',
+            'email' => 'contact@chezawa.bj',
         ])->assertCreated();
 
         $this->postJson('/api/v1/vendors/me/onboarding', [
             'business_name' => 'Doublon',
             'phone' => '97000012',
+            'email' => 'contact@chezawa.bj',
         ])->assertConflict()
             ->assertJsonPath('errors.0.code', 'vendor.already_onboarded');
     }
@@ -88,6 +90,25 @@ class VendorOnboardingTest extends TestCase
             ->assertJsonStructure(['errors' => [['code', 'message', 'field']]]);
     }
 
+    public function test_onboarding_requires_a_valid_email(): void
+    {
+        $user = User::factory()->create(['phone' => '+22997000010']);
+        Sanctum::actingAs($user);
+
+        $this->postJson('/api/v1/vendors/me/onboarding', [
+            'business_name' => 'Resto Chez Awa',
+            'phone' => '97000011',
+        ])->assertUnprocessable()
+            ->assertJsonPath('errors.0.field', 'email');
+
+        $this->postJson('/api/v1/vendors/me/onboarding', [
+            'business_name' => 'Resto Chez Awa',
+            'phone' => '97000011',
+            'email' => 'pas-un-email',
+        ])->assertUnprocessable()
+            ->assertJsonPath('errors.0.field', 'email');
+    }
+
     public function test_document_upload_moves_vendor_to_pending_verification(): void
     {
         $user = User::factory()->create(['phone' => '+22997000010']);
@@ -96,6 +117,7 @@ class VendorOnboardingTest extends TestCase
         $this->postJson('/api/v1/vendors/me/onboarding', [
             'business_name' => 'Resto Chez Awa',
             'phone' => '97000011',
+            'email' => 'contact@chezawa.bj',
         ])->assertCreated();
 
         $response = $this->postJson('/api/v1/vendors/me/documents', [
@@ -125,6 +147,7 @@ class VendorOnboardingTest extends TestCase
         $this->postJson('/api/v1/vendors/me/onboarding', [
             'business_name' => 'Resto Chez Awa',
             'phone' => '97000011',
+            'email' => 'contact@chezawa.bj',
         ])->assertCreated();
 
         $this->postJson('/api/v1/vendors/me/documents', [
@@ -142,6 +165,7 @@ class VendorOnboardingTest extends TestCase
         $this->postJson('/api/v1/vendors/me/onboarding', [
             'business_name' => 'Resto Chez Awa',
             'phone' => '97000011',
+            'email' => 'contact@chezawa.bj',
         ])->assertCreated();
 
         $this->postJson('/api/v1/vendors/me/documents', [
@@ -170,6 +194,7 @@ class VendorOnboardingTest extends TestCase
         $this->postJson('/api/v1/vendors/me/onboarding', [
             'business_name' => 'Resto Chez Awa',
             'phone' => '97000011',
+            'email' => 'contact@chezawa.bj',
         ])->assertCreated();
 
         $this->postJson('/api/v1/vendors/me/documents', [
@@ -204,6 +229,7 @@ class VendorOnboardingTest extends TestCase
         $this->postJson('/api/v1/vendors/me/onboarding', [
             'business_name' => 'Resto Chez Awa',
             'phone' => '97000011',
+            'email' => 'contact@chezawa.bj',
         ])->assertCreated();
 
         $vendor = $user->fresh()->vendor()->first();
@@ -230,6 +256,7 @@ class VendorOnboardingTest extends TestCase
         $this->postJson('/api/v1/vendors/me/onboarding', [
             'business_name' => 'Resto Chez Awa',
             'phone' => '97000011',
+            'email' => 'contact@chezawa.bj',
             'category_id' => $category->id,
         ])->assertCreated()
             ->assertJsonPath('data.category_id', $category->id);
@@ -248,6 +275,7 @@ class VendorOnboardingTest extends TestCase
         $this->postJson('/api/v1/vendors/me/onboarding', [
             'business_name' => 'Maquis du Port',
             'phone' => '97000011',
+            'email' => 'contact@chezawa.bj',
             'type' => 'maquis',
         ])->assertCreated()
             ->assertJsonPath('data.type', 'maquis');
@@ -263,6 +291,7 @@ class VendorOnboardingTest extends TestCase
         $this->postJson('/api/v1/vendors/me/onboarding', [
             'business_name' => 'Boutique sans type',
             'phone' => '97000013',
+            'email' => 'contact@chezawa.bj',
         ])->assertCreated()
             ->assertJsonPath('data.type', 'boutique');
     }
@@ -275,6 +304,7 @@ class VendorOnboardingTest extends TestCase
         $this->postJson('/api/v1/vendors/me/onboarding', [
             'business_name' => 'Resto Chez Awa',
             'phone' => '97000011',
+            'email' => 'contact@chezawa.bj',
             'type' => 'boulangerie',
         ])->assertUnprocessable()
             ->assertJsonPath('errors.0.field', 'type');
@@ -288,6 +318,7 @@ class VendorOnboardingTest extends TestCase
         $this->postJson('/api/v1/vendors/me/onboarding', [
             'business_name' => 'Resto Chez Awa',
             'phone' => '97000011',
+            'email' => 'contact@chezawa.bj',
         ])->assertCreated();
 
         $this->patchJson('/api/v1/vendors/me', [
@@ -309,6 +340,7 @@ class VendorOnboardingTest extends TestCase
         $this->postJson('/api/v1/vendors/me/onboarding', [
             'business_name' => 'Resto Chez Awa',
             'phone' => '97000011',
+            'email' => 'contact@chezawa.bj',
             'category_id' => '11111111-1111-1111-1111-111111111111',
         ])->assertUnprocessable()
             ->assertJsonPath('errors.0.field', 'category_id');
@@ -323,6 +355,7 @@ class VendorOnboardingTest extends TestCase
         $this->postJson('/api/v1/vendors/me/onboarding', [
             'business_name' => 'Resto Chez Awa',
             'phone' => '97000011',
+            'email' => 'contact@chezawa.bj',
         ])->assertCreated();
 
         $this->patchJson('/api/v1/vendors/me', [
@@ -348,6 +381,7 @@ class VendorOnboardingTest extends TestCase
         $this->postJson('/api/v1/vendors/me/onboarding', [
             'business_name' => 'Resto Chez Awa',
             'phone' => '97000011',
+            'email' => 'contact@chezawa.bj',
         ])->assertCreated();
 
         $this->patchJson('/api/v1/vendors/me', [
@@ -377,6 +411,7 @@ class VendorOnboardingTest extends TestCase
         $this->postJson('/api/v1/vendors/me/onboarding', [
             'business_name' => 'Resto Chez Awa',
             'phone' => '97000011',
+            'email' => 'contact@chezawa.bj',
         ])->assertCreated();
 
         $closedAt = '2026-10-07T12:00:00.000000Z';
@@ -404,6 +439,7 @@ class VendorOnboardingTest extends TestCase
         $this->postJson('/api/v1/vendors/me/onboarding', [
             'business_name' => 'Resto Chez Awa',
             'phone' => '97000011',
+            'email' => 'contact@chezawa.bj',
         ])->assertCreated();
 
         // Boutique active sans horaire : ouverte tant que closed_at est vide.
@@ -430,6 +466,7 @@ class VendorOnboardingTest extends TestCase
         $this->postJson('/api/v1/vendors/me/onboarding', [
             'business_name' => 'Resto Chez Awa',
             'phone' => '97000011',
+            'email' => 'contact@chezawa.bj',
         ])->assertCreated();
 
         $this->postJson('/api/v1/vendors/me/documents', [
@@ -457,6 +494,7 @@ class VendorOnboardingTest extends TestCase
         $this->postJson('/api/v1/vendors/me/onboarding', [
             'business_name' => 'Resto Chez Awa',
             'phone' => '97000011',
+            'email' => 'contact@chezawa.bj',
         ])->assertCreated();
 
         $this->postJson('/api/v1/vendors/me/documents', [
@@ -486,6 +524,7 @@ class VendorOnboardingTest extends TestCase
         $this->postJson('/api/v1/vendors/me/onboarding', [
             'business_name' => 'Resto Chez Awa',
             'phone' => '97000011',
+            'email' => 'contact@chezawa.bj',
         ])->assertCreated();
 
         $this->postJson('/api/v1/vendors/me/documents', [

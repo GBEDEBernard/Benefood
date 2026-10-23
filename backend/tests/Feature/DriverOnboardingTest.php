@@ -128,6 +128,7 @@ class DriverOnboardingTest extends TestCase
         $response = $this->postJson('/api/v1/admin/drivers', [
             'name' => 'Achille',
             'phone' => '97000031',
+            'email' => 'achille@mail.com',
             'vehicle' => 'Scooter',
         ]);
 
@@ -136,7 +137,10 @@ class DriverOnboardingTest extends TestCase
             ->assertJsonPath('data.profile.status', 'validated')
             ->assertJsonStructure(['data' => ['profile' => ['id'], 'initial_password']]);
 
-        $this->assertDatabaseHas('users', ['phone' => '+22997000031']);
+        $this->assertDatabaseHas('users', [
+            'phone' => '+22997000031',
+            'email' => 'achille@mail.com',
+        ]);
         $this->assertDatabaseHas('driver_profiles', [
             'type' => 'beninfood',
             'status' => 'validated',
@@ -166,7 +170,28 @@ class DriverOnboardingTest extends TestCase
         $this->postJson('/api/v1/admin/drivers', [
             'name' => 'Achille',
             'phone' => '97000030',
+            'email' => 'achille@mail.com',
         ])->assertConflict()
             ->assertJsonPath('errors.0.code', 'driver.phone_taken');
+    }
+
+    public function test_internal_driver_creation_requires_a_valid_email(): void
+    {
+        $admin = User::factory()->create(['phone' => '+22997000030']);
+        $admin->roles()->attach(Role::where('slug', 'porteuse')->first(), ['is_active' => true]);
+        Sanctum::actingAs($admin);
+
+        $this->postJson('/api/v1/admin/drivers', [
+            'name' => 'Achille',
+            'phone' => '97000033',
+        ])->assertUnprocessable()
+            ->assertJsonPath('errors.0.field', 'email');
+
+        $this->postJson('/api/v1/admin/drivers', [
+            'name' => 'Achille',
+            'phone' => '97000033',
+            'email' => 'pas-un-email',
+        ])->assertUnprocessable()
+            ->assertJsonPath('errors.0.field', 'email');
     }
 }

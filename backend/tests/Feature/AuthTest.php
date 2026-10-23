@@ -49,6 +49,7 @@ class AuthTest extends TestCase
         $this->postJson('/api/v1/auth/register', [
             'name' => 'Premier',
             'phone' => '97000001',
+            'email' => 'premier@mail.com',
             'password' => 'secret123',
             'password_confirmation' => 'secret123',
         ])->assertCreated();
@@ -56,6 +57,7 @@ class AuthTest extends TestCase
         $this->postJson('/api/v1/auth/register', [
             'name' => 'Doublon',
             'phone' => '+22997000001',
+            'email' => 'doublon@mail.com',
             'password' => 'secret123',
             'password_confirmation' => 'secret123',
         ])->assertConflict()
@@ -67,11 +69,58 @@ class AuthTest extends TestCase
         $this->postJson('/api/v1/auth/register', [
             'name' => 'Awa',
             'phone' => '12345',
+            'email' => 'awa@mail.com',
             'password' => 'short',
             'password_confirmation' => 'short',
         ])->assertUnprocessable()
             ->assertJsonPath('errors.0.code', 'validation_error.phone')
             ->assertJsonStructure(['errors' => [['code', 'message', 'field']]]);
+    }
+
+    public function test_register_requires_a_valid_email(): void
+    {
+        $this->postJson('/api/v1/auth/register', [
+            'name' => 'Awa',
+            'phone' => '97000005',
+            'password' => 'secret123',
+            'password_confirmation' => 'secret123',
+        ])->assertUnprocessable()
+            ->assertJsonPath('errors.0.code', 'validation_error.email')
+            ->assertJsonPath('errors.0.field', 'email');
+
+        $this->postJson('/api/v1/auth/register', [
+            'name' => 'Awa',
+            'phone' => '97000005',
+            'email' => 'pas-un-email',
+            'password' => 'secret123',
+            'password_confirmation' => 'secret123',
+        ])->assertUnprocessable()
+            ->assertJsonPath('errors.0.code', 'validation_error.email');
+    }
+
+    public function test_register_normalizes_and_rejects_duplicate_email(): void
+    {
+        $this->postJson('/api/v1/auth/register', [
+            'name' => 'Awa',
+            'phone' => '97000006',
+            'email' => '  AWA@MAIL.COM ',
+            'password' => 'secret123',
+            'password_confirmation' => 'secret123',
+        ])->assertCreated();
+
+        $this->assertDatabaseHas('users', [
+            'phone' => '+22997000006',
+            'email' => 'awa@mail.com',
+        ]);
+
+        $this->postJson('/api/v1/auth/register', [
+            'name' => 'Awa 2',
+            'phone' => '97000007',
+            'email' => 'awa@mail.com',
+            'password' => 'secret123',
+            'password_confirmation' => 'secret123',
+        ])->assertConflict()
+            ->assertJsonPath('errors.0.code', 'auth.email_taken');
     }
 
     public function test_login_with_phone_or_email(): void

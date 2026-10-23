@@ -40,6 +40,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
     super.dispose();
   }
 
+  String? _emailValidator(String? value) {
+    final email = value?.trim() ?? '';
+    if (email.isEmpty) {
+      return 'Indiquez votre email';
+    }
+    final valid = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]{2,}$').hasMatch(email);
+    return valid ? null : 'Adresse email invalide';
+  }
+
   Future<void> _submit() async {
     if (_loading) {
       return;
@@ -54,7 +63,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       await widget.session.register(
         name: _name.text.trim(),
         phone: _phone.text.trim(),
-        email: _email.text.trim().isEmpty ? null : _email.text.trim(),
+        email: _email.text.trim(),
         password: _password.text,
         passwordConfirmation: _confirm.text,
       );
@@ -96,7 +105,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 textCapitalization: TextCapitalization.words,
                 textInputAction: TextInputAction.next,
                 autofillHints: const [AutofillHints.name],
-                validator: (v) => (v == null || v.trim().isEmpty) ? 'Requis' : null,
+                validator: (v) =>
+                    (v == null || v.trim().isEmpty) ? 'Requis' : null,
               ),
               const SizedBox(height: 16),
               AuthField(
@@ -107,7 +117,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 keyboardType: TextInputType.phone,
                 textInputAction: TextInputAction.next,
                 autofillHints: const [AutofillHints.telephoneNumber],
-                inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9+ ]'))],
+                inputFormatters: [
+                  FilteringTextInputFormatter.allow(RegExp(r'[0-9+ ]')),
+                ],
                 validator: (v) {
                   if (v == null || v.trim().isEmpty) {
                     return 'Requis';
@@ -119,12 +131,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
               const SizedBox(height: 16),
               AuthField(
                 controller: _email,
-                label: 'Email (facultatif)',
+                label: 'Email',
                 hint: 'nom@exemple.com',
                 icon: Icons.mail_outline_rounded,
                 keyboardType: TextInputType.emailAddress,
                 textInputAction: TextInputAction.next,
                 autofillHints: const [AutofillHints.email],
+                validator: _emailValidator,
               ),
               const SizedBox(height: 16),
               AuthField(
@@ -135,7 +148,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 isPassword: true,
                 textInputAction: TextInputAction.next,
                 autofillHints: const [AutofillHints.newPassword],
-                validator: (v) => (v == null || v.length < 8) ? 'Au moins 8 caractères' : null,
+                validator: (v) => (v == null || v.length < 8)
+                    ? 'Au moins 8 caractères'
+                    : null,
               ),
               _PasswordMeter(controller: _password),
               const SizedBox(height: 16),
@@ -148,7 +163,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 textInputAction: TextInputAction.done,
                 autofillHints: const [AutofillHints.newPassword],
                 onSubmitted: (_) => _submit(),
-                validator: (v) => v == _password.text ? null : 'Les mots de passe diffèrent',
+                validator: (v) =>
+                    v == _password.text ? null : 'Les mots de passe diffèrent',
               ),
               const SizedBox(height: 28),
               AuthPrimaryButton(
@@ -161,7 +177,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
               const Text(
                 'Vous choisirez ensuite le type de compte à créer.',
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 13, color: AuthColors.muted, height: 1.3),
+                style: TextStyle(
+                  fontSize: 13,
+                  color: AuthColors.muted,
+                  height: 1.3,
+                ),
               ),
               const SizedBox(height: 22),
               const AuthSecureNote(text: 'Vos informations restent privées'),

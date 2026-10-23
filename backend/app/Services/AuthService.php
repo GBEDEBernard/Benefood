@@ -22,19 +22,20 @@ class AuthService
     public function register(array $data): array
     {
         $phone = Phone::normalize($data['phone']);
+        $email = mb_strtolower(trim((string) $data['email']));
 
         if (User::where('phone', $phone)->exists()) {
             throw new DomainException('auth.phone_taken', 'Ce numéro de téléphone est déjà utilisé.', 409);
         }
 
-        if (isset($data['email']) && $data['email'] !== null && User::where('email', $data['email'])->exists()) {
+        if (User::where('email', $email)->exists()) {
             throw new DomainException('auth.email_taken', 'Cet email est déjà utilisé.', 409);
         }
 
         $user = User::create([
             'name' => $data['name'],
             'phone' => $phone,
-            'email' => $data['email'] ?? null,
+            'email' => $email,
             'password' => $data['password'],
             'status' => UserStatus::Active->value,
             'locale' => $data['locale'] ?? 'fr',
@@ -216,7 +217,10 @@ class AuthService
     public function updateProfile(User $user, array $data): User
     {
         if (isset($data['email']) && $data['email'] !== null) {
-            $taken = User::where('email', $data['email'])
+            $email = mb_strtolower(trim((string) $data['email']));
+            $data['email'] = $email;
+
+            $taken = User::where('email', $email)
                 ->where('id', '!=', $user->id)
                 ->exists();
 

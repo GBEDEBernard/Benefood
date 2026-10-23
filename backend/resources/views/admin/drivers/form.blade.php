@@ -26,6 +26,11 @@
                 @error('phone')<div class="invalid-feedback">{{ $message }}</div>@enderror
             </div>
             <div class="form-group mb-3">
+                <label for="email" class="font-weight-600" style="color: var(--text-dark);">Email *</label>
+                <input type="email" id="email" name="email" value="{{ old('email') }}" class="form-control @error('email') is-invalid @enderror" placeholder="livreur@exemple.com" required>
+                @error('email')<div class="invalid-feedback">{{ $message }}</div>@enderror
+            </div>
+            <div class="form-group mb-3">
                 <label for="vehicle" class="font-weight-600" style="color: var(--text-dark);">Véhicule</label>
                 <input type="text" id="vehicle" name="vehicle" value="{{ old('vehicle') }}" class="form-control" placeholder="Moto, Tricycle, Vélo...">
             </div>
