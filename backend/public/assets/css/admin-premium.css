@@ -1,5 +1,5 @@
 :root {
-    --bf-green: #087B46;
+    --bf-green: #099151;
     --bf-green-light: #EAF7EA;
     --bf-orange: #FF8C00;
     --bf-orange-strong: #E97800;
@@ -677,7 +677,7 @@ li.active > a .bf-nav-bullet {
     background-repeat: no-repeat, no-repeat;
     background-size: 300px auto, 280px auto;
     content: '';
-    opacity: 0.05;
+    opacity: 0.2;
     pointer-events: none;
 }
 
