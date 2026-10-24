@@ -47,6 +47,10 @@ class VendorController extends Controller
             'city' => ['sometimes', 'nullable', 'string', 'max:100'],
             'area' => ['sometimes', 'nullable', 'string', 'max:120'],
             'address' => ['sometimes', 'nullable', 'string'],
+            'latitude' => ['sometimes', 'nullable', 'numeric', 'between:-90,90'],
+            'longitude' => ['sometimes', 'nullable', 'numeric', 'between:-180,180'],
+            'pickup_latitude' => ['sometimes', 'nullable', 'numeric', 'between:-90,90'],
+            'pickup_longitude' => ['sometimes', 'nullable', 'numeric', 'between:-180,180'],
             'category_id' => ['sometimes', 'nullable', 'uuid', 'exists:categories,id'],
         ]);
 
@@ -177,8 +181,12 @@ class VendorController extends Controller
             'city' => ['sometimes', 'nullable', 'string', 'max:100'],
             'area' => ['sometimes', 'nullable', 'string', 'max:120'],
             'address' => ['sometimes', 'nullable', 'string'],
+            'latitude' => ['sometimes', 'nullable', 'numeric', 'between:-90,90'],
+            'longitude' => ['sometimes', 'nullable', 'numeric', 'between:-180,180'],
             'pickup_address' => ['sometimes', 'nullable', 'string'],
             'pickup_landmark' => ['sometimes', 'nullable', 'string', 'max:255'],
+            'pickup_latitude' => ['sometimes', 'nullable', 'numeric', 'between:-90,90'],
+            'pickup_longitude' => ['sometimes', 'nullable', 'numeric', 'between:-180,180'],
             'delivery_instructions' => ['sometimes', 'nullable', 'string'],
             'category_id' => ['sometimes', 'nullable', 'uuid', 'exists:categories,id'],
             'logo_url' => ['sometimes', 'nullable', 'string'],

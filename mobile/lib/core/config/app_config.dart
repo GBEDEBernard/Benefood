@@ -36,5 +36,20 @@ class AppConfig {
 
   static const String apiVersion = 'v1';
 
+  /// Fond de carte configurable au build :
+  /// `--dart-define=MAP_TILE_URL=https://…/{z}/{x}/{y}.png`.
+  ///
+  /// Le serveur public OpenStreetMap reste le repli de développement ; il ne
+  /// doit pas être utilisé pour un déploiement à fort trafic.
+  static const String mapTileUrl = String.fromEnvironment(
+    'MAP_TILE_URL',
+    defaultValue: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+  );
+
+  static const String mapAttribution = String.fromEnvironment(
+    'MAP_ATTRIBUTION',
+    defaultValue: '© OpenStreetMap',
+  );
+
   static String get apiUrl => '$apiBaseUrl/api/$apiVersion';
 }

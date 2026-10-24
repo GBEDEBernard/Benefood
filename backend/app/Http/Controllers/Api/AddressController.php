@@ -79,6 +79,7 @@ class AddressController extends Controller
             'zone_id' => ['sometimes', 'nullable', 'uuid', 'exists:delivery_zones,id'],
             'full_address' => ['required', 'string', 'max:500'],
             'landmark' => ['sometimes', 'nullable', 'string', 'max:255'],
+            'contact_phone' => ['sometimes', 'nullable', 'string', 'max:20'],
             'city' => ['sometimes', 'nullable', 'string', 'max:100'],
             'area' => ['sometimes', 'nullable', 'string', 'max:100'],
             'latitude' => ['sometimes', 'nullable', 'numeric', 'between:-90,90'],

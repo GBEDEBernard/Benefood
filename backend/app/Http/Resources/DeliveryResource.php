@@ -37,6 +37,8 @@ class DeliveryResource extends JsonResource
             'partner_amount' => $partnerAmount,
             'driver_earnings' => $partnerAmount,
             'targeted_driver_id' => $this->targeted_driver_profile_id,
+            'pickup' => $this->pickupPayload($order),
+            'dropoff' => $this->dropoffPayload($order),
             'currency' => $order !== null ? ($order->currency ?? 'XOF') : 'XOF',
             'order' => $this->whenLoaded('order', fn () => [
                 'id' => $order->id,
@@ -77,6 +79,9 @@ class DeliveryResource extends JsonResource
                 'phone' => $this->vendor->phone,
                 'latitude' => $this->vendor->latitude,
                 'longitude' => $this->vendor->longitude,
+                'pickup_latitude' => $this->vendor->pickup_latitude,
+                'pickup_longitude' => $this->vendor->pickup_longitude,
+                'pickup_landmark' => $this->vendor->pickup_landmark,
             ]),
             'driver' => $this->whenLoaded('driverProfile', fn () => [
                 'id' => $this->driverProfile->id,
@@ -88,6 +93,44 @@ class DeliveryResource extends JsonResource
             'assigned_at' => $this->assigned_at?->toIso8601String(),
             'picked_up_at' => $this->picked_up_at?->toIso8601String(),
             'delivered_at' => $this->delivered_at?->toIso8601String(),
+        ];
+    }
+
+    /**
+     * Point de collecte figé sur la course, avec repli sur la boutique et son
+     * adresse de retrait pour les livraisons antérieures à la migration.
+     *
+     * @return array<string, mixed>
+     */
+    private function pickupPayload($order): array
+    {
+        $vendor = $this->relationLoaded('vendor') ? $this->vendor : null;
+
+        return [
+            'latitude' => $this->pickup_latitude ?? $vendor?->pickup_latitude ?? $vendor?->latitude,
+            'longitude' => $this->pickup_longitude ?? $vendor?->pickup_longitude ?? $vendor?->longitude,
+            'address' => $vendor?->pickup_address ?? $vendor?->address,
+            'landmark' => $vendor?->pickup_landmark,
+            'phone' => $vendor?->phone,
+        ];
+    }
+
+    /**
+     * Point de livraison figé sur la course, avec repli sur le snapshot de
+     * commande pour les courses existantes.
+     *
+     * @return array<string, mixed>
+     */
+    private function dropoffPayload($order): array
+    {
+        $address = $order?->address_snapshot ?? [];
+
+        return [
+            'latitude' => $this->dropoff_latitude ?? $address['latitude'] ?? null,
+            'longitude' => $this->dropoff_longitude ?? $address['longitude'] ?? null,
+            'address' => $address['full_address'] ?? null,
+            'landmark' => $this->dropoff_landmark ?? $address['landmark'] ?? null,
+            'phone' => $this->dropoff_phone ?? $address['contact_phone'] ?? null,
         ];
     }
 

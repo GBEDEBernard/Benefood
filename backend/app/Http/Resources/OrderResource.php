@@ -197,6 +197,20 @@ class OrderResource extends JsonResource
                 'vehicle' => $driver->vehicle,
                 'rating' => $driver->rating,
             ],
+            'pickup' => [
+                'latitude' => $delivery->pickup_latitude,
+                'longitude' => $delivery->pickup_longitude,
+                'address' => $this->vendor?->pickup_address ?? $this->vendor?->address,
+                'landmark' => $this->vendor?->pickup_landmark,
+                'phone' => $this->vendor?->phone,
+            ],
+            'dropoff' => [
+                'latitude' => $delivery->dropoff_latitude ?? $this->address_snapshot['latitude'] ?? null,
+                'longitude' => $delivery->dropoff_longitude ?? $this->address_snapshot['longitude'] ?? null,
+                'address' => $this->address_snapshot['full_address'] ?? null,
+                'landmark' => $delivery->dropoff_landmark ?? $this->address_snapshot['landmark'] ?? null,
+                'phone' => $delivery->dropoff_phone ?? $this->address_snapshot['contact_phone'] ?? $this->user?->phone,
+            ],
             'position' => null,
         ];
 

@@ -100,6 +100,22 @@ class OrderFlowTest extends TestCase
             ->json('data.reference');
     }
 
+    public function test_order_requires_pinned_delivery_address(): void
+    {
+        $client = $this->actingUser('client');
+        $vendor = $this->activeVendor($client);
+        $product = $this->vendorProduct($vendor, price: 500, stock: 10);
+        $this->deliverySetup($vendor);
+        $address = $this->clientAddress($client);
+        $address->update(['latitude' => null, 'longitude' => null]);
+
+        $this->addToCart($client, $product, 2);
+
+        $this->postJson('/api/v1/orders', ['address_id' => $address->id])
+            ->assertStatus(422)
+            ->assertJsonPath('errors.0.code', 'order.delivery_location_required');
+    }
+
     public function test_client_can_create_full_order_with_server_totals(): void
     {
         $client = $this->actingUser('client');

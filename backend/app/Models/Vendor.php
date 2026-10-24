@@ -26,6 +26,10 @@ class Vendor extends Model
             'approved_at' => 'datetime',
             'closed_at' => 'datetime',
             'type' => VendorType::class,
+            'latitude' => 'float',
+            'longitude' => 'float',
+            'pickup_latitude' => 'float',
+            'pickup_longitude' => 'float',
         ];
     }
 

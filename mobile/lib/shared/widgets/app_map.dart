@@ -4,6 +4,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../core/config/app_config.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_dimens.dart';
 import '../../core/utils/geo.dart';
@@ -292,11 +293,8 @@ class _AppMapState extends State<AppMap> {
                       ),
                     ),
                     children: [
-                      // Fonds de carte OpenStreetMap : gratuit, sans clé API.
-                      // (Les tuiles CARTO exigent désormais une clé et affichent
-                      // « API key required » sans elle.)
                       TileLayer(
-                        urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                        urlTemplate: AppConfig.mapTileUrl,
                         userAgentPackageName: 'com.beninfood.beninfood',
                         maxNativeZoom: 19,
                         tileDisplay: const TileDisplay.fadeIn(duration: Duration(milliseconds: 150)),
@@ -614,7 +612,7 @@ class _Attribution extends StatelessWidget {
       child: const Padding(
         padding: EdgeInsets.symmetric(horizontal: 5, vertical: 2),
         child: Text(
-          '© OpenStreetMap',
+          AppConfig.mapAttribution,
           style: TextStyle(fontSize: 9, color: AppColors.textSecondary),
         ),
       ),

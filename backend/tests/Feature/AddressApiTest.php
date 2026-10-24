@@ -128,20 +128,25 @@ class AddressApiTest extends TestCase
             ->assertJsonStructure(['errors' => [['code', 'message', 'field']]]);
     }
 
-    public function test_address_stores_and_returns_area_and_coordinates(): void
+    public function test_address_stores_and_returns_area_coordinates_and_contact_phone(): void
     {
         $this->clientUser();
 
-        $this->postJson('/api/v1/addresses', $this->validPayload(['area' => 'Akpakpa']))
+        $this->postJson('/api/v1/addresses', $this->validPayload([
+            'area' => 'Akpakpa',
+            'contact_phone' => '+22997000044',
+        ]))
             ->assertCreated()
             ->assertJsonPath('data.area', 'Akpakpa')
             ->assertJsonPath('data.latitude', 6.357)
-            ->assertJsonPath('data.longitude', 2.402);
+            ->assertJsonPath('data.longitude', 2.402)
+            ->assertJsonPath('data.contact_phone', '+22997000044');
 
         $this->assertDatabaseHas('addresses', [
             'area' => 'Akpakpa',
             'latitude' => 6.357,
             'longitude' => 2.402,
+            'contact_phone' => '+22997000044',
         ]);
     }
 

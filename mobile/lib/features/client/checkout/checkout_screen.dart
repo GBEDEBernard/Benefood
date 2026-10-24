@@ -89,6 +89,15 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     if (address == null) {
       return;
     }
+    if (!address.hasCoordinates) {
+      setState(() {
+        _summaryLoading = false;
+        _summary = null;
+        _summaryError =
+            'Positionnez cette adresse sur la carte pour calculer la livraison.';
+      });
+      return;
+    }
     setState(() {
       _summaryLoading = true;
       _summary = null;
@@ -112,6 +121,28 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         setState(() => _summaryLoading = false);
       }
     }
+  }
+
+  Future<void> _pinSelectedAddress() async {
+    final address = _selectedAddress;
+    if (address == null) {
+      return;
+    }
+    final updated = await showAddressLocationSheet(
+      context,
+      widget.marketplace,
+      address,
+    );
+    if (updated == null || !mounted) {
+      return;
+    }
+    setState(() {
+      _addresses = _addresses
+          .map((item) => item.id == updated.id ? updated : item)
+          .toList();
+      _selectedAddress = updated;
+    });
+    await _loadSummary();
   }
 
   Future<void> _createOrder() async {
@@ -297,6 +328,38 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                       setState(() => _selectedAddress = a);
                       _loadSummary();
                     },
+                  ),
+                if (_selectedAddress != null &&
+                    !_selectedAddress!.hasCoordinates)
+                  Card(
+                    margin: const EdgeInsets.only(bottom: 8),
+                    color: AppColors.orangeLight,
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Row(
+                        children: [
+                          const Icon(
+                            Icons.location_off_outlined,
+                            color: AppColors.orangeDark,
+                          ),
+                          const SizedBox(width: 8),
+                          const Expanded(
+                            child: Text(
+                              'Cette adresse n’a pas de repère GPS. Positionnez-la sur la carte avant de commander.',
+                              style: TextStyle(
+                                fontSize: 12.5,
+                                color: AppColors.orangeDark,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                          TextButton(
+                            onPressed: _pinSelectedAddress,
+                            child: const Text('Positionner'),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
                 const SizedBox(height: 4),
               ],
@@ -651,7 +714,9 @@ class _AddressCard extends StatelessWidget {
                   shape: BoxShape.circle,
                   color: selected ? AppColors.orange : Colors.transparent,
                   border: Border.all(
-                    color: selected ? AppColors.green : AppColors.textSecondary.withValues(alpha: 0.5),
+                    color: selected
+                        ? AppColors.orange
+                        : AppColors.textSecondary.withValues(alpha: 0.5),
                     width: 2,
                   ),
                 ),

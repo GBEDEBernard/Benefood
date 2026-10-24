@@ -33,6 +33,8 @@ class Vendor {
     this.address,
     this.pickupAddress,
     this.pickupLandmark,
+    this.pickupLatitude,
+    this.pickupLongitude,
     this.deliveryInstructions,
     this.status = 'active',
     this.logoUrl,
@@ -62,6 +64,8 @@ class Vendor {
   final String? address;
   final String? pickupAddress;
   final String? pickupLandmark;
+  final double? pickupLatitude;
+  final double? pickupLongitude;
   final String? deliveryInstructions;
   final String status;
   final String? logoUrl;
@@ -115,6 +119,8 @@ class Vendor {
         address: json['address'] is String ? json['address'] as String : null,
         pickupAddress: json['pickup_address'] is String ? json['pickup_address'] as String : null,
         pickupLandmark: json['pickup_landmark'] is String ? json['pickup_landmark'] as String : null,
+        pickupLatitude: _d(json['pickup_latitude']),
+        pickupLongitude: _d(json['pickup_longitude']),
         deliveryInstructions:
             json['delivery_instructions'] is String ? json['delivery_instructions'] as String : null,
         status: _s(json['status'], 'active'),

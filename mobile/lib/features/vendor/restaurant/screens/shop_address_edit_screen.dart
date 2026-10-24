@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:latlong2/latlong.dart';
 
 import '../../../../core/data/marketplace_api.dart';
 import '../../../../core/errors/api_exception.dart';
+import '../../../../core/services/location_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/models/vendor.dart';
 import '../../../../shared/widgets/city_area_picker.dart';
 import '../../../../shared/widgets/feedback_widgets.dart';
+import '../../../../shared/widgets/map_picker.dart';
 import '../../onboarding/widgets/custom_text_field.dart';
 import '../restaurant_palette.dart';
 import 'shop_edit_shell.dart';
@@ -30,6 +33,12 @@ class _ShopAddressEditScreenState extends State<ShopAddressEditScreen> {
   late final TextEditingController _pickupAddress;
   late final TextEditingController _deliveryInstructions;
   bool _saving = false;
+  bool _locatingShop = false;
+  bool _locatingPickup = false;
+  double? _latitude;
+  double? _longitude;
+  double? _pickupLatitude;
+  double? _pickupLongitude;
 
   @override
   void initState() {
@@ -40,6 +49,10 @@ class _ShopAddressEditScreenState extends State<ShopAddressEditScreen> {
     _pickupLandmark = TextEditingController(text: widget.vendor.pickupLandmark ?? '');
     _pickupAddress = TextEditingController(text: widget.vendor.pickupAddress ?? '');
     _deliveryInstructions = TextEditingController(text: widget.vendor.deliveryInstructions ?? '');
+    _latitude = widget.vendor.latitude;
+    _longitude = widget.vendor.longitude;
+    _pickupLatitude = widget.vendor.pickupLatitude ?? widget.vendor.latitude;
+    _pickupLongitude = widget.vendor.pickupLongitude ?? widget.vendor.longitude;
   }
 
   @override
@@ -53,7 +66,57 @@ class _ShopAddressEditScreenState extends State<ShopAddressEditScreen> {
     super.dispose();
   }
 
+  Future<void> _locate({required bool pickup}) async {
+    setState(() {
+      if (pickup) {
+        _locatingPickup = true;
+      } else {
+        _locatingShop = true;
+      }
+    });
+    final result = await LocationService.locate();
+    if (!mounted) {
+      return;
+    }
+    final geo = result.geo;
+    setState(() {
+      if (pickup) {
+        _locatingPickup = false;
+      } else {
+        _locatingShop = false;
+      }
+      if (geo != null) {
+        if (pickup) {
+          _pickupLatitude = geo.latitude;
+          _pickupLongitude = geo.longitude;
+        } else {
+          _latitude = geo.latitude;
+          _longitude = geo.longitude;
+          if (_pickupLatitude == null || _pickupLongitude == null) {
+            _pickupLatitude = geo.latitude;
+            _pickupLongitude = geo.longitude;
+          }
+        }
+      }
+    });
+    if (geo == null) {
+      showToast(
+        context,
+        'Position introuvable. Touchez la carte pour placer le repère.',
+        isError: true,
+      );
+    }
+  }
+
   Future<void> _save() async {
+    if (_latitude == null || _longitude == null) {
+      showToast(
+        context,
+        'Placez le repère de la boutique sur la carte.',
+        isError: true,
+      );
+      return;
+    }
     setState(() => _saving = true);
     try {
       final api = widget.marketplace;
@@ -62,8 +125,12 @@ class _ShopAddressEditScreenState extends State<ShopAddressEditScreen> {
           city: _city.text,
           area: _area.text,
           address: _address.text,
+          latitude: _latitude,
+          longitude: _longitude,
           pickupAddress: _pickupAddress.text,
           pickupLandmark: _pickupLandmark.text,
+          pickupLatitude: _pickupLatitude,
+          pickupLongitude: _pickupLongitude,
           deliveryInstructions: _deliveryInstructions.text,
         );
       } else {
@@ -109,7 +176,7 @@ class _ShopAddressEditScreenState extends State<ShopAddressEditScreen> {
                   const _SectionTitle(
                     icon: Icons.storefront_outlined,
                     title: 'Adresse de la boutique',
-                    color: AppColors.green,
+                    color: AppColors.orange,
                   ),
                   const SizedBox(height: 12),
                   if (widget.marketplace != null)
@@ -134,6 +201,34 @@ class _ShopAddressEditScreenState extends State<ShopAddressEditScreen> {
                     maxLines: 3,
                     textInputAction: TextInputAction.next,
                   ),
+                  const SizedBox(height: 14),
+                  const Text(
+                    'Repère de la boutique',
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w700,
+                      color: RestaurantPalette.darkText,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  MapPicker(
+                    point: _latitude != null && _longitude != null
+                        ? LatLng(_latitude!, _longitude!)
+                        : null,
+                    instruction: 'Touchez la carte pour placer la boutique',
+                    onLocate: () => _locate(pickup: false),
+                    locating: _locatingShop,
+                    onChanged: (point) {
+                      setState(() {
+                        _latitude = point.latitude;
+                        _longitude = point.longitude;
+                        if (_pickupLatitude == null || _pickupLongitude == null) {
+                          _pickupLatitude = point.latitude;
+                          _pickupLongitude = point.longitude;
+                        }
+                      });
+                    },
+                  ),
                   const SizedBox(height: 26),
                   const _SectionTitle(
                     icon: Icons.local_shipping_outlined,
@@ -155,6 +250,30 @@ class _ShopAddressEditScreenState extends State<ShopAddressEditScreen> {
                     hint: 'Entrepôt, porte bleue…',
                     maxLines: 3,
                     textInputAction: TextInputAction.next,
+                  ),
+                  const SizedBox(height: 14),
+                  const Text(
+                    'Repère du point de retrait',
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w700,
+                      color: RestaurantPalette.darkText,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  MapPicker(
+                    point: _pickupLatitude != null && _pickupLongitude != null
+                        ? LatLng(_pickupLatitude!, _pickupLongitude!)
+                        : null,
+                    instruction: 'Touchez la carte pour placer le point de retrait',
+                    onLocate: () => _locate(pickup: true),
+                    locating: _locatingPickup,
+                    onChanged: (point) {
+                      setState(() {
+                        _pickupLatitude = point.latitude;
+                        _pickupLongitude = point.longitude;
+                      });
+                    },
                   ),
                   const SizedBox(height: 26),
                   const _SectionTitle(

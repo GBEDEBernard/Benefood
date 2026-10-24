@@ -157,6 +157,7 @@ class MarketplaceApi {
     String? city,
     String? area,
     String? landmark,
+    String? contactPhone,
     double? latitude,
     double? longitude,
     bool? isDefault,
@@ -169,9 +170,42 @@ class MarketplaceApi {
         if (city != null && city.isNotEmpty) 'city': city,
         if (area != null && area.isNotEmpty) 'area': area,
         if (landmark != null && landmark.isNotEmpty) 'landmark': landmark,
-        if (latitude != null) 'latitude': latitude,
-        if (longitude != null) 'longitude': longitude,
+        if (contactPhone != null && contactPhone.isNotEmpty)
+          'contact_phone': contactPhone,
+        'latitude': ?latitude,
+        'longitude': ?longitude,
         if (isDefault ?? false) 'is_default': true,
+      },
+    );
+    return Address.fromJson(_dataObject(response) ?? {});
+  }
+
+  /// Met à jour une adresse existante, notamment sa position GPS précise.
+  Future<Address> updateAddress(
+    String id, {
+    String? label,
+    required String fullAddress,
+    String? city,
+    String? area,
+    String? landmark,
+    String? contactPhone,
+    double? latitude,
+    double? longitude,
+    bool? isDefault,
+  }) async {
+    final response = await _api.patch(
+      '/addresses/$id',
+      body: {
+        if (label != null && label.isNotEmpty) 'label': label,
+        'full_address': fullAddress,
+        if (city != null && city.isNotEmpty) 'city': city,
+        if (area != null && area.isNotEmpty) 'area': area,
+        if (landmark != null && landmark.isNotEmpty) 'landmark': landmark,
+        if (contactPhone != null && contactPhone.isNotEmpty)
+          'contact_phone': contactPhone,
+        'latitude': ?latitude,
+        'longitude': ?longitude,
+        if (isDefault != null) 'is_default': isDefault,
       },
     );
     return Address.fromJson(_dataObject(response) ?? {});
@@ -575,8 +609,12 @@ class MarketplaceApi {
     String? city,
     String? area,
     String? address,
+    double? latitude,
+    double? longitude,
     String? pickupAddress,
     String? pickupLandmark,
+    double? pickupLatitude,
+    double? pickupLongitude,
     String? deliveryInstructions,
     List<OpeningHour>? hours,
   }) async {
@@ -593,11 +631,15 @@ class MarketplaceApi {
         if (area != null) 'area': area.trim().isEmpty ? null : area.trim(),
         if (address != null)
           'address': address.trim().isEmpty ? null : address.trim(),
+        'latitude': ?latitude,
+        'longitude': ?longitude,
         if (pickupAddress != null) 'pickup_address': pickupAddress.trim(),
         if (pickupLandmark != null)
           'pickup_landmark': pickupLandmark.trim().isEmpty
               ? null
               : pickupLandmark.trim(),
+        'pickup_latitude': ?pickupLatitude,
+        'pickup_longitude': ?pickupLongitude,
         if (deliveryInstructions != null)
           'delivery_instructions': deliveryInstructions.trim().isEmpty
               ? null

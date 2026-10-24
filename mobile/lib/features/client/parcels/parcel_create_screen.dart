@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:latlong2/latlong.dart';
 
 import '../../../core/data/marketplace_api.dart';
 import '../../../core/errors/api_exception.dart';
@@ -16,6 +17,7 @@ import '../../../shared/widgets/city_area_picker.dart';
 import '../../../shared/widgets/feedback_widgets.dart';
 import '../../../shared/widgets/favorite_driver_picker.dart';
 import '../../../shared/widgets/fedapay_checkout_screen.dart';
+import '../../../shared/widgets/map_picker.dart';
 import '../../../shared/widgets/payment_method_screen.dart';
 
 /// Envoi d'un colis (client ou boutique vendeuse) en trois étapes :
@@ -248,6 +250,15 @@ class _ParcelCreateScreenState extends State<ParcelCreateScreen> {
       }
       if (!_dropoffAddressOk) {
         showToast(context, 'Renseignez l\'adresse de livraison ou cochez « Identique au ramassage ».', isError: true);
+        return;
+      }
+      if (_pickupLatitude == null || _pickupLongitude == null) {
+        showToast(context, 'Placez le repère de ramassage sur la carte.', isError: true);
+        return;
+      }
+      if (!_sameAsPickup &&
+          (_dropoffLatitude == null || _dropoffLongitude == null)) {
+        showToast(context, 'Placez le repère de livraison sur la carte.', isError: true);
         return;
       }
       setState(() => _step = 1);
@@ -485,8 +496,8 @@ class _ParcelCreateScreenState extends State<ParcelCreateScreen> {
             _SectionHeader(
               icon: Icons.trip_origin,
               title: 'Adresse de ramassage',
-              color: AppColors.green,
-              background: AppColors.greenLight,
+              color: AppColors.orange,
+              background: AppColors.orangeLight,
               trailing: _LocateChip(
                 loading: _pickupLocating,
                 onPressed: () => _locate(pickup: true),
@@ -534,6 +545,20 @@ class _ParcelCreateScreenState extends State<ParcelCreateScreen> {
               label: 'Point de repère',
               hint: 'Ex : en face de la pharmacie…',
               icon: Icons.push_pin_outlined,
+            ),
+            const SizedBox(height: AppDimens.md),
+            MapPicker(
+              point: _pickupLatitude != null && _pickupLongitude != null
+                  ? LatLng(_pickupLatitude!, _pickupLongitude!)
+                  : null,
+              height: 190,
+              instruction: 'Touchez la carte pour placer le ramassage',
+              onChanged: (point) {
+                setState(() {
+                  _pickupLatitude = point.latitude;
+                  _pickupLongitude = point.longitude;
+                });
+              },
             ),
             _gpsStrip(
               latitude: _pickupLatitude,
@@ -610,6 +635,20 @@ class _ParcelCreateScreenState extends State<ParcelCreateScreen> {
                 label: 'Point de repère',
                 hint: 'Ex : derrière le marché…',
                 icon: Icons.push_pin_outlined,
+              ),
+              const SizedBox(height: AppDimens.md),
+              MapPicker(
+                point: _dropoffLatitude != null && _dropoffLongitude != null
+                    ? LatLng(_dropoffLatitude!, _dropoffLongitude!)
+                    : null,
+                height: 190,
+                instruction: 'Touchez la carte pour placer la livraison',
+                onChanged: (point) {
+                  setState(() {
+                    _dropoffLatitude = point.latitude;
+                    _dropoffLongitude = point.longitude;
+                  });
+                },
               ),
               _gpsStrip(
                 latitude: _dropoffLatitude,
@@ -836,17 +875,21 @@ class _ParcelCreateScreenState extends State<ParcelCreateScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
-          color: AppColors.greenLight,
+          color: AppColors.orangeLight,
           borderRadius: BorderRadius.circular(AppDimens.radiusMd),
         ),
         child: Row(
           children: [
-            const Icon(Icons.my_location, size: 16, color: AppColors.green),
+            const Icon(Icons.my_location, size: 16, color: AppColors.orange),
             const SizedBox(width: 8),
             Expanded(
               child: Text(
                 'Position GPS : ${latitude.toStringAsFixed(5)}, ${longitude.toStringAsFixed(5)}',
-                style: const TextStyle(fontSize: 12, color: AppColors.green, fontWeight: FontWeight.w600),
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: AppColors.orangeDark,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
             TextButton(

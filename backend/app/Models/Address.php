@@ -23,6 +23,7 @@ class Address extends Model
             'is_default' => 'boolean',
             'latitude' => 'float',
             'longitude' => 'float',
+            'contact_phone' => 'string',
         ];
     }
 

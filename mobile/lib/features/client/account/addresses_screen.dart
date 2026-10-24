@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:latlong2/latlong.dart';
 
 import '../../../core/data/marketplace_api.dart';
 import '../../../core/errors/api_exception.dart';
@@ -10,6 +11,7 @@ import '../../../shared/widgets/app_text_field.dart';
 import '../../../shared/widgets/beninfood_header.dart';
 import '../../../shared/widgets/city_area_picker.dart';
 import '../../../shared/widgets/feedback_widgets.dart';
+import '../../../shared/widgets/map_picker.dart';
 import '../../../shared/widgets/state_widgets.dart';
 
 /// Ouvre le formulaire de création d'adresse (ville, quartier et point exact).
@@ -26,6 +28,26 @@ Future<Address?> showAddAddressSheet(
       borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
     ),
     builder: (context) => _AddAddressSheet(marketplace: marketplace),
+  );
+}
+
+/// Complète la position GPS d'une adresse existante (checkout, adresse sans
+/// repère). Renvoie l'adresse mise à jour, ou `null` si l'utilisateur ferme.
+Future<Address?> showAddressLocationSheet(
+  BuildContext context,
+  MarketplaceApi marketplace,
+  Address address,
+) {
+  return showModalBottomSheet<Address>(
+    context: context,
+    isScrollControlled: true,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+    ),
+    builder: (context) => _AddressLocationSheet(
+      marketplace: marketplace,
+      address: address,
+    ),
   );
 }
 
@@ -122,7 +144,12 @@ class _AddressesScreenState extends State<AddressesScreen> {
             margin: const EdgeInsets.only(bottom: 10),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),
-              side: BorderSide(color: address.isDefault ? AppColors.green.withValues(alpha: 0.5) : Colors.transparent, width: 1.2),
+              side: BorderSide(
+                color: address.isDefault
+                    ? AppColors.orange.withValues(alpha: 0.5)
+                    : Colors.transparent,
+                width: 1.2,
+              ),
             ),
             child: InkWell(
               borderRadius: BorderRadius.circular(16),
@@ -135,12 +162,12 @@ class _AddressesScreenState extends State<AddressesScreen> {
                       width: 42,
                       height: 42,
                       decoration: BoxDecoration(
-                        color: address.isDefault ? AppColors.greenLight : AppColors.surfaceVariant,
+                        color: address.isDefault ? AppColors.orangeLight : AppColors.surfaceVariant,
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Icon(
                         Icons.location_on_outlined,
-                        color: address.isDefault ? AppColors.green : AppColors.textSecondary,
+                        color: address.isDefault ? AppColors.orange : AppColors.textSecondary,
                         size: 21,
                       ),
                     ),
@@ -210,6 +237,131 @@ class _AddressesScreenState extends State<AddressesScreen> {
   }
 }
 
+class _AddressLocationSheet extends StatefulWidget {
+  const _AddressLocationSheet({
+    required this.marketplace,
+    required this.address,
+  });
+
+  final MarketplaceApi marketplace;
+  final Address address;
+
+  @override
+  State<_AddressLocationSheet> createState() => _AddressLocationSheetState();
+}
+
+class _AddressLocationSheetState extends State<_AddressLocationSheet> {
+  bool _saving = false;
+  bool _locating = false;
+  double? _latitude;
+  double? _longitude;
+
+  @override
+  void initState() {
+    super.initState();
+    _latitude = widget.address.latitude;
+    _longitude = widget.address.longitude;
+  }
+
+  Future<void> _locate() async {
+    setState(() => _locating = true);
+    final result = await LocationService.locate();
+    if (!mounted) {
+      return;
+    }
+    final geo = result.geo;
+    setState(() {
+      _locating = false;
+      if (geo != null) {
+        _latitude = geo.latitude;
+        _longitude = geo.longitude;
+      }
+    });
+    if (geo == null) {
+      showToast(context, 'Position introuvable. Touchez la carte pour placer le repère.', isError: true);
+    }
+  }
+
+  Future<void> _save() async {
+    if (_latitude == null || _longitude == null) {
+      showToast(context, 'Touchez la carte pour placer le repère.', isError: true);
+      return;
+    }
+    setState(() => _saving = true);
+    try {
+      final updated = await widget.marketplace.updateAddress(
+        widget.address.id,
+        label: widget.address.label,
+        fullAddress: widget.address.fullAddress ?? '',
+        city: widget.address.city,
+        area: widget.address.area,
+        landmark: widget.address.landmark,
+        contactPhone: widget.address.contactPhone,
+        latitude: _latitude,
+        longitude: _longitude,
+      );
+      if (mounted) {
+        Navigator.of(context).pop(updated);
+      }
+    } on ApiException catch (e) {
+      if (mounted) {
+        setState(() => _saving = false);
+        showToast(context, e.message, isError: true);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Préciser la position',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                widget.address.label ?? widget.address.fullAddress ?? 'Adresse',
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
+              ),
+              const SizedBox(height: 14),
+              MapPicker(
+                point: _latitude != null && _longitude != null
+                    ? LatLng(_latitude!, _longitude!)
+                    : null,
+                onLocate: _locate,
+                locating: _locating,
+                onChanged: (point) {
+                  setState(() {
+                    _latitude = point.latitude;
+                    _longitude = point.longitude;
+                  });
+                },
+              ),
+              const SizedBox(height: 16),
+              AppButton(
+                label: 'Enregistrer la position',
+                onPressed: _saving ? null : _save,
+                loading: _saving,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _AddAddressSheet extends StatefulWidget {
   const _AddAddressSheet({required this.marketplace});
 
@@ -226,6 +378,7 @@ class _AddAddressSheetState extends State<_AddAddressSheet> {
   final _area = TextEditingController();
   final _address = TextEditingController();
   final _landmark = TextEditingController();
+  final _contactPhone = TextEditingController();
   bool _saving = false;
   bool _locating = false;
   double? _latitude;
@@ -238,6 +391,7 @@ class _AddAddressSheetState extends State<_AddAddressSheet> {
     _area.dispose();
     _address.dispose();
     _landmark.dispose();
+    _contactPhone.dispose();
     super.dispose();
   }
 
@@ -280,6 +434,14 @@ class _AddAddressSheetState extends State<_AddAddressSheet> {
     if (!_formKey.currentState!.validate()) {
       return;
     }
+    if (_latitude == null || _longitude == null) {
+      showToast(
+        context,
+        'Placez le repère sur la carte pour préciser votre adresse.',
+        isError: true,
+      );
+      return;
+    }
     setState(() => _saving = true);
     try {
       final address = await widget.marketplace.createAddress(
@@ -288,6 +450,7 @@ class _AddAddressSheetState extends State<_AddAddressSheet> {
         city: _city.text.trim(),
         area: _area.text.trim(),
         landmark: _landmark.text.trim(),
+        contactPhone: _contactPhone.text.trim(),
         latitude: _latitude,
         longitude: _longitude,
       );
@@ -319,33 +482,41 @@ class _AddAddressSheetState extends State<_AddAddressSheet> {
                 children: [
                   Text('Nouvelle adresse', style: Theme.of(context).textTheme.titleLarge),
                   const SizedBox(height: 12),
-                  OutlinedButton.icon(
-                    icon: _locating
-                        ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                        : const Icon(Icons.my_location),
-                    label: const Text('Utiliser ma position'),
-                    onPressed: _locating ? null : _useMyPosition,
+                  Text(
+                    'Positionnez le repère exact pour permettre au livreur de vous trouver.',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                  ),
+                  const SizedBox(height: 10),
+                  MapPicker(
+                    point: _latitude != null && _longitude != null
+                        ? LatLng(_latitude!, _longitude!)
+                        : null,
+                    onLocate: _useMyPosition,
+                    locating: _locating,
+                    onChanged: (point) {
+                      setState(() {
+                        _latitude = point.latitude;
+                        _longitude = point.longitude;
+                      });
+                    },
                   ),
                   if (_latitude != null) ...[
                     const SizedBox(height: 8),
                     Row(
                       children: [
-                        Icon(Icons.location_on, size: 16, color: Theme.of(context).colorScheme.primary),
+                        const Icon(Icons.location_on, size: 16, color: AppColors.orange),
                         const SizedBox(width: 6),
                         Expanded(
                           child: Text(
-                            'Position capturée (${_latitude!.toStringAsFixed(5)}, ${_longitude!.toStringAsFixed(5)})',
+                            'Repère : ${_latitude!.toStringAsFixed(5)}, ${_longitude!.toStringAsFixed(5)}',
                             style: Theme.of(context).textTheme.bodySmall,
                           ),
                         ),
                       ],
                     ),
                   ],
-                  const SizedBox(height: 4),
-                  Text(
-                    'Votre position est utilisée uniquement pour pré-remplir cette adresse.',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
-                  ),
                   const SizedBox(height: 16),
                   AppTextField(
                     controller: _label,
@@ -372,6 +543,13 @@ class _AddAddressSheetState extends State<_AddAddressSheet> {
                     controller: _landmark,
                     label: 'Point de repère',
                     hint: 'Près de…',
+                  ),
+                  const SizedBox(height: 12),
+                  AppTextField(
+                    controller: _contactPhone,
+                    label: 'Téléphone du destinataire (optionnel)',
+                    hint: '+229…',
+                    keyboardType: TextInputType.phone,
                   ),
                   const SizedBox(height: 20),
                   AppButton(

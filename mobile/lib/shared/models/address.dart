@@ -5,6 +5,7 @@ class Address {
     this.zoneId,
     this.fullAddress,
     this.landmark,
+    this.contactPhone,
     this.latitude,
     this.longitude,
     this.city,
@@ -19,6 +20,7 @@ class Address {
   final String? zoneId;
   final String? fullAddress;
   final String? landmark;
+  final String? contactPhone;
   final double? latitude;
   final double? longitude;
   final String? city;
@@ -27,12 +29,15 @@ class Address {
   final String? createdAt;
   final String? updatedAt;
 
+  bool get hasCoordinates => latitude != null && longitude != null;
+
   factory Address.fromJson(Map<String, dynamic> json) => Address(
         id: _s(json['id']),
         label: json['label'] is String ? json['label'] as String : null,
         zoneId: json['zone_id'] is String ? json['zone_id'] as String : null,
         fullAddress: json['full_address'] is String ? json['full_address'] as String : null,
         landmark: json['landmark'] is String ? json['landmark'] as String : null,
+        contactPhone: json['contact_phone'] is String ? json['contact_phone'] as String : null,
         latitude: _d(json['latitude']),
         longitude: _d(json['longitude']),
         city: json['city'] is String ? json['city'] as String : null,

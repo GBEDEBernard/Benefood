@@ -311,6 +311,50 @@ class OrderDeliveryTrackingTest extends TestCase
         $this->assertSame('https://cdn.example.test/cover.jpg', $delivery['vendor']['cover_url']);
     }
 
+    public function test_delivery_freezes_pickup_and_dropoff_coordinates_and_phone(): void
+    {
+        $client = $this->actingUser('client');
+        $vendorUser = $this->actingUser('vendor');
+        $vendor = $this->activeVendor($vendorUser);
+        $vendor->update([
+            'pickup_address' => 'Entrepôt Fidjrossè, porte bleue',
+            'pickup_landmark' => 'Face au marché de nuit',
+            'pickup_latitude' => 6.3684321,
+            'pickup_longitude' => 2.3942345,
+        ]);
+        $product = $this->vendorProduct($vendor);
+        $this->deliverySetup($vendor);
+        $address = $this->clientAddress($client);
+        $address->update([
+            'landmark' => 'Près de la pharmacie',
+            'contact_phone' => '+22997000123',
+        ]);
+
+        $this->addToCart($client, $product);
+        $order = $this->placeOrder($client, $address);
+        $this->readyOrder($order, $vendorUser, $vendor, $product);
+
+        $this->assertDatabaseHas('deliveries', [
+            'order_id' => $order->id,
+            'pickup_latitude' => 6.3684321,
+            'pickup_longitude' => 2.3942345,
+            'dropoff_latitude' => 6.3702932,
+            'dropoff_longitude' => 2.3912362,
+            'dropoff_landmark' => 'Près de la pharmacie',
+            'dropoff_phone' => '+22997000123',
+        ]);
+
+        $this->actAs($client);
+        $this->getJson("/api/v1/orders/{$order->id}")
+            ->assertOk()
+            ->assertJsonPath('data.delivery.pickup.latitude', 6.3684321)
+            ->assertJsonPath('data.delivery.pickup.longitude', 2.3942345)
+            ->assertJsonPath('data.delivery.dropoff.latitude', 6.3702932)
+            ->assertJsonPath('data.delivery.dropoff.longitude', 2.3912362)
+            ->assertJsonPath('data.delivery.dropoff.landmark', 'Près de la pharmacie')
+            ->assertJsonPath('data.delivery.dropoff.phone', '+22997000123');
+    }
+
     public function test_position_is_hidden_until_driver_is_assigned(): void
     {
         $client = $this->actingUser('client');

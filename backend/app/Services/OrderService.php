@@ -400,6 +400,9 @@ class OrderService
             $this->logTransition($order, $from, OrderStatus::Ready, 'vendor', $actorId, null);
 
             if ($order->delivery()->doesntExist()) {
+                $order->loadMissing(['vendor', 'user']);
+                $address = $order->address_snapshot ?? [];
+
                 $order->delivery()->create([
                     'driver_profile_id' => null,
                     'targeted_driver_profile_id' => $target?->id,
@@ -408,6 +411,12 @@ class OrderService
                     'status' => DeliveryStatus::Assigned->value,
                     'fee' => $order->delivery_fee,
                     'partner_amount' => (int) ($order->financials?->delivery_partner_amount ?? 0),
+                    'pickup_latitude' => $order->vendor?->pickup_latitude ?? $order->vendor?->latitude,
+                    'pickup_longitude' => $order->vendor?->pickup_longitude ?? $order->vendor?->longitude,
+                    'dropoff_latitude' => $address['latitude'] ?? null,
+                    'dropoff_longitude' => $address['longitude'] ?? null,
+                    'dropoff_landmark' => $address['landmark'] ?? null,
+                    'dropoff_phone' => $address['contact_phone'] ?? $order->user?->phone,
                     'assigned_at' => now(),
                 ]);
             }
@@ -788,6 +797,14 @@ class OrderService
     {
         $addressData = $this->extractAddressData($options);
 
+        if ($addressData['latitude'] === null || $addressData['longitude'] === null) {
+            throw new DomainException(
+                'order.delivery_location_required',
+                'Positionnez votre adresse de livraison sur la carte avant de commander.',
+                422,
+            );
+        }
+
         try {
             $quote = $this->delivery->quoteForVendor($cart->vendor, $addressData);
 
@@ -840,6 +857,7 @@ class OrderService
             'label' => $address->label,
             'full_address' => $address->full_address,
             'landmark' => $address->landmark,
+            'contact_phone' => $address->contact_phone,
             'city' => $address->city,
             'area' => $address->area,
             'latitude' => $address->latitude,

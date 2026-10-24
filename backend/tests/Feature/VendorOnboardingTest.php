@@ -387,18 +387,30 @@ class VendorOnboardingTest extends TestCase
         $this->patchJson('/api/v1/vendors/me', [
             'city' => 'Cotonou',
             'address' => 'Cadjèhoun, carrefour des 3 collèges',
+            'latitude' => 6.3654321,
+            'longitude' => 2.3912345,
             'pickup_address' => 'Entrepôt Fidjrossè, porte bleue',
             'pickup_landmark' => 'Face au marché de nuit',
+            'pickup_latitude' => 6.3684321,
+            'pickup_longitude' => 2.3942345,
             'delivery_instructions' => 'Appeler en arrivant, colis fragile.',
         ])->assertOk()
+            ->assertJsonPath('data.latitude', 6.3654321)
+            ->assertJsonPath('data.longitude', 2.3912345)
             ->assertJsonPath('data.pickup_address', 'Entrepôt Fidjrossè, porte bleue')
             ->assertJsonPath('data.pickup_landmark', 'Face au marché de nuit')
+            ->assertJsonPath('data.pickup_latitude', 6.3684321)
+            ->assertJsonPath('data.pickup_longitude', 2.3942345)
             ->assertJsonPath('data.delivery_instructions', 'Appeler en arrivant, colis fragile.');
 
         $this->assertDatabaseHas('vendors', [
             'user_id' => $user->id,
+            'latitude' => 6.3654321,
+            'longitude' => 2.3912345,
             'pickup_address' => 'Entrepôt Fidjrossè, porte bleue',
             'pickup_landmark' => 'Face au marché de nuit',
+            'pickup_latitude' => 6.3684321,
+            'pickup_longitude' => 2.3942345,
             'delivery_instructions' => 'Appeler en arrivant, colis fragile.',
         ]);
     }
