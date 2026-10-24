@@ -41,7 +41,9 @@ class OrderTrackingScreen extends StatefulWidget {
 }
 
 class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
-  static const _pollInterval = Duration(seconds: 4);
+  static const _pollInterval = Duration(
+    seconds: AppConfig.locationIntervalSeconds,
+  );
 
   Order? _order;
   bool _loading = true;

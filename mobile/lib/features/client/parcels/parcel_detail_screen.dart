@@ -45,7 +45,9 @@ class ParcelDetailScreen extends StatefulWidget {
 }
 
 class _ParcelDetailScreenState extends State<ParcelDetailScreen> {
-  static const _pollInterval = Duration(seconds: 4);
+  static const _pollInterval = Duration(
+    seconds: AppConfig.locationIntervalSeconds,
+  );
 
   Parcel? _parcel;
   bool _loading = true;
@@ -168,11 +170,9 @@ class _ParcelDetailScreenState extends State<ParcelDetailScreen> {
   String _trackingLabel(Parcel parcel) {
     final position = parcel.position!;
     final target = _trackingTarget;
-    final km =
-        position.distanceKm ??
-        (target == null
-            ? null
-            : distanceKm(position.point.latLng, target.latLng));
+    final km = target == null
+        ? position.distanceKm
+        : distanceKm(position.point.latLng, target.latLng);
     final label = 'À ${formatDistance(km)}';
     final stale = (position.ageSeconds ?? 0) >= AppConfig.staleHideEtaSeconds;
     if (stale) {

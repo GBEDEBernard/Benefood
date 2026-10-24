@@ -34,7 +34,9 @@ class VendorOrderDetailScreen extends StatefulWidget {
 }
 
 class _VendorOrderDetailScreenState extends State<VendorOrderDetailScreen> {
-  static const _pollInterval = Duration(seconds: 4);
+  static const _pollInterval = Duration(
+    seconds: AppConfig.locationIntervalSeconds,
+  );
 
   Order? _order;
   bool _loading = true;
@@ -394,9 +396,7 @@ class _VendorOrderDetailScreenState extends State<VendorOrderDetailScreen> {
     GeoPoint target,
     bool hideEta,
   ) {
-    final km =
-        position.distanceKm ??
-        distanceKm(position.point.latLng, target.latLng);
+    final km = distanceKm(position.point.latLng, target.latLng);
     final label = 'À ${formatDistance(km)}';
     if (hideEta) {
       return label;
