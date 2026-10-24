@@ -30,38 +30,51 @@ class BackgroundLocationService {
 
   /// Configure le service (à faire une fois au démarrage de l'app).
   static Future<void> configure() async {
-    final service = FlutterBackgroundService();
-    await service.configure(
-      androidConfiguration: AndroidConfiguration(
-        onStart: _onStart,
-        isForegroundMode: true,
-        autoStart: false,
-        notificationChannelId: _channelId,
-        initialNotificationTitle: 'Béninfood — suivi de livraison',
-        initialNotificationContent: 'Votre position est partagée avec le client.',
-        foregroundServiceNotificationId: _notificationId,
-      ),
-      iosConfiguration: IosConfiguration(
-        autoStart: false,
-        onForeground: _onStart,
-        onBackground: _onIosBackground,
-      ),
-    );
+    try {
+      final service = FlutterBackgroundService();
+      await service.configure(
+        androidConfiguration: AndroidConfiguration(
+          onStart: _onStart,
+          isForegroundMode: true,
+          autoStart: false,
+          notificationChannelId: _channelId,
+          initialNotificationTitle: 'Béninfood — suivi de livraison',
+          initialNotificationContent: 'Votre position est partagée avec le client.',
+          foregroundServiceNotificationId: _notificationId,
+        ),
+        iosConfiguration: IosConfiguration(
+          autoStart: false,
+          onForeground: _onStart,
+          onBackground: _onIosBackground,
+        ),
+      );
+    } catch (_) {
+      // Plateforme non prise en charge (desktop, tests) : le suivi au premier
+      // plan reste assuré par l'écran de navigation.
+    }
   }
 
   /// Démarre le suivi si ce n'est pas déjà fait.
   static Future<void> start() async {
-    final service = FlutterBackgroundService();
-    if (!await service.isRunning()) {
-      service.startService();
+    try {
+      final service = FlutterBackgroundService();
+      if (!await service.isRunning()) {
+        service.startService();
+      }
+    } catch (_) {
+      // Service d'arrière-plan indisponible : on ignore silencieusement.
     }
   }
 
   /// Arrête le suivi (appelé à la fin de la mission ou à la déconnexion).
   static Future<void> stop() async {
-    final service = FlutterBackgroundService();
-    if (await service.isRunning()) {
-      service.invoke('stopService');
+    try {
+      final service = FlutterBackgroundService();
+      if (await service.isRunning()) {
+        service.invoke('stopService');
+      }
+    } catch (_) {
+      // Service d'arrière-plan indisponible : on ignore silencieusement.
     }
   }
 

@@ -54,11 +54,15 @@ class _ParcelCreateScreenState extends State<ParcelCreateScreen> {
   final _pickupArea = TextEditingController();
   final _pickupCity = TextEditingController();
   final _pickupLandmark = TextEditingController();
+  final _pickupContactName = TextEditingController();
+  final _pickupContactPhone = TextEditingController();
   final _dropoffLabel = TextEditingController();
   final _dropoffAddress = TextEditingController();
   final _dropoffArea = TextEditingController();
   final _dropoffCity = TextEditingController();
   final _dropoffLandmark = TextEditingController();
+  final _dropoffContactName = TextEditingController();
+  final _dropoffContactPhone = TextEditingController();
 
   int _step = 0;
   bool _sameAsPickup = false;
@@ -90,11 +94,15 @@ class _ParcelCreateScreenState extends State<ParcelCreateScreen> {
     _pickupArea.dispose();
     _pickupCity.dispose();
     _pickupLandmark.dispose();
+    _pickupContactName.dispose();
+    _pickupContactPhone.dispose();
     _dropoffLabel.dispose();
     _dropoffAddress.dispose();
     _dropoffArea.dispose();
     _dropoffCity.dispose();
     _dropoffLandmark.dispose();
+    _dropoffContactName.dispose();
+    _dropoffContactPhone.dispose();
     super.dispose();
   }
 
@@ -106,6 +114,10 @@ class _ParcelCreateScreenState extends State<ParcelCreateScreen> {
         if (_pickupCity.text.trim().isNotEmpty) 'city': _pickupCity.text.trim(),
         if (_pickupLatitude != null) 'latitude': _pickupLatitude,
         if (_pickupLongitude != null) 'longitude': _pickupLongitude,
+        if (_pickupContactName.text.trim().isNotEmpty)
+          'contact_name': _pickupContactName.text.trim(),
+        if (_pickupContactPhone.text.trim().isNotEmpty)
+          'contact_phone': _pickupContactPhone.text.trim(),
       };
 
   Map<String, dynamic> get _dropoff {
@@ -117,9 +129,13 @@ class _ParcelCreateScreenState extends State<ParcelCreateScreen> {
       if (_dropoffAddress.text.trim().isNotEmpty) 'address_text': _dropoffAddress.text.trim(),
       if (_dropoffLandmark.text.trim().isNotEmpty) 'landmark': _dropoffLandmark.text.trim(),
       if (_dropoffArea.text.trim().isNotEmpty) 'area': _dropoffArea.text.trim(),
-      if (_dropoffCity.text.trim().isNotEmpty) 'city': _dropoffCity.text.trim(),
-      if (_dropoffLatitude != null) 'latitude': _dropoffLatitude,
-      if (_dropoffLongitude != null) 'longitude': _dropoffLongitude,
+        if (_dropoffCity.text.trim().isNotEmpty) 'city': _dropoffCity.text.trim(),
+        if (_dropoffLatitude != null) 'latitude': _dropoffLatitude,
+        if (_dropoffLongitude != null) 'longitude': _dropoffLongitude,
+        if (_dropoffContactName.text.trim().isNotEmpty)
+          'contact_name': _dropoffContactName.text.trim(),
+        if (_dropoffContactPhone.text.trim().isNotEmpty)
+          'contact_phone': _dropoffContactPhone.text.trim(),
     };
   }
 
@@ -499,6 +515,21 @@ class _ParcelCreateScreenState extends State<ParcelCreateScreen> {
             ),
             const SizedBox(height: AppDimens.md),
             AppTextField(
+              controller: _pickupContactName,
+              label: 'Contact sur place',
+              hint: 'Nom de la personne à joindre',
+              icon: Icons.person_outline,
+            ),
+            const SizedBox(height: AppDimens.md),
+            AppTextField(
+              controller: _pickupContactPhone,
+              label: 'Téléphone du contact',
+              hint: '+229…',
+              icon: Icons.phone_outlined,
+              keyboardType: TextInputType.phone,
+            ),
+            const SizedBox(height: AppDimens.md),
+            AppTextField(
               controller: _pickupLandmark,
               label: 'Point de repère',
               hint: 'Ex : en face de la pharmacie…',
@@ -557,6 +588,21 @@ class _ParcelCreateScreenState extends State<ParcelCreateScreen> {
                 marketplace: widget.marketplace,
                 cityController: _dropoffCity,
                 areaController: _dropoffArea,
+              ),
+              const SizedBox(height: AppDimens.md),
+              AppTextField(
+                controller: _dropoffContactName,
+                label: 'Nom du destinataire',
+                hint: 'Personne à contacter à l\'arrivée',
+                icon: Icons.person_outline,
+              ),
+              const SizedBox(height: AppDimens.md),
+              AppTextField(
+                controller: _dropoffContactPhone,
+                label: 'Téléphone du destinataire',
+                hint: '+229…',
+                icon: Icons.phone_outlined,
+                keyboardType: TextInputType.phone,
               ),
               const SizedBox(height: AppDimens.md),
               AppTextField(

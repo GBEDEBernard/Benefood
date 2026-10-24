@@ -5,6 +5,7 @@ import '../../shared/models/cart.dart';
 import '../../shared/models/checkout.dart';
 import '../../shared/models/complaint.dart';
 import '../../shared/models/delivery.dart';
+import '../../shared/models/driver_mission.dart';
 import '../../shared/models/favorite_driver.dart';
 import '../../shared/models/order.dart';
 import '../../shared/models/geo_point.dart';
@@ -320,6 +321,25 @@ class MarketplaceApi {
     return _dataList(response).map(Delivery.fromJson).toList();
   }
 
+  /// Toutes les missions du livreur, commandes et colis confondus.
+  Future<List<DriverMission>> driverMissions() async {
+    final results = await Future.wait<dynamic>([
+      myDeliveries(),
+      myDriverParcels(),
+    ]);
+    final deliveries = results[0] as List<Delivery>;
+    final parcels = results[1] as List<Parcel>;
+
+    final missions = <DriverMission>[
+      ...deliveries.map(DriverMission.fromDelivery),
+      ...parcels.map(DriverMission.fromParcel),
+    ];
+    missions.sort(
+      (a, b) => (b.createdAt ?? '').compareTo(a.createdAt ?? ''),
+    );
+    return missions;
+  }
+
   Future<List<Delivery>> availableOffers() async {
     final response = await _api.get('/driver/me/deliveries/offers');
     return _dataList(response).map(Delivery.fromJson).toList();
@@ -379,6 +399,11 @@ class MarketplaceApi {
       '/driver/me/favorite-clients/$favoriteId/decline',
     );
     return FavoriteDriver.fromJson(_dataObject(response) ?? {});
+  }
+
+  Future<Delivery> startDeliveryPickup(String id) async {
+    final response = await _api.post('/driver/me/deliveries/$id/start-pickup');
+    return Delivery.fromJson(_dataObject(response) ?? {});
   }
 
   Future<Delivery> markPickedUp(String id) async {
@@ -1190,6 +1215,11 @@ class MarketplaceApi {
 
   Future<Parcel> acceptParcelDelivery(String id) async {
     final response = await _api.post('/driver/me/parcels/$id/accept');
+    return Parcel.fromJson(_dataObject(response) ?? {});
+  }
+
+  Future<Parcel> startParcelPickup(String id) async {
+    final response = await _api.post('/driver/me/parcels/$id/start-pickup');
     return Parcel.fromJson(_dataObject(response) ?? {});
   }
 

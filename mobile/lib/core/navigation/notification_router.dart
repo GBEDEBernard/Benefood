@@ -5,6 +5,7 @@ import '../../features/client/orders/order_tracking_screen.dart';
 import '../../features/client/parcels/parcel_detail_screen.dart';
 import '../../features/driver/missions/mission_detail_screen.dart';
 import '../../features/vendor/orders/vendor_order_detail_screen.dart';
+import '../../shared/models/driver_mission.dart';
 import '../../shared/models/user.dart';
 import '../data/marketplace_api.dart';
 
@@ -66,9 +67,9 @@ Future<bool> openNotificationTarget(
     return go != null;
   }
 
-  // Livreur : la cible est la course (mission) portée par la notification.
-  // Tant qu'aucun identifiant de course n'est fourni, la notification reste
-  // lisible mais n'a pas de destination dédiée.
+  // Livreur : la cible est la mission (course ou colis) portée par la
+  // notification. Tant qu'aucun identifiant n'est fourni, la notification
+  // reste lisible mais n'a pas de destination dédiée.
   if (audience == NotificationAudience.driver) {
     final deliveryId =
         notificationString(data, 'delivery_id') ??
@@ -78,7 +79,22 @@ Future<bool> openNotificationTarget(
         MaterialPageRoute<void>(
           builder: (_) => MissionDetailScreen(
             marketplace: marketplace,
-            deliveryId: deliveryId,
+            missionId: deliveryId,
+            kind: DriverMissionKind.order,
+          ),
+        ),
+      );
+      return true;
+    }
+
+    final driverParcelId = notificationString(data, 'parcel_id');
+    if (driverParcelId != null) {
+      await nav.push(
+        MaterialPageRoute<void>(
+          builder: (_) => MissionDetailScreen(
+            marketplace: marketplace,
+            missionId: driverParcelId,
+            kind: DriverMissionKind.parcel,
           ),
         ),
       );
@@ -87,7 +103,7 @@ Future<bool> openNotificationTarget(
   }
 
   // Colis : le suivi s'ouvre dans l'espace de lecture (client ou vendeur
-  // expéditeur). Le livreur garde ses courses dans son onglet Colis.
+  // expéditeur).
   final parcelId = notificationString(data, 'parcel_id');
   if (parcelId != null) {
     await nav.push(

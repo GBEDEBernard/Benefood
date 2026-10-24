@@ -67,6 +67,18 @@ MockClient _mockBackend() {
         headers: json,
       );
     }
+    if (path.endsWith('/driver/me/parcels')) {
+      return http.Response(jsonEncode({'data': []}), 200, headers: json);
+    }
+    if (path.endsWith('/driver/me/wallet')) {
+      return http.Response(
+        jsonEncode({
+          'data': {'available_balance': 700, 'pending_balance': 0},
+        }),
+        200,
+        headers: json,
+      );
+    }
     return http.Response(
       jsonEncode({'message': 'Not found'}),
       404,

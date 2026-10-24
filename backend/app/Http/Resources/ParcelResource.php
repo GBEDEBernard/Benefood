@@ -19,6 +19,11 @@ class ParcelResource extends JsonResource
             'currency' => $this->currency,
             'pickup' => $this->pickup_snapshot,
             'dropoff' => $this->dropoff_snapshot,
+            'sender' => $this->whenLoaded('user', fn () => $this->user === null ? null : [
+                'id' => $this->user->id,
+                'name' => $this->user->name,
+                'phone' => $this->user->phone,
+            ]),
             'distance_km' => $this->distance_km !== null ? (float) $this->distance_km : null,
             'delivery_fee' => (int) $this->delivery_fee,
             'pricing_snapshot' => $this->pricing_snapshot,

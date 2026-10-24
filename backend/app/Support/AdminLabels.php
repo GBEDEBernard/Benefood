@@ -192,7 +192,7 @@ class AdminLabels
         return match ($status) {
             ParcelStatus::Delivered->value => ['label' => 'Livré', 'bg' => '#E8F5E9', 'fg' => '#2E7D32'],
             ParcelStatus::Paid->value => ['label' => 'Payé — à assigner', 'bg' => '#FFF3E0', 'fg' => '#E65100'],
-            ParcelStatus::Assigned->value, ParcelStatus::PickedUp->value, ParcelStatus::InDelivery->value => ['label' => 'En cours', 'bg' => '#E1F5FE', 'fg' => '#0277BD'],
+            ParcelStatus::Assigned->value, ParcelStatus::EnRoutePickup->value, ParcelStatus::PickedUp->value, ParcelStatus::InDelivery->value => ['label' => 'En cours', 'bg' => '#E1F5FE', 'fg' => '#0277BD'],
             ParcelStatus::AwaitingPayment->value => ['label' => 'En attente de paiement', 'bg' => '#FFF3E0', 'fg' => '#E65100'],
             ParcelStatus::Cancelled->value => ['label' => 'Annulé', 'bg' => '#FFEBEE', 'fg' => '#C62828'],
             ParcelStatus::Refunded->value => ['label' => 'Remboursé', 'bg' => '#F3E5F5', 'fg' => '#6A1B9A'],

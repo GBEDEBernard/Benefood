@@ -529,6 +529,7 @@ class _TimelineStep extends StatelessWidget {
     'awaiting_payment' => 'En attente de paiement',
     'paid' => 'Colis payé',
     'assigned' => 'Livreur affecté',
+    'en_route_pickup' => 'Livreur en route vers la collecte',
     'picked_up' => 'Colis récupéré',
     'in_delivery' => 'En livraison',
     'delivered' => 'Livré',

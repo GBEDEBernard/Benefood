@@ -238,6 +238,79 @@ class OrderDeliveryTrackingTest extends TestCase
             ->assertJsonPath('data.delivery.position', null);
     }
 
+    public function test_driver_starts_pickup_before_confirming_collection(): void
+    {
+        $client = $this->actingUser('client');
+        $vendorUser = $this->actingUser('vendor');
+        $vendor = $this->activeVendor($vendorUser);
+        $product = $this->vendorProduct($vendor);
+        $this->deliverySetup($vendor);
+        $address = $this->clientAddress($client);
+        $driver = $this->activeDriver($this->actingUser('driver-independent'));
+
+        $this->addToCart($client, $product);
+        $order = $this->placeOrder($client, $address);
+        $this->readyOrder($order, $vendorUser, $vendor, $product);
+
+        $this->actAs($driver->user);
+        $offers = $this->getJson('/api/v1/driver/me/deliveries/offers')->assertOk()->json('data');
+        $deliveryId = collect($offers)->firstWhere('order.id', $order->id)['id'];
+
+        $this->postJson("/api/v1/driver/me/deliveries/{$deliveryId}/accept")->assertOk();
+
+        $this->postJson("/api/v1/driver/me/deliveries/{$deliveryId}/start-pickup")
+            ->assertOk()
+            ->assertJsonPath('data.status', 'en_route_pickup');
+
+        // La commande reste affectée tant que la collecte n'est pas confirmée.
+        $this->assertSame('assigned', $order->fresh()->status->value);
+
+        $this->postJson("/api/v1/driver/me/deliveries/{$deliveryId}/pickup")
+            ->assertOk()
+            ->assertJsonPath('data.status', 'picked_up');
+
+        $this->postJson("/api/v1/driver/me/deliveries/{$deliveryId}/start")
+            ->assertOk()
+            ->assertJsonPath('data.status', 'in_delivery');
+
+        $this->postJson("/api/v1/driver/me/deliveries/{$deliveryId}/start-pickup")
+            ->assertStatus(409)
+            ->assertJsonPath('errors.0.code', 'delivery.invalid_transition');
+    }
+
+    public function test_delivery_payload_exposes_vendor_media_and_type(): void
+    {
+        $client = $this->actingUser('client');
+        $vendorUser = $this->actingUser('vendor');
+        $vendor = $this->activeVendor($vendorUser);
+        $vendor->update([
+            'type' => 'restaurant',
+            'logo_url' => 'vendors/logo.png',
+            'cover_url' => 'https://cdn.example.test/cover.jpg',
+        ]);
+        $product = $this->vendorProduct($vendor);
+        $this->deliverySetup($vendor);
+        $address = $this->clientAddress($client);
+        $driver = $this->activeDriver($this->actingUser('driver-independent'));
+
+        $this->addToCart($client, $product);
+        $order = $this->placeOrder($client, $address);
+        $this->readyOrder($order, $vendorUser, $vendor, $product);
+
+        $this->actAs($driver->user);
+        $offers = $this->getJson('/api/v1/driver/me/deliveries/offers')->assertOk()->json('data');
+        $deliveryId = collect($offers)->firstWhere('order.id', $order->id)['id'];
+
+        $this->postJson("/api/v1/driver/me/deliveries/{$deliveryId}/accept")->assertOk();
+
+        $deliveries = $this->getJson('/api/v1/driver/me/deliveries')->assertOk()->json('data');
+        $delivery = collect($deliveries)->firstWhere('id', $deliveryId);
+
+        $this->assertSame('restaurant', $delivery['vendor']['type']);
+        $this->assertStringContainsString('vendors/logo.png', $delivery['vendor']['logo_url']);
+        $this->assertSame('https://cdn.example.test/cover.jpg', $delivery['vendor']['cover_url']);
+    }
+
     public function test_position_is_hidden_until_driver_is_assigned(): void
     {
         $client = $this->actingUser('client');

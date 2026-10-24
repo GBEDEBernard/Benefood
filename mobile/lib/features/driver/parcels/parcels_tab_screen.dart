@@ -75,6 +75,7 @@ class _DriverParcelsScreenState extends State<DriverParcelsScreen> {
   Future<void> _advance(Parcel parcel) async {
     switch (parcel.status) {
       case 'assigned':
+      case 'en_route_pickup':
         await _runAction(parcel, widget.marketplace.pickupParcelDelivery);
       case 'picked_up':
         await _runAction(parcel, widget.marketplace.startParcelDelivery);
@@ -337,6 +338,7 @@ class _RunCard extends StatelessWidget {
     final palette = BadgePalette.parcel(parcel.status);
     final actionLabel = switch (parcel.status) {
       'assigned' => 'J\'ai récupéré le colis',
+      'en_route_pickup' => 'J\'ai récupéré le colis',
       'picked_up' => 'Commencer la livraison',
       'in_delivery' => 'Marquer comme livré',
       _ => '',

@@ -69,6 +69,9 @@ class DeliveryResource extends JsonResource
             'vendor' => $this->whenLoaded('vendor', fn () => [
                 'id' => $this->vendor->id,
                 'business_name' => $this->vendor->business_name,
+                'type' => $this->vendor->type?->value,
+                'logo_url' => $this->mediaUrl($this->vendor->logo_url),
+                'cover_url' => $this->mediaUrl($this->vendor->cover_url),
                 'address' => $this->vendor->address,
                 'city' => $this->vendor->city,
                 'phone' => $this->vendor->phone,
@@ -86,5 +89,18 @@ class DeliveryResource extends JsonResource
             'picked_up_at' => $this->picked_up_at?->toIso8601String(),
             'delivered_at' => $this->delivered_at?->toIso8601String(),
         ];
+    }
+
+    private function mediaUrl(?string $path): ?string
+    {
+        if ($path === null || $path === '') {
+            return null;
+        }
+
+        if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
+            return $path;
+        }
+
+        return Storage::disk('public')->url($path);
     }
 }

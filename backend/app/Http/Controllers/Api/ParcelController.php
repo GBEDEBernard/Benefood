@@ -125,6 +125,13 @@ class ParcelController extends Controller
         return Api::ok(new ParcelResource($parcel));
     }
 
+    public function startPickup(Request $request, Parcel $parcel): JsonResponse
+    {
+        $this->assertOwned($request, $parcel);
+
+        return Api::ok(new ParcelResource($this->parcels->markEnRoutePickup($parcel, $this->driverProfile($request)->user_id)));
+    }
+
     public function pickup(Request $request, Parcel $parcel): JsonResponse
     {
         $this->assertOwned($request, $parcel);
@@ -170,6 +177,8 @@ class ParcelController extends Controller
             'pickup.city' => ['sometimes', 'nullable', 'string', 'max:120'],
             'pickup.latitude' => ['sometimes', 'nullable', 'numeric', 'between:-90,90'],
             'pickup.longitude' => ['sometimes', 'nullable', 'numeric', 'between:-180,180'],
+            'pickup.contact_name' => ['sometimes', 'nullable', 'string', 'max:120'],
+            'pickup.contact_phone' => ['sometimes', 'nullable', 'string', 'max:30'],
             'dropoff' => ['required', 'array'],
             'dropoff.label' => ['sometimes', 'nullable', 'string', 'max:100'],
             'dropoff.address_text' => ['sometimes', 'nullable', 'string', 'max:255'],
@@ -178,6 +187,8 @@ class ParcelController extends Controller
             'dropoff.city' => ['sometimes', 'nullable', 'string', 'max:120'],
             'dropoff.latitude' => ['sometimes', 'nullable', 'numeric', 'between:-90,90'],
             'dropoff.longitude' => ['sometimes', 'nullable', 'numeric', 'between:-180,180'],
+            'dropoff.contact_name' => ['sometimes', 'nullable', 'string', 'max:120'],
+            'dropoff.contact_phone' => ['sometimes', 'nullable', 'string', 'max:30'],
             'description' => ['sometimes', 'nullable', 'string', 'max:255'],
         ]);
     }

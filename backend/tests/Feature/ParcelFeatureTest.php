@@ -126,6 +126,73 @@ class ParcelFeatureTest extends TestCase
             ->assertJsonPath('data.dropoff.landmark', 'Derrière le marché');
     }
 
+    public function test_parcel_snapshots_keep_contacts_and_driver_sees_sender(): void
+    {
+        $client = $this->client();
+
+        $pickup = array_merge($this->pickup(), [
+            'contact_name' => 'Awa Expéditrice',
+            'contact_phone' => '+22997000001',
+        ]);
+        $dropoff = array_merge($this->dropoff(), [
+            'contact_name' => 'Koffi Destinataire',
+            'contact_phone' => '+22997000002',
+        ]);
+
+        $this->postJson('/api/v1/parcels', [
+            'pickup' => $pickup,
+            'dropoff' => $dropoff,
+        ])->assertCreated()
+            ->assertJsonPath('data.pickup.contact_name', 'Awa Expéditrice')
+            ->assertJsonPath('data.pickup.contact_phone', '+22997000001')
+            ->assertJsonPath('data.dropoff.contact_name', 'Koffi Destinataire')
+            ->assertJsonPath('data.dropoff.contact_phone', '+22997000002');
+
+        $parcel = Parcel::firstOrFail();
+        app(ParcelService::class)->confirmPayment($parcel, (int) $parcel->delivery_fee);
+
+        $driver = $this->driver();
+        Sanctum::actingAs($driver->user);
+
+        $offers = $this->getJson('/api/v1/driver/me/parcels/offers')->assertOk()->json('data');
+        $offer = collect($offers)->firstWhere('id', $parcel->id);
+
+        $this->assertSame($client->id, $offer['sender']['id']);
+        $this->assertSame($client->name, $offer['sender']['name']);
+        $this->assertSame($client->phone, $offer['sender']['phone']);
+    }
+
+    public function test_driver_starts_pickup_with_parcel_status_history(): void
+    {
+        $client = $this->client();
+        $parcels = app(ParcelService::class);
+        $parcel = $parcels->create($client, $this->pickup(), $this->dropoff());
+        $parcels->confirmPayment($parcel->fresh(), (int) $parcel->delivery_fee);
+
+        $driver = $this->driver();
+        Sanctum::actingAs($driver->user);
+        $this->postJson("/api/v1/driver/me/parcels/{$parcel->id}/accept")->assertOk();
+
+        $this->postJson("/api/v1/driver/me/parcels/{$parcel->id}/start-pickup")
+            ->assertOk()
+            ->assertJsonPath('data.status', 'en_route_pickup');
+
+        $this->assertDatabaseHas('parcel_status_histories', [
+            'parcel_id' => $parcel->id,
+            'from_status' => 'assigned',
+            'to_status' => 'en_route_pickup',
+            'actor_type' => 'driver',
+        ]);
+
+        $this->postJson("/api/v1/driver/me/parcels/{$parcel->id}/pickup")
+            ->assertOk()
+            ->assertJsonPath('data.status', 'picked_up');
+
+        $this->postJson("/api/v1/driver/me/parcels/{$parcel->id}/start-pickup")
+            ->assertStatus(409)
+            ->assertJsonPath('errors.0.code', 'parcel.invalid_transition');
+    }
+
     public function test_webhook_confirms_parcel_payment(): void
     {
         $client = $this->client();
@@ -254,6 +321,7 @@ class ParcelFeatureTest extends TestCase
         Sanctum::actingAs($driver->user);
         $this->postJson("/api/v1/driver/me/parcels/{$parcel->id}/accept")->assertOk();
 
+        $this->postJson("/api/v1/driver/me/parcels/{$parcel->id}/start-pickup")->assertOk()->assertJsonPath('data.status', 'en_route_pickup');
         $this->postJson("/api/v1/driver/me/parcels/{$parcel->id}/pickup")->assertOk()->assertJsonPath('data.status', 'picked_up');
         $this->postJson("/api/v1/driver/me/parcels/{$parcel->id}/start")->assertOk()->assertJsonPath('data.status', 'in_delivery');
         $this->postJson("/api/v1/driver/me/parcels/{$parcel->id}/deliver", ['proof_code' => (string) $parcel->fresh()->confirmation_code])->assertOk()->assertJsonPath('data.status', 'delivered');

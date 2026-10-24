@@ -180,7 +180,7 @@ class OrderResource extends JsonResource
 
         $active = in_array(
             $delivery->status,
-            [DeliveryStatus::Assigned, DeliveryStatus::PickedUp, DeliveryStatus::InDelivery],
+            [DeliveryStatus::Assigned, DeliveryStatus::EnRoutePickup, DeliveryStatus::PickedUp, DeliveryStatus::InDelivery],
             true,
         );
 

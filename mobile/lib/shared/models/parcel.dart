@@ -23,6 +23,7 @@ class Parcel {
     this.platformAmount = 0,
     this.proofCode,
     this.confirmationCode,
+    this.sender,
     this.driver,
     this.payment,
     this.statusHistory = const [],
@@ -54,6 +55,9 @@ class Parcel {
 
   /// Code remis à l'expéditeur/destinataire, à saisir par le livreur.
   final String? confirmationCode;
+
+  /// Expéditeur du colis (utile au livreur pour joindre le point de collecte).
+  final ParcelSender? sender;
   final ParcelDriver? driver;
   final ParcelPayment? payment;
   final List<ParcelStatusStep> statusHistory;
@@ -78,7 +82,9 @@ class Parcel {
   bool get isAvailable => status == 'paid';
 
   /// Actions livreur.
-  bool get canPickup => status == 'assigned';
+  bool get isEnRoutePickup => status == 'en_route_pickup';
+  bool get canStartPickup => status == 'assigned';
+  bool get canPickup => status == 'assigned' || status == 'en_route_pickup';
   bool get canStart => status == 'picked_up';
   bool get canDeliver => status == 'in_delivery';
 
@@ -94,6 +100,7 @@ class Parcel {
   factory Parcel.fromJson(Map<String, dynamic> json) {
     final rawPickup = json['pickup'];
     final rawDropoff = json['dropoff'];
+    final rawSender = json['sender'];
     final rawDriver = json['driver'];
     final rawPayment = json['payment'];
     final rawHistory = json['status_history'];
@@ -125,6 +132,9 @@ class Parcel {
           : null,
       confirmationCode: json['confirmation_code'] is String
           ? json['confirmation_code'] as String
+          : null,
+      sender: rawSender is Map<String, dynamic>
+          ? ParcelSender.fromJson(rawSender)
           : null,
       driver: rawDriver is Map<String, dynamic>
           ? ParcelDriver.fromJson(rawDriver)
@@ -161,6 +171,8 @@ class ParcelAddress {
     this.city,
     this.latitude,
     this.longitude,
+    this.contactName,
+    this.contactPhone,
   });
 
   final String? label;
@@ -170,6 +182,8 @@ class ParcelAddress {
   final String? city;
   final double? latitude;
   final double? longitude;
+  final String? contactName;
+  final String? contactPhone;
 
   bool get hasCoordinates => latitude != null && longitude != null;
   GeoPoint? get point =>
@@ -198,17 +212,43 @@ class ParcelAddress {
     city: json['city'] is String ? json['city'] as String : null,
     latitude: _d(json['latitude']),
     longitude: _d(json['longitude']),
+    contactName: json['contact_name'] is String
+        ? json['contact_name'] as String
+        : null,
+    contactPhone: json['contact_phone'] is String
+        ? json['contact_phone'] as String
+        : null,
   );
 
   Map<String, dynamic> toJson() => {
     if (label != null && label!.isNotEmpty) 'label': label,
     if (addressText != null && addressText!.isNotEmpty)
       'address_text': addressText,
+    if (landmark != null && landmark!.isNotEmpty) 'landmark': landmark,
     if (area != null && area!.isNotEmpty) 'area': area,
     if (city != null && city!.isNotEmpty) 'city': city,
     if (latitude != null) 'latitude': latitude,
     if (longitude != null) 'longitude': longitude,
+    if (contactName != null && contactName!.isNotEmpty)
+      'contact_name': contactName,
+    if (contactPhone != null && contactPhone!.isNotEmpty)
+      'contact_phone': contactPhone,
   };
+}
+
+/// Expéditeur d'un colis.
+class ParcelSender {
+  const ParcelSender({required this.id, this.name, this.phone});
+
+  final String id;
+  final String? name;
+  final String? phone;
+
+  factory ParcelSender.fromJson(Map<String, dynamic> json) => ParcelSender(
+    id: _s(json['id']),
+    name: json['name'] is String ? json['name'] as String : null,
+    phone: json['phone'] is String ? json['phone'] as String : null,
+  );
 }
 
 /// Livreur assigné au colis (tel que renvoyé par le API).

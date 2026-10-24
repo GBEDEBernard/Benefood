@@ -159,6 +159,7 @@ Route::middleware('auth:sanctum')->group(function (): void {
             Route::get('/offers', [DeliveryController::class, 'availableOffers'])->name('api.v1.driver.me.deliveries.offers');
             Route::post('/{delivery}/accept', [DeliveryController::class, 'accept'])->name('api.v1.driver.me.deliveries.accept');
             Route::post('/{delivery}/decline', [DeliveryController::class, 'decline'])->name('api.v1.driver.me.deliveries.decline');
+            Route::post('/{delivery}/start-pickup', [DeliveryController::class, 'startPickup'])->name('api.v1.driver.me.deliveries.start-pickup');
             Route::post('/{delivery}/pickup', [DeliveryController::class, 'pickup'])->name('api.v1.driver.me.deliveries.pickup');
             Route::post('/{delivery}/start', [DeliveryController::class, 'start'])->name('api.v1.driver.me.deliveries.start');
             Route::post('/{delivery}/deliver', [DeliveryController::class, 'deliver'])->name('api.v1.driver.me.deliveries.deliver');
@@ -169,6 +170,7 @@ Route::middleware('auth:sanctum')->group(function (): void {
             Route::get('/', [ParcelController::class, 'driverIndex'])->name('api.v1.driver.me.parcels.index');
             Route::get('/offers', [ParcelController::class, 'offers'])->name('api.v1.driver.me.parcels.offers');
             Route::post('/{parcel}/accept', [ParcelController::class, 'accept'])->name('api.v1.driver.me.parcels.accept');
+            Route::post('/{parcel}/start-pickup', [ParcelController::class, 'startPickup'])->name('api.v1.driver.me.parcels.start-pickup');
             Route::post('/{parcel}/pickup', [ParcelController::class, 'pickup'])->name('api.v1.driver.me.parcels.pickup');
             Route::post('/{parcel}/start', [ParcelController::class, 'start'])->name('api.v1.driver.me.parcels.start');
             Route::post('/{parcel}/deliver', [ParcelController::class, 'deliver'])->name('api.v1.driver.me.parcels.deliver');

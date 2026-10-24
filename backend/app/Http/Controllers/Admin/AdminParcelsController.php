@@ -57,6 +57,7 @@ class AdminParcelsController extends Controller
                 'paid' => Parcel::where('status', ParcelStatus::Paid->value)->count(),
                 'in_progress' => Parcel::whereIn('status', [
                     ParcelStatus::Assigned->value,
+                    ParcelStatus::EnRoutePickup->value,
                     ParcelStatus::PickedUp->value,
                     ParcelStatus::InDelivery->value,
                 ])->count(),

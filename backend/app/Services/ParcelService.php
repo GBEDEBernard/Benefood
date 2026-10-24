@@ -220,6 +220,11 @@ class ParcelService
         return $parcel->fresh(['driverProfile.user', 'statusHistory']);
     }
 
+    public function markEnRoutePickup(Parcel $parcel, ?string $actorId = null): Parcel
+    {
+        return $this->transition($parcel, ParcelStatus::EnRoutePickup, 'driver', $actorId);
+    }
+
     public function markPickedUp(Parcel $parcel, ?string $actorId = null): Parcel
     {
         return $this->transition($parcel, ParcelStatus::PickedUp, 'driver', $actorId, ['picked_up_at' => now()]);
@@ -305,7 +310,12 @@ class ParcelService
     /** Annule un colis (rembourse si payé) et contre-passe les séquestres. */
     public function cancel(Parcel $parcel, string $actorType, ?string $actorId, string $reason): Parcel
     {
-        $allowed = [ParcelStatus::AwaitingPayment, ParcelStatus::Paid, ParcelStatus::Assigned];
+        $allowed = [
+            ParcelStatus::AwaitingPayment,
+            ParcelStatus::Paid,
+            ParcelStatus::Assigned,
+            ParcelStatus::EnRoutePickup,
+        ];
 
         if (! in_array($parcel->status, $allowed, true)) {
             throw new DomainException('parcel.cannot_cancel', 'Ce colis ne peut pas être annulé à ce stade.', 409);
@@ -408,7 +418,8 @@ class ParcelService
     {
         $allowed = [
             ParcelStatus::Paid->value => [ParcelStatus::Assigned->value, ParcelStatus::Cancelled->value],
-            ParcelStatus::Assigned->value => [ParcelStatus::PickedUp->value, ParcelStatus::Cancelled->value],
+            ParcelStatus::Assigned->value => [ParcelStatus::EnRoutePickup->value, ParcelStatus::PickedUp->value, ParcelStatus::Cancelled->value],
+            ParcelStatus::EnRoutePickup->value => [ParcelStatus::PickedUp->value, ParcelStatus::Cancelled->value],
             ParcelStatus::PickedUp->value => [ParcelStatus::InDelivery->value, ParcelStatus::Cancelled->value],
             ParcelStatus::InDelivery->value => [ParcelStatus::Delivered->value, ParcelStatus::Cancelled->value],
         ];

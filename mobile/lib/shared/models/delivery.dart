@@ -101,6 +101,9 @@ class DeliveryVendor {
   const DeliveryVendor({
     required this.id,
     this.businessName,
+    this.type,
+    this.logoUrl,
+    this.coverUrl,
     this.address,
     this.city,
     this.phone,
@@ -110,6 +113,9 @@ class DeliveryVendor {
 
   final String id;
   final String? businessName;
+  final String? type;
+  final String? logoUrl;
+  final String? coverUrl;
   final String? address;
   final String? city;
   final String? phone;
@@ -119,6 +125,9 @@ class DeliveryVendor {
   factory DeliveryVendor.fromJson(Map<String, dynamic> json) => DeliveryVendor(
         id: _s(json['id']),
         businessName: json['business_name'] is String ? json['business_name'] as String : null,
+        type: json['type'] is String ? json['type'] as String : null,
+        logoUrl: json['logo_url'] is String ? json['logo_url'] as String : null,
+        coverUrl: json['cover_url'] is String ? json['cover_url'] as String : null,
         address: json['address'] is String ? json['address'] as String : null,
         city: json['city'] is String ? json['city'] as String : null,
         phone: json['phone'] is String ? json['phone'] as String : null,
@@ -162,7 +171,9 @@ class Delivery {
 
   bool get isAvailable => status == 'available' || status == 'proposed';
   bool get isAssigned => status == 'assigned';
-  bool get canPickup => status == 'assigned';
+  bool get isEnRoutePickup => status == 'en_route_pickup';
+  bool get canStartPickup => status == 'assigned';
+  bool get canPickup => status == 'assigned' || status == 'en_route_pickup';
   bool get canStart => status == 'picked_up';
   bool get canDeliver => status == 'in_delivery';
 

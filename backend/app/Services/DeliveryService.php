@@ -175,18 +175,57 @@ class DeliveryService
     }
 
     /**
-     * Confirme le ramassage (assigned → picked_up).
+     * Le livreur démarre le trajet vers le point de collecte
+     * (assigned → en_route_pickup). La commande reste au statut « assigned »
+     * jusqu'à la confirmation effective du ramassage.
+     */
+    public function markEnRoutePickup(Delivery $delivery, DriverProfile $driver): Delivery
+    {
+        $this->assertDeliveryOwned($delivery, $driver);
+
+        if ($delivery->status !== DeliveryStatus::Assigned) {
+            throw new DomainException(
+                'delivery.invalid_transition',
+                'Cette course ne peut plus être démarrée vers la collecte.',
+                409,
+            );
+        }
+
+        $delivery->update(['status' => DeliveryStatus::EnRoutePickup->value]);
+        $delivery->statusHistory()->create([
+            'from_status' => DeliveryStatus::Assigned->value,
+            'to_status' => DeliveryStatus::EnRoutePickup->value,
+            'actor' => 'driver',
+            'reason' => 'Trajet vers le point de collecte démarré',
+            'created_at' => now(),
+        ]);
+
+        return $delivery->fresh(['order.vendor', 'order.user', 'order.financials', 'vendor', 'driverProfile']);
+    }
+
+    /**
+     * Confirme le ramassage (assigned ou en_route_pickup → picked_up).
      */
     public function markPickedUp(Delivery $delivery, DriverProfile $driver): Delivery
     {
         $this->assertDeliveryOwned($delivery, $driver);
+
+        if (! in_array($delivery->status, [DeliveryStatus::Assigned, DeliveryStatus::EnRoutePickup], true)) {
+            throw new DomainException(
+                'delivery.invalid_transition',
+                'Cette course ne peut plus être marquée comme récupérée.',
+                409,
+            );
+        }
+
+        $from = $delivery->status;
 
         $delivery->order->load('delivery');
         $this->orders->markPickedUp($delivery->order, $driver->user_id);
 
         $delivery->refresh();
         $delivery->statusHistory()->create([
-            'from_status' => DeliveryStatus::Assigned->value,
+            'from_status' => $from->value,
             'to_status' => DeliveryStatus::PickedUp->value,
             'actor' => 'driver',
             'reason' => null,

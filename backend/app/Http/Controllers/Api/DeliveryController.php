@@ -98,6 +98,13 @@ class DeliveryController extends Controller
         return Api::ok(new DeliveryResource($delivery));
     }
 
+    public function startPickup(Request $request, Delivery $delivery): JsonResponse
+    {
+        $delivery = $this->deliveryService->markEnRoutePickup($delivery, $this->driverProfile($request));
+
+        return Api::ok(new DeliveryResource($delivery));
+    }
+
     public function pickup(Request $request, Delivery $delivery): JsonResponse
     {
         $delivery = $this->deliveryService->markPickedUp($delivery, $this->driverProfile($request));

@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/data/marketplace_api.dart';
-import '../../../core/navigation/notification_router.dart';
 import '../../../core/errors/api_exception.dart';
+import '../../../core/navigation/notification_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_dimens.dart';
 import '../../../core/theme/app_theme.dart';
-import '../../../shared/models/delivery.dart';
+import '../../../core/utils/formatters.dart';
+import '../../../core/utils/geo.dart';
+import '../../../shared/models/driver_mission.dart';
+import '../../../shared/models/geo_point.dart';
 import '../../../shared/widgets/amount_widgets.dart';
 import '../../../shared/widgets/app_network_image.dart';
 import '../../../shared/widgets/beninfood_header.dart';
@@ -15,10 +18,9 @@ import '../../../shared/widgets/home_header.dart';
 import '../../../shared/widgets/section_header.dart';
 import '../../../shared/widgets/status_badge.dart';
 import '../../../shared/widgets/state_widgets.dart';
-import '../../../core/utils/formatters.dart';
 import 'mission_detail_screen.dart';
 
-/// Missions livreur (J161) : disponibilité et livraisons en cours.
+/// Missions livreur : commandes et colis réunis dans un même espace.
 class DriverHomeScreen extends StatefulWidget {
   const DriverHomeScreen({
     super.key,
@@ -31,8 +33,6 @@ class DriverHomeScreen extends StatefulWidget {
   final MarketplaceApi marketplace;
   final bool visible;
   final String? userName;
-
-  /// Ouvre le tiroir latéral (menu hamburger) — géré par le shell livreur.
   final VoidCallback? onOpenMenu;
 
   @override
@@ -41,14 +41,13 @@ class DriverHomeScreen extends StatefulWidget {
 
 class DriverHomeScreenState extends State<DriverHomeScreen>
     with SingleTickerProviderStateMixin {
-  List<Delivery> _deliveries = [];
+  List<DriverMission> _missions = [];
+  Map<String, dynamic> _wallet = const {};
   bool _available = false;
   bool _loading = true;
   bool _toggling = false;
   String? _error;
   late final AnimationController _pulseController;
-
-  static const _activeStatuses = {'assigned', 'picked_up', 'in_delivery'};
 
   @override
   void initState() {
@@ -60,8 +59,6 @@ class DriverHomeScreenState extends State<DriverHomeScreen>
     _load();
   }
 
-  /// Stop the pulse animation during hot-reload/reassemble to prevent
-  /// OpenGL frame timeouts and slow rebuilds.
   @override
   void reassemble() {
     super.reassemble();
@@ -70,13 +67,15 @@ class DriverHomeScreenState extends State<DriverHomeScreen>
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted && _available && widget.visible) {
           _pulseController.repeat(reverse: true);
-        } });
+        }
+      });
     }
   }
 
-  /// Start or stop the pulse animation based on visibility and availability.
   void _syncPulse() {
-    if (!mounted) return;
+    if (!mounted) {
+      return;
+    }
     if (_available && widget.visible) {
       _pulseController.repeat(reverse: true);
     } else {
@@ -98,9 +97,6 @@ class DriverHomeScreenState extends State<DriverHomeScreen>
     super.dispose();
   }
 
-  /// Rafraîchit les missions depuis l'API.
-  /// Appelé depuis DriverShell quand on retourne sur l'onglet Missions
-  /// ou après qu'une offre a été acceptée dans l'onglet Offres.
   Future<void> refresh() => _load();
 
   Future<void> _load() async {
@@ -109,18 +105,29 @@ class DriverHomeScreenState extends State<DriverHomeScreen>
       _error = null;
     });
     try {
-      final status = await widget.marketplace.driverStatus();
-      final deliveries = await widget.marketplace.myDeliveries();
+      final statusFuture = widget.marketplace.driverStatus();
+      final missionsFuture = widget.marketplace.driverMissions();
+      final walletFuture = widget.marketplace
+          .driverWallet()
+          .catchError((Object _) => <String, dynamic>{});
+
+      final results = await Future.wait<dynamic>([
+        statusFuture,
+        missionsFuture,
+      ]);
+      final status = results[0] as Map<String, dynamic>;
+      final missions = results[1] as List<DriverMission>;
+      final wallet = await walletFuture;
       final rawProfile = status['profile'];
       final profile = rawProfile is Map<String, dynamic> ? rawProfile : null;
+
       if (mounted) {
         setState(() {
           _available = profile?['available'] == true;
-          _deliveries = deliveries;
+          _missions = missions;
+          _wallet = wallet;
           _loading = false;
         });
-        // Only run the pulse animation when the driver is available.
-        // This prevents unnecessary 60fps rebuilds on the render thread.
         _syncPulse();
       }
     } on ApiException catch (e) {
@@ -143,7 +150,11 @@ class DriverHomeScreenState extends State<DriverHomeScreen>
       await widget.marketplace.setAvailability(value);
       if (mounted) {
         setState(() => _toggling = false);
-        showToast(context, value ? 'Vous êtes disponible.' : 'Vous êtes indisponible.');
+        _syncPulse();
+        showToast(
+          context,
+          value ? 'Vous êtes disponible.' : 'Vous êtes indisponible.',
+        );
       }
     } on ApiException catch (e) {
       if (mounted) {
@@ -151,65 +162,56 @@ class DriverHomeScreenState extends State<DriverHomeScreen>
           _available = previous;
           _toggling = false;
         });
+        _syncPulse();
         showToast(context, e.message, isError: true);
       }
     }
   }
 
-  Future<void> _reportIncident(Delivery delivery) async {
-    final message = await _askIncidentMessage();
-    if (message == null || !mounted) {
-      return;
-    }
-    try {
-      await widget.marketplace.reportIncident(delivery.id, message);
-      await _load();
-      if (mounted) {
-        showToast(context, 'Incident signalé.');
-      }
-    } on ApiException catch (e) {
-      if (mounted) {
-        showToast(context, e.message, isError: true);
-      }
-    }
-  }
-
-  Future<String?> _askIncidentMessage() {
-    final controller = TextEditingController();
-    return showDialog<String>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Signaler un incident'),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          maxLines: 3,
-          decoration: const InputDecoration(labelText: 'Décrivez l\'incident *'),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Retour'),
-          ),
-          FilledButton(
-            onPressed: () {
-              if (controller.text.trim().length >= 3) {
-                Navigator.of(context).pop(controller.text.trim());
-              }
-            },
-            child: const Text('Envoyer'),
-          ),
-        ],
+  Future<void> _openMission(DriverMission mission) async {
+    await Navigator.of(context).push(
+      PageRouteBuilder<void>(
+        pageBuilder: (context, animation, secondaryAnimation) =>
+            MissionDetailScreen(
+              marketplace: widget.marketplace,
+              missionId: mission.id,
+              kind: mission.kind,
+              initialMission: mission,
+            ),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          final tween = Tween(
+            begin: const Offset(1, 0),
+            end: Offset.zero,
+          ).chain(CurveTween(curve: Curves.easeOutCubic));
+          return SlideTransition(
+            position: animation.drive(tween),
+            child: child,
+          );
+        },
       ),
     );
+    if (mounted) {
+      await _load();
+    }
+  }
+
+  int _walletAmount(String key) {
+    final value = _wallet[key];
+    if (value is num) {
+      return value.round();
+    }
+    if (value is String) {
+      return int.tryParse(value) ?? 0;
+    }
+    return 0;
   }
 
   @override
   Widget build(BuildContext context) {
     final firstName = (widget.userName ?? '').trim().split(' ').first;
     final greeting = firstName.isEmpty || firstName == 'null'
-        ? 'Bonjour 👋'
-        : 'Bonjour, $firstName 👋';
+        ? 'Bonjour'
+        : 'Bonjour, $firstName';
 
     return Scaffold(
       body: RefreshIndicator(
@@ -239,12 +241,10 @@ class DriverHomeScreenState extends State<DriverHomeScreen>
       return ErrorState(message: _error!, onRetry: _load);
     }
 
-    final active = _deliveries.where((d) => _activeStatuses.contains(d.status)).toList();
-    final delivered = _deliveries.where((d) => d.status == 'delivered').toList();
-    final earnings = delivered.fold<int>(
-      0,
-      (sum, d) => sum + d.netEarnings,
-    );
+    final active = _missions.where((mission) => mission.isActive).toList();
+    final deliveredCount = _missions.where((mission) => mission.isDelivered).length;
+    final availableBalance = _walletAmount('available_balance');
+    final pendingBalance = _walletAmount('pending_balance');
 
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
@@ -258,25 +258,61 @@ class DriverHomeScreenState extends State<DriverHomeScreen>
         Padding(
           padding: const EdgeInsets.fromLTRB(
             AppDimens.pagePadding,
-            8,
+            10,
             AppDimens.pagePadding,
             0,
           ),
-          child: Text(
-            greeting,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              fontSize: 13.5,
-              color: AppColors.textSecondary,
-            ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      greeting,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.text,
+                        letterSpacing: -0.5,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      active.isEmpty
+                          ? 'Prêt pour votre prochaine course ?'
+                          : '${active.length} mission${active.length > 1 ? 's' : ''} en cours',
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                width: 46,
+                height: 46,
+                decoration: BoxDecoration(
+                  color: AppColors.orangeLight,
+                  borderRadius: BorderRadius.circular(15),
+                ),
+                child: const Icon(
+                  Icons.delivery_dining,
+                  color: AppColors.orange,
+                  size: 26,
+                ),
+              ),
+            ],
           ),
         ),
+        const SizedBox(height: AppDimens.lg),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: AppDimens.pagePadding),
           child: Column(
             children: [
-              // --- Carte héro : disponibilité ---
               _AvailabilityCard(
                 available: _available,
                 toggling: _toggling,
@@ -284,7 +320,6 @@ class DriverHomeScreenState extends State<DriverHomeScreen>
                 pulseController: _pulseController,
               ),
               const SizedBox(height: AppDimens.md),
-              // --- Statistiques du jour ---
               Row(
                 children: [
                   Expanded(
@@ -299,7 +334,7 @@ class DriverHomeScreenState extends State<DriverHomeScreen>
                   Expanded(
                     child: HomeStatTile(
                       icon: Icons.check_circle_outline,
-                      value: '${delivered.length}',
+                      value: '$deliveredCount',
                       label: 'Terminées',
                       accent: AppColors.green,
                     ),
@@ -307,65 +342,56 @@ class DriverHomeScreenState extends State<DriverHomeScreen>
                   const SizedBox(width: AppDimens.md),
                   Expanded(
                     child: HomeStatTile(
-                      icon: Icons.payments_outlined,
-                      value: formatAmount(earnings, showSymbol: false),
-                      label: 'Gains FCFA',
+                      icon: Icons.account_balance_wallet_outlined,
+                      value: formatAmount(availableBalance, showSymbol: false),
+                      label: 'Solde dispo.',
                       accent: AppColors.goldDark,
                     ),
                   ),
                 ],
               ),
+              if (pendingBalance > 0) ...[
+                const SizedBox(height: AppDimens.sm),
+                _PendingBalanceStrip(amount: pendingBalance),
+              ],
             ],
           ),
         ),
         const SectionHeader(title: 'Missions en cours'),
         if (active.isEmpty)
-          _EmptyMissionsState(pulseController: _pulseController)
+          _EmptyMissionsState(
+            pulseController: _pulseController,
+            available: _available,
+          )
         else
           ...active.asMap().entries.map((entry) {
-              final index = entry.key;
-              final delivery = entry.value;
-              return TweenAnimationBuilder<double>(
-                tween: Tween(begin: 0, end: 1),
-                duration: const Duration(milliseconds: 500),
-                curve: Curves.easeOutBack,
-                builder: (context, value, child) => Opacity(
-                  opacity: value.clamp(0.0, 1.0),
-                  child: Transform.translate(
-                    offset: Offset(0, 20 * (1 - value)),
-                    child: child,
-                  ),
+            final index = entry.key;
+            final mission = entry.value;
+            return TweenAnimationBuilder<double>(
+              tween: Tween(begin: 0, end: 1),
+              duration: const Duration(milliseconds: 500),
+              curve: Curves.easeOutCubic,
+              builder: (context, value, child) => Opacity(
+                opacity: value.clamp(0.0, 1.0),
+                child: Transform.translate(
+                  offset: Offset(0, 16 * (1 - value)),
+                  child: child,
                 ),
-                child: _MissionCard(
-                  delivery: delivery,
-                  delay: Duration(milliseconds: 100 * index),
-                  onTap: () => Navigator.of(context).push(
-                    PageRouteBuilder(
-                      pageBuilder: (context, animation, secondaryAnimation) => MissionDetailScreen(
-                        marketplace: widget.marketplace,
-                        deliveryId: delivery.id,
-                        initialDelivery: delivery,
-                      ),
-                      transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                        const begin = Offset(1, 0);
-                        const end = Offset.zero;
-                        const curve = Curves.easeOut;
-                        final tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
-                        return SlideTransition(position: animation.drive(tween), child: child);
-                      },
-                    ),
-                  ),
-                  onIncident: () => _reportIncident(delivery),
-                ),
-              );
-            }),
+              ),
+              child: _MissionCard(
+                mission: mission,
+                delay: Duration(milliseconds: 80 * index),
+                onTap: () => _openMission(mission),
+              ),
+            );
+          }),
         const SizedBox(height: AppDimens.md),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: AppDimens.pagePadding),
           child: Text(
             _available
-                ? 'Vous êtes en ligne : les nouvelles offres arrivent ici.'
-                : 'Activez votre disponibilité pour recevoir des offres.',
+                ? 'Nouvelles offres : commandes et colis arrivent dans vos onglets.'
+                : 'Activez votre disponibilité pour recevoir des missions.',
             style: const TextStyle(fontSize: 12.5, color: AppColors.textFaint),
           ),
         ),
@@ -374,7 +400,6 @@ class DriverHomeScreenState extends State<DriverHomeScreen>
   }
 }
 
-/// Carte de disponibilité livreur avec animation du toggle.
 class _AvailabilityCard extends StatelessWidget {
   const _AvailabilityCard({
     required this.available,
@@ -390,153 +415,150 @@ class _AvailabilityCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedSwitcher(
-      duration: const Duration(milliseconds: 400),
-      transitionBuilder: (child, animation) => FadeTransition(opacity: animation, child: child),
-      child: Card(
-        key: ValueKey<bool>(available),
-        elevation: 0,
-        color: AppColors.surface,
-        surfaceTintColor: Colors.transparent,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppDimens.radiusLg),
-          side: BorderSide(color: available ? AppColors.orangeLight : AppColors.border),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
+    final background = available
+        ? const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFF1A5B2E), Color(0xFF2F7D4A)],
+          )
+        : const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFF43514B), Color(0xFF68756F)],
+          );
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 350),
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        gradient: background,
+        borderRadius: BorderRadius.circular(AppDimens.radiusXl),
+        boxShadow: [
+          BoxShadow(
+            color: (available ? AppColors.green : AppColors.text)
+                .withValues(alpha: 0.22),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Row(
             children: [
-              Row(
-                children: [
-                  AnimatedBuilder(
-                    animation: pulseController,
-                    builder: (context, child) => Transform.scale(
-                      scale: available ? 1 + pulseController.value * 0.1 : 1,
-                      child: Container(
-                        width: 48,
-                        height: 48,
-                        decoration: BoxDecoration(
-                          color: available
-                              ? AppColors.orangeLight
-                              : AppColors.surfaceVariant,
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(
-                          available ? Icons.check_circle : Icons.pause_circle_outline,
-                          color: available ? AppColors.orange : AppColors.textSecondary,
-                          size: 28,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Disponible pour les livraisons',
-                          style: Theme.of(context)
-                              .textTheme
-                              .titleMedium
-                              ?.copyWith(color: AppColors.text, fontWeight: FontWeight.w700),
-                        ),
-                        Text(
-                          available
-                              ? 'Vous recevez des offres. Votre position est partagée pendant vos missions.'
-                              : 'Vous ne recevez pas d\'offres.',
-                          style: Theme.of(context)
-                              .textTheme
-                              .bodySmall
-                              ?.copyWith(color: AppColors.textSecondary),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Switch(
-                    value: available,
-                    onChanged: toggling ? null : onToggle,
-                    activeThumbColor: AppColors.orange,
-                    activeTrackColor: AppColors.orange.withValues(alpha: 0.4),
-                    inactiveThumbColor: AppColors.textSecondary,
-                    inactiveTrackColor: AppColors.textSecondary.withValues(alpha: 0.3),
-                  ),
-                ],
-              ),
-              if (available) ...[
-                const SizedBox(height: 10),
-                Container(
-                  height: 4,
+              AnimatedBuilder(
+                animation: pulseController,
+                builder: (context, child) => Transform.scale(
+                  scale: available ? 1 + pulseController.value * 0.08 : 1,
+                  child: child,
+                ),
+                child: Container(
+                  width: 52,
+                  height: 52,
                   decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(2),
-                    color: AppColors.goldLight,
-                  ),
-                  child: FractionallySizedBox(
-                    widthFactor: 0.6,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(2),
-                        gradient: const LinearGradient(colors: [AppColors.orange, AppColors.gold]),
-                      ),
+                    color: Colors.white.withValues(alpha: 0.16),
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.35),
                     ),
+                  ),
+                  child: Icon(
+                    available ? Icons.bolt : Icons.pause,
+                    color: Colors.white,
+                    size: 27,
                   ),
                 ),
-              ],
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      available ? 'Vous êtes en ligne' : 'Vous êtes hors ligne',
+                      style: const TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.white,
+                        letterSpacing: -0.2,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      available
+                          ? 'Les offres de commandes et de colis vous sont proposées.'
+                          : 'Activez le mode en ligne pour recevoir des missions.',
+                      style: TextStyle(
+                        fontSize: 12,
+                        height: 1.35,
+                        color: Colors.white.withValues(alpha: 0.82),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Switch(
+                value: available,
+                onChanged: toggling ? null : onToggle,
+                activeThumbColor: Colors.white,
+                activeTrackColor: Colors.white.withValues(alpha: 0.45),
+                inactiveThumbColor: Colors.white.withValues(alpha: 0.8),
+                inactiveTrackColor: Colors.black.withValues(alpha: 0.22),
+              ),
             ],
           ),
-        ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              _StatusPill(
+                icon: available ? Icons.gps_fixed : Icons.gps_off,
+                label: available ? 'Position partagée' : 'Suivi en pause',
+              ),
+              const SizedBox(width: 8),
+              const _StatusPill(
+                icon: Icons.notifications_active_outlined,
+                label: 'Offres en direct',
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
 }
 
-/// Empty state animée pour la liste des missions.
-class _EmptyMissionsState extends StatelessWidget {
-  const _EmptyMissionsState({required this.pulseController});
+class _StatusPill extends StatelessWidget {
+  const _StatusPill({required this.icon, required this.label});
 
-  final AnimationController pulseController;
+  final IconData icon;
+  final String label;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 40),
-      child: Center(
-        child: Column(
+    return Flexible(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.14),
+          borderRadius: BorderRadius.circular(AppDimens.radiusPill),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
+        ),
+        child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            AnimatedBuilder(
-              animation: pulseController,
-              builder: (context, child) => Transform.scale(
-                scale: 1 + pulseController.value * 0.05,
-                child: Container(
-                  width: 96,
-                  height: 96,
-                  decoration: const BoxDecoration(
-                    color: AppColors.orangeLight,
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(Icons.delivery_dining, size: 44, color: AppColors.orange),
+            Icon(icon, size: 13, color: Colors.white),
+            const SizedBox(width: 5),
+            Flexible(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
                 ),
               ),
-            ),
-            const SizedBox(height: 20),
-            Text(
-              'Aucune mission en cours',
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: AppColors.text,
-                    fontWeight: FontWeight.w700,
-                  ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Activez votre disponibilité pour recevoir des offres.',
-              textAlign: TextAlign.center,
-              style: Theme.of(context)
-                  .textTheme
-                  .bodySmall
-                  ?.copyWith(color: AppColors.textSecondary),
             ),
           ],
         ),
@@ -545,18 +567,126 @@ class _EmptyMissionsState extends StatelessWidget {
   }
 }
 
-/// Carte mission avec effet de survol et couleurs alimentaires.
+class _PendingBalanceStrip extends StatelessWidget {
+  const _PendingBalanceStrip({required this.amount});
+
+  final int amount;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+      decoration: BoxDecoration(
+        color: AppColors.goldLight,
+        borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+        border: Border.all(color: AppColors.gold.withValues(alpha: 0.25)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.schedule, size: 16, color: AppColors.goldDark),
+          const SizedBox(width: 8),
+          const Expanded(
+            child: Text(
+              'Gains en attente de confirmation',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: AppColors.goldDark,
+              ),
+            ),
+          ),
+          AmountText(
+            amount,
+            style: const TextStyle(
+              fontSize: 12.5,
+              fontWeight: FontWeight.w800,
+              color: AppColors.goldDark,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _EmptyMissionsState extends StatelessWidget {
+  const _EmptyMissionsState({
+    required this.pulseController,
+    required this.available,
+  });
+
+  final AnimationController pulseController;
+  final bool available;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 30, 24, 40),
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            AnimatedBuilder(
+              animation: pulseController,
+              builder: (context, child) => Transform.scale(
+                scale: 1 + pulseController.value * 0.04,
+                child: child,
+              ),
+              child: Container(
+                width: 94,
+                height: 94,
+                decoration: BoxDecoration(
+                  color: AppColors.orangeLight,
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: AppColors.orange.withValues(alpha: 0.18),
+                  ),
+                ),
+                child: const Icon(
+                  Icons.delivery_dining,
+                  size: 42,
+                  color: AppColors.orange,
+                ),
+              ),
+            ),
+            const SizedBox(height: 18),
+            const Text(
+              'Aucune mission en cours',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.w800,
+                color: AppColors.text,
+              ),
+            ),
+            const SizedBox(height: 7),
+            Text(
+              available
+                  ? 'Vos prochaines commandes et colis acceptés apparaîtront ici.'
+                  : 'Activez votre disponibilité puis acceptez une offre.',
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 13,
+                height: 1.4,
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _MissionCard extends StatefulWidget {
   const _MissionCard({
-    required this.delivery,
+    required this.mission,
     required this.onTap,
-    required this.onIncident,
     this.delay = Duration.zero,
   });
 
-  final Delivery delivery;
+  final DriverMission mission;
   final VoidCallback onTap;
-  final VoidCallback onIncident;
   final Duration delay;
 
   @override
@@ -568,12 +698,13 @@ class _MissionCardState extends State<_MissionCard> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final palette = BadgePalette.delivery(widget.delivery.status);
-    final reference = widget.delivery.order?.reference ?? 'Mission';
-    final vendorName = widget.delivery.vendor?.businessName ?? 'Vendeur';
-    final clientAddress = widget.delivery.order?.address;
-    final amount = widget.delivery.netEarnings;
+    final mission = widget.mission;
+    final palette = mission.isParcel
+        ? BadgePalette.parcel(mission.status)
+        : BadgePalette.delivery(mission.status);
+    final routeDistance = mission.distanceKm ??
+        _directDistance(mission.pickup.point, mission.dropoff.point);
+    final eta = routeDistance == null ? null : estimateMinutes(routeDistance);
 
     return MouseRegion(
       cursor: SystemMouseCursors.click,
@@ -584,162 +715,200 @@ class _MissionCardState extends State<_MissionCard> {
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
           curve: Curves.easeOut,
-          margin: const EdgeInsets.fromLTRB(AppDimens.pagePadding, 0, AppDimens.pagePadding, 12),
+          margin: const EdgeInsets.fromLTRB(
+            AppDimens.pagePadding,
+            0,
+            AppDimens.pagePadding,
+            12,
+          ),
           decoration: BoxDecoration(
             color: AppColors.surface,
             borderRadius: BorderRadius.circular(AppDimens.radiusLg),
-            border: Border.all(color: _hover ? AppColors.orange : AppColors.border),
+            border: Border.all(
+              color: _hover ? AppColors.orange : AppColors.border,
+              width: _hover ? 1.3 : 1,
+            ),
             boxShadow: _hover ? AppTheme.softShadow() : null,
           ),
           child: Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(14),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   children: [
-                    Expanded(
-                      child: Text(
-                        reference,
-                        style: theme.textTheme.titleSmall?.copyWith(
-                          color: AppColors.text,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                    if (palette != null)
-                      StatusBadge(label: palette.$1, color: palette.$2, small: true),
-                  ],
-                ),
-                const SizedBox(height: AppDimens.sm),
-                Row(
-                  children: [
                     Container(
-                      width: 32,
-                      height: 32,
+                      width: 52,
+                      height: 52,
                       decoration: BoxDecoration(
-                        color: AppColors.goldLight,
-                        borderRadius: BorderRadius.circular(8),
+                        color: mission.isParcel
+                            ? AppColors.greenLight
+                            : AppColors.orangeLight,
+                        borderRadius: BorderRadius.circular(15),
                       ),
-                      child: const Icon(Icons.storefront_outlined, size: 20, color: AppColors.gold),
+                      clipBehavior: Clip.antiAlias,
+                      child: mission.imageUrl != null
+                          ? AppNetworkImage(
+                              url: mission.imageUrl,
+                              icon: mission.isParcel
+                                  ? Icons.inventory_2_outlined
+                                  : Icons.storefront_outlined,
+                            )
+                          : Icon(
+                              mission.isParcel
+                                  ? Icons.inventory_2_outlined
+                                  : Icons.storefront_outlined,
+                              color: mission.isParcel
+                                  ? AppColors.green
+                                  : AppColors.orange,
+                              size: 25,
+                            ),
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: 12),
                     Expanded(
-                      child: Text(
-                        vendorName,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontWeight: FontWeight.w600, color: AppColors.text),
-                      ),
-                    ),
-                  ],
-                ),
-                if (clientAddress != null && clientAddress.isNotEmpty) ...[
-                  const SizedBox(height: AppDimens.xs),
-                  Row(
-                    children: [
-                      const Icon(Icons.location_on_outlined, size: 16, color: AppColors.gold),
-                      const SizedBox(width: 6),
-                      Expanded(
-                        child: Text(
-                          clientAddress,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-                // Aperçu photo du colis à collecter
-                if ((widget.delivery.order?.items.isNotEmpty ?? false)) ...[
-                  const SizedBox(height: AppDimens.xs),
-                  SizedBox(
-                    height: 34,
-                    child: Row(
-                      children: [
-                        for (final item in widget.delivery.order!.items.take(4))
-                          Padding(
-                            padding: const EdgeInsets.only(right: 6),
-                            child: Container(
-                              width: 34,
-                              height: 34,
-                              decoration: BoxDecoration(
-                                color: AppColors.surfaceVariant,
-                                borderRadius: BorderRadius.circular(9),
-                                border: Border.all(color: AppColors.border),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  mission.title,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w800,
+                                    color: AppColors.text,
+                                    letterSpacing: -0.2,
+                                  ),
+                                ),
                               ),
-                              clipBehavior: Clip.antiAlias,
-                              child: item.imageUrl != null
-                                  ? AppNetworkImage(url: item.imageUrl, icon: Icons.fastfood_outlined)
-                                  : const Icon(Icons.fastfood_outlined, size: 15, color: AppColors.textFaint),
-                            ),
+                              const SizedBox(width: 6),
+                              Text(
+                                mission.shortKindLabel.toUpperCase(),
+                                style: TextStyle(
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: 0.4,
+                                  color: mission.isParcel
+                                      ? AppColors.green
+                                      : AppColors.orange,
+                                ),
+                              ),
+                            ],
                           ),
-                        if (widget.delivery.order!.items.length > 4)
+                          const SizedBox(height: 2),
                           Text(
-                            '+${widget.delivery.order!.items.length - 4}',
-                            style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: AppColors.textSecondary),
-                          ),
-                        const Spacer(),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: AppColors.orangeLight,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            '${widget.delivery.order!.itemCount} article${widget.delivery.order!.itemCount > 1 ? 's' : ''}',
+                            mission.reference,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w800,
-                              color: AppColors.orangeDark,
+                              fontSize: 11.5,
+                              color: AppColors.textFaint,
                             ),
                           ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-                const SizedBox(height: AppDimens.sm),
-                Row(
-                  children: [
-                    Container(
-                      width: 32,
-                      height: 32,
-                      decoration: BoxDecoration(
-                        color: AppColors.orangeLight,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: const Icon(Icons.payments_outlined, size: 20, color: AppColors.orange),
-                    ),
-                    const SizedBox(width: 8),
-                    AmountText(amount, style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.text)),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Votre gain',
-                      style: theme.textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
-                    ),
-                    const Spacer(),
-                    TextButton(
-                      onPressed: widget.onIncident,
-                      child: Text(
-                        'Signaler un incident',
-                        style: TextStyle(color: AppColors.textSecondary.withValues(alpha: 0.8)),
+                        ],
                       ),
                     ),
+                    const SizedBox(width: 8),
+                    if (palette != null)
+                      StatusBadge(
+                        label: palette.$1,
+                        color: palette.$2,
+                        small: true,
+                      ),
                   ],
                 ),
-                const SizedBox(height: AppDimens.xs),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: FilledButton.tonal(
+                const SizedBox(height: 12),
+                _RouteSummary(mission: mission),
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 9,
+                        vertical: 5,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.surfaceVariant,
+                        borderRadius: BorderRadius.circular(9),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.payments_outlined,
+                            size: 14,
+                            color: AppColors.orange,
+                          ),
+                          const SizedBox(width: 5),
+                          AmountText(
+                            mission.earnings,
+                            style: const TextStyle(
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w800,
+                              color: AppColors.text,
+                            ),
+                          ),
+                          const SizedBox(width: 3),
+                          const Text(
+                            'gain',
+                            style: TextStyle(
+                              fontSize: 10.5,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (routeDistance != null)
+                      _MetaChip(
+                        icon: Icons.route_outlined,
+                        label: formatDistance(routeDistance),
+                      ),
+                    if (eta != null)
+                      _MetaChip(
+                        icon: Icons.schedule,
+                        label: formatEta(eta),
+                      ),
+                    if (mission.isOrder && mission.itemCount > 0)
+                      _MetaChip(
+                        icon: Icons.shopping_bag_outlined,
+                        label: '${mission.itemCount} art.',
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
                     onPressed: widget.onTap,
                     style: FilledButton.styleFrom(
-                      backgroundColor: AppColors.orangeLight,
-                      foregroundColor: AppColors.orangeDark,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppDimens.radiusMd)),
+                      backgroundColor: mission.isParcel
+                          ? AppColors.green
+                          : AppColors.orange,
+                      foregroundColor: Colors.white,
+                      minimumSize: const Size(0, 46),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(
+                          AppDimens.radiusMd,
+                        ),
+                      ),
                     ),
-                    child: Text(_actionLabel(widget.delivery.status)),
+                    icon: Icon(_actionIcon(mission.status), size: 18),
+                    label: Text(
+                      mission.actionLabel,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                   ),
                 ),
               ],
@@ -750,10 +919,149 @@ class _MissionCardState extends State<_MissionCard> {
     );
   }
 
-  String _actionLabel(String status) => switch (status) {
-        'assigned' => 'J\'ai récupéré la commande',
-        'picked_up' => 'Démarrer la livraison',
-        'in_delivery' => 'Livrer',
-        _ => 'Voir la mission',
-      };
+  static IconData _actionIcon(String status) => switch (status) {
+    'assigned' => Icons.play_arrow_rounded,
+    'en_route_pickup' || 'in_delivery' => Icons.navigation_outlined,
+    'picked_up' => Icons.two_wheeler,
+    _ => Icons.arrow_forward,
+  };
+
+  static double? _directDistance(GeoPoint? from, GeoPoint? to) {
+    if (from == null || to == null) {
+      return null;
+    }
+    return distanceKm(from.latLng, to.latLng);
+  }
+}
+
+class _RouteSummary extends StatelessWidget {
+  const _RouteSummary({required this.mission});
+
+  final DriverMission mission;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        _RouteLine(
+          color: AppColors.green,
+          label: 'Collecte',
+          title: mission.pickup.title,
+          address: mission.pickup.displayAddress,
+        ),
+        Padding(
+          padding: const EdgeInsets.only(left: 7),
+          child: Row(
+            children: [
+              Container(
+                width: 2,
+                height: 10,
+                color: AppColors.borderStrong,
+              ),
+            ],
+          ),
+        ),
+        _RouteLine(
+          color: AppColors.orange,
+          label: mission.isParcel ? 'Livraison' : 'Client',
+          title: mission.dropoff.title,
+          address: mission.dropoff.displayAddress,
+        ),
+      ],
+    );
+  }
+}
+
+class _RouteLine extends StatelessWidget {
+  const _RouteLine({
+    required this.color,
+    required this.label,
+    required this.title,
+    required this.address,
+  });
+
+  final Color color;
+  final String label;
+  final String title;
+  final String address;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(top: 3),
+          child: Container(
+            width: 14,
+            height: 14,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.13),
+              shape: BoxShape.circle,
+              border: Border.all(color: color, width: 2),
+            ),
+          ),
+        ),
+        const SizedBox(width: 9),
+        Expanded(
+          child: Row(
+            children: [
+              Text(
+                '$label · ',
+                style: TextStyle(
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w700,
+                  color: color,
+                ),
+              ),
+              Expanded(
+                child: Text(
+                  '$title — $address',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 11.5,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _MetaChip extends StatelessWidget {
+  const _MetaChip({required this.icon, required this.label});
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceVariant,
+        borderRadius: BorderRadius.circular(9),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 13, color: AppColors.textSecondary),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 10.5,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textSecondary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
