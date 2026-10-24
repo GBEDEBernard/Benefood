@@ -13,7 +13,8 @@
     <link rel="stylesheet" type="text/css" href="{{ asset('assets/css/vendors.css') }}" />
     <link rel="stylesheet" type="text/css" href="{{ asset('assets/css/style.css') }}" />
     <link rel="stylesheet" type="text/css" href="{{ asset('assets/css/beninfood.css') }}" />
-    
+    @stack('styles')
+
     <style>
         .app-main {
             padding: 30px;

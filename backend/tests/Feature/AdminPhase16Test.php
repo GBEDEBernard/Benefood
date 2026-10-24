@@ -8,8 +8,10 @@ use App\Models\AuditLog;
 use App\Models\Category;
 use App\Models\CommissionRate;
 use App\Models\Complaint;
+use App\Models\Delivery;
 use App\Models\DriverProfile;
 use App\Models\Order;
+use App\Models\OrderFinancial;
 use App\Models\Payment;
 use App\Models\Product;
 use App\Models\Refund;
@@ -253,6 +255,127 @@ class AdminPhase16Test extends TestCase
             ->assertSessionHasErrors('reason');
 
         $this->assertSame('paid', $order->fresh()->status->value);
+    }
+
+    public function test_orders_status_filter_supports_the_in_progress_group(): void
+    {
+        $vendor = $this->activeVendor();
+        $product = $this->product($vendor);
+        $buyer = $this->client();
+        $inProgress = $this->paidOrder($buyer, $vendor, $product);
+        $delivered = $this->paidOrder($buyer, $vendor, $product);
+        $delivered->update(['status' => OrderStatus::Delivered->value]);
+
+        $this->actingAs($this->admin())
+            ->get(route('admin.orders.index', ['status' => 'in_progress']))
+            ->assertOk()
+            ->assertSee($inProgress->reference)
+            ->assertDontSee($delivered->reference);
+    }
+
+    public function test_order_detail_renders_delivery_support_refund_and_financial_sections(): void
+    {
+        $admin = $this->admin();
+        $vendor = $this->activeVendor();
+        $product = $this->product($vendor);
+        $buyer = $this->client();
+        $order = $this->paidOrder($buyer, $vendor, $product);
+        $driver = DriverProfile::factory()->active()->create();
+
+        Delivery::create([
+            'order_id' => $order->id,
+            'driver_profile_id' => $driver->id,
+            'vendor_id' => $vendor->id,
+            'status' => 'delivered',
+            'fee' => 500,
+            'partner_amount' => 400,
+            'assigned_at' => now(),
+            'picked_up_at' => now(),
+            'delivered_at' => now(),
+        ]);
+
+        Complaint::create([
+            'user_id' => $buyer->id,
+            'order_id' => $order->id,
+            'type' => 'delivery',
+            'subject' => 'Retard de livraison',
+            'description' => 'La commande est arrivée en retard.',
+            'status' => 'open',
+        ]);
+
+        Refund::create([
+            'payment_id' => $order->payment->id,
+            'order_id' => $order->id,
+            'amount' => 1000,
+            'reason' => 'Geste commercial',
+            'status' => 'executed',
+            'executed_at' => now(),
+            'executed_by' => $admin->id,
+        ]);
+
+        OrderFinancial::create([
+            'order_id' => $order->id,
+            'subtotal' => 1000,
+            'delivery_fee' => 500,
+            'commission_base' => 1000,
+            'commission_rate' => 10,
+            'commission_amount' => 100,
+            'vendor_amount' => 900,
+            'delivery_partner_amount' => 400,
+            'platform_amount' => 100,
+            'total_client' => 1500,
+            'currency' => 'XOF',
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('admin.orders.show', $order))
+            ->assertOk()
+            ->assertSee('Livraison & adresse')
+            ->assertSee($driver->user->name)
+            ->assertSee('Réclamations liées')
+            ->assertSee('Retard de livraison')
+            ->assertSee('Remboursements')
+            ->assertSee('Geste commercial')
+            ->assertSee('Répartition financière')
+            ->assertSee('Commission plateforme');
+    }
+
+    public function test_orders_page_uses_custom_pagination_and_page_size(): void
+    {
+        $vendor = $this->activeVendor();
+        $buyer = $this->client();
+
+        foreach (range(1, 12) as $index) {
+            Order::create([
+                'user_id' => $buyer->id,
+                'vendor_id' => $vendor->id,
+                'reference' => 'BEN-PAGE-'.str_pad((string) $index, 2, '0', STR_PAD_LEFT),
+                'status' => OrderStatus::Paid->value,
+                'currency' => 'XOF',
+                'subtotal' => 1000,
+                'discount' => 0,
+                'delivery_fee' => 0,
+                'total' => 1000,
+                'payment_status' => PaymentStatus::Confirmed->value,
+            ]);
+        }
+
+        $this->actingAs($this->admin())
+            ->get(route('admin.orders.index', ['q' => 'BEN-PAGE-', 'per_page' => 10]))
+            ->assertOk()
+            ->assertSeeText('Affichage de 1 à 10 sur 12 commandes')
+            ->assertSeeText('Page 1 sur 2')
+            ->assertSee('q=BEN-PAGE-', false)
+            ->assertSee('per_page=10', false)
+            ->assertSee('page=2', false);
+    }
+
+    public function test_orders_page_falls_back_to_twenty_rows_for_unsupported_page_sizes(): void
+    {
+        $this->actingAs($this->admin())
+            ->get(route('admin.orders.index', ['per_page' => 1000]))
+            ->assertOk()
+            ->assertViewHas('orders', fn ($orders): bool => $orders->perPage() === 20);
     }
 
     // -----------------------------------------------------------------

@@ -9,6 +9,7 @@ use App\Models\Order;
 use App\Models\User;
 use App\Models\Vendor;
 use App\Services\OrderService;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -22,65 +23,47 @@ use Illuminate\View\View;
  */
 class AdminOrdersController extends Controller
 {
+    private const PER_PAGE_OPTIONS = [10, 20, 50];
+
+    private const STATUS_FILTERS = ['awaiting_payment', 'in_progress', 'delivered', 'cancelled'];
+
     public function __construct(private readonly OrderService $orders) {}
 
     public function index(Request $request): View
     {
         $this->authorize('manage', User::class);
 
-        $query = Order::query()->with(['user', 'vendor', 'payment']);
+        $status = $this->statusFilter($request->query('status'));
+        $search = trim((string) $request->query('q'));
+        $vendorId = $this->filterValue($request->query('vendor_id'));
+        $from = $this->dateFilter($request->query('from'));
+        $to = $this->dateFilter($request->query('to'));
+        $perPage = $this->perPage($request->integer('per_page', 20));
 
-        if ($status = $request->query('status')) {
-            $query->where('status', $status);
-        }
+        $query = Order::query()->with([
+            'user:id,name,phone',
+            'vendor:id,business_name',
+            'payment:id,order_id,status',
+        ]);
+        $this->applyFilters($query, $search, $vendorId, $from, $to);
+        $this->applyStatusFilter($query, $status);
 
-        if ($search = trim((string) $request->query('q'))) {
-            $query->where(function ($q) use ($search) {
-                $q->where('reference', 'like', "%{$search}%")
-                    ->orWhereHas('user', fn ($u) => $u->where('name', 'like', "%{$search}%"))
-                    ->orWhereHas('vendor', fn ($v) => $v->where('business_name', 'like', "%{$search}%"));
-            });
-        }
+        $countQuery = Order::query();
+        $this->applyFilters($countQuery, $search, $vendorId, $from, $to);
 
-        if ($vendorId = $request->query('vendor_id')) {
-            $query->where('vendor_id', $vendorId);
-        }
-
-        if ($from = $request->query('from')) {
-            $query->whereDate('created_at', '>=', $from);
-        }
-
-        if ($to = $request->query('to')) {
-            $query->whereDate('created_at', '<=', $to);
-        }
-
-        $orders = $query->orderByDesc('created_at')->paginate(20)->withQueryString();
+        $orders = $query->latest('created_at')->latest('id')->paginate($perPage)->withQueryString();
 
         return view('admin.orders.index', [
             'orders' => $orders,
             'vendors' => Vendor::orderBy('business_name')->get(['id', 'business_name']),
-            'statuses' => OrderStatus::cases(),
-            'counts' => [
-                'all' => Order::count(),
-                'awaiting_payment' => Order::where('status', OrderStatus::AwaitingPayment->value)->count(),
-                'in_progress' => Order::whereIn('status', [
-                    OrderStatus::Paid->value,
-                    OrderStatus::Accepted->value,
-                    OrderStatus::Preparing->value,
-                    OrderStatus::Ready->value,
-                    OrderStatus::Assigned->value,
-                    OrderStatus::PickedUp->value,
-                    OrderStatus::InDelivery->value,
-                ])->count(),
-                'delivered' => Order::where('status', OrderStatus::Delivered->value)->count(),
-                'cancelled' => Order::whereIn('status', [OrderStatus::Cancelled->value, OrderStatus::Refunded->value])->count(),
-            ],
+            'counts' => $this->statusCounts($countQuery),
             'filters' => [
-                'q' => $request->query('q'),
+                'q' => $search !== '' ? $search : null,
                 'status' => $status,
                 'vendor_id' => $vendorId,
-                'from' => $request->query('from'),
-                'to' => $request->query('to'),
+                'from' => $from,
+                'to' => $to,
+                'per_page' => $perPage,
             ],
         ]);
     }
@@ -97,8 +80,8 @@ class AdminOrdersController extends Controller
             'statusHistory',
             'payment',
             'financials',
-            'delivery',
-            'refunds',
+            'delivery.driverProfile.user',
+            'refunds.executor',
             'complaints',
         ]);
 
@@ -133,5 +116,124 @@ class AdminOrdersController extends Controller
         }
 
         return back()->with('success', "La commande « {$order->reference} » a été annulée.");
+    }
+
+    private function applyFilters(
+        Builder $query,
+        string $search,
+        ?string $vendorId,
+        ?string $from,
+        ?string $to,
+    ): void {
+        if ($search !== '') {
+            $query->where(function (Builder $query) use ($search): void {
+                $query->where('reference', 'like', "%{$search}%")
+                    ->orWhereHas('user', fn (Builder $user) => $user->where('name', 'like', "%{$search}%"))
+                    ->orWhereHas('vendor', fn (Builder $vendor) => $vendor->where('business_name', 'like', "%{$search}%"));
+            });
+        }
+
+        if ($vendorId !== null) {
+            $query->where('vendor_id', $vendorId);
+        }
+
+        if ($from !== null) {
+            $query->whereDate('created_at', '>=', $from);
+        }
+
+        if ($to !== null) {
+            $query->whereDate('created_at', '<=', $to);
+        }
+    }
+
+    private function applyStatusFilter(Builder $query, ?string $status): void
+    {
+        if ($status === null) {
+            return;
+        }
+
+        $statuses = match ($status) {
+            'in_progress' => $this->inProgressStatuses(),
+            'cancelled' => $this->cancelledStatuses(),
+            default => [$status],
+        };
+
+        $query->whereIn('status', $statuses);
+    }
+
+    /** @return array<string, int> */
+    private function statusCounts(Builder $query): array
+    {
+        $countsByStatus = $query->clone()
+            ->selectRaw('status, COUNT(*) as total')
+            ->groupBy('status')
+            ->pluck('total', 'status');
+
+        return [
+            'all' => (int) $countsByStatus->sum(),
+            'awaiting_payment' => (int) $countsByStatus->get(OrderStatus::AwaitingPayment->value, 0),
+            'in_progress' => collect($this->inProgressStatuses())
+                ->sum(fn (string $status): int => (int) $countsByStatus->get($status, 0)),
+            'delivered' => (int) $countsByStatus->get(OrderStatus::Delivered->value, 0),
+            'cancelled' => collect($this->cancelledStatuses())
+                ->sum(fn (string $status): int => (int) $countsByStatus->get($status, 0)),
+        ];
+    }
+
+    /** @return array<int, string> */
+    private function inProgressStatuses(): array
+    {
+        return [
+            OrderStatus::Paid->value,
+            OrderStatus::Accepted->value,
+            OrderStatus::Preparing->value,
+            OrderStatus::Ready->value,
+            OrderStatus::Assigned->value,
+            OrderStatus::PickedUp->value,
+            OrderStatus::InDelivery->value,
+        ];
+    }
+
+    /** @return array<int, string> */
+    private function cancelledStatuses(): array
+    {
+        return [
+            OrderStatus::Cancelled->value,
+            OrderStatus::Refunded->value,
+        ];
+    }
+
+    private function statusFilter(mixed $status): ?string
+    {
+        if (! is_string($status) || ! in_array($status, self::STATUS_FILTERS, true)) {
+            return null;
+        }
+
+        return $status;
+    }
+
+    private function perPage(int $perPage): int
+    {
+        return in_array($perPage, self::PER_PAGE_OPTIONS, true) ? $perPage : 20;
+    }
+
+    private function filterValue(mixed $value): ?string
+    {
+        if (! is_string($value)) {
+            return null;
+        }
+
+        $value = trim($value);
+
+        return $value !== '' ? $value : null;
+    }
+
+    private function dateFilter(mixed $value): ?string
+    {
+        if (! is_string($value) || ! preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $value, $matches)) {
+            return null;
+        }
+
+        return checkdate((int) $matches[2], (int) $matches[3], (int) $matches[1]) ? $value : null;
     }
 }
