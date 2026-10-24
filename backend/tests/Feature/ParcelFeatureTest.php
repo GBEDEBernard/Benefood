@@ -310,6 +310,46 @@ class ParcelFeatureTest extends TestCase
         $this->assertSame(0, (int) $wallet->fresh()->available_balance);
     }
 
+    public function test_parcel_exposes_driver_position_only_during_active_trip(): void
+    {
+        $client = $this->client();
+        $parcels = app(ParcelService::class);
+        $parcel = $parcels->create($client, $this->pickup(), $this->dropoff());
+        $parcels->confirmPayment($parcel->fresh(), (int) $parcel->delivery_fee);
+
+        $driver = $this->driver();
+        $driver->update([
+            'last_latitude' => 6.36,
+            'last_longitude' => 2.43,
+            'last_heading' => 90,
+            'last_location_at' => now(),
+        ]);
+
+        Sanctum::actingAs($driver->user);
+        $this->postJson("/api/v1/driver/me/parcels/{$parcel->id}/accept")
+            ->assertOk()
+            ->assertJsonPath('data.position.latitude', 6.36)
+            ->assertJsonPath('data.position.longitude', 2.43)
+            ->assertJsonPath('data.position.heading', 90)
+            ->assertJsonPath('data.position.age_seconds', 0)
+            ->assertJsonPath('data.position.distance_km', fn ($distance) => is_float($distance) && $distance > 0);
+
+        Sanctum::actingAs($client);
+        $this->getJson("/api/v1/parcels/{$parcel->id}")
+            ->assertOk()
+            ->assertJsonPath('data.position.latitude', 6.36)
+            ->assertJsonPath('data.position.age_seconds', 0);
+
+        $parcel->fresh()->forceFill([
+            'status' => ParcelStatus::Delivered,
+            'delivered_at' => now(),
+        ])->save();
+
+        $this->getJson("/api/v1/parcels/{$parcel->id}")
+            ->assertOk()
+            ->assertJsonPath('data.position', null);
+    }
+
     public function test_driver_delivery_flow_releases_funds(): void
     {
         $client = $this->client();

@@ -25,6 +25,7 @@ class Parcel {
     this.confirmationCode,
     this.sender,
     this.driver,
+    this.position,
     this.payment,
     this.statusHistory = const [],
     this.paymentDeadlineAt,
@@ -59,6 +60,9 @@ class Parcel {
   /// Expéditeur du colis (utile au livreur pour joindre le point de collecte).
   final ParcelSender? sender;
   final ParcelDriver? driver;
+
+  /// Dernière position partagée par le livreur pendant la course.
+  final ParcelPosition? position;
   final ParcelPayment? payment;
   final List<ParcelStatusStep> statusHistory;
   final String? paymentDeadlineAt;
@@ -77,6 +81,17 @@ class Parcel {
       paymentStatus == 'paid';
   bool get isDelivered => status == 'delivered';
   bool get isCancelled => status == 'cancelled';
+
+  /// Course active : le suivi doit continuer tant que le colis roule.
+  bool get isTrackingActive => const {
+    'assigned',
+    'en_route_pickup',
+    'picked_up',
+    'in_delivery',
+  }.contains(status);
+
+  bool get isPickupPhase =>
+      status == 'assigned' || status == 'en_route_pickup';
 
   /// Le colis a été payé et attend encore un livreur (offre disponible).
   bool get isAvailable => status == 'paid';
@@ -102,6 +117,7 @@ class Parcel {
     final rawDropoff = json['dropoff'];
     final rawSender = json['sender'];
     final rawDriver = json['driver'];
+    final rawPosition = json['position'];
     final rawPayment = json['payment'];
     final rawHistory = json['status_history'];
 
@@ -138,6 +154,9 @@ class Parcel {
           : null,
       driver: rawDriver is Map<String, dynamic>
           ? ParcelDriver.fromJson(rawDriver)
+          : null,
+      position: rawPosition is Map<String, dynamic>
+          ? ParcelPosition.fromJson(rawPosition)
           : null,
       payment: rawPayment is Map<String, dynamic>
           ? ParcelPayment.fromJson(rawPayment)
@@ -276,6 +295,38 @@ class ParcelDriver {
   );
 }
 
+/// Position GPS du livreur pendant la course colis.
+class ParcelPosition {
+  const ParcelPosition({
+    required this.latitude,
+    required this.longitude,
+    this.lastLocationAt,
+    this.distanceKm,
+    this.heading,
+    this.ageSeconds,
+  });
+
+  final double latitude;
+  final double longitude;
+  final String? lastLocationAt;
+  final double? distanceKm;
+  final double? heading;
+  final int? ageSeconds;
+
+  GeoPoint get point => GeoPoint(latitude, longitude);
+
+  factory ParcelPosition.fromJson(Map<String, dynamic> json) => ParcelPosition(
+    latitude: _d(json['latitude']) ?? 0,
+    longitude: _d(json['longitude']) ?? 0,
+    lastLocationAt: json['last_location_at'] is String
+        ? json['last_location_at'] as String
+        : null,
+    distanceKm: _d(json['distance_km']),
+    heading: _d(json['heading']),
+    ageSeconds: _iNullable(json['age_seconds']),
+  );
+}
+
 /// Paiement du colis.
 class ParcelPayment {
   const ParcelPayment({
@@ -336,6 +387,19 @@ String _s(dynamic value, [String fallback = '']) =>
     value is String ? value : fallback;
 
 String? _nullable(dynamic value) => value is String ? value : null;
+
+int? _iNullable(dynamic value) {
+  if (value is int) {
+    return value;
+  }
+  if (value is num) {
+    return value.toInt();
+  }
+  if (value is String) {
+    return int.tryParse(value);
+  }
+  return null;
+}
 
 int _i(dynamic value, [int fallback = 0]) {
   if (value is int) {

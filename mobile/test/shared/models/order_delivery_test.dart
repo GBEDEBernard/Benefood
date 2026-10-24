@@ -84,6 +84,53 @@ void main() {
   });
 
   group('Code de confirmation', _confirmationCodeTests);
+
+  group('Parcel — suivi temps réel', () {
+    test('parse la position du livreur pendant la course', () {
+      final parcel = Parcel.fromJson({
+        'id': 'par-1',
+        'reference': 'COL-001',
+        'status': 'in_delivery',
+        'pickup': {
+          'label': 'Boutique',
+          'latitude': 6.37,
+          'longitude': 2.42,
+        },
+        'dropoff': {
+          'label': 'Client',
+          'latitude': 6.35,
+          'longitude': 2.44,
+        },
+        'position': {
+          'latitude': 6.36,
+          'longitude': 2.43,
+          'heading': 90,
+          'last_location_at': '2026-10-24T12:00:00+00:00',
+          'age_seconds': 3,
+          'distance_km': 1.5,
+        },
+      });
+
+      expect(parcel.isTrackingActive, isTrue);
+      expect(parcel.isPickupPhase, isFalse);
+      expect(parcel.position?.latitude, 6.36);
+      expect(parcel.position?.longitude, 2.43);
+      expect(parcel.position?.heading, 90);
+      expect(parcel.position?.ageSeconds, 3);
+      expect(parcel.position?.distanceKm, 1.5);
+    });
+
+    test('masque la position une fois le colis livré', () {
+      final parcel = Parcel.fromJson({
+        'id': 'par-2',
+        'reference': 'COL-002',
+        'status': 'delivered',
+      });
+
+      expect(parcel.isTrackingActive, isFalse);
+      expect(parcel.position, isNull);
+    });
+  });
 }
 
 void _confirmationCodeTests() {

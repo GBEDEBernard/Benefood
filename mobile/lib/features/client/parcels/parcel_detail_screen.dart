@@ -1,13 +1,20 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/config/app_config.dart';
 import '../../../core/data/marketplace_api.dart';
 import '../../../core/errors/api_exception.dart';
 import '../../../core/navigation/notification_router.dart';
+import '../../../core/services/route_planner.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_dimens.dart';
 import '../../../core/utils/formatters.dart';
+import '../../../core/utils/geo.dart';
+import '../../../shared/models/geo_point.dart';
 import '../../../shared/models/parcel.dart';
+import '../../../shared/models/route_plan.dart';
 import '../../../shared/widgets/amount_widgets.dart';
 import '../../../shared/widgets/app_button.dart';
 import '../../../shared/widgets/app_map.dart';
@@ -38,15 +45,98 @@ class ParcelDetailScreen extends StatefulWidget {
 }
 
 class _ParcelDetailScreenState extends State<ParcelDetailScreen> {
+  static const _pollInterval = Duration(seconds: 4);
+
   Parcel? _parcel;
   bool _loading = true;
   String? _error;
   String? _actionId;
 
+  Timer? _pollTimer;
+  bool _polling = false;
+  late final RoutePlanner _routePlanner;
+  RoutePlan? _route;
+  bool _routeInFlight = false;
+
   @override
   void initState() {
     super.initState();
+    _routePlanner = RoutePlanner(widget.marketplace);
     _load();
+  }
+
+  @override
+  void dispose() {
+    _pollTimer?.cancel();
+    super.dispose();
+  }
+
+  bool get _shouldPoll => _parcel?.isTrackingActive ?? false;
+
+  void _schedulePolling() {
+    _pollTimer?.cancel();
+    if (_shouldPoll) {
+      _pollTimer = Timer.periodic(_pollInterval, (_) => _refreshSilently());
+    }
+  }
+
+  Future<void> _refreshSilently() async {
+    if (_polling) {
+      return;
+    }
+    _polling = true;
+    try {
+      final parcel = await widget.marketplace.parcel(widget.parcelId);
+      if (mounted) {
+        setState(() {
+          _parcel = parcel;
+          _error = null;
+        });
+        _updateRoute();
+      }
+    } on ApiException {
+      // Silence : on conserve la dernière position connue.
+    } finally {
+      _polling = false;
+      if (mounted) {
+        _schedulePolling();
+      }
+    }
+  }
+
+  GeoPoint? get _trackingTarget {
+    final parcel = _parcel;
+    if (parcel == null) {
+      return null;
+    }
+    return parcel.isPickupPhase ? parcel.pickupPoint : parcel.dropoffPoint;
+  }
+
+  Future<void> _updateRoute() async {
+    final parcel = _parcel;
+    final position = parcel?.position?.point;
+    final target = _trackingTarget;
+    if (parcel == null ||
+        position == null ||
+        target == null ||
+        !parcel.isTrackingActive) {
+      return;
+    }
+    if (_routeInFlight) {
+      return;
+    }
+
+    _routeInFlight = true;
+    final plan = await _routePlanner.plan([position, target]);
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _routeInFlight = false;
+      if (plan != null) {
+        _route = plan;
+      }
+    });
   }
 
   Future<void> _load() async {
@@ -61,6 +151,8 @@ class _ParcelDetailScreenState extends State<ParcelDetailScreen> {
           _parcel = parcel;
           _loading = false;
         });
+        _schedulePolling();
+        _updateRoute();
       }
     } on ApiException catch (e) {
       if (mounted) {
@@ -68,8 +160,26 @@ class _ParcelDetailScreenState extends State<ParcelDetailScreen> {
           _error = e.message;
           _loading = false;
         });
+        _schedulePolling();
       }
     }
+  }
+
+  String _trackingLabel(Parcel parcel) {
+    final position = parcel.position!;
+    final target = _trackingTarget;
+    final km =
+        position.distanceKm ??
+        (target == null
+            ? null
+            : distanceKm(position.point.latLng, target.latLng));
+    final label = 'À ${formatDistance(km)}';
+    final stale = (position.ageSeconds ?? 0) >= AppConfig.staleHideEtaSeconds;
+    if (stale) {
+      return label;
+    }
+    final minutes = _route?.etaMinutes ?? estimateMinutes(km ?? 0);
+    return minutes == null ? label : '$label · ~${formatEta(minutes)}';
   }
 
   Future<void> _cancel() async {
@@ -257,15 +367,65 @@ class _ParcelDetailScreenState extends State<ParcelDetailScreen> {
             ),
           ),
           const SizedBox(height: AppDimens.md),
-          if (parcel.pickupPoint != null || parcel.dropoffPoint != null) ...[
+          if (_trackingTarget != null) ...[
             AppMap(
-              target: parcel.pickupPoint,
-              secondary: parcel.dropoffPoint,
-              height: 160,
-              initialZoom: 12,
-              followOrigin: false,
-              showRoute: false,
+              origin: parcel.position?.point,
+              originLabel: parcel.driver?.name ?? 'Livreur',
+              originHeading: parcel.position?.heading,
+              target: _trackingTarget,
+              targetLabel: parcel.isPickupPhase ? 'Ramassage' : 'Livraison',
+              targetIcon: parcel.isPickupPhase
+                  ? Icons.trip_origin
+                  : Icons.place,
+              targetColor: AppColors.orange,
+              secondary: parcel.isPickupPhase
+                  ? parcel.dropoffPoint
+                  : parcel.pickupPoint,
+              secondaryLabel: parcel.isPickupPhase
+                  ? 'Livraison'
+                  : 'Ramassage',
+              secondaryColor: AppColors.gold,
+              route: _route?.latLng,
+              routeColor: AppColors.orange,
+              height: 200,
+              initialZoom: parcel.position != null ? 14 : 12,
+              followOrigin: parcel.position != null,
+              openInMaps: false,
             ),
+            if (parcel.position != null) ...[
+              const SizedBox(height: AppDimens.sm),
+              Row(
+                children: [
+                  const Icon(
+                    Icons.near_me_outlined,
+                    size: 15,
+                    color: AppColors.orange,
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      _trackingLabel(parcel),
+                      style: const TextStyle(
+                        color: AppColors.orangeDark,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 13.5,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+            if ((parcel.position?.ageSeconds ?? 0) >=
+                AppConfig.staleWarnSeconds) ...[
+              const SizedBox(height: AppDimens.xs),
+              Text(
+                'Dernière position reçue il y a ${parcel.position!.ageSeconds} s.',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: AppColors.goldDark,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
             const SizedBox(height: AppDimens.md),
           ],
           _RouteCard(parcel: parcel),
@@ -366,7 +526,7 @@ class _RouteCard extends StatelessWidget {
           children: [
             _RouteRow(
               icon: Icons.trip_origin,
-              color: AppColors.green,
+              color: AppColors.orange,
               title: 'Ramassage',
               text: parcel.pickup?.display ?? '—',
             ),
@@ -547,7 +707,9 @@ class _TimelineStep extends StatelessWidget {
           width: 10,
           height: 10,
           decoration: BoxDecoration(
-            color: isLast ? AppColors.orange : AppColors.green,
+            color: isLast
+                ? AppColors.orange
+                : AppColors.orange.withValues(alpha: 0.35),
             shape: BoxShape.circle,
           ),
         ),
