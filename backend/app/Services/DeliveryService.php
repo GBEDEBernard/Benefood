@@ -405,6 +405,24 @@ class DeliveryService
         if ($driver->status !== DriverStatus::Active->value) {
             throw new DomainException('delivery.driver_inactive', 'Ce livreur ne peut pas accepter de courses.', 409);
         }
+
+        $maxActive = max(1, (int) config('beninfood.tracking.max_active_missions', 2));
+        $activeCount = $driver->deliveries()
+            ->whereIn('status', [
+                DeliveryStatus::Assigned,
+                DeliveryStatus::EnRoutePickup,
+                DeliveryStatus::PickedUp,
+                DeliveryStatus::InDelivery,
+            ])
+            ->count();
+
+        if ($activeCount >= $maxActive) {
+            throw new DomainException(
+                'delivery.max_active_missions',
+                "Vous avez déjà {$maxActive} mission(s) en cours. Terminez-en une avant d'en accepter une nouvelle.",
+                409,
+            );
+        }
     }
 
     private function assertDeliveryOwned(Delivery $delivery, DriverProfile $driver): void

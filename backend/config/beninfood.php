@@ -242,6 +242,7 @@ return [
         'reroute_deviation_m' => (int) env('BENINFOOD_REROUTE_DEVIATION_M', 50),
         'reroute_min_interval_s' => (int) env('BENINFOOD_REROUTE_MIN_INTERVAL_S', 45),
         'arrival_radius_m' => (int) env('BENINFOOD_ARRIVAL_RADIUS_M', 120),
+        'max_active_missions' => (int) env('BENINFOOD_MAX_ACTIVE_MISSIONS', 2),
         'history_retention_days' => (int) env('BENINFOOD_HISTORY_RETENTION_DAYS', 30),
     ],
 

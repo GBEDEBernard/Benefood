@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../core/config/app_config.dart';
 import '../../../core/data/marketplace_api.dart';
 import '../../../core/errors/api_exception.dart';
 import '../../../core/services/background_location_service.dart';
@@ -46,7 +47,9 @@ class MissionNavigationScreen extends StatefulWidget {
 }
 
 class _MissionNavigationScreenState extends State<MissionNavigationScreen> {
-  static const _locationInterval = Duration(seconds: 15);
+  static const _locationInterval = Duration(
+    seconds: AppConfig.locationIntervalSeconds,
+  );
 
   late DriverMission _mission;
   late final RoutePlanner _routePlanner;
@@ -79,7 +82,10 @@ class _MissionNavigationScreenState extends State<MissionNavigationScreen> {
     super.initState();
     _mission = widget.mission;
     _routePlanner = RoutePlanner(widget.marketplace);
-    _guide = const NavigationGuide();
+    _guide = NavigationGuide(
+      offRouteThresholdMeters: AppConfig.rerouteDeviationMeters.toDouble(),
+      arrivalThresholdMeters: AppConfig.arrivalRadiusMeters.toDouble(),
+    );
     _voice = VoiceGuidance()..init();
     _syncReporting();
     _startTracking();
@@ -146,7 +152,9 @@ class _MissionNavigationScreenState extends State<MissionNavigationScreen> {
   void _subscribeToPosition() {
     _positionSubscription?.cancel();
     try {
-      _positionSubscription = LocationService.watch(distanceFilter: 8).listen(
+      _positionSubscription = LocationService.watch(
+        distanceFilter: AppConfig.locationDistanceFilterMeters,
+      ).listen(
         _onPosition,
         onError: (_) {
           if (!mounted) {
@@ -362,7 +370,8 @@ class _MissionNavigationScreenState extends State<MissionNavigationScreen> {
   void _handleOffRoute() {
     final now = DateTime.now();
     final last = _lastOffRouteRecalc;
-    if (last != null && now.difference(last).inSeconds < 15) {
+    if (last != null &&
+        now.difference(last).inSeconds < AppConfig.rerouteMinIntervalSeconds) {
       return;
     }
     _lastOffRouteRecalc = now;
