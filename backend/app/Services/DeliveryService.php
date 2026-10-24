@@ -189,7 +189,7 @@ class DeliveryService
             'created_at' => now(),
         ]);
 
-        return $delivery->fresh(['order.vendor', 'order.user', 'order.financials', 'vendor', 'driverProfile']);
+        return $delivery->fresh(['order.vendor', 'order.user', 'order.financials', 'vendor', 'driverProfile.user']);
     }
 
     /**
@@ -236,7 +236,7 @@ class DeliveryService
             'created_at' => now(),
         ]);
 
-        return $delivery->fresh(['order.vendor', 'order.user', 'order.financials', 'vendor', 'driverProfile']);
+        return $delivery->fresh(['order.vendor', 'order.user', 'order.financials', 'vendor', 'driverProfile.user']);
     }
 
     /**
@@ -268,7 +268,7 @@ class DeliveryService
             'created_at' => now(),
         ]);
 
-        return $delivery->fresh(['order.vendor', 'order.user', 'order.financials', 'vendor', 'driverProfile']);
+        return $delivery->fresh(['order.vendor', 'order.user', 'order.financials', 'vendor', 'driverProfile.user']);
     }
 
     /**
@@ -290,7 +290,7 @@ class DeliveryService
             'created_at' => now(),
         ]);
 
-        return $delivery->fresh(['order.vendor', 'order.user', 'order.financials', 'vendor', 'driverProfile']);
+        return $delivery->fresh(['order.vendor', 'order.user', 'order.financials', 'vendor', 'driverProfile.user']);
     }
 
     /**
@@ -340,7 +340,7 @@ class DeliveryService
             'created_at' => now(),
         ]);
 
-        return $delivery->fresh(['order.vendor', 'order.user', 'order.financials', 'vendor', 'driverProfile']);
+        return $delivery->fresh(['order.vendor', 'order.user', 'order.financials', 'vendor', 'driverProfile.user']);
     }
 
     /**

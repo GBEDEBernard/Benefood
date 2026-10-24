@@ -32,7 +32,12 @@ Delivery _delivery({String status = 'en_route_pickup'}) {
         'latitude': 6.3501,
         'longitude': 2.4002,
       },
-      'client': {'id': 'u-1', 'name': 'Koffi', 'phone': '+22990000002'},
+      'client': {
+        'id': 'u-1',
+        'name': 'Koffi',
+        'phone': '+22990000002',
+        'avatar_url': 'https://cdn.test/koffi.jpg',
+      },
       'items': [
         {
           'id': 'i-1',
@@ -78,7 +83,12 @@ Parcel _parcel({
       'contact_name': 'Aline',
       'contact_phone': '+22990000003',
     },
-    'sender': {'id': 'u-9', 'name': 'Sylvain', 'phone': '+22990000004'},
+    'sender': {
+      'id': 'u-9',
+      'name': 'Sylvain',
+      'phone': '+22990000004',
+      'avatar_url': 'https://cdn.test/sylvain.jpg',
+    },
   });
 }
 
@@ -98,7 +108,9 @@ void main() {
     expect(mission.imageUrl, 'https://cdn.test/logo.jpg');
     expect(mission.pickup.title, 'Chez Awa');
     expect(mission.pickup.address, contains('Rue 12'));
+    expect(mission.pickup.imageUrl, 'https://cdn.test/logo.jpg');
     expect(mission.dropoff.title, 'Koffi');
+    expect(mission.dropoff.imageUrl, 'https://cdn.test/koffi.jpg');
     expect(mission.dropoff.displayAddress, contains('Près de la pharmacie'));
     expect(mission.items.single.name, 'Poulet braisé');
     expect(mission.itemCount, 2);
@@ -138,6 +150,7 @@ void main() {
     expect(mission.title, 'Awa');
     expect(mission.pickup.contactName, 'Awa');
     expect(mission.pickup.contactPhone, '+22990000005');
+    expect(mission.pickup.imageUrl, 'https://cdn.test/sylvain.jpg');
     expect(mission.dropoff.contactName, 'Aline');
     expect(mission.dropoff.contactPhone, '+22990000003');
     expect(mission.dropoff.note, 'Face à l’école');

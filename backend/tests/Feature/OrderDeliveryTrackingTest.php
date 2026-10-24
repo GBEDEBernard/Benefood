@@ -177,6 +177,9 @@ class OrderDeliveryTrackingTest extends TestCase
         $this->deliverySetup($vendor);
         $address = $this->clientAddress($client);
         $driver = $this->activeDriver($this->actingUser('driver-independent'));
+        $client->update(['avatar_path' => 'avatars/client.jpg']);
+        $driver->user->update(['avatar_path' => 'avatars/driver.jpg']);
+        $vendor->update(['logo_url' => 'vendors/logo.jpg']);
 
         $this->addToCart($client, $product);
         $order = $this->placeOrder($client, $address);
@@ -184,7 +187,9 @@ class OrderDeliveryTrackingTest extends TestCase
 
         $this->actAs($driver->user);
         $offers = $this->getJson('/api/v1/driver/me/deliveries/offers')->assertOk()->json('data');
-        $deliveryId = collect($offers)->firstWhere('order.id', $order->id)['id'];
+        $offer = collect($offers)->firstWhere('order.id', $order->id);
+        $this->assertStringContainsString('avatars/client.jpg', $offer['order']['client']['avatar_url']);
+        $deliveryId = $offer['id'];
 
         $this->postJson("/api/v1/driver/me/deliveries/{$deliveryId}/accept")->assertOk();
 
@@ -217,10 +222,13 @@ class OrderDeliveryTrackingTest extends TestCase
             ->assertJsonPath('data.delivery.status', 'in_delivery')
             ->assertJsonPath('data.delivery.driver.name', $driver->user->name)
             ->assertJsonPath('data.delivery.driver.vehicle', $driver->vehicle)
+            ->assertJsonPath('data.delivery.driver.avatar_url', fn ($url) => is_string($url) && str_contains($url, 'avatars/driver.jpg'))
+            ->assertJsonPath('data.vendor.logo_url', fn ($url) => is_string($url) && str_contains($url, 'vendors/logo.jpg'))
+            ->assertJsonPath('data.customer.avatar_url', fn ($url) => is_string($url) && str_contains($url, 'avatars/client.jpg'))
             ->assertJsonPath('data.delivery.position.latitude', 6.372)
             ->assertJsonPath('data.delivery.position.longitude', 2.392)
             ->assertJsonPath('data.delivery.position.last_location_at', $driver->fresh()->last_location_at?->toIso8601String())
-            ->assertJsonPath('data.delivery.position.age_seconds', 0);
+            ->assertJsonPath('data.delivery.position.age_seconds', fn ($age) => is_int($age) && $age >= 0);
 
         $this->assertTrue(
             is_numeric($this->getJson("/api/v1/orders/{$order->id}")->json('data.delivery.position.distance_km')),

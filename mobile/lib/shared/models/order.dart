@@ -193,6 +193,7 @@ class OrderDriver {
   const OrderDriver({
     required this.id,
     this.name,
+    this.avatarUrl,
     this.vehicle,
     this.rating,
     this.phone,
@@ -200,6 +201,9 @@ class OrderDriver {
 
   final String id;
   final String? name;
+
+  /// Photo de profil du livreur, affichée sur les cartes de suivi.
+  final String? avatarUrl;
   final String? vehicle;
   final double? rating;
 
@@ -210,6 +214,9 @@ class OrderDriver {
   factory OrderDriver.fromJson(Map<String, dynamic> json) => OrderDriver(
     id: _s(json['id']),
     name: json['name'] is String ? json['name'] as String : null,
+    avatarUrl: json['avatar_url'] is String
+        ? json['avatar_url'] as String
+        : null,
     vehicle: json['vehicle'] is String ? json['vehicle'] as String : null,
     rating: _dNull(json['rating']),
     phone: json['phone'] is String ? json['phone'] as String : null,
@@ -325,6 +332,7 @@ class Order {
     this.updatedAt,
     this.customerName,
     this.customerPhone,
+    this.customerAvatarUrl,
     this.notes,
     this.review,
   });
@@ -371,6 +379,9 @@ class Order {
   /// le serveur renvoie l'objet `customer`.
   final String? customerName;
   final String? customerPhone;
+
+  /// Photo de profil du client (marqueur carte côté vendeur/livreur).
+  final String? customerAvatarUrl;
 
   /// Note de livraison laissée par le client (« Bien cuire les frites… »).
   final String? notes;
@@ -436,6 +447,7 @@ class Order {
     updatedAt: updatedAt,
     customerName: customerName,
     customerPhone: customerPhone,
+    customerAvatarUrl: customerAvatarUrl,
     notes: notes,
     review: review,
   );
@@ -535,6 +547,7 @@ class Order {
       customerPhone:
           _customerField(json['customer'], 'phone') ??
           _stringOrNull(json['customer_phone']),
+      customerAvatarUrl: _customerField(json['customer'], 'avatar_url'),
       notes: _stringOrNull(json['notes']),
       review: json['review'] is Map<String, dynamic>
           ? OrderReview.fromJson(json['review'] as Map<String, dynamic>)

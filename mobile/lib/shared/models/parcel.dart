@@ -257,16 +257,27 @@ class ParcelAddress {
 
 /// Expéditeur d'un colis.
 class ParcelSender {
-  const ParcelSender({required this.id, this.name, this.phone});
+  const ParcelSender({
+    required this.id,
+    this.name,
+    this.phone,
+    this.avatarUrl,
+  });
 
   final String id;
   final String? name;
   final String? phone;
 
+  /// Photo de profil de l'expéditeur (marqueur de collecte).
+  final String? avatarUrl;
+
   factory ParcelSender.fromJson(Map<String, dynamic> json) => ParcelSender(
     id: _s(json['id']),
     name: json['name'] is String ? json['name'] as String : null,
     phone: json['phone'] is String ? json['phone'] as String : null,
+    avatarUrl: json['avatar_url'] is String
+        ? json['avatar_url'] as String
+        : null,
   );
 }
 
@@ -276,6 +287,7 @@ class ParcelDriver {
     required this.id,
     this.name,
     this.phone,
+    this.avatarUrl,
     this.vehicle,
     this.rating,
   });
@@ -283,6 +295,9 @@ class ParcelDriver {
   final String id;
   final String? name;
   final String? phone;
+
+  /// Photo de profil du livreur, affichée sur les cartes de suivi.
+  final String? avatarUrl;
   final String? vehicle;
   final double? rating;
 
@@ -290,6 +305,9 @@ class ParcelDriver {
     id: _s(json['id']),
     name: json['name'] is String ? json['name'] as String : null,
     phone: json['phone'] is String ? json['phone'] as String : null,
+    avatarUrl: json['avatar_url'] is String
+        ? json['avatar_url'] as String
+        : null,
     vehicle: json['vehicle'] is String ? json['vehicle'] as String : null,
     rating: _d(json['rating']),
   );

@@ -385,7 +385,10 @@ class _RunCard extends StatelessWidget {
               const SizedBox(height: AppDimens.sm),
               AppMap(
                 target: parcel.pickupPoint,
+                targetLabel: 'Collecte',
+                targetImageUrl: parcel.sender?.avatarUrl,
                 secondary: parcel.dropoffPoint,
+                secondaryLabel: 'Livraison',
                 height: 110,
                 initialZoom: 12,
                 followOrigin: false,
@@ -500,7 +503,10 @@ class _OfferCard extends StatelessWidget {
               const SizedBox(height: AppDimens.sm),
               AppMap(
                 target: parcel.pickupPoint,
+                targetLabel: 'Collecte',
+                targetImageUrl: parcel.sender?.avatarUrl,
                 secondary: parcel.dropoffPoint,
+                secondaryLabel: 'Livraison',
                 height: 110,
                 initialZoom: 12,
                 followOrigin: false,

@@ -84,16 +84,27 @@ class DeliveryOrderItem {
 }
 
 class DeliveryClient {
-  const DeliveryClient({required this.id, this.name, this.phone});
+  const DeliveryClient({
+    required this.id,
+    this.name,
+    this.phone,
+    this.avatarUrl,
+  });
 
   final String id;
   final String? name;
   final String? phone;
 
+  /// Photo de profil du client (marqueur de livraison).
+  final String? avatarUrl;
+
   factory DeliveryClient.fromJson(Map<String, dynamic> json) => DeliveryClient(
         id: _s(json['id']),
         name: json['name'] is String ? json['name'] as String : null,
         phone: json['phone'] is String ? json['phone'] as String : null,
+        avatarUrl: json['avatar_url'] is String
+            ? json['avatar_url'] as String
+            : null,
       );
 }
 

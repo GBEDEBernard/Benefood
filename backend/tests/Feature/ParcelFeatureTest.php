@@ -313,11 +313,13 @@ class ParcelFeatureTest extends TestCase
     public function test_parcel_exposes_driver_position_only_during_active_trip(): void
     {
         $client = $this->client();
+        $client->update(['avatar_path' => 'avatars/client.jpg']);
         $parcels = app(ParcelService::class);
         $parcel = $parcels->create($client, $this->pickup(), $this->dropoff());
         $parcels->confirmPayment($parcel->fresh(), (int) $parcel->delivery_fee);
 
         $driver = $this->driver();
+        $driver->user->update(['avatar_path' => 'avatars/driver.jpg']);
         $driver->update([
             'last_latitude' => 6.36,
             'last_longitude' => 2.43,
@@ -338,7 +340,9 @@ class ParcelFeatureTest extends TestCase
         $this->getJson("/api/v1/parcels/{$parcel->id}")
             ->assertOk()
             ->assertJsonPath('data.position.latitude', 6.36)
-            ->assertJsonPath('data.position.age_seconds', 0);
+            ->assertJsonPath('data.position.age_seconds', 0)
+            ->assertJsonPath('data.driver.avatar_url', fn ($url) => is_string($url) && str_contains($url, 'avatars/driver.jpg'))
+            ->assertJsonPath('data.sender.avatar_url', fn ($url) => is_string($url) && str_contains($url, 'avatars/client.jpg'));
 
         $parcel->fresh()->forceFill([
             'status' => ParcelStatus::Delivered,

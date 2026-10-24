@@ -6,6 +6,7 @@ use App\Enums\ParcelStatus;
 use App\Services\DeliveryPricingService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Support\Facades\Storage;
 
 class ParcelResource extends JsonResource
 {
@@ -25,6 +26,7 @@ class ParcelResource extends JsonResource
                 'id' => $this->user->id,
                 'name' => $this->user->name,
                 'phone' => $this->user->phone,
+                'avatar_url' => $this->mediaUrl($this->user->avatar_path),
             ]),
             'distance_km' => $this->distance_km !== null ? (float) $this->distance_km : null,
             'delivery_fee' => (int) $this->delivery_fee,
@@ -51,6 +53,7 @@ class ParcelResource extends JsonResource
                 'id' => $this->driverProfile->id,
                 'name' => $this->driverProfile->user?->name,
                 'phone' => $this->driverProfile->user?->phone,
+                'avatar_url' => $this->mediaUrl($this->driverProfile->user?->avatar_path),
                 'vehicle' => $this->driverProfile->vehicle,
                 'rating' => $this->driverProfile->rating,
             ]),
@@ -125,5 +128,18 @@ class ParcelResource extends JsonResource
             $lat,
             $lng,
         ), 3);
+    }
+
+    private function mediaUrl(?string $path): ?string
+    {
+        if ($path === null || $path === '') {
+            return null;
+        }
+
+        if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
+            return $path;
+        }
+
+        return Storage::disk('public')->url($path);
     }
 }

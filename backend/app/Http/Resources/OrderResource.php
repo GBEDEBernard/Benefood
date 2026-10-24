@@ -35,7 +35,7 @@ class OrderResource extends JsonResource
             'vendor' => $this->whenLoaded('vendor', fn () => [
                 'id' => $this->vendor->id,
                 'business_name' => $this->vendor->business_name,
-                'logo_url' => $this->vendor->logo_url,
+                'logo_url' => $this->mediaUrl($this->vendor->logo_url),
                 'address' => $this->vendor->address,
                 'city' => $this->vendor->city,
                 'latitude' => $this->vendor->latitude,
@@ -50,6 +50,7 @@ class OrderResource extends JsonResource
             'customer' => [
                 'name' => $this->user?->name,
                 'phone' => $this->user?->phone,
+                'avatar_url' => $this->mediaUrl($this->user?->avatar_path),
             ],
             'notes' => $this->notes,
             'delivery' => $this->whenLoaded('delivery', fn () => $this->deliveryPayload()),
@@ -194,6 +195,7 @@ class OrderResource extends JsonResource
                 'id' => $driver->id,
                 'name' => $driver->user?->name,
                 'phone' => $driver->user?->phone,
+                'avatar_url' => $this->mediaUrl($driver->user?->avatar_path),
                 'vehicle' => $driver->vehicle,
                 'rating' => $driver->rating,
             ],

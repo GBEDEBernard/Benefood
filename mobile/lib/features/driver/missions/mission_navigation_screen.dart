@@ -633,19 +633,23 @@ class _MissionNavigationScreenState extends State<MissionNavigationScreen> {
               originHeading: _bearing,
               target: _target,
               targetLabel: _currentStop.title,
+              targetImageUrl: _currentStop.imageUrl,
               targetIcon: _mission.isPickupPhase
                   ? Icons.storefront_outlined
                   : Icons.location_on_outlined,
               targetColor: _mission.isPickupPhase
-                  ? AppColors.green
+                  ? AppColors.gold
                   : AppColors.orange,
               secondary: _mission.isPickupPhase ? _mission.dropoff.point : null,
               secondaryLabel: _mission.dropoff.title,
+              secondaryImageUrl: _mission.isPickupPhase
+                  ? _mission.dropoff.imageUrl
+                  : null,
               secondaryIcon: Icons.place_outlined,
               secondaryColor: AppColors.orange,
               route: _activeRoute,
               routeColor: _mission.isPickupPhase
-                  ? AppColors.green
+                  ? AppColors.gold
                   : AppColors.orange,
               highlightRoute: _highlightSegment,
               extraRoute: _deliveryLegRoute,
@@ -701,7 +705,7 @@ class _MissionNavigationScreenState extends State<MissionNavigationScreen> {
                       waitingForPosition: _position == null,
                       locating: _locating,
                       accent: _mission.isPickupPhase
-                          ? AppColors.green
+                          ? AppColors.gold
                           : AppColors.orange,
                       navigationState: _navigationState,
                     ),
@@ -924,7 +928,7 @@ class _BottomMissionPanel extends StatelessWidget {
     final phone = stop.contactPhone?.trim() ?? '';
     final delivered = mission.status == 'delivered';
     final cancelled = mission.status == 'cancelled';
-    final accent = mission.isPickupPhase ? AppColors.green : AppColors.orange;
+    final accent = mission.isPickupPhase ? AppColors.gold : AppColors.orange;
 
     return Container(
       decoration: BoxDecoration(

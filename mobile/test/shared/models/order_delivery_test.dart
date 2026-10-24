@@ -12,6 +12,11 @@ Map<String, dynamic> _orderWith(Map<String, dynamic>? delivery) => {
   'subtotal': 1000,
   'delivery_fee': 1500,
   'total': 2500,
+  'customer': {
+    'name': 'Aline',
+    'phone': '+22990000003',
+    'avatar_url': 'https://cdn.test/aline.jpg',
+  },
   'delivery': delivery,
 }..removeWhere((key, value) => key == 'delivery' && value == null);
 
@@ -25,6 +30,7 @@ void main() {
           'driver': {
             'id': 'drv-1',
             'name': 'Achille',
+            'avatar_url': 'https://cdn.test/achille.jpg',
             'vehicle': 'Moto',
             'rating': 4.5,
           },
@@ -44,6 +50,11 @@ void main() {
       expect(order.delivery?.driver?.name, 'Achille');
       expect(order.delivery?.driver?.vehicle, 'Moto');
       expect(order.delivery?.driver?.rating, 4.5);
+      expect(
+        order.delivery?.driver?.avatarUrl,
+        'https://cdn.test/achille.jpg',
+      );
+      expect(order.customerAvatarUrl, 'https://cdn.test/aline.jpg');
       expect(order.delivery?.position?.latitude, 6.371);
       expect(order.delivery?.position?.distanceKm, 0.16);
       expect(order.delivery?.position?.ageSeconds, 42);

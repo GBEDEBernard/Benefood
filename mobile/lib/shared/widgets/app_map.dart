@@ -9,6 +9,7 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_dimens.dart';
 import '../../core/utils/geo.dart';
 import '../models/geo_point.dart';
+import 'app_network_image.dart';
 
 /// Carte de localisation réutilisable (J162 / J177).
 ///
@@ -26,6 +27,9 @@ class AppMap extends StatefulWidget {
     this.originLabel = 'Vous',
     this.targetLabel,
     this.secondaryLabel,
+    this.originImageUrl,
+    this.targetImageUrl,
+    this.secondaryImageUrl,
     this.height = 260,
     this.followOrigin = true,
     this.initialZoom = 14,
@@ -58,6 +62,11 @@ class AppMap extends StatefulWidget {
   final String originLabel;
   final String? targetLabel;
   final String? secondaryLabel;
+
+  /// Photos affichées dans les marqueurs (avatar ou logo). `null` = icône.
+  final String? originImageUrl;
+  final String? targetImageUrl;
+  final String? secondaryImageUrl;
 
   final double height;
 
@@ -180,6 +189,9 @@ class _AppMapState extends State<AppMap> {
       originLabel: widget.originLabel,
       targetLabel: widget.targetLabel,
       secondaryLabel: widget.secondaryLabel,
+      originImageUrl: widget.originImageUrl,
+      targetImageUrl: widget.targetImageUrl,
+      secondaryImageUrl: widget.secondaryImageUrl,
       followOrigin: widget.followOrigin,
       initialZoom: widget.initialZoom,
       showRoute: widget.showRoute,
@@ -265,6 +277,9 @@ class _AppMapState extends State<AppMap> {
       if (widget.target != null) widget.target!.latLng,
       if (widget.secondary != null) widget.secondary!.latLng,
     ];
+    final originMarkerSize = widget.originImageUrl == null
+        ? (widget.originIsDriver ? 44.0 : 28.0)
+        : (widget.originIsDriver ? 44.0 : 36.0);
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(widget.fullscreen ? 0 : AppDimens.radiusMd),
@@ -345,31 +360,90 @@ class _AppMapState extends State<AppMap> {
                           if (widget.secondary != null)
                             _marker(
                               point: widget.secondary!,
-                              size: 34,
+                              size: 36,
                               label: widget.secondaryLabel,
-                              child: _DotMarker(
-                                color: widget.secondaryColor ?? AppColors.gold,
-                                icon: widget.secondaryIcon,
-                              ),
+                              child: widget.secondaryImageUrl == null
+                                  ? _DotMarker(
+                                      color:
+                                          widget.secondaryColor ??
+                                          AppColors.gold,
+                                      icon: widget.secondaryIcon,
+                                    )
+                                  : _PhotoMarker(
+                                      imageUrl: widget.secondaryImageUrl!,
+                                      size: 36,
+                                      fallback: _DotMarker(
+                                        color:
+                                            widget.secondaryColor ??
+                                            AppColors.gold,
+                                        icon: widget.secondaryIcon,
+                                      ),
+                                      badgeIcon: widget.secondaryIcon,
+                                      badgeColor:
+                                          widget.secondaryColor ??
+                                          AppColors.gold,
+                                      rounded: _isShopIcon(
+                                        widget.secondaryIcon,
+                                      ),
+                                    ),
                             ),
                           if (widget.target != null)
                             _marker(
                               point: widget.target!,
-                              size: 40,
+                              size: 42,
                               label: widget.targetLabel,
-                              child: _PinMarker(
-                                color: widget.targetColor ?? AppColors.orange,
-                                icon: widget.targetIcon,
-                              ),
+                              child: widget.targetImageUrl == null
+                                  ? _PinMarker(
+                                      color:
+                                          widget.targetColor ??
+                                          AppColors.orange,
+                                      icon: widget.targetIcon,
+                                    )
+                                  : _PhotoMarker(
+                                      imageUrl: widget.targetImageUrl!,
+                                      size: 42,
+                                      fallback: _PinMarker(
+                                        color:
+                                            widget.targetColor ??
+                                            AppColors.orange,
+                                        icon: widget.targetIcon,
+                                      ),
+                                      badgeIcon: widget.targetIcon,
+                                      badgeColor:
+                                          widget.targetColor ??
+                                          AppColors.orange,
+                                      rounded: _isShopIcon(widget.targetIcon),
+                                    ),
                             ),
                           if (widget.origin != null)
                             _marker(
                               point: widget.origin!,
-                              size: widget.originIsDriver ? 42 : 28,
+                              size: originMarkerSize,
                               label: widget.originLabel,
-                              child: widget.originIsDriver
-                                  ? _MotoMarker(heading: widget.originHeading)
-                                  : const _DriverMarker(),
+                              child: widget.originImageUrl == null
+                                  ? (widget.originIsDriver
+                                        ? _MotoMarker(
+                                            heading: widget.originHeading,
+                                          )
+                                        : const _DriverMarker())
+                                  : _PhotoMarker(
+                                      imageUrl: widget.originImageUrl!,
+                                      size: originMarkerSize,
+                                      fallback: widget.originIsDriver
+                                          ? _MotoMarker(
+                                              heading: widget.originHeading,
+                                            )
+                                          : const _DriverMarker(),
+                                      badgeIcon: widget.originIsDriver
+                                          ? (widget.originHeading != null
+                                                ? Icons.navigation
+                                                : Icons.two_wheeler)
+                                          : Icons.person,
+                                      badgeColor: widget.originIsDriver
+                                          ? AppColors.orange
+                                          : const Color(0xFF1D6FE0),
+                                      heading: widget.originHeading,
+                                    ),
                             ),
                         ],
                       ),
@@ -458,6 +532,104 @@ class _MarkerLabel extends StatelessWidget {
           fontWeight: FontWeight.w600,
           color: AppColors.text,
         ),
+      ),
+    );
+  }
+}
+
+bool _isShopIcon(IconData icon) =>
+    icon == Icons.storefront_outlined || icon == Icons.storefront;
+
+/// Marqueur photo : avatar client/livreur ou logo boutique, avec pastille
+/// de rôle. Repli automatique sur le marqueur icône si l'image échoue.
+class _PhotoMarker extends StatelessWidget {
+  const _PhotoMarker({
+    required this.imageUrl,
+    required this.size,
+    required this.fallback,
+    required this.badgeIcon,
+    required this.badgeColor,
+    this.rounded = false,
+    this.heading,
+  });
+
+  final String imageUrl;
+  final double size;
+  final Widget fallback;
+  final IconData badgeIcon;
+  final Color badgeColor;
+
+  /// Logo boutique : cadre arrondi ; sinon avatar circulaire.
+  final bool rounded;
+
+  /// Cap du véhicule pour orienter la pastille du livreur.
+  final double? heading;
+
+  @override
+  Widget build(BuildContext context) {
+    final radius = BorderRadius.circular(size * 0.28);
+    final badgeSize = size * 0.45;
+
+    return SizedBox(
+      width: size,
+      height: size,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Container(
+            width: size,
+            height: size,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              shape: rounded ? BoxShape.rectangle : BoxShape.circle,
+              borderRadius: rounded ? radius : null,
+              border: Border.all(color: Colors.white, width: 2.5),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.28),
+                  blurRadius: 10,
+                  offset: const Offset(0, 3),
+                ),
+              ],
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: AppNetworkImage(
+              url: imageUrl,
+              fit: BoxFit.cover,
+              fallback: fallback,
+              borderRadius: rounded ? radius : null,
+            ),
+          ),
+          Positioned(
+            right: -2,
+            bottom: -2,
+            child: Container(
+              width: badgeSize,
+              height: badgeSize,
+              decoration: BoxDecoration(
+                color: badgeColor,
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.white, width: 2),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.2),
+                    blurRadius: 4,
+                  ),
+                ],
+              ),
+              child: Center(
+                child: Transform.rotate(
+                  angle: (heading ?? 0) * 3.1415926535 / 180,
+                  child: Icon(
+                    badgeIcon,
+                    size: badgeSize * 0.55,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -371,9 +371,13 @@ class _ParcelDetailScreenState extends State<ParcelDetailScreen> {
             AppMap(
               origin: parcel.position?.point,
               originLabel: parcel.driver?.name ?? 'Livreur',
+              originImageUrl: parcel.driver?.avatarUrl,
               originHeading: parcel.position?.heading,
               target: _trackingTarget,
               targetLabel: parcel.isPickupPhase ? 'Ramassage' : 'Livraison',
+              targetImageUrl: parcel.isPickupPhase
+                  ? parcel.sender?.avatarUrl
+                  : null,
               targetIcon: parcel.isPickupPhase
                   ? Icons.trip_origin
                   : Icons.place,
@@ -384,6 +388,9 @@ class _ParcelDetailScreenState extends State<ParcelDetailScreen> {
               secondaryLabel: parcel.isPickupPhase
                   ? 'Livraison'
                   : 'Ramassage',
+              secondaryImageUrl: parcel.isPickupPhase
+                  ? null
+                  : parcel.sender?.avatarUrl,
               secondaryColor: AppColors.gold,
               route: _route?.latLng,
               routeColor: AppColors.orange,

@@ -71,7 +71,7 @@ class ParcelController extends Controller
             return Api::error('Ressource introuvable.', 'not_found', 404);
         }
 
-        return Api::ok(new ParcelResource($parcel->load(['payment', 'driverProfile.user', 'statusHistory'])));
+        return Api::ok(new ParcelResource($parcel->load(['user', 'payment', 'driverProfile.user', 'statusHistory'])));
     }
 
     public function cancel(Request $request, Parcel $parcel): JsonResponse
@@ -105,7 +105,7 @@ class ParcelController extends Controller
         $driver = $this->driverProfile($request);
 
         return Api::ok(ParcelResource::collection(
-            $this->parcels->driverParcels($driver)->load('user')
+            $this->parcels->driverParcels($driver)->load(['user', 'driverProfile.user'])
         )->resolve());
     }
 

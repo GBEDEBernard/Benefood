@@ -48,11 +48,12 @@ class DeliveryResource extends JsonResource
                 'subtotal' => $order->subtotal,
                 'delivery_fee' => $order->delivery_fee,
                 'address' => $order->address_snapshot,
-                'client' => $this->whenLoaded('order.user', fn () => [
+                'client' => $order !== null && $order->relationLoaded('user') ? [
                     'id' => $order->user->id,
                     'name' => $order->user->name,
                     'phone' => $order->user->phone,
-                ]),
+                    'avatar_url' => $this->mediaUrl($order->user->avatar_path),
+                ] : null,
                 'items' => $order->relationLoaded('items')
                     ? $order->items->map(fn ($item) => [
                         'id' => $item->id,
@@ -86,6 +87,8 @@ class DeliveryResource extends JsonResource
             'driver' => $this->whenLoaded('driverProfile', fn () => [
                 'id' => $this->driverProfile->id,
                 'user_id' => $this->driverProfile->user_id,
+                'name' => $this->driverProfile->user?->name,
+                'avatar_url' => $this->mediaUrl($this->driverProfile->user?->avatar_path),
                 'vehicle' => $this->driverProfile->vehicle,
                 'rating' => $this->driverProfile->rating,
             ]),

@@ -640,18 +640,20 @@ class _MapPreview extends StatelessWidget {
       child: AppMap(
         target: current.point,
         targetLabel: current.title,
+        targetImageUrl: current.imageUrl,
         targetIcon: mission.isPickupPhase
             ? Icons.storefront_outlined
             : Icons.location_on_outlined,
         targetColor:
-            mission.isPickupPhase ? AppColors.green : AppColors.orange,
+            mission.isPickupPhase ? AppColors.gold : AppColors.orange,
         secondary: other.point,
         secondaryLabel: other.title,
+        secondaryImageUrl: other.imageUrl,
         secondaryIcon: mission.isPickupPhase
             ? Icons.place_outlined
             : Icons.inventory_2_outlined,
         secondaryColor:
-            mission.isPickupPhase ? AppColors.orange : AppColors.green,
+            mission.isPickupPhase ? AppColors.orange : AppColors.gold,
         height: 210,
       ),
     );

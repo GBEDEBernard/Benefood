@@ -12,6 +12,7 @@ class DriverMissionStop {
     this.contactPhone,
     this.point,
     this.note,
+    this.imageUrl,
   });
 
   final String title;
@@ -20,6 +21,9 @@ class DriverMissionStop {
   final String? contactPhone;
   final GeoPoint? point;
   final String? note;
+
+  /// Logo boutique ou photo du contact, affiché sur la carte.
+  final String? imageUrl;
 
   String get displayAddress {
     final parts = [
@@ -209,6 +213,7 @@ class DriverMission {
         contactName: vendor?.businessName,
         contactPhone: vendor?.phone,
         point: delivery.pickupPoint,
+        imageUrl: vendor?.logoUrl,
       ),
       dropoff: DriverMissionStop(
         title: order?.client?.name?.trim().isNotEmpty == true
@@ -219,6 +224,7 @@ class DriverMission {
         contactPhone: order?.client?.phone,
         point: delivery.dropoffPoint,
         note: address?.landmark,
+        imageUrl: order?.client?.avatarUrl,
       ),
       items: (order?.items ?? const <DeliveryOrderItem>[])
           .map(
@@ -264,6 +270,7 @@ class DriverMission {
             : sender?.phone,
         point: parcel.pickupPoint,
         note: pickup?.landmark,
+        imageUrl: sender?.avatarUrl,
       ),
       dropoff: DriverMissionStop(
         title: dropoff?.contactName?.trim().isNotEmpty == true

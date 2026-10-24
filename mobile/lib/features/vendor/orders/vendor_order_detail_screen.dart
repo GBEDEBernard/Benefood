@@ -329,18 +329,25 @@ class _VendorOrderDetailScreenState extends State<VendorOrderDetailScreen> {
               AppMap(
                 origin: position.point,
                 originLabel: driver?.name ?? 'Livreur',
+                originImageUrl: driver?.avatarUrl,
                 originHeading: position.heading,
                 target: target,
                 targetLabel: isPickup ? 'Votre boutique' : 'Client',
+                targetImageUrl: isPickup
+                    ? order.vendor?.logoUrl
+                    : order.customerAvatarUrl,
                 targetIcon:
                     isPickup ? Icons.storefront_outlined : Icons.place,
-                targetColor: AppColors.orange,
+                targetColor: isPickup ? AppColors.gold : AppColors.orange,
                 secondary:
                     isPickup ? order.dropoffPoint : order.vendor?.point,
                 secondaryLabel: isPickup ? 'Client' : 'Votre boutique',
+                secondaryImageUrl: isPickup
+                    ? order.customerAvatarUrl
+                    : order.vendor?.logoUrl,
                 secondaryIcon:
                     isPickup ? Icons.place : Icons.storefront_outlined,
-                secondaryColor: AppColors.gold,
+                secondaryColor: isPickup ? AppColors.orange : AppColors.gold,
                 route: _route?.latLng,
                 routeColor: AppColors.orange,
                 height: 200,
