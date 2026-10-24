@@ -21,7 +21,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 class BackgroundLocationService {
   BackgroundLocationService._();
 
-  static const _channelId = 'beninfood_location';
   static const _notificationId = 888;
   static const _tokenKey = 'auth_token';
   static const _overrideKey = 'api_base_url_override';
@@ -34,18 +33,20 @@ class BackgroundLocationService {
       final service = FlutterBackgroundService();
       await service.configure(
         androidConfiguration: AndroidConfiguration(
-          onStart: _onStart,
+          onStart: _backgroundServiceEntrypoint,
           isForegroundMode: true,
           autoStart: false,
-          notificationChannelId: _channelId,
+          // Ne pas fournir de canal personnalisé : le plugin crée et utilise
+          // « FOREGROUND_DEFAULT ». Un canal non créé provoque un crash
+          // « Bad notification for startForeground » sur Android 8+.
           initialNotificationTitle: 'Béninfood — suivi de livraison',
           initialNotificationContent: 'Votre position est partagée avec le client.',
           foregroundServiceNotificationId: _notificationId,
         ),
         iosConfiguration: IosConfiguration(
           autoStart: false,
-          onForeground: _onStart,
-          onBackground: _onIosBackground,
+          onForeground: _backgroundServiceEntrypoint,
+          onBackground: _backgroundServiceIosEntrypoint,
         ),
       );
     } catch (_) {
@@ -79,6 +80,7 @@ class BackgroundLocationService {
   }
 
   /// Point d'entrée du service (exécuté dans un isolate séparé).
+  @pragma('vm:entry-point')
   static void _onStart(ServiceInstance service) {
     Timer.periodic(_interval, (_) => _reportPosition());
 
@@ -89,6 +91,7 @@ class BackgroundLocationService {
   }
 
   /// Retourne `true` à iOS pour continuer en arrière-plan.
+  @pragma('vm:entry-point')
   static Future<bool> _onIosBackground(ServiceInstance service) async {
     await _reportPosition();
     return true;
@@ -151,4 +154,16 @@ class BackgroundLocationService {
         : (Platform.isAndroid ? 'http://10.0.2.2:8000' : 'http://127.0.0.1:8000');
     return '$base/api/v1';
   }
+}
+
+/// Point d'entrée natif du service : une fonction top-level annotée est
+/// obligatoire pour que le callback survive à la compilation AOT.
+@pragma('vm:entry-point')
+void _backgroundServiceEntrypoint(ServiceInstance service) {
+  BackgroundLocationService._onStart(service);
+}
+
+@pragma('vm:entry-point')
+Future<bool> _backgroundServiceIosEntrypoint(ServiceInstance service) {
+  return BackgroundLocationService._onIosBackground(service);
 }
