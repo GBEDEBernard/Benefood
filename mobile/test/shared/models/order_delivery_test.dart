@@ -33,6 +33,7 @@ void main() {
             'longitude': 2.392,
             'last_location_at': '2026-09-18T11:18:28+00:00',
             'distance_km': 0.16,
+            'age_seconds': 42,
           },
         }),
       );
@@ -45,7 +46,9 @@ void main() {
       expect(order.delivery?.driver?.rating, 4.5);
       expect(order.delivery?.position?.latitude, 6.371);
       expect(order.delivery?.position?.distanceKm, 0.16);
+      expect(order.delivery?.position?.ageSeconds, 42);
       expect(order.delivery?.isTracking, isTrue);
+      expect(order.delivery?.isActive, isTrue);
     });
 
     test('reste sans position hors course active', () {
@@ -59,8 +62,18 @@ void main() {
       );
 
       expect(order.delivery?.isTracking, isFalse);
+      expect(order.delivery?.isActive, isFalse);
       expect(order.delivery?.position, isNull);
       expect(order.delivery?.driver?.name, 'Achille');
+    });
+
+    test('reste actif avant le premier relevé GPS', () {
+      final order = Order.fromJson(
+        _orderWith({'id': 'del-2', 'status': 'en_route_pickup'}),
+      );
+
+      expect(order.delivery?.isTracking, isFalse);
+      expect(order.delivery?.isActive, isTrue);
     });
 
     test('ignore un bloc delivery absent', () {

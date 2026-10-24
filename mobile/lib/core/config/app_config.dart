@@ -51,5 +51,53 @@ class AppConfig {
     defaultValue: '© OpenStreetMap',
   );
 
+  /// Fréquence d'envoi de la position livreur (secondes).
+  static const int locationIntervalSeconds = int.fromEnvironment(
+    'LOCATION_INTERVAL_S',
+    defaultValue: 4,
+  );
+
+  /// Déplacement minimal avant un nouvel envoi GPS (mètres).
+  static const int locationDistanceFilterMeters = int.fromEnvironment(
+    'LOCATION_DISTANCE_FILTER_M',
+    defaultValue: 10,
+  );
+
+  /// Âge à partir duquel la position est signalée comme ancienne.
+  static const int staleWarnSeconds = int.fromEnvironment(
+    'STALE_WARN_S',
+    defaultValue: 30,
+  );
+
+  /// Âge à partir duquel l'ETA est masquée (position trop ancienne).
+  static const int staleHideEtaSeconds = int.fromEnvironment(
+    'STALE_HIDE_ETA_S',
+    defaultValue: 120,
+  );
+
+  /// Seuil de recalcul d'itinéraire (écart en mètres).
+  static const int rerouteDeviationMeters = int.fromEnvironment(
+    'REROUTE_DEVIATION_M',
+    defaultValue: 50,
+  );
+
+  /// Intervalle minimal entre deux recalculs automatiques (secondes).
+  static const int rerouteMinIntervalSeconds = int.fromEnvironment(
+    'REROUTE_MIN_INTERVAL_S',
+    defaultValue: 45,
+  );
+
+  /// Rayon d'arrivée au point de livraison (mètres).
+  static const int arrivalRadiusMeters = int.fromEnvironment(
+    'ARRIVAL_RADIUS_M',
+    defaultValue: 120,
+  );
+
+  /// Missions simultanées autorisées pour un livreur.
+  static const int maxActiveMissions = int.fromEnvironment(
+    'MAX_ACTIVE_MISSIONS',
+    defaultValue: 2,
+  );
+
   static String get apiUrl => '$apiBaseUrl/api/$apiVersion';
 }

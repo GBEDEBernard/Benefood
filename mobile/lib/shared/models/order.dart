@@ -269,6 +269,14 @@ class OrderDelivery {
 
   bool get isTracking => position != null;
 
+  /// Course en cours : le suivi doit continuer même sans position partagée.
+  bool get isActive => const {
+    'assigned',
+    'en_route_pickup',
+    'picked_up',
+    'in_delivery',
+  }.contains(status);
+
   factory OrderDelivery.fromJson(Map<String, dynamic> json) {
     final rawDriver = json['driver'];
     final rawPosition = json['position'];

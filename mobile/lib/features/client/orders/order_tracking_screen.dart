@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/config/app_config.dart';
 import '../../../core/data/marketplace_api.dart';
 import '../../../core/errors/api_exception.dart';
 import '../../../core/services/location_service.dart';
@@ -40,7 +41,7 @@ class OrderTrackingScreen extends StatefulWidget {
 }
 
 class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
-  static const _pollInterval = Duration(seconds: 5);
+  static const _pollInterval = Duration(seconds: 4);
 
   Order? _order;
   bool _loading = true;
@@ -137,7 +138,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
     setState(() => _route = plan);
   }
 
-  bool get _shouldPoll => _order?.delivery?.isTracking ?? false;
+  bool get _shouldPoll => _order?.delivery?.isActive ?? false;
 
   void _schedulePolling() {
     _pollTimer?.cancel();
@@ -334,16 +335,16 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
   Color _statusColor(String status) {
     return switch (status) {
       'awaiting_payment' => AppColors.goldDark,
-      'paid' => AppColors.green,
-      'accepted' => AppColors.green,
+      'paid' => AppColors.orange,
+      'accepted' => AppColors.orange,
       'preparing' => const Color(0xFF1976D2),
-      'ready' => const Color(0xFF3949AB),
-      'assigned' => const Color(0xFF7B1FA2),
-      'out_for_delivery' => AppColors.green,
-      'delivered' => AppColors.green,
+      'ready' => AppColors.orangeDark,
+      'assigned' => AppColors.orangeDark,
+      'out_for_delivery' => AppColors.orange,
+      'delivered' => AppColors.orange,
       'cancelled' => AppColors.red,
       'refunded' => AppColors.textSecondary,
-      _ => AppColors.green,
+      _ => AppColors.orange,
     };
   }
 
@@ -352,7 +353,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
   /// - Avant l'affectation d'un livreur : ma position (point bleu) → boutique,
   ///   pour que le client se situe par rapport au lieu de sa commande.
   /// - Pendant la course : position du livreur (moto) → adresse de livraison,
-  ///   tracé routier réel et mise à jour toutes les 5 s.
+  ///   tracé routier réel et mise à jour toutes les 4 s.
   Widget _liveTrackingMap(Order order) {
     final driver = order.delivery?.position?.point;
     final dropoff = order.dropoffPoint;
@@ -453,12 +454,12 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                 width: 52,
                 height: 52,
                 decoration: BoxDecoration(
-                  color: AppColors.greenLight,
+                  color: AppColors.orangeLight,
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(
                   Icons.delivery_dining,
-                  color: AppColors.green,
+                  color: AppColors.orange,
                   size: 26,
                 ),
               ),
@@ -516,7 +517,12 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                   ],
                 ),
               ),
-              if (tracking) const _LiveDot(color: AppColors.green),
+              if (tracking)
+                _LiveDot(
+                  color: _positionIsStale(position)
+                      ? AppColors.goldDark
+                      : AppColors.orange,
+                ),
             ],
           ),
           if (tracking) ...[
@@ -549,6 +555,38 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                   style: theme.textTheme.bodySmall,
                 ),
               ),
+            if (_positionIsStale(position))
+              Container(
+                margin: const EdgeInsets.only(top: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: AppColors.goldLight,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.schedule,
+                      size: 15,
+                      color: AppColors.goldDark,
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        _stalePositionLabel(position),
+                        style: const TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.goldDark,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
           ] else if (order.dropoffPoint != null) ...[
             const SizedBox(height: 8),
             Text(
@@ -572,6 +610,26 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
     );
   }
 
+  /// Vrai quand la position n'a pas été rafraîchie depuis le seuil d'alerte.
+  bool _positionIsStale(OrderDeliveryPosition? position) {
+    final age = position?.ageSeconds;
+    return age != null && age >= AppConfig.staleWarnSeconds;
+  }
+
+  /// Au-delà du seuil critique, l'ETA n'est plus affichée (position trop vieille).
+  bool _etaIsHidden(OrderDeliveryPosition? position) {
+    final age = position?.ageSeconds;
+    return age != null && age >= AppConfig.staleHideEtaSeconds;
+  }
+
+  String _stalePositionLabel(OrderDeliveryPosition position) {
+    final age = position.ageSeconds ?? 0;
+    if (age < 60) {
+      return 'Position non rafraîchie depuis $age s';
+    }
+    return 'Position non rafraîchie depuis ${(age / 60).floor()} min';
+  }
+
   /// Distance livreur -> adresse : `distance_km` de l'API, sinon calculée ici.
   /// L'ETA privilégie l'itinéraire routier réel (`_route`) quand il est connu,
   /// sinon retombe sur l'estimation à vol d'oiseau.
@@ -587,6 +645,9 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
             ? null
             : distanceKm(position.point.latLng, dropoff.latLng));
     final label = 'À ${formatDistance(km)} de vous';
+    if (_etaIsHidden(position)) {
+      return label;
+    }
     final routeMinutes = _route?.etaMinutes;
     final minutes = routeMinutes ?? estimateMinutes(km ?? 0);
     return minutes == null ? label : '$label · ~${formatEta(minutes)}';
@@ -1019,13 +1080,13 @@ class _PaymentStatusRow extends StatelessWidget {
       icon = Icons.cancel;
     } else if (order.isCash) {
       // Paiement à la livraison : encaissé par le livreur à la remise.
-      color = order.isDelivered ? AppColors.green : AppColors.goldDark;
+      color = order.isDelivered ? AppColors.orange : AppColors.goldDark;
       label = order.isDelivered
           ? 'Paiement encaissé à la livraison'
           : 'Paiement en espèces à la livraison';
       icon = order.isDelivered ? Icons.check_circle : Icons.payments_outlined;
     } else if (paid) {
-      color = AppColors.green;
+      color = AppColors.orange;
       label = 'Paiement confirmé';
       icon = Icons.check_circle;
     } else {
