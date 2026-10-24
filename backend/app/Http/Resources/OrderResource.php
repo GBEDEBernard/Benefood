@@ -223,6 +223,9 @@ class OrderResource extends JsonResource
             'longitude' => round((float) $driver->last_longitude, 3),
             'heading' => $driver->last_heading !== null ? (float) $driver->last_heading : null,
             'last_location_at' => $driver->last_location_at?->toIso8601String(),
+            'age_seconds' => $driver->last_location_at !== null
+                ? max(0, (int) $driver->last_location_at->diffInSeconds(now()))
+                : null,
             'distance_km' => $this->distanceToClient($driver),
         ];
 

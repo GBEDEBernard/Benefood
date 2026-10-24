@@ -199,6 +199,12 @@ class OrderDeliveryTrackingTest extends TestCase
             'longitude' => 2.3923456,
         ])->assertOk();
 
+        $this->assertDatabaseCount('delivery_locations', 2);
+        $this->assertDatabaseHas('delivery_locations', [
+            'delivery_id' => $deliveryId,
+            'driver_profile_id' => $driver->id,
+        ]);
+
         $this->postJson("/api/v1/driver/me/deliveries/{$deliveryId}/pickup")
             ->assertOk();
         $this->postJson("/api/v1/driver/me/deliveries/{$deliveryId}/start")
@@ -213,7 +219,8 @@ class OrderDeliveryTrackingTest extends TestCase
             ->assertJsonPath('data.delivery.driver.vehicle', $driver->vehicle)
             ->assertJsonPath('data.delivery.position.latitude', 6.372)
             ->assertJsonPath('data.delivery.position.longitude', 2.392)
-            ->assertJsonPath('data.delivery.position.last_location_at', $driver->fresh()->last_location_at?->toIso8601String());
+            ->assertJsonPath('data.delivery.position.last_location_at', $driver->fresh()->last_location_at?->toIso8601String())
+            ->assertJsonPath('data.delivery.position.age_seconds', 0);
 
         $this->assertTrue(
             is_numeric($this->getJson("/api/v1/orders/{$order->id}")->json('data.delivery.position.distance_km')),

@@ -82,7 +82,43 @@ class DeliveryService
             'last_heading' => $heading ?? $profile->last_heading,
         ]);
 
+        $this->recordLocations($profile, $location);
+
         return $profile->fresh();
+    }
+
+    /**
+     * Journalise le relevé GPS pour chaque course active du livreur
+     * (historique de suivi, purgé par `deliveries:purge-locations`).
+     *
+     * @param  array{latitude: float, longitude: float}  $location
+     */
+    private function recordLocations(DriverProfile $profile, array $location): void
+    {
+        $activeDeliveries = $profile->deliveries()
+            ->whereIn('status', [
+                DeliveryStatus::Assigned,
+                DeliveryStatus::EnRoutePickup,
+                DeliveryStatus::PickedUp,
+                DeliveryStatus::InDelivery,
+            ])
+            ->get();
+
+        if ($activeDeliveries->isEmpty()) {
+            return;
+        }
+
+        $recordedAt = now();
+
+        foreach ($activeDeliveries as $delivery) {
+            $delivery->locations()->create([
+                'driver_profile_id' => $profile->id,
+                'latitude' => $location['latitude'],
+                'longitude' => $location['longitude'],
+                'heading' => $profile->last_heading,
+                'recorded_at' => $recordedAt,
+            ]);
+        }
     }
 
     /**

@@ -223,12 +223,16 @@ class OrderDeliveryPosition {
     this.lastLocationAt,
     this.distanceKm,
     this.heading,
+    this.ageSeconds,
   });
 
   final double latitude;
   final double longitude;
   final String? lastLocationAt;
   final double? distanceKm;
+
+  /// Âge du dernier relevé GPS côté serveur (secondes).
+  final int? ageSeconds;
 
   /// Cap du véhicule en degrés (0 = Nord) si l'API le fournit.
   final double? heading;
@@ -244,6 +248,7 @@ class OrderDeliveryPosition {
             : null,
         distanceKm: _dNull(json['distance_km']),
         heading: _dNull(json['heading']),
+        ageSeconds: _iNull(json['age_seconds']),
       );
 }
 

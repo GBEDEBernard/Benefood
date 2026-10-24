@@ -13,3 +13,4 @@ Schedule::command('orders:auto-confirm-deliveries')->everyMinute()->withoutOverl
 Schedule::command('parcels:expire-unpaid')->everyMinute()->withoutOverlapping();
 Schedule::command('payments:reconcile')->everyFifteenMinutes()->withoutOverlapping();
 Schedule::command('tokens:cleanup')->daily();
+Schedule::command('deliveries:purge-locations')->daily();

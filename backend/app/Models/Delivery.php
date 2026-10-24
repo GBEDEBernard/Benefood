@@ -4,13 +4,14 @@ namespace App\Models;
 
 use App\Enums\DeliveryStatus;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Delivery extends Model
 {
-    use HasUuids;
+    use HasFactory, HasUuids;
 
     protected $guarded = [];
 
@@ -58,6 +59,11 @@ class Delivery extends Model
     public function statusHistory(): HasMany
     {
         return $this->hasMany(DeliveryStatusHistory::class);
+    }
+
+    public function locations(): HasMany
+    {
+        return $this->hasMany(DeliveryLocation::class);
     }
 
     public function isAvailable(): bool
