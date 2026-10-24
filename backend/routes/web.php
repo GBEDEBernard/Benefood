@@ -22,9 +22,8 @@ use App\Http\Controllers\Admin\AdminZonesController;
 use App\Http\Controllers\Admin\RolesController;
 use App\Http\Controllers\Admin\UsersController;
 use App\Http\Controllers\Admin\VendorsController;
+use App\Http\Controllers\Auth\LoginController;
 use App\Models\User;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
 // --- Dev login (local only) ---
@@ -41,29 +40,9 @@ Route::get('/admin/dev-login', function () {
 });
 
 // --- Auth web (login / logout) ---
-Route::get('/login', function () {
-    return view('auth.login');
-})->name('login');
-
-Route::post('/login', function (Request $request) {
-    $credentials = $request->only('email', 'password');
-
-    if (Auth::attempt($credentials, $request->filled('remember'))) {
-        $request->session()->regenerate();
-
-        return redirect()->intended(route('admin.dashboard'));
-    }
-
-    return back()->withErrors(['email' => 'Les identifiants sont invalides.'])->withInput();
-})->name('login.post');
-
-Route::post('/logout', function (Request $request) {
-    Auth::logout();
-    $request->session()->invalidate();
-    $request->session()->regenerateToken();
-
-    return redirect()->route('login');
-})->name('logout');
+Route::get('/login', [LoginController::class, 'show'])->name('login');
+Route::post('/login', [LoginController::class, 'store'])->name('login.post');
+Route::post('/logout', [LoginController::class, 'destroy'])->name('logout');
 
 // --- Back-office (auth required) ---
 Route::middleware('auth')->prefix('admin')->name('admin.')->group(function (): void {
