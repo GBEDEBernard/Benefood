@@ -78,6 +78,7 @@ class RouteApiTest extends TestCase
             ->assertJsonPath('data.provider', 'google')
             ->assertJsonPath('data.distance_m', 4200)
             ->assertJsonPath('data.duration_s', 600)
+            ->assertJsonPath('data.eta_s', 780)
             ->assertJsonPath('data.steps.0.type', 'turn')
             ->assertJsonPath('data.steps.0.modifier', 'right')
             ->assertJsonPath('data.steps.0.instruction', 'Tournez à droite sur Avenue de la Paix')
@@ -210,6 +211,85 @@ class RouteApiTest extends TestCase
 
         $this->assertGreaterThan(0, $response->json('data.distance_m'));
         $this->assertNotEmpty($response->json('data.geometry'));
+    }
+
+    public function test_it_returns_ors_route_when_configured(): void
+    {
+        $this->actingUser();
+        config()->set('beninfood.routing.google_key', null);
+        config()->set('beninfood.routing.ors_key', 'ors-test-key');
+        config()->set('beninfood.routing.allow_public_osrm', false);
+
+        Http::fake([
+            'api.openrouteservice.org/*' => Http::response([
+                'type' => 'FeatureCollection',
+                'features' => [[
+                    'type' => 'Feature',
+                    'geometry' => [
+                        'type' => 'LineString',
+                        'coordinates' => [[2.3912, 6.3703], [2.3962, 6.3753], [2.4012, 6.3803]],
+                    ],
+                    'properties' => [
+                        'summary' => ['distance' => 2500.4, 'duration' => 420.6],
+                        'segments' => [[
+                            'distance' => 2500.4,
+                            'duration' => 420.6,
+                            'steps' => [
+                                [
+                                    'distance' => 1200.0,
+                                    'duration' => 200.0,
+                                    'type' => 1,
+                                    'name' => '',
+                                    'instruction' => 'Tournez à droite sur le Boulevard de la Marina',
+                                    'way_points' => [0, 1],
+                                ],
+                                [
+                                    'distance' => 1300.4,
+                                    'duration' => 220.6,
+                                    'type' => 11,
+                                    'name' => '',
+                                    'instruction' => 'Vous êtes arrivé à destination',
+                                    'way_points' => [1, 2],
+                                ],
+                            ],
+                        ]],
+                    ],
+                ]],
+            ]),
+        ]);
+
+        $response = $this->postJson('/api/v1/routes', $this->payload());
+
+        $response->assertOk()
+            ->assertJsonPath('data.provider', 'ors')
+            ->assertJsonPath('data.distance_m', 2500)
+            ->assertJsonPath('data.duration_s', 421)
+            ->assertJsonPath('data.eta_s', 547)
+            ->assertJsonPath('data.steps.0.type', 'turn')
+            ->assertJsonPath('data.steps.0.modifier', 'right')
+            ->assertJsonPath('data.steps.0.instruction', 'Tournez à droite sur le Boulevard de la Marina')
+            ->assertJsonPath('data.steps.1.type', 'arrive')
+            ->assertJsonPath('data.steps.1.distance_m', 1300)
+            ->assertJsonCount(2, 'data.steps.0.geometry');
+    }
+
+    public function test_it_never_calls_public_osrm_when_disallowed(): void
+    {
+        $this->actingUser();
+        config()->set('beninfood.routing.google_key', null);
+        config()->set('beninfood.routing.ors_key', null);
+        config()->set('beninfood.routing.allow_public_osrm', false);
+        config()->set('beninfood.routing.osrm_url', 'https://router.project-osrm.org');
+
+        Http::fake();
+
+        $response = $this->postJson('/api/v1/routes', $this->payload());
+
+        $response->assertOk()
+            ->assertJsonPath('data.provider', 'straight')
+            ->assertJsonPath('data.steps', []);
+
+        Http::assertNothingSent();
     }
 
     public function test_it_validates_points(): void

@@ -5,21 +5,28 @@ import 'geo_point.dart';
 
 /// Itinéraire routier calculé par le serveur (navigation livreur, suivi client).
 ///
-/// `provider` vaut `google` (Routes API, mode deux-roues), `osrm` (routage
-/// routier) ou `straight` (repli ligne droite si le réseau est indisponible).
+/// `provider` vaut `google` (Routes API, mode deux-roues), `ors`
+/// (OpenRouteService), `osrm` (routage auto-hébergé) ou `straight` (repli
+/// ligne droite si tous les fournisseurs sont indisponibles).
 class RoutePlan {
   const RoutePlan({
     required this.provider,
     required this.distanceMeters,
     required this.durationSeconds,
     required this.geometry,
+    this.etaSeconds,
     this.legs = const [],
     this.steps = const [],
   });
 
   final String provider;
   final int distanceMeters;
+
+  /// Durée brute calculée par le fournisseur de routage.
   final int durationSeconds;
+
+  /// ETA commerciale du serveur (durée brute × coefficient de prudence).
+  final int? etaSeconds;
 
   /// Polyligne du trajet, du départ vers l'arrivée.
   final List<GeoPoint> geometry;
@@ -38,12 +45,17 @@ class RoutePlan {
 
   double get distanceKm => distanceMeters / 1000;
 
+  /// Durée de référence pour l'ETA : coefficient serveur, sinon durée brute.
+  int get effectiveEtaSeconds =>
+      (etaSeconds ?? durationSeconds) > 0 ? etaSeconds ?? durationSeconds : 0;
+
   /// Durée estimée en minutes (arrondie), `null` si inconnue.
   int? get etaMinutes {
-    if (durationSeconds <= 0) {
+    final seconds = effectiveEtaSeconds;
+    if (seconds <= 0) {
       return null;
     }
-    return (durationSeconds / 60).round().clamp(1, 999);
+    return (seconds / 60).round().clamp(1, 999);
   }
 
   List<LatLng> get latLng => geometry.map((point) => point.latLng).toList(growable: false);
@@ -79,10 +91,14 @@ class RoutePlan {
       }
     }
 
+    final duration = _i(json['duration_s']);
+    final eta = _i(json['eta_s']);
+
     return RoutePlan(
       provider: json['provider'] is String ? json['provider'] as String : 'straight',
       distanceMeters: _i(json['distance_m']),
-      durationSeconds: _i(json['duration_s']),
+      durationSeconds: duration,
+      etaSeconds: eta > 0 ? eta : null,
       geometry: geometry,
       legs: legs,
       steps: steps,

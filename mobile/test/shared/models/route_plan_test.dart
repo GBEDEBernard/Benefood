@@ -9,6 +9,7 @@ void main() {
         'provider': 'google',
         'distance_m': 4200,
         'duration_s': 780,
+        'eta_s': 1014,
         'geometry': [
           [6.3703, 2.3942],
           [6.3668, 2.4251],
@@ -21,7 +22,9 @@ void main() {
       expect(plan.provider, 'google');
       expect(plan.isRouted, isTrue);
       expect(plan.distanceKm, closeTo(4.2, 0.001));
-      expect(plan.etaMinutes, 13);
+      expect(plan.durationSeconds, 780);
+      expect(plan.effectiveEtaSeconds, 1014);
+      expect(plan.etaMinutes, 17);
       expect(plan.geometry, hasLength(2));
       expect(plan.geometry.first.latitude, 6.3703);
       expect(plan.legs.single.distanceMeters, 4200);

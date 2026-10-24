@@ -207,18 +207,42 @@ return [
     | Calcul d'itinéraires (navigation GPS livreur / suivi client)
     |--------------------------------------------------------------------------
     | Le tracé routier est calculé côté serveur puis renvoyé à l'app sous forme
-    | de polyligne. Fournisseur par défaut : Google Routes API (mode deux-roues,
-    | utilisé dès que `google_key` est renseigné), sinon OSRM (routage routier
-    | gratuit, sans clé), avec un repli « ligne droite » si aucun réseau.
+    | de polyligne. Fournisseurs, par ordre de priorité : Google Routes API
+    | (mode deux-roues), OpenRouteService, puis OSRM. Le serveur public de
+    | démonstration OSRM est interdit en production (quotas et disponibilité).
+    | Un repli « ligne droite » signé `straight` n'est utilisé qu'en dernier
+    | recours réseau, jamais comme tracé principal.
     */
     'routing' => [
         'google_key' => env('GOOGLE_MAPS_API_KEY'),
         'google_url' => env('BENINFOOD_GOOGLE_ROUTES_URL', 'https://routes.googleapis.com/directions/v2:computeRoutes'),
+        'ors_key' => env('OPENROUTESERVICE_API_KEY'),
+        'ors_url' => rtrim((string) env('BENINFOOD_ORS_URL', 'https://api.openrouteservice.org/v2/directions'), '/'),
         'osrm_url' => rtrim((string) env('BENINFOOD_OSRM_URL', 'https://router.project-osrm.org'), '/'),
+        // Autorise explicitement le serveur OSRM public (démo) hors production.
+        'allow_public_osrm' => (bool) env('BENINFOOD_ROUTING_ALLOW_PUBLIC_OSRM', env('APP_ENV') !== 'production'),
         'timeout' => (int) env('BENINFOOD_ROUTING_TIMEOUT', 6),
         'cache_ttl' => (int) env('BENINFOOD_ROUTING_CACHE_TTL', 120),
         // Vitesse moyenne de repli (km/h) pour l'estimation « ligne droite ».
         'fallback_speed_kmh' => (int) env('BENINFOOD_ROUTING_FALLBACK_SPEED', 22),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Suivi temps réel des livraisons
+    |--------------------------------------------------------------------------
+    | Seuils partagés par l'API et l'app mobile : fraîcheur de la position,
+    | coefficient d'ETA, rayon d'arrivée, recalcul d'itinéraire et conservation
+    | de l'historique GPS (purge quotidienne).
+    */
+    'tracking' => [
+        'eta_coefficient' => (float) env('BENINFOOD_ETA_COEFFICIENT', 1.3),
+        'stale_warn_s' => (int) env('BENINFOOD_STALE_WARN_S', 30),
+        'stale_hide_eta_s' => (int) env('BENINFOOD_STALE_HIDE_ETA_S', 120),
+        'reroute_deviation_m' => (int) env('BENINFOOD_REROUTE_DEVIATION_M', 50),
+        'reroute_min_interval_s' => (int) env('BENINFOOD_REROUTE_MIN_INTERVAL_S', 45),
+        'arrival_radius_m' => (int) env('BENINFOOD_ARRIVAL_RADIUS_M', 120),
+        'history_retention_days' => (int) env('BENINFOOD_HISTORY_RETENTION_DAYS', 30),
     ],
 
     /*

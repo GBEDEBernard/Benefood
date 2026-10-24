@@ -97,7 +97,7 @@ class NavigationGuide {
 
     final remainingSeconds = totalMeters <= 0
         ? 0
-        : (route.durationSeconds * (remaining / totalMeters)).round();
+        : (route.effectiveEtaSeconds * (remaining / totalMeters)).round();
 
     final nextIndex = maneuvers.indexOf(target) + 1;
 

@@ -4,6 +4,7 @@ namespace App\Services;
 
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Throwable;
 
 /**
@@ -16,7 +17,7 @@ use Throwable;
  * que l'app affiche toujours une distance et une estimation.
  *
  * @phpstan-type RouteStepShape array{type: string, modifier: string|null, instruction: string, name: string, distance_m: int, duration_s: int, geometry: array<int, array{0: float, 1: float}>}
- * @phpstan-type RouteShape array{provider: string, distance_m: int, duration_s: int, geometry: array<int, array{0: float, 1: float}>, legs: array<int, array{distance_m: int, duration_s: int}>, steps: array<int, RouteStepShape>}
+ * @phpstan-type RouteShape array{provider: string, distance_m: int, duration_s: int, eta_s: int, geometry: array<int, array{0: float, 1: float}>, legs: array<int, array{distance_m: int, duration_s: int}>, steps: array<int, RouteStepShape>}
  */
 class RoutingService
 {
@@ -101,6 +102,27 @@ class RoutingService
     ];
 
     /**
+     * Types de manœuvres OpenRouteService vers la taxonomie OSRM.
+     *
+     * @var array<int, array{0: string, 1: string|null}>
+     */
+    private const ORS_MANEUVERS = [
+        0 => ['turn', 'left'],
+        1 => ['turn', 'right'],
+        2 => ['turn', 'sharp left'],
+        3 => ['turn', 'sharp right'],
+        4 => ['turn', 'slight left'],
+        5 => ['turn', 'slight right'],
+        6 => ['continue', 'straight'],
+        7 => ['roundabout', null],
+        8 => ['roundabout', null],
+        10 => ['depart', 'straight'],
+        11 => ['arrive', null],
+        12 => ['fork', 'left'],
+        13 => ['fork', 'right'],
+    ];
+
+    /**
      * Calcule un itinéraire passant par une liste de points (au moins 2).
      *
      * @param  array<int, array{latitude: float|int|string, longitude: float|int|string}>  $points
@@ -114,18 +136,32 @@ class RoutingService
         );
 
         if (count($coordinates) < 2) {
-            return $this->straightRoute($coordinates);
+            return $this->withEta($this->straightRoute($coordinates));
         }
 
-        if (! $this->shouldCache()) {
-            return $this->compute($coordinates, $profile);
-        }
+        $route = $this->shouldCache()
+            ? Cache::remember(
+                $this->cacheKey($coordinates, $profile),
+                now()->addSeconds((int) config('beninfood.routing.cache_ttl', 120)),
+                fn (): array => $this->compute($coordinates, $profile),
+            )
+            : $this->compute($coordinates, $profile);
 
-        return Cache::remember(
-            $this->cacheKey($coordinates, $profile),
-            now()->addSeconds((int) config('beninfood.routing.cache_ttl', 120)),
-            fn (): array => $this->compute($coordinates, $profile),
-        );
+        return $this->withEta($route);
+    }
+
+    /**
+     * Ajoute l'ETA commerciale (durée brute × coefficient de prudence).
+     *
+     * @param  RouteShape  $route
+     * @return RouteShape
+     */
+    private function withEta(array $route): array
+    {
+        $coefficient = max(0.1, (float) config('beninfood.tracking.eta_coefficient', 1.3));
+        $route['eta_s'] = (int) round($route['duration_s'] * $coefficient);
+
+        return $route;
     }
 
     /**
@@ -141,12 +177,166 @@ class RoutingService
             }
         }
 
-        $osrm = $this->osrmRoute($coordinates);
-        if ($osrm !== null) {
-            return $osrm;
+        if (config('beninfood.routing.ors_key')) {
+            $ors = $this->orsRoute($coordinates, $profile);
+            if ($ors !== null) {
+                return $ors;
+            }
+        }
+
+        if ($this->shouldUseOsrm()) {
+            $osrm = $this->osrmRoute($coordinates);
+            if ($osrm !== null) {
+                return $osrm;
+            }
         }
 
         return $this->straightRoute($coordinates);
+    }
+
+    /**
+     * @param  array<int, array{0: float, 1: float}>  $coordinates
+     * @return RouteShape|null
+     */
+    private function orsRoute(array $coordinates, string $profile): ?array
+    {
+        $url = (string) config('beninfood.routing.ors_url').'/'.$this->orsProfile($profile).'/geojson';
+
+        try {
+            $response = Http::withToken((string) config('beninfood.routing.ors_key'))
+                ->acceptJson()
+                ->timeout($this->timeout())
+                ->post($url, [
+                    'coordinates' => array_map(
+                        static fn (array $point): array => [$point[1], $point[0]],
+                        $coordinates,
+                    ),
+                    'instructions' => true,
+                    'language' => 'fr',
+                    'units' => 'm',
+                ]);
+        } catch (Throwable $exception) {
+            Log::warning('routing.ors_failed', ['message' => $exception->getMessage()]);
+
+            return null;
+        }
+
+        if (! $response->successful()) {
+            Log::warning('routing.ors_failed', ['status' => $response->status()]);
+
+            return null;
+        }
+
+        $feature = $response->json('features.0');
+        if (! is_array($feature)) {
+            return null;
+        }
+
+        $rawCoordinates = $feature['geometry']['coordinates'] ?? null;
+        if (! is_array($rawCoordinates)) {
+            return null;
+        }
+
+        $geometry = array_map(
+            static fn (array $pair): array => [(float) $pair[1], (float) $pair[0]],
+            $rawCoordinates,
+        );
+        $properties = is_array($feature['properties'] ?? null) ? $feature['properties'] : [];
+        $summary = is_array($properties['summary'] ?? null) ? $properties['summary'] : [];
+        $segments = is_array($properties['segments'] ?? null) ? $properties['segments'] : [];
+
+        return [
+            'provider' => 'ors',
+            'distance_m' => (int) round((float) ($summary['distance'] ?? 0)),
+            'duration_s' => (int) round((float) ($summary['duration'] ?? 0)),
+            'geometry' => $geometry,
+            'legs' => array_map(
+                static fn (array $segment): array => [
+                    'distance_m' => (int) round((float) ($segment['distance'] ?? 0)),
+                    'duration_s' => (int) round((float) ($segment['duration'] ?? 0)),
+                ],
+                $segments,
+            ),
+            'steps' => $this->mapOrsSteps($segments, $geometry),
+        ];
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $segments
+     * @param  array<int, array{0: float, 1: float}>  $geometry
+     * @return array<int, RouteStepShape>
+     */
+    private function mapOrsSteps(array $segments, array $geometry): array
+    {
+        $steps = [];
+
+        foreach ($segments as $segment) {
+            foreach (is_array($segment['steps'] ?? null) ? $segment['steps'] : [] as $step) {
+                if (! is_array($step)) {
+                    continue;
+                }
+
+                [$type, $modifier] = self::ORS_MANEUVERS[(int) ($step['type'] ?? 6)] ?? ['continue', 'straight'];
+                $name = (string) ($step['name'] ?? '');
+                $instruction = trim((string) ($step['instruction'] ?? ''));
+
+                $steps[] = [
+                    'type' => $type,
+                    'modifier' => $modifier,
+                    'instruction' => $instruction !== ''
+                        ? $instruction
+                        : $this->osrmInstruction($type, $modifier, $name, []),
+                    'name' => $name,
+                    'distance_m' => (int) round((float) ($step['distance'] ?? 0)),
+                    'duration_s' => (int) round((float) ($step['duration'] ?? 0)),
+                    'geometry' => $this->orsStepGeometry($step, $geometry),
+                ];
+            }
+        }
+
+        return $steps;
+    }
+
+    /**
+     * @param  array<string, mixed>  $step
+     * @param  array<int, array{0: float, 1: float}>  $geometry
+     * @return array<int, array{0: float, 1: float}>
+     */
+    private function orsStepGeometry(array $step, array $geometry): array
+    {
+        $wayPoints = $step['way_points'] ?? null;
+        if (! is_array($wayPoints) || count($wayPoints) < 2) {
+            return [];
+        }
+
+        $start = (int) $wayPoints[0];
+        $end = (int) $wayPoints[1];
+
+        return array_slice($geometry, $start, max(0, $end - $start + 1));
+    }
+
+    private function orsProfile(string $profile): string
+    {
+        return match ($profile) {
+            'foot' => 'foot-walking',
+            default => 'driving-car',
+        };
+    }
+
+    private function shouldUseOsrm(): bool
+    {
+        $url = (string) config('beninfood.routing.osrm_url');
+        if ($url === '') {
+            return false;
+        }
+
+        $host = strtolower((string) parse_url($url, PHP_URL_HOST));
+
+        if ((bool) config('beninfood.routing.allow_public_osrm', false)) {
+            return true;
+        }
+
+        return ! str_contains($host, 'project-osrm.org');
     }
 
     /**
