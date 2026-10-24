@@ -82,11 +82,7 @@
                             <tr>
                                 <td style="color: var(--text-muted); width: 190px;">Image principale</td>
                                 <td>
-                                    @if ($product->image_main)
-                                        <img src="{{ \Illuminate\Support\Facades\Storage::disk('public')->url($product->image_main) }}" alt="" style="width: 72px; height: 72px; border-radius: 10px; object-fit: cover;">
-                                    @else
-                                        — 
-                                    @endif
+                                    <x-admin.product-thumb :product="$product" size="lg" />
                                 </td>
                             </tr>
                             <tr><td style="color: var(--text-muted);">Nom</td><td style="font-weight: 600;">{{ $product->name }}</td></tr>
@@ -139,10 +135,10 @@
             <div class="card-body">
                 <div class="d-flex flex-wrap" style="gap: 12px;">
                     @forelse ($product->images as $image)
-                        <div style="position: relative; width: 160px; height: 160px; border-radius: 10px; overflow: hidden; background: #F1F5F9; border: 2px solid {{ $image->is_main ? 'var(--benin-green)' : 'transparent' }};">
-                            <img src="{{ \Illuminate\Support\Facades\Storage::disk('public')->url($image->path) }}" alt="" style="width: 160px; height: 160px; object-fit: cover;">
+                        <div style="position: relative; width: 160px; height: 160px; border-radius: 10px; overflow: hidden; background: #F1F5F9; border: 2px solid {{ $image->is_main ? 'var(--bf-orange)' : 'transparent' }};">
+                            <img src="{{ \App\Support\AdminMedia::url($image->path) }}" alt="Photo de {{ $product->name }}" loading="lazy" style="width: 160px; height: 160px; object-fit: cover;">
                             @if ($image->is_main)
-                                <span style="position: absolute; left: 6px; top: 6px; background: var(--benin-green); color: #FFF; border-radius: 10px; padding: 2px 10px; font-size: 11px; font-weight: 700;">Principale</span>
+                                <span style="position: absolute; left: 6px; top: 6px; background: var(--bf-orange); color: #FFF; border-radius: 10px; padding: 2px 10px; font-size: 11px; font-weight: 700;">Principale</span>
                             @endif
                             <a href="{{ route('admin.products.images.destroy', [$product, $image]) }}"
                                onclick="event.preventDefault(); if (confirm('Supprimer cette photo ?')) document.getElementById('del-img-{{ $image->id }}').submit();"

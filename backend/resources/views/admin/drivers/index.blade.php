@@ -98,8 +98,13 @@
                     @forelse ($drivers as $driver)
                         <tr>
                             <td class="py-3">
-                                <div style="color: var(--text-dark); font-weight: 600;">{{ $driver->user?->name ?? '—' }}</div>
-                                <small style="color: var(--text-muted);">{{ $driver->user?->phone }}</small>
+                                <div class="d-flex align-items-center">
+                                    <x-admin.avatar :user="$driver->user" size="md" class="mr-3" />
+                                    <div>
+                                        <div style="color: var(--text-dark); font-weight: 600;">{{ $driver->user?->name ?? '—' }}</div>
+                                        <small style="color: var(--text-muted);">{{ $driver->user?->phone }}</small>
+                                    </div>
+                                </div>
                             </td>
                             <td class="py-3" style="color: var(--text-muted);">
                                 {{ $driver->type === 'beninfood' ? 'Beninfood' : 'Indépendant' }}

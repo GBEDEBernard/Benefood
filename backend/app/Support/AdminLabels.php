@@ -24,13 +24,13 @@ class AdminLabels
     public static function vendorStatus(string $status): array
     {
         return match ($status) {
-            VendorStatus::Active->value => ['label' => 'Actif', 'bg' => '#E8F5E9', 'fg' => '#2E7D32'],
-            VendorStatus::PendingVerification->value => ['label' => 'En attente de vérification', 'bg' => '#FFF3E0', 'fg' => '#E65100'],
-            VendorStatus::Verified->value => ['label' => 'Vérifié', 'bg' => '#E1F5FE', 'fg' => '#0277BD'],
-            VendorStatus::Registered->value => ['label' => 'Enregistré', 'bg' => '#FFF3E0', 'fg' => '#E65100'],
-            VendorStatus::Suspended->value => ['label' => 'Suspendu', 'bg' => '#FFEBEE', 'fg' => '#C62828'],
-            VendorStatus::Closed->value => ['label' => 'Fermé', 'bg' => '#ECEFF1', 'fg' => '#37474F'],
-            default => ['label' => ucfirst($status), 'bg' => '#ECEFF1', 'fg' => '#37474F'],
+            VendorStatus::Active->value => ['label' => 'Actif', 'bg' => '#EAF7EA', 'fg' => '#087B46'],
+            VendorStatus::PendingVerification->value => ['label' => 'En attente de vérification', 'bg' => '#FFF2E2', 'fg' => '#E97800'],
+            VendorStatus::Verified->value => ['label' => 'Vérifié', 'bg' => '#EDF3FE', 'fg' => '#2F6FED'],
+            VendorStatus::Registered->value => ['label' => 'Enregistré', 'bg' => '#FFF2E2', 'fg' => '#E97800'],
+            VendorStatus::Suspended->value => ['label' => 'Suspendu', 'bg' => '#FDECEC', 'fg' => '#D64545'],
+            VendorStatus::Closed->value => ['label' => 'Fermé', 'bg' => '#F1F4F2', 'fg' => '#78817E'],
+            default => ['label' => ucfirst($status), 'bg' => '#F1F4F2', 'fg' => '#78817E'],
         };
     }
 
@@ -45,10 +45,10 @@ class AdminLabels
     public static function userStatus(string $status): array
     {
         return match ($status) {
-            UserStatus::Active->value => ['label' => 'Actif', 'bg' => '#E8F5E9', 'fg' => '#2E7D32'],
-            UserStatus::Suspended->value => ['label' => 'Suspendu', 'bg' => '#FFEBEE', 'fg' => '#C62828'],
-            UserStatus::Closed->value => ['label' => 'Fermé', 'bg' => '#ECEFF1', 'fg' => '#37474F'],
-            default => ['label' => ucfirst($status), 'bg' => '#ECEFF1', 'fg' => '#37474F'],
+            UserStatus::Active->value => ['label' => 'Actif', 'bg' => '#EAF7EA', 'fg' => '#087B46'],
+            UserStatus::Suspended->value => ['label' => 'Suspendu', 'bg' => '#FDECEC', 'fg' => '#D64545'],
+            UserStatus::Closed->value => ['label' => 'Fermé', 'bg' => '#F1F4F2', 'fg' => '#78817E'],
+            default => ['label' => ucfirst($status), 'bg' => '#F1F4F2', 'fg' => '#78817E'],
         };
     }
 
@@ -63,10 +63,10 @@ class AdminLabels
     public static function documentStatus(string $status): array
     {
         return match ($status) {
-            VendorDocumentStatus::Valid->value => ['label' => 'Valide', 'bg' => '#E8F5E9', 'fg' => '#2E7D32'],
-            VendorDocumentStatus::Submitted->value => ['label' => 'Soumis', 'bg' => '#FFF3E0', 'fg' => '#E65100'],
-            VendorDocumentStatus::Invalid->value => ['label' => 'Rejeté', 'bg' => '#FFEBEE', 'fg' => '#C62828'],
-            default => ['label' => ucfirst($status), 'bg' => '#ECEFF1', 'fg' => '#37474F'],
+            VendorDocumentStatus::Valid->value => ['label' => 'Valide', 'bg' => '#EAF7EA', 'fg' => '#087B46'],
+            VendorDocumentStatus::Submitted->value => ['label' => 'Soumis', 'bg' => '#FFF2E2', 'fg' => '#E97800'],
+            VendorDocumentStatus::Invalid->value => ['label' => 'Rejeté', 'bg' => '#FDECEC', 'fg' => '#D64545'],
+            default => ['label' => ucfirst($status), 'bg' => '#F1F4F2', 'fg' => '#78817E'],
         };
     }
 
@@ -92,15 +92,15 @@ class AdminLabels
     public static function orderStatus(string $status): array
     {
         return match ($status) {
-            OrderStatus::Delivered->value => ['label' => 'Livrée', 'bg' => '#E8F5E9', 'fg' => '#2E7D32'],
+            OrderStatus::Delivered->value => ['label' => 'Livrée', 'bg' => '#EAF7EA', 'fg' => '#087B46'],
             OrderStatus::Paid->value, OrderStatus::Accepted->value, OrderStatus::Preparing->value,
             OrderStatus::Ready->value, OrderStatus::Assigned->value, OrderStatus::PickedUp->value,
-            OrderStatus::InDelivery->value => ['label' => 'En cours', 'bg' => '#E1F5FE', 'fg' => '#0277BD'],
-            OrderStatus::AwaitingPayment->value => ['label' => 'En attente de paiement', 'bg' => '#FFF3E0', 'fg' => '#E65100'],
-            OrderStatus::Draft->value => ['label' => 'Brouillon', 'bg' => '#ECEFF1', 'fg' => '#37474F'],
-            OrderStatus::Cancelled->value => ['label' => 'Annulée', 'bg' => '#FFEBEE', 'fg' => '#C62828'],
-            OrderStatus::Refunded->value => ['label' => 'Remboursée', 'bg' => '#F3E5F5', 'fg' => '#6A1B9A'],
-            default => ['label' => ucfirst($status), 'bg' => '#ECEFF1', 'fg' => '#37474F'],
+            OrderStatus::InDelivery->value => ['label' => 'En cours', 'bg' => '#EDF3FE', 'fg' => '#2F6FED'],
+            OrderStatus::AwaitingPayment->value => ['label' => 'En attente de paiement', 'bg' => '#FFF2E2', 'fg' => '#E97800'],
+            OrderStatus::Draft->value => ['label' => 'Brouillon', 'bg' => '#F1F4F2', 'fg' => '#78817E'],
+            OrderStatus::Cancelled->value => ['label' => 'Annulée', 'bg' => '#FDECEC', 'fg' => '#D64545'],
+            OrderStatus::Refunded->value => ['label' => 'Remboursée', 'bg' => '#F2ECFF', 'fg' => '#7D4CE0'],
+            default => ['label' => ucfirst($status), 'bg' => '#F1F4F2', 'fg' => '#78817E'],
         };
     }
 
@@ -115,11 +115,11 @@ class AdminLabels
     public static function driverStatus(string $status): array
     {
         return match ($status) {
-            DriverStatus::Active->value, DriverStatus::Validated->value => ['label' => 'Actif', 'bg' => '#E8F5E9', 'fg' => '#2E7D32'],
-            DriverStatus::Candidate->value, DriverStatus::PendingValidation->value => ['label' => 'En validation', 'bg' => '#FFF3E0', 'fg' => '#E65100'],
-            DriverStatus::Suspended->value => ['label' => 'Suspendu', 'bg' => '#FFEBEE', 'fg' => '#C62828'],
-            DriverStatus::Closed->value => ['label' => 'Fermé', 'bg' => '#ECEFF1', 'fg' => '#37474F'],
-            default => ['label' => ucfirst($status), 'bg' => '#ECEFF1', 'fg' => '#37474F'],
+            DriverStatus::Active->value, DriverStatus::Validated->value => ['label' => 'Actif', 'bg' => '#EAF7EA', 'fg' => '#087B46'],
+            DriverStatus::Candidate->value, DriverStatus::PendingValidation->value => ['label' => 'En validation', 'bg' => '#FFF2E2', 'fg' => '#E97800'],
+            DriverStatus::Suspended->value => ['label' => 'Suspendu', 'bg' => '#FDECEC', 'fg' => '#D64545'],
+            DriverStatus::Closed->value => ['label' => 'Fermé', 'bg' => '#F1F4F2', 'fg' => '#78817E'],
+            default => ['label' => ucfirst($status), 'bg' => '#F1F4F2', 'fg' => '#78817E'],
         };
     }
 
@@ -134,10 +134,10 @@ class AdminLabels
     public static function refundStatus(string $status): array
     {
         return match ($status) {
-            RefundStatus::Pending->value => ['label' => 'En attente', 'bg' => '#FFF3E0', 'fg' => '#E65100'],
-            RefundStatus::Executed->value => ['label' => 'Exécuté', 'bg' => '#E8F5E9', 'fg' => '#2E7D32'],
-            RefundStatus::Failed->value => ['label' => 'Échoué', 'bg' => '#FFEBEE', 'fg' => '#C62828'],
-            default => ['label' => ucfirst($status), 'bg' => '#ECEFF1', 'fg' => '#37474F'],
+            RefundStatus::Pending->value => ['label' => 'En attente', 'bg' => '#FFF2E2', 'fg' => '#E97800'],
+            RefundStatus::Executed->value => ['label' => 'Exécuté', 'bg' => '#EAF7EA', 'fg' => '#087B46'],
+            RefundStatus::Failed->value => ['label' => 'Échoué', 'bg' => '#FDECEC', 'fg' => '#D64545'],
+            default => ['label' => ucfirst($status), 'bg' => '#F1F4F2', 'fg' => '#78817E'],
         };
     }
 
@@ -152,10 +152,10 @@ class AdminLabels
     public static function complaintStatus(string $status): array
     {
         return match ($status) {
-            ComplaintStatus::Open->value => ['label' => 'Ouverte', 'bg' => '#FFEBEE', 'fg' => '#C62828'],
-            ComplaintStatus::InProgress->value => ['label' => 'En cours', 'bg' => '#FFF3E0', 'fg' => '#E65100'],
-            ComplaintStatus::Closed->value => ['label' => 'Clôturée', 'bg' => '#E8F5E9', 'fg' => '#2E7D32'],
-            default => ['label' => ucfirst($status), 'bg' => '#ECEFF1', 'fg' => '#37474F'],
+            ComplaintStatus::Open->value => ['label' => 'Ouverte', 'bg' => '#FDECEC', 'fg' => '#D64545'],
+            ComplaintStatus::InProgress->value => ['label' => 'En cours', 'bg' => '#FFF2E2', 'fg' => '#E97800'],
+            ComplaintStatus::Closed->value => ['label' => 'Clôturée', 'bg' => '#EAF7EA', 'fg' => '#087B46'],
+            default => ['label' => ucfirst($status), 'bg' => '#F1F4F2', 'fg' => '#78817E'],
         };
     }
 
@@ -170,12 +170,12 @@ class AdminLabels
     public static function paymentStatus(string $status): array
     {
         return match ($status) {
-            PaymentStatus::Confirmed->value => ['label' => 'Payé', 'bg' => '#E8F5E9', 'fg' => '#2E7D32'],
-            PaymentStatus::Initiated->value, PaymentStatus::Pending->value => ['label' => 'En attente', 'bg' => '#FFF3E0', 'fg' => '#E65100'],
-            PaymentStatus::Refunded->value => ['label' => 'Remboursé', 'bg' => '#F3E5F5', 'fg' => '#6A1B9A'],
-            PaymentStatus::Failed->value => ['label' => 'Échoué', 'bg' => '#FFEBEE', 'fg' => '#C62828'],
-            PaymentStatus::Expired->value, PaymentStatus::Cancelled->value => ['label' => 'Annulé', 'bg' => '#ECEFF1', 'fg' => '#37474F'],
-            default => ['label' => ucfirst($status), 'bg' => '#ECEFF1', 'fg' => '#37474F'],
+            PaymentStatus::Confirmed->value => ['label' => 'Payé', 'bg' => '#EAF7EA', 'fg' => '#087B46'],
+            PaymentStatus::Initiated->value, PaymentStatus::Pending->value => ['label' => 'En attente', 'bg' => '#FFF2E2', 'fg' => '#E97800'],
+            PaymentStatus::Refunded->value => ['label' => 'Remboursé', 'bg' => '#F2ECFF', 'fg' => '#7D4CE0'],
+            PaymentStatus::Failed->value => ['label' => 'Échoué', 'bg' => '#FDECEC', 'fg' => '#D64545'],
+            PaymentStatus::Expired->value, PaymentStatus::Cancelled->value => ['label' => 'Annulé', 'bg' => '#F1F4F2', 'fg' => '#78817E'],
+            default => ['label' => ucfirst($status), 'bg' => '#F1F4F2', 'fg' => '#78817E'],
         };
     }
 
@@ -190,13 +190,13 @@ class AdminLabels
     public static function parcelStatus(string $status): array
     {
         return match ($status) {
-            ParcelStatus::Delivered->value => ['label' => 'Livré', 'bg' => '#E8F5E9', 'fg' => '#2E7D32'],
-            ParcelStatus::Paid->value => ['label' => 'Payé — à assigner', 'bg' => '#FFF3E0', 'fg' => '#E65100'],
-            ParcelStatus::Assigned->value, ParcelStatus::EnRoutePickup->value, ParcelStatus::PickedUp->value, ParcelStatus::InDelivery->value => ['label' => 'En cours', 'bg' => '#E1F5FE', 'fg' => '#0277BD'],
-            ParcelStatus::AwaitingPayment->value => ['label' => 'En attente de paiement', 'bg' => '#FFF3E0', 'fg' => '#E65100'],
-            ParcelStatus::Cancelled->value => ['label' => 'Annulé', 'bg' => '#FFEBEE', 'fg' => '#C62828'],
-            ParcelStatus::Refunded->value => ['label' => 'Remboursé', 'bg' => '#F3E5F5', 'fg' => '#6A1B9A'],
-            default => ['label' => ucfirst($status), 'bg' => '#ECEFF1', 'fg' => '#37474F'],
+            ParcelStatus::Delivered->value => ['label' => 'Livré', 'bg' => '#EAF7EA', 'fg' => '#087B46'],
+            ParcelStatus::Paid->value => ['label' => 'Payé — à assigner', 'bg' => '#FFF2E2', 'fg' => '#E97800'],
+            ParcelStatus::Assigned->value, ParcelStatus::EnRoutePickup->value, ParcelStatus::PickedUp->value, ParcelStatus::InDelivery->value => ['label' => 'En cours', 'bg' => '#EDF3FE', 'fg' => '#2F6FED'],
+            ParcelStatus::AwaitingPayment->value => ['label' => 'En attente de paiement', 'bg' => '#FFF2E2', 'fg' => '#E97800'],
+            ParcelStatus::Cancelled->value => ['label' => 'Annulé', 'bg' => '#FDECEC', 'fg' => '#D64545'],
+            ParcelStatus::Refunded->value => ['label' => 'Remboursé', 'bg' => '#F2ECFF', 'fg' => '#7D4CE0'],
+            default => ['label' => ucfirst($status), 'bg' => '#F1F4F2', 'fg' => '#78817E'],
         };
     }
 
@@ -223,7 +223,7 @@ class AdminLabels
     {
         return $available
             ? '<span class="badge badge-pill" style="background-color: #E0F7FA; color: #00838F; font-weight: 600; padding: 6px 12px; border-radius: 20px;">En ligne</span>'
-            : '<span class="badge badge-pill" style="background-color: #ECEFF1; color: #37474F; font-weight: 600; padding: 6px 12px; border-radius: 20px;">Hors ligne</span>';
+            : '<span class="badge badge-pill" style="background-color: #F1F4F2; color: #78817E; font-weight: 600; padding: 6px 12px; border-radius: 20px;">Hors ligne</span>';
     }
 
     public static function dayLabel(int $day): string
@@ -245,8 +245,8 @@ class AdminLabels
     public static function productStatus(bool $isActive): array
     {
         return $isActive
-            ? ['label' => 'Actif', 'bg' => '#E8F5E9', 'fg' => '#2E7D32']
-            : ['label' => 'Inactif', 'bg' => '#ECEFF1', 'fg' => '#37474F'];
+            ? ['label' => 'Actif', 'bg' => '#EAF7EA', 'fg' => '#087B46']
+            : ['label' => 'Inactif', 'bg' => '#F1F4F2', 'fg' => '#78817E'];
     }
 
     public static function productStatusBadge(bool $isActive): string
@@ -260,12 +260,12 @@ class AdminLabels
     public static function stockStatus(?int $stockQty, bool $isAvailable): array
     {
         if ($stockQty === null) {
-            return ['label' => 'Illimité', 'bg' => '#E1F5FE', 'fg' => '#0277BD'];
+            return ['label' => 'Illimité', 'bg' => '#EDF3FE', 'fg' => '#2F6FED'];
         }
 
         return $stockQty > 0 && $isAvailable
-            ? ['label' => "En stock ({$stockQty})", 'bg' => '#E8F5E9', 'fg' => '#2E7D32']
-            : ['label' => 'Épuisé', 'bg' => '#FFEBEE', 'fg' => '#C62828'];
+            ? ['label' => "En stock ({$stockQty})", 'bg' => '#EAF7EA', 'fg' => '#087B46']
+            : ['label' => 'Épuisé', 'bg' => '#FDECEC', 'fg' => '#D64545'];
     }
 
     public static function stockBadge(?int $stockQty, bool $isAvailable): string
@@ -279,8 +279,8 @@ class AdminLabels
     public static function categoryStatus(bool $isActive): array
     {
         return $isActive
-            ? ['label' => 'Active', 'bg' => '#E8F5E9', 'fg' => '#2E7D32']
-            : ['label' => 'Inactive', 'bg' => '#ECEFF1', 'fg' => '#37474F'];
+            ? ['label' => 'Active', 'bg' => '#EAF7EA', 'fg' => '#087B46']
+            : ['label' => 'Inactive', 'bg' => '#F1F4F2', 'fg' => '#78817E'];
     }
 
     public static function categoryStatusBadge(bool $isActive): string
@@ -294,8 +294,8 @@ class AdminLabels
     public static function zoneStatus(bool $isActive): array
     {
         return $isActive
-            ? ['label' => 'Active', 'bg' => '#E8F5E9', 'fg' => '#2E7D32']
-            : ['label' => 'Inactive', 'bg' => '#ECEFF1', 'fg' => '#37474F'];
+            ? ['label' => 'Active', 'bg' => '#EAF7EA', 'fg' => '#087B46']
+            : ['label' => 'Inactive', 'bg' => '#F1F4F2', 'fg' => '#78817E'];
     }
 
     public static function zoneStatusBadge(bool $isActive): string
@@ -308,8 +308,8 @@ class AdminLabels
     public static function rateStatusBadge(bool $isActive): string
     {
         return $isActive
-            ? '<span class="badge badge-pill" style="background-color: #E8F5E9; color: #2E7D32; font-weight: 600; padding: 6px 12px; border-radius: 20px;">Actif</span>'
-            : '<span class="badge badge-pill" style="background-color: #ECEFF1; color: #37474F; font-weight: 600; padding: 6px 12px; border-radius: 20px;">Inactif</span>';
+            ? '<span class="badge badge-pill" style="background-color: #EAF7EA; color: #087B46; font-weight: 600; padding: 6px 12px; border-radius: 20px;">Actif</span>'
+            : '<span class="badge badge-pill" style="background-color: #F1F4F2; color: #78817E; font-weight: 600; padding: 6px 12px; border-radius: 20px;">Inactif</span>';
     }
 
     public static function zoneModeLabel(string $mode): string

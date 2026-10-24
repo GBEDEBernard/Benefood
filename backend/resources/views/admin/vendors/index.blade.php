@@ -103,11 +103,14 @@
                     @forelse ($vendors as $vendor)
                         <tr>
                             <td class="py-3">
-                                <div>
-                                    <div style="color: var(--text-dark); font-weight: 600;">{{ $vendor->business_name }}</div>
-                                    @if ($vendor->legal_name)
-                                        <small style="color: var(--text-muted);">{{ $vendor->legal_name }}</small>
-                                    @endif
+                                <div class="d-flex align-items-center">
+                                    <x-admin.vendor-logo :vendor="$vendor" size="md" class="mr-3" />
+                                    <div>
+                                        <div style="color: var(--text-dark); font-weight: 600;">{{ $vendor->business_name }}</div>
+                                        @if ($vendor->legal_name)
+                                            <small style="color: var(--text-muted);">{{ $vendor->legal_name }}</small>
+                                        @endif
+                                    </div>
                                 </div>
                             </td>
                             <td class="py-3" style="color: var(--text-muted); font-family: monospace;">{{ $vendor->ifu ?? '—' }}</td>

@@ -59,13 +59,6 @@
         $financials = $order->financials;
         $canCancelNow = $canCancel && ! in_array($order->status->value, ['cancelled', 'refunded'], true);
         $customerName = $order->user?->name ?? 'Client supprimé';
-        $nameParts = preg_split('/\s+/', trim($customerName)) ?: [];
-        $customerInitials = collect($nameParts)
-            ->filter()
-            ->take(2)
-            ->map(fn (string $part): string => mb_strtoupper(mb_substr($part, 0, 1)))
-            ->implode('');
-        $customerInitials = $customerInitials !== '' ? $customerInitials : '?';
     @endphp
 
     <div class="orders-page order-show-page">
@@ -205,9 +198,13 @@
                     <div class="order-items">
                         @forelse ($order->items as $item)
                             <div class="order-item">
-                                <span class="order-item__icon">
-                                    <i class="ti ti-package" aria-hidden="true"></i>
-                                </span>
+                                @if ($item->product)
+                                    <x-admin.product-thumb :product="$item->product" size="md" />
+                                @else
+                                    <span class="order-item__icon">
+                                        <i class="ti ti-package" aria-hidden="true"></i>
+                                    </span>
+                                @endif
                                 <div class="order-item__main">
                                     <strong>{{ $item->name_snapshot }}</strong>
                                     <span>
@@ -321,7 +318,12 @@
                                     <dl class="order-meta-list">
                                         <div>
                                             <dt>Livreur</dt>
-                                            <dd>{{ $driver?->name ?? 'En attente d’assignation' }}</dd>
+                                            <dd class="order-driver-cell">
+                                                @if ($driver)
+                                                    <x-admin.avatar :user="$driver" size="sm" />
+                                                @endif
+                                                <span>{{ $driver?->name ?? 'En attente d’assignation' }}</span>
+                                            </dd>
                                         </div>
                                         @if ($driver?->phone)
                                             <div>
@@ -485,7 +487,7 @@
                     </div>
 
                     <div class="order-party">
-                        <span class="orders-avatar orders-avatar--green">{{ $customerInitials }}</span>
+                        <x-admin.avatar :user="$order->user" :name="$customerName" size="md" />
                         <div>
                             <strong>{{ $customerName }}</strong>
                             <span>{{ $order->user?->phone ?? 'Téléphone non renseigné' }}</span>
@@ -518,9 +520,7 @@
                     </div>
 
                     <div class="order-party">
-                        <span class="orders-avatar orders-avatar--orange">
-                            <i class="ti ti-building-store" aria-hidden="true"></i>
-                        </span>
+                        <x-admin.vendor-logo :vendor="$order->vendor" size="md" />
                         <div>
                             <strong>{{ $order->vendor?->business_name ?? 'Boutique supprimée' }}</strong>
                             <span>{{ $order->vendor?->city ?? 'Ville non renseignée' }}</span>

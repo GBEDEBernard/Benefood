@@ -1,24 +1,22 @@
-<!-- begin app-header -->
-<header class="app-header top-bar" style="background-color: #FFFFFF; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+@php
+    $currentUser = auth()->user();
+@endphp
+
+<header class="app-header top-bar">
     <nav class="navbar navbar-expand-md">
         <div class="navbar-header d-flex align-items-center">
-            <a href="javascript:void(0)" class="mobile-toggle"><i class="ti ti-align-right"></i></a>
+            <a href="javascript:void(0)" class="mobile-toggle" aria-label="Ouvrir la navigation">
+                <i class="ti ti-menu-alt" aria-hidden="true"></i>
+            </a>
 
-            <!-- LOGO BÉNINFOOD -->
-            <a class="navbar-brand d-flex align-items-center" href="{{ route('admin.dashboard') }}" style="text-decoration: none;">
-                <!-- Logo Rond -->
-                <img src="{{ asset('assets/img/logo.jpeg') }}"
-                     class="img-fluid logo-desktop"
-                     alt="BéninFood"
-                     style="height: 45px; width: 45px; border-radius: 50%; object-fit: cover; border: 2px solid var(--benin-green); margin-right: 12px;" />
-
-                <!-- Nom de la marque -->
-                <div class="d-flex flex-column" style="line-height: 1.1;">
-                    <span style="font-family: 'Roboto', sans-serif; font-weight: 700; font-size: 20px; color: var(--benin-green);">
-                        Bénin<span style="color: var(--benin-orange);">Food</span>
-                    </span>
-                    <small style="font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px;">Back-office</small>
-                </div>
+            <a class="navbar-brand d-flex align-items-center" href="{{ route('admin.dashboard') }}">
+                <span class="bf-brand-mark">
+                    <img src="{{ asset('assets/img/logo.jpeg') }}" alt="Logo Béninfood" width="42" height="42">
+                </span>
+                <span class="bf-brand-copy">
+                    <span class="bf-brand-name"><span>BÉNI</span><strong>NFOOD</strong></span>
+                    <small>Back-office</small>
+                </span>
             </a>
         </div>
 
@@ -26,59 +24,60 @@
             <div class="navigation d-flex">
                 <ul class="navbar-nav nav-left">
                     <li class="nav-item">
-                        <a href="javascript:void(0)" class="nav-link sidebar-toggle">
-                            <i class="ti ti-align-right" style="color: var(--text-dark);"></i>
+                        <a href="javascript:void(0)" class="nav-link sidebar-toggle" aria-label="Réduire la navigation">
+                            <i class="ti ti-layout-sidebar-left" aria-hidden="true"></i>
                         </a>
                     </li>
                 </ul>
+
                 @if (request()->routeIs('admin.dashboard'))
-                    <div class="bf-top-search" role="search">
-                        <i class="ti ti-search"></i>
-                        <input type="search" aria-label="Rechercher dans le back-office" placeholder="Rechercher (commandes, utilisateurs, livreurs...)">
-                        <kbd>⌘ K</kbd>
-                    </div>
+                    <form class="bf-top-search" method="GET" action="{{ route('admin.orders.index') }}" role="search">
+                        <i class="ti ti-search" aria-hidden="true"></i>
+                        <input type="search" name="q" value="{{ request()->routeIs('admin.orders.*') ? request('q') : '' }}" aria-label="Rechercher une commande" placeholder="Rechercher une commande par référence...">
+                        <kbd>Entrée</kbd>
+                    </form>
                 @endif
+
                 <ul class="navbar-nav nav-right ml-auto align-items-center">
-                    <li class="nav-item mr-3">
-                        <a class="nav-link" href="javascript:void(0)">
-                            <i class="ti ti-bell" style="color: var(--text-dark); font-size: 20px;"></i>
-                            <span class="notify">
-                                <span class="blink" style="background-color: var(--benin-red);"></span>
-                                <span class="dot" style="background-color: var(--benin-red);"></span>
-                            </span>
+                    <li class="nav-item">
+                        <a class="nav-link bf-header-icon" href="{{ route('admin.complaints.index') }}" aria-label="Ouvrir les réclamations" title="Réclamations">
+                            <i class="ti ti-bell" aria-hidden="true"></i>
+                            <span class="bf-notify-dot"></span>
                         </a>
                     </li>
                     <li class="nav-item dropdown user-profile">
-                        <a href="javascript:void(0)" class="nav-link dropdown-toggle d-flex align-items-center" id="navbarDropdown4" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                            <img src="{{ asset('assets/img/avtar/02.jpg') }}" alt="Admin" style="height: 40px; width: 40px; border-radius: 50%; object-fit: cover;">
-                            <span class="bg-success user-status" style="background-color: var(--benin-green) !important;"></span>
+                        <a href="javascript:void(0)" class="nav-link dropdown-toggle bf-user-toggle d-flex align-items-center" id="navbarDropdown4" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                            <x-admin.avatar :user="$currentUser" size="sm" :online="true" />
+                            <span class="bf-user-meta d-none d-md-flex">
+                                <strong>{{ $currentUser?->name ?? 'Administrateur' }}</strong>
+                                <small>{{ $currentUser?->activeRoleSlug() ? ucfirst(str_replace('-', ' ', $currentUser->activeRoleSlug())) : 'Back-office' }}</small>
+                            </span>
+                            <i class="ti ti-angle-down bf-user-chevron" aria-hidden="true"></i>
                         </a>
-                        <div class="dropdown-menu animated fadeIn" aria-labelledby="navbarDropdown">
-                            <div class="bg-gradient px-4 py-3" style="background: linear-gradient(135deg, var(--benin-green), var(--benin-orange));">
-                                <div class="d-flex align-items-center justify-content-between">
-                                    <div class="mr-1">
-                                        @auth
-                                            <h4 class="text-white mb-0" style="font-size: 16px;">{{ Auth::user()->name }}</h4>
-                                            <small class="text-white">{{ Auth::user()->email }}</small>
-                                        @endauth
-                                    </div>
-                                    <a href="#" class="text-white font-20" onclick="event.preventDefault(); document.getElementById('logout-form').submit();">
-                                        <i class="ti ti-power"></i>
-                                    </a>
-                                    <form id="logout-form" action="{{ route('logout') }}" method="POST" style="display:none">@csrf</form>
+
+                        <div class="dropdown-menu dropdown-menu-right animated fadeIn" aria-labelledby="navbarDropdown4">
+                            <div class="bf-user-card">
+                                <x-admin.avatar :user="$currentUser" size="lg" />
+                                <div>
+                                    <strong>{{ $currentUser?->name ?? 'Administrateur' }}</strong>
+                                    <span>{{ $currentUser?->email ?? '' }}</span>
                                 </div>
                             </div>
-                            <div class="p-4">
-                                <a class="dropdown-item d-flex nav-link" href="javascript:void(0)">
-                                    <i class="fa fa-user pr-2" style="color: var(--benin-green);"></i> Mon profil
+                            <div class="bf-user-links">
+                                <a class="dropdown-item d-flex align-items-center" href="{{ route('admin.users.index') }}">
+                                    <i class="ti ti-user" aria-hidden="true"></i>
+                                    Mon profil
                                 </a>
-                                <a class="dropdown-item d-flex nav-link" href="javascript:void(0)">
-                                    <i class="ti ti-settings pr-2" style="color: var(--benin-orange);"></i> Paramètres
+                                <a class="dropdown-item d-flex align-items-center" href="{{ route('admin.settings.index') }}">
+                                    <i class="ti ti-settings" aria-hidden="true"></i>
+                                    Paramètres
                                 </a>
                                 <div class="dropdown-divider"></div>
-                                <a class="dropdown-item d-flex nav-link" href="#" onclick="event.preventDefault(); document.getElementById('logout-form').submit();">
-                                    <i class="fa fa-power-off pr-2" style="color: var(--benin-red);"></i> Déconnexion
+                                <a class="dropdown-item d-flex align-items-center bf-logout" href="#" onclick="event.preventDefault(); document.getElementById('logout-form').submit();">
+                                    <i class="ti ti-power-off" aria-hidden="true"></i>
+                                    Déconnexion
                                 </a>
+                                <form id="logout-form" action="{{ route('logout') }}" method="POST" class="d-none">@csrf</form>
                             </div>
                         </div>
                     </li>
@@ -87,4 +86,3 @@
         </div>
     </nav>
 </header>
-<!-- end app-header -->

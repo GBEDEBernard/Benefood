@@ -16,9 +16,7 @@
     <div class="col-lg-4">
         <div class="card mb-4">
             <div class="card-body text-center">
-                <div class="mx-auto rounded-circle d-flex align-items-center justify-content-center mb-3" style="width: 80px; height: 80px; background-color: #E8F5E9; font-weight: 700; color: var(--benin-green); font-size: 30px;">
-                    {{ strtoupper(substr($user->name, 0, 1)) }}
-                </div>
+                <x-admin.avatar :user="$user" size="xl" class="mb-3" />
                 <h5 class="mb-1" style="color: var(--text-dark); font-weight: 700;">{{ $user->name }}</h5>
                 <p class="mb-2" style="color: var(--text-muted);">{{ $user->email ?? '—' }}</p>
                 <div class="mb-3">

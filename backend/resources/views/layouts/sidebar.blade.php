@@ -1,160 +1,178 @@
-<!-- begin sidebar -->
-<aside class="app-navbar" style="background-color: var(--sidebar-bg);">
+@php
+    $sections = [
+        [
+            'label' => __('admin.navigation'),
+            'items' => [
+                [
+                    'label' => __('admin.dashboard'),
+                    'icon' => 'ti-dashboard',
+                    'route' => 'admin.dashboard',
+                    'match' => ['admin.dashboard'],
+                ],
+                [
+                    'label' => __('admin.vendors'),
+                    'icon' => 'ti-briefcase',
+                    'route' => 'admin.vendors.index',
+                    'match' => ['admin.vendors.*'],
+                ],
+                [
+                    'label' => __('admin.clients'),
+                    'icon' => 'ti-user',
+                    'route' => 'admin.clients.index',
+                    'match' => ['admin.clients.*'],
+                ],
+                [
+                    'label' => __('admin.drivers'),
+                    'icon' => 'ti-truck',
+                    'route' => 'admin.drivers.index',
+                    'match' => ['admin.drivers.*'],
+                ],
+                [
+                    'label' => __('admin.orders'),
+                    'icon' => 'ti-shopping-cart',
+                    'route' => 'admin.orders.index',
+                    'match' => ['admin.orders.*'],
+                ],
+                [
+                    'label' => 'Colis',
+                    'icon' => 'ti-package',
+                    'route' => 'admin.parcels.index',
+                    'match' => ['admin.parcels.*'],
+                ],
+                [
+                    'label' => __('admin.products_shops'),
+                    'icon' => 'ti-package',
+                    'match' => ['admin.products.*', 'admin.shops.*'],
+                    'children' => [
+                        ['label' => __('admin.shops'), 'route' => 'admin.shops.index', 'match' => ['admin.shops.*']],
+                        ['label' => __('admin.products'), 'route' => 'admin.products.index', 'match' => ['admin.products.*']],
+                    ],
+                ],
+                [
+                    'label' => __('admin.commissions'),
+                    'icon' => 'ti-pie-chart',
+                    'route' => 'admin.commissions.index',
+                    'match' => ['admin.commissions.*'],
+                ],
+                [
+                    'label' => __('admin.delivery'),
+                    'icon' => 'ti-direction',
+                    'match' => ['admin.zones.*', 'admin.locations.*', 'admin.rates.*', 'admin.pricing.*'],
+                    'children' => [
+                        ['label' => __('admin.zones'), 'route' => 'admin.zones.index', 'match' => ['admin.zones.*']],
+                        ['label' => __('admin.locations'), 'route' => 'admin.locations.index', 'match' => ['admin.locations.*']],
+                        ['label' => __('admin.rates'), 'route' => 'admin.rates.index', 'match' => ['admin.rates.*']],
+                        ['label' => 'Tarifs par distance', 'route' => 'admin.pricing.index', 'match' => ['admin.pricing.*']],
+                    ],
+                ],
+                [
+                    'label' => __('admin.payments'),
+                    'icon' => 'ti-wallet',
+                    'match' => ['admin.payments.*', 'admin.refunds.*', 'admin.payouts.*', 'admin.platform-wallet.*'],
+                    'children' => [
+                        ['label' => __('admin.transactions'), 'route' => 'admin.payments.index', 'match' => ['admin.payments.*']],
+                        ['label' => __('admin.refunds'), 'route' => 'admin.refunds.index', 'match' => ['admin.refunds.*']],
+                        ['label' => 'Wallets & retraits', 'route' => 'admin.payouts.index', 'match' => ['admin.payouts.*']],
+                        ['label' => 'Wallet plateforme', 'route' => 'admin.platform-wallet.index', 'match' => ['admin.platform-wallet.*']],
+                    ],
+                ],
+                [
+                    'label' => 'Réclamations',
+                    'icon' => 'ti-comments',
+                    'route' => 'admin.complaints.index',
+                    'match' => ['admin.complaints.*'],
+                ],
+            ],
+        ],
+        [
+            'label' => __('admin.configuration'),
+            'items' => [
+                [
+                    'label' => __('admin.users'),
+                    'icon' => 'ti-user',
+                    'route' => 'admin.users.index',
+                    'match' => ['admin.users.*'],
+                ],
+                [
+                    'label' => __('admin.roles_permissions'),
+                    'icon' => 'ti-shield',
+                    'route' => 'admin.roles.index',
+                    'match' => ['admin.roles.*'],
+                ],
+                [
+                    'label' => __('admin.settings'),
+                    'icon' => 'ti-settings',
+                    'route' => 'admin.settings.index',
+                    'match' => ['admin.settings.*'],
+                ],
+                [
+                    'label' => __('admin.audit_reports'),
+                    'icon' => 'ti-stats-up',
+                    'match' => ['admin.audit.*', 'admin.reports.*'],
+                    'children' => [
+                        ['label' => __('admin.audit'), 'route' => 'admin.audit.index', 'match' => ['admin.audit.*']],
+                        ['label' => __('admin.reports'), 'route' => 'admin.reports.index', 'match' => ['admin.reports.*']],
+                    ],
+                ],
+            ],
+        ],
+    ];
+@endphp
+
+<aside class="app-navbar">
+    <div class="bf-sidebar-brand">
+        <span class="bf-brand-mark">
+            <img src="{{ asset('assets/img/logo.jpeg') }}" alt="Logo Béninfood" width="36" height="36">
+        </span>
+        <span class="bf-brand-copy">
+            <span class="bf-brand-name"><span>BÉNI</span><strong>NFOOD</strong></span>
+            <small>Back-office</small>
+        </span>
+    </div>
+
     <div class="sidebar-nav scrollbar scroll_light">
         <ul class="metismenu" id="sidebarNav">
-            <li class="nav-static-title" style="color: var(--sidebar-text); font-size: 11px; text-transform: uppercase; letter-spacing: 1px; padding: 20px 20px 10px;">{{ __('admin.navigation') }}</li>
-            
-            <li class="{{ request()->routeIs('admin.dashboard') ? 'active' : '' }}">
-                <a href="{{ route('admin.dashboard') }}" style="color: {{ request()->routeIs('admin.dashboard') ? '#FFFFFF' : 'var(--sidebar-text)' }}; background-color: {{ request()->routeIs('admin.dashboard') ? 'var(--sidebar-active-bg)' : 'transparent' }};">
-                    <i class="nav-icon ti ti-home" style="color: {{ request()->routeIs('admin.dashboard') ? '#FFFFFF' : 'var(--sidebar-text)' }};"></i>
-                    <span class="nav-title">{{ __('admin.dashboard') }}</span>
-                </a>
-            </li>
-            
-            <li class="{{ request()->routeIs('admin.vendors.*') ? 'active' : '' }}">
-                <a href="{{ route('admin.vendors.index') }}" style="color: {{ request()->routeIs('admin.vendors.*') ? '#FFFFFF' : 'var(--sidebar-text)' }}; background-color: {{ request()->routeIs('admin.vendors.*') ? 'var(--sidebar-active-bg)' : 'transparent' }};">
-                    <i class="nav-icon ti ti-briefcase" style="color: {{ request()->routeIs('admin.vendors.*') ? '#FFFFFF' : 'var(--sidebar-text)' }};"></i>
-                    <span class="nav-title">{{ __('admin.vendors') }}</span>
-                </a>
-            </li>
-            
-            <li class="{{ request()->routeIs('admin.clients.*') ? 'active' : '' }}">
-                <a href="{{ route('admin.clients.index') }}" style="color: {{ request()->routeIs('admin.clients.*') ? '#FFFFFF' : 'var(--sidebar-text)' }}; background-color: {{ request()->routeIs('admin.clients.*') ? 'var(--sidebar-active-bg)' : 'transparent' }};">
-                    <i class="nav-icon ti ti-user" style="color: {{ request()->routeIs('admin.clients.*') ? '#FFFFFF' : 'var(--sidebar-text)' }};"></i>
-                    <span class="nav-title">{{ __('admin.clients') }}</span>
-                </a>
-            </li>
-            
-            <li class="{{ request()->routeIs('admin.drivers.*') ? 'active' : '' }}">
-                <a href="{{ route('admin.drivers.index') }}" style="color: {{ request()->routeIs('admin.drivers.*') ? '#FFFFFF' : 'var(--sidebar-text)' }}; background-color: {{ request()->routeIs('admin.drivers.*') ? 'var(--sidebar-active-bg)' : 'transparent' }};">
-                    <i class="nav-icon ti ti-truck" style="color: {{ request()->routeIs('admin.drivers.*') ? '#FFFFFF' : 'var(--sidebar-text)' }};"></i>
-                    <span class="nav-title">{{ __('admin.drivers') }}</span>
-                </a>
-            </li>
-            
-            <li class="{{ request()->routeIs('admin.orders.*') ? 'active' : '' }}">
-                <a href="{{ route('admin.orders.index') }}" style="color: {{ request()->routeIs('admin.orders.*') ? '#FFFFFF' : 'var(--sidebar-text)' }}; background-color: {{ request()->routeIs('admin.orders.*') ? 'var(--sidebar-active-bg)' : 'transparent' }};">
-                    <i class="nav-icon ti ti-shopping-cart" style="color: {{ request()->routeIs('admin.orders.*') ? '#FFFFFF' : 'var(--sidebar-text)' }};"></i>
-                    <span class="nav-title">{{ __('admin.orders') }}</span>
-                </a>
-            </li>
+            @foreach ($sections as $section)
+                <li class="nav-static-title">{{ $section['label'] }}</li>
 
-            <li class="{{ request()->routeIs('admin.parcels.*') ? 'active' : '' }}">
-                <a href="{{ route('admin.parcels.index') }}" style="color: {{ request()->routeIs('admin.parcels.*') ? '#FFFFFF' : 'var(--sidebar-text)' }}; background-color: {{ request()->routeIs('admin.parcels.*') ? 'var(--sidebar-active-bg)' : 'transparent' }};">
-                    <i class="nav-icon ti ti-package" style="color: {{ request()->routeIs('admin.parcels.*') ? '#FFFFFF' : 'var(--sidebar-text)' }};"></i>
-                    <span class="nav-title">Colis</span>
-                </a>
-            </li>
-            
-            <li class="{{ request()->routeIs('admin.products.*') || request()->routeIs('admin.shops.*') ? 'active' : '' }}">
-                <a class="has-arrow" href="javascript:void(0)" aria-expanded="false" style="color: {{ request()->routeIs('admin.products.*') || request()->routeIs('admin.shops.*') ? '#FFFFFF' : 'var(--sidebar-text)' }}; background-color: {{ request()->routeIs('admin.products.*') || request()->routeIs('admin.shops.*') ? 'var(--sidebar-active-bg)' : 'transparent' }};">
-                    <i class="nav-icon ti ti-store" style="color: {{ request()->routeIs('admin.products.*') || request()->routeIs('admin.shops.*') ? '#FFFFFF' : 'var(--sidebar-text)' }};"></i>
-                    <span class="nav-title">{{ __('admin.products_shops') }}</span>
-                </a>
-                <ul aria-expanded="false" style="background-color: rgba(0,0,0,0.2);">
-                    <li class="{{ request()->routeIs('admin.shops.*') ? 'active' : '' }}">
-                        <a href="{{ route('admin.shops.index') }}" style="color: {{ request()->routeIs('admin.shops.*') ? 'var(--benin-orange)' : 'var(--sidebar-text)' }};">{{ __('admin.shops') }}</a>
-                    </li>
-                    <li class="{{ request()->routeIs('admin.products.*') ? 'active' : '' }}">
-                        <a href="{{ route('admin.products.index') }}" style="color: {{ request()->routeIs('admin.products.*') ? 'var(--benin-orange)' : 'var(--sidebar-text)' }};">{{ __('admin.products') }}</a>
-                    </li>
-                </ul>
-            </li>
-            
-            <li class="{{ request()->routeIs('admin.commissions.*') ? 'active' : '' }}">
-                <a href="{{ route('admin.commissions.index') }}" style="color: {{ request()->routeIs('admin.commissions.*') ? '#FFFFFF' : 'var(--sidebar-text)' }}; background-color: {{ request()->routeIs('admin.commissions.*') ? 'var(--sidebar-active-bg)' : 'transparent' }};">
-                    <i class="nav-icon ti ti-wallet" style="color: {{ request()->routeIs('admin.commissions.*') ? '#FFFFFF' : 'var(--sidebar-text)' }};"></i>
-                    <span class="nav-title">{{ __('admin.commissions') }}</span>
-                </a>
-            </li>
-            
-            <li class="{{ request()->routeIs('admin.zones.*') || request()->routeIs('admin.locations.*') || request()->routeIs('admin.rates.*') || request()->routeIs('admin.pricing.*') ? 'active' : '' }}">
-                <a class="has-arrow" href="javascript:void(0)" aria-expanded="false" style="color: {{ request()->routeIs('admin.zones.*') || request()->routeIs('admin.locations.*') || request()->routeIs('admin.rates.*') || request()->routeIs('admin.pricing.*') ? '#FFFFFF' : 'var(--sidebar-text)' }}; background-color: {{ request()->routeIs('admin.zones.*') || request()->routeIs('admin.locations.*') || request()->routeIs('admin.rates.*') || request()->routeIs('admin.pricing.*') ? 'var(--sidebar-active-bg)' : 'transparent' }};">
-                    <i class="nav-icon ti ti-map-alt" style="color: {{ request()->routeIs('admin.zones.*') || request()->routeIs('admin.locations.*') || request()->routeIs('admin.rates.*') || request()->routeIs('admin.pricing.*') ? '#FFFFFF' : 'var(--sidebar-text)' }};"></i>
-                    <span class="nav-title">{{ __('admin.delivery') }}</span>
-                </a>
-                <ul aria-expanded="false" style="background-color: rgba(0,0,0,0.2);">
-                    <li class="{{ request()->routeIs('admin.zones.*') ? 'active' : '' }}">
-                        <a href="{{ route('admin.zones.index') }}" style="color: {{ request()->routeIs('admin.zones.*') ? 'var(--benin-orange)' : 'var(--sidebar-text)' }};">{{ __('admin.zones') }}</a>
-                    </li>
-                    <li class="{{ request()->routeIs('admin.locations.*') ? 'active' : '' }}">
-                        <a href="{{ route('admin.locations.index') }}" style="color: {{ request()->routeIs('admin.locations.*') ? 'var(--benin-orange)' : 'var(--sidebar-text)' }};">{{ __('admin.locations') }}</a>
-                    </li>
-                    <li class="{{ request()->routeIs('admin.rates.*') ? 'active' : '' }}">
-                        <a href="{{ route('admin.rates.index') }}" style="color: {{ request()->routeIs('admin.rates.*') ? 'var(--benin-orange)' : 'var(--sidebar-text)' }};">{{ __('admin.rates') }}</a>
-                    </li>
-                    <li class="{{ request()->routeIs('admin.pricing.*') ? 'active' : '' }}">
-                        <a href="{{ route('admin.pricing.index') }}" style="color: {{ request()->routeIs('admin.pricing.*') ? 'var(--benin-orange)' : 'var(--sidebar-text)' }};">Tarifs par distance</a>
-                    </li>
-                </ul>
-            </li>
-            
-            <li class="{{ request()->routeIs('admin.payments.*') || request()->routeIs('admin.refunds.*') || request()->routeIs('admin.payouts.*') || request()->routeIs('admin.platform-wallet.*') ? 'active' : '' }}">
-                <a class="has-arrow" href="javascript:void(0)" aria-expanded="false" style="color: {{ request()->routeIs('admin.payments.*') || request()->routeIs('admin.refunds.*') || request()->routeIs('admin.payouts.*') || request()->routeIs('admin.platform-wallet.*') ? '#FFFFFF' : 'var(--sidebar-text)' }}; background-color: {{ request()->routeIs('admin.payments.*') || request()->routeIs('admin.refunds.*') || request()->routeIs('admin.payouts.*') || request()->routeIs('admin.platform-wallet.*') ? 'var(--sidebar-active-bg)' : 'transparent' }};">
-                    <i class="nav-icon ti ti-credit-card" style="color: {{ request()->routeIs('admin.payments.*') || request()->routeIs('admin.refunds.*') || request()->routeIs('admin.payouts.*') || request()->routeIs('admin.platform-wallet.*') ? '#FFFFFF' : 'var(--sidebar-text)' }};"></i>
-                    <span class="nav-title">{{ __('admin.payments') }}</span>
-                </a>
-                <ul aria-expanded="false" style="background-color: rgba(0,0,0,0.2);">
-                    <li class="{{ request()->routeIs('admin.payments.*') ? 'active' : '' }}">
-                        <a href="{{ route('admin.payments.index') }}" style="color: {{ request()->routeIs('admin.payments.*') ? 'var(--benin-orange)' : 'var(--sidebar-text)' }};">{{ __('admin.transactions') }}</a>
-                    </li>
-                    <li class="{{ request()->routeIs('admin.refunds.*') ? 'active' : '' }}">
-                        <a href="{{ route('admin.refunds.index') }}" style="color: {{ request()->routeIs('admin.refunds.*') ? 'var(--benin-orange)' : 'var(--sidebar-text)' }};">{{ __('admin.refunds') }}</a>
-                    </li>
-                    <li class="{{ request()->routeIs('admin.payouts.*') || request()->routeIs('admin.platform-wallet.*') ? 'active' : '' }}">
-                        <a href="{{ route('admin.payouts.index') }}" style="color: {{ request()->routeIs('admin.payouts.*') ? 'var(--benin-orange)' : 'var(--sidebar-text)' }};">Wallets & retraits</a>
-                    </li>
-                    <li class="{{ request()->routeIs('admin.platform-wallet.*') ? 'active' : '' }}">
-                        <a href="{{ route('admin.platform-wallet.index') }}" style="color: {{ request()->routeIs('admin.platform-wallet.*') ? 'var(--benin-orange)' : 'var(--sidebar-text)' }};">Wallet plateforme</a>
-                    </li>
-                </ul>
-            </li>
-            
-            <li class="{{ request()->routeIs('admin.complaints.*') ? 'active' : '' }}">
-                <a href="{{ route('admin.complaints.index') }}" style="color: {{ request()->routeIs('admin.complaints.*') ? '#FFFFFF' : 'var(--sidebar-text)' }}; background-color: {{ request()->routeIs('admin.complaints.*') ? 'var(--sidebar-active-bg)' : 'transparent' }};">
-                    <i class="nav-icon ti ti-headphone" style="color: {{ request()->routeIs('admin.complaints.*') ? '#FFFFFF' : 'var(--sidebar-text)' }};"></i>
-                    <span class="nav-title">Réclamations</span>
-                </a>
-            </li>
-            
-                    <li class="nav-static-title" style="color: var(--sidebar-text); font-size: 11px; text-transform: uppercase; letter-spacing: 1px; padding: 20px 20px 10px;">{{ __('admin.configuration') }}</li>
-            
-            <li class="{{ request()->routeIs('admin.users.*') ? 'active' : '' }}">
-                <a href="{{ route('admin.users.index') }}" style="color: {{ request()->routeIs('admin.users.*') ? '#FFFFFF' : 'var(--sidebar-text)' }}; background-color: {{ request()->routeIs('admin.users.*') ? 'var(--sidebar-active-bg)' : 'transparent' }};">
-                    <i class="nav-icon ti ti-user" style="color: {{ request()->routeIs('admin.users.*') ? '#FFFFFF' : 'var(--sidebar-text)' }};"></i>
-                    <span class="nav-title">{{ __('admin.users') }}</span>
-                </a>
-            </li>
+                @foreach ($section['items'] as $item)
+                    @php
+                        $isActive = collect($item['match'])->contains(fn (string $pattern): bool => request()->routeIs($pattern));
+                    @endphp
 
-            <li class="{{ request()->routeIs('admin.roles.*') ? 'active' : '' }}">
-                <a href="{{ route('admin.roles.index') }}" style="color: {{ request()->routeIs('admin.roles.*') ? '#FFFFFF' : 'var(--sidebar-text)' }}; background-color: {{ request()->routeIs('admin.roles.*') ? 'var(--sidebar-active-bg)' : 'transparent' }};">
-                    <i class="nav-icon ti ti-lock" style="color: {{ request()->routeIs('admin.roles.*') ? '#FFFFFF' : 'var(--sidebar-text)' }};"></i>
-                    <span class="nav-title">{{ __('admin.roles_permissions') }}</span>
-                </a>
-            </li>
-
-            <li class="{{ request()->routeIs('admin.settings.*') ? 'active' : '' }}">
-                <a href="{{ route('admin.settings.index') }}" style="color: {{ request()->routeIs('admin.settings.*') ? '#FFFFFF' : 'var(--sidebar-text)' }}; background-color: {{ request()->routeIs('admin.settings.*') ? 'var(--sidebar-active-bg)' : 'transparent' }};">
-                    <i class="nav-icon ti ti-settings" style="color: {{ request()->routeIs('admin.settings.*') ? '#FFFFFF' : 'var(--sidebar-text)' }};"></i>
-                    <span class="nav-title">{{ __('admin.settings') }}</span>
-                </a>
-            </li>
-
-            <li class="{{ request()->routeIs('admin.audit.*') || request()->routeIs('admin.reports.*') ? 'active' : '' }}">
-                <a class="has-arrow" href="javascript:void(0)" aria-expanded="false" style="color: {{ request()->routeIs('admin.audit.*') || request()->routeIs('admin.reports.*') ? '#FFFFFF' : 'var(--sidebar-text)' }}; background-color: {{ request()->routeIs('admin.audit.*') || request()->routeIs('admin.reports.*') ? 'var(--sidebar-active-bg)' : 'transparent' }};">
-                    <i class="nav-icon ti ti-pie-chart" style="color: {{ request()->routeIs('admin.audit.*') || request()->routeIs('admin.reports.*') ? '#FFFFFF' : 'var(--sidebar-text)' }};"></i>
-                    <span class="nav-title">{{ __('admin.audit_reports') }}</span>
-                </a>
-                <ul aria-expanded="false" style="background-color: rgba(0,0,0,0.2);">
-                    <li class="{{ request()->routeIs('admin.audit.*') ? 'active' : '' }}">
-                        <a href="{{ route('admin.audit.index') }}" style="color: {{ request()->routeIs('admin.audit.*') ? 'var(--benin-orange)' : 'var(--sidebar-text)' }};">{{ __('admin.audit') }}</a>
+                    <li class="{{ $isActive ? 'active' : '' }}">
+                        @if (! empty($item['children']))
+                            <a class="has-arrow" href="javascript:void(0)" aria-expanded="{{ $isActive ? 'true' : 'false' }}">
+                                <i class="nav-icon ti {{ $item['icon'] }}" aria-hidden="true"></i>
+                                <span class="nav-title">{{ $item['label'] }}</span>
+                            </a>
+                            <ul aria-expanded="{{ $isActive ? 'true' : 'false' }}">
+                                @foreach ($item['children'] as $child)
+                                    @php
+                                        $isChildActive = request()->routeIs($child['match']);
+                                    @endphp
+                                    <li class="{{ $isChildActive ? 'active' : '' }}">
+                                        <a href="{{ route($child['route']) }}">
+                                            <span class="bf-nav-bullet" aria-hidden="true"></span>
+                                            <span>{{ $child['label'] }}</span>
+                                        </a>
+                                    </li>
+                                @endforeach
+                            </ul>
+                        @else
+                            <a href="{{ route($item['route']) }}">
+                                <i class="nav-icon ti {{ $item['icon'] }}" aria-hidden="true"></i>
+                                <span class="nav-title">{{ $item['label'] }}</span>
+                            </a>
+                        @endif
                     </li>
-                    <li class="{{ request()->routeIs('admin.reports.*') ? 'active' : '' }}">
-                        <a href="{{ route('admin.reports.index') }}" style="color: {{ request()->routeIs('admin.reports.*') ? 'var(--benin-orange)' : 'var(--sidebar-text)' }};">{{ __('admin.reports') }}</a>
-                    </li>
-                </ul>
-            </li>
+                @endforeach
+            @endforeach
         </ul>
     </div>
+
+    <div class="bf-sidebar-foot">
+        <span class="bf-sidebar-foot__dot" aria-hidden="true"></span>
+        <span>Plateforme opérationnelle</span>
+    </div>
 </aside>
-<!-- end sidebar -->

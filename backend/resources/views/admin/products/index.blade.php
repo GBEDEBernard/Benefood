@@ -125,13 +125,7 @@
                         <tr>
                             <td class="py-3">
                                 <div class="d-flex align-items-center" style="gap: 12px;">
-                                    <div style="width: 44px; height: 44px; border-radius: 8px; overflow: hidden; background: #F1F5F9; flex-shrink: 0;">
-                                        @if ($product->image_main)
-                                            <img src="{{ \Illuminate\Support\Facades\Storage::disk('public')->url($product->image_main) }}" alt="" style="width: 44px; height: 44px; object-fit: cover;">
-                                        @else
-                                            <div class="d-flex align-items-center justify-content-center h-100" style="color: var(--text-muted);"><i class="ti ti-photo"></i></div>
-                                        @endif
-                                    </div>
+                                    <x-admin.product-thumb :product="$product" size="md" />
                                     <div>
                                         <div style="color: var(--text-dark); font-weight: 600;">{{ $product->name }}</div>
                                         <small style="color: var(--text-muted);">{{ \Illuminate\Support\Str::limit($product->description ?? '', 40) }}</small>

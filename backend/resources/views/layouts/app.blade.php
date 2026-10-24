@@ -13,19 +13,8 @@
     <link rel="stylesheet" type="text/css" href="{{ asset('assets/css/vendors.css') }}" />
     <link rel="stylesheet" type="text/css" href="{{ asset('assets/css/style.css') }}" />
     <link rel="stylesheet" type="text/css" href="{{ asset('assets/css/beninfood.css') }}" />
+    <link rel="stylesheet" type="text/css" href="{{ asset('assets/css/admin-premium.css') }}" />
     @stack('styles')
-
-    <style>
-        .app-main {
-            padding: 30px;
-            min-height: calc(100vh - 60px);
-            margin-left: 250px;
-            background: #F4F6F8;
-        }
-        @media (max-width: 991px) {
-            .app-main { margin-left: 0; padding: 15px; }
-        }
-    </style>
 </head>
 
 <body>

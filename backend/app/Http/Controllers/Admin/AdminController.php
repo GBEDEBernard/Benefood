@@ -105,17 +105,17 @@ class AdminController extends Controller
 
         $vendorSummary = (clone $successfulOrders)
             ->join('vendors', 'vendors.id', '=', 'orders.vendor_id')
-            ->select('vendors.id', 'vendors.business_name')
+            ->select('vendors.id', 'vendors.business_name', 'vendors.logo_url')
             ->selectRaw('COUNT(orders.id) as orders_count, SUM(orders.total) as revenue')
-            ->groupBy('vendors.id', 'vendors.business_name')
+            ->groupBy('vendors.id', 'vendors.business_name', 'vendors.logo_url')
             ->orderByDesc('revenue')
             ->limit(5)
             ->get();
         $clientSummary = (clone $successfulOrders)
             ->join('users', 'users.id', '=', 'orders.user_id')
-            ->select('users.id', 'users.name')
+            ->select('users.id', 'users.name', 'users.avatar_path')
             ->selectRaw('COUNT(orders.id) as orders_count, SUM(orders.total) as revenue')
-            ->groupBy('users.id', 'users.name')
+            ->groupBy('users.id', 'users.name', 'users.avatar_path')
             ->orderByDesc('revenue')
             ->limit(5)
             ->get();
@@ -126,9 +126,9 @@ class AdminController extends Controller
             ->whereBetween('orders.created_at', [$from, $to])
             ->whereNotIn('orders.status', $excludedStatuses)
             ->where('orders.payment_status', PaymentStatus::Confirmed->value)
-            ->select('users.id', 'users.name')
+            ->select('users.id', 'users.name', 'users.avatar_path')
             ->selectRaw('COUNT(deliveries.id) as deliveries_count, SUM(deliveries.partner_amount) as revenue')
-            ->groupBy('users.id', 'users.name')
+            ->groupBy('users.id', 'users.name', 'users.avatar_path')
             ->orderByDesc('revenue')
             ->limit(5)
             ->get();

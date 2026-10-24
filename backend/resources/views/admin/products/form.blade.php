@@ -113,10 +113,10 @@
                         <label style="color: var(--text-dark); font-weight: 600;">Photos actuelles</label>
                         <div class="d-flex flex-wrap" style="gap: 12px;">
                             @foreach ($product->images as $image)
-                                <div style="position: relative; width: 96px; height: 96px; border-radius: 10px; overflow: hidden; background: #F1F5F9; border: 2px solid {{ $image->is_main ? 'var(--benin-green)' : 'transparent' }};">
-                                    <img src="{{ \Illuminate\Support\Facades\Storage::disk('public')->url($image->path) }}" alt="" style="width: 96px; height: 96px; object-fit: cover;">
+                                <div style="position: relative; width: 96px; height: 96px; border-radius: 10px; overflow: hidden; background: #F1F5F9; border: 2px solid {{ $image->is_main ? 'var(--bf-orange)' : 'transparent' }};">
+                                    <img src="{{ \App\Support\AdminMedia::url($image->path) }}" alt="Photo de {{ $product->name }}" loading="lazy" style="width: 96px; height: 96px; object-fit: cover;">
                                     @if ($image->is_main)
-                                        <span style="position: absolute; left: 4px; top: 4px; background: var(--benin-green); color: #FFF; border-radius: 10px; padding: 1px 8px; font-size: 10px; font-weight: 700;">Principale</span>
+                                        <span style="position: absolute; left: 4px; top: 4px; background: var(--bf-orange); color: #FFF; border-radius: 10px; padding: 1px 8px; font-size: 10px; font-weight: 700;">Principale</span>
                                     @endif
                                     <a href="{{ route('admin.products.images.destroy', [$product, $image]) }}"
                                        onclick="event.preventDefault(); if (confirm('Supprimer cette photo ?')) document.getElementById('delete-image-{{ $image->id }}').submit();"

@@ -41,8 +41,8 @@ class AdminOrdersController extends Controller
         $perPage = $this->perPage($request->integer('per_page', 20));
 
         $query = Order::query()->with([
-            'user:id,name,phone',
-            'vendor:id,business_name',
+            'user:id,name,phone,avatar_path',
+            'vendor:id,business_name,logo_url',
             'payment:id,order_id,status',
         ]);
         $this->applyFilters($query, $search, $vendorId, $from, $to);
@@ -76,7 +76,7 @@ class AdminOrdersController extends Controller
             'user',
             'vendor',
             'zone',
-            'items',
+            'items.product.images',
             'statusHistory',
             'payment',
             'financials',

@@ -18,8 +18,10 @@ use App\Models\Refund;
 use App\Models\Role;
 use App\Models\User;
 use App\Models\Vendor;
+use App\Support\AdminMedia;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Tests\TestCase;
 
@@ -375,7 +377,45 @@ class AdminPhase16Test extends TestCase
         $this->actingAs($this->admin())
             ->get(route('admin.orders.index', ['per_page' => 1000]))
             ->assertOk()
-            ->assertViewHas('orders', fn ($orders): bool => $orders->perPage() === 20);
+            ->assertViewHas('filters', fn (array $filters): bool => $filters['per_page'] === 20);
+    }
+
+    public function test_order_detail_renders_customer_vendor_and_product_media(): void
+    {
+        Storage::fake('public');
+
+        $vendor = $this->activeVendor();
+        $product = $this->product($vendor);
+        $buyer = $this->client();
+        $buyer->update(['avatar_path' => 'avatars/buyer.jpg']);
+        $vendor->update(['logo_url' => 'storage/logos/boutique.jpg']);
+        $product->images()->create([
+            'path' => 'products/piment.jpg',
+            'is_main' => true,
+            'sort_order' => 0,
+        ]);
+        $order = $this->paidOrder($buyer, $vendor, $product);
+
+        $this->actingAs($this->admin())
+            ->get(route('admin.orders.show', $order))
+            ->assertOk()
+            ->assertSee('avatars/buyer.jpg', false)
+            ->assertSee('logos/boutique.jpg', false)
+            ->assertSee('products/piment.jpg', false)
+            ->assertSee('Photo de '.$buyer->name, false);
+    }
+
+    public function test_admin_media_helper_resolves_urls_and_identity_fallbacks(): void
+    {
+        Storage::fake('public');
+
+        $this->assertSame(Storage::disk('public')->url('avatars/admin.jpg'), AdminMedia::url('avatars/admin.jpg'));
+        $this->assertSame(Storage::disk('public')->url('avatars/admin.jpg'), AdminMedia::url('storage/avatars/admin.jpg'));
+        $this->assertSame('https://cdn.example.test/logo.png', AdminMedia::url('https://cdn.example.test/logo.png'));
+        $this->assertNull(AdminMedia::url('   '));
+        $this->assertSame('AD', AdminMedia::initials('Awa Diallo'));
+        $this->assertSame('?', AdminMedia::initials(''));
+        $this->assertSame(AdminMedia::tone('Awa Diallo'), AdminMedia::tone('Awa Diallo'));
     }
 
     // -----------------------------------------------------------------

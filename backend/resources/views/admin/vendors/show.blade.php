@@ -93,10 +93,27 @@
         <div class="row">
             <div class="col-lg-6 mb-4">
                 <div class="card h-100" style="border: none; box-shadow: 0 2px 10px rgba(0,0,0,0.05); border-radius: 12px;">
-                    <div class="card-header" style="background: #FFFFFF; border-bottom: 1px solid var(--border-color); border-radius: 12px 12px 0 0;">
+                    @php
+                        $coverUrl = \App\Support\AdminMedia::url($vendor->cover_url);
+                    @endphp
+                    <div class="bf-vendor-cover{{ $coverUrl ? ' has-image' : '' }}">
+                        @if ($coverUrl)
+                            <img src="{{ $coverUrl }}" alt="Couverture de {{ $vendor->business_name }}" loading="lazy" decoding="async">
+                        @else
+                            <i class="ti ti-image" aria-hidden="true"></i>
+                        @endif
+                    </div>
+                    <div class="card-header" style="background: #FFFFFF; border-bottom: 1px solid var(--border-color); border-radius: 0;">
                         <h6 class="mb-0" style="color: var(--text-dark); font-weight: 700;">Informations de la boutique</h6>
                     </div>
                     <div class="card-body">
+                        <div class="d-flex align-items-center mb-3">
+                            <x-admin.vendor-logo :vendor="$vendor" size="lg" class="mr-3" />
+                            <div>
+                                <strong style="color: var(--text-dark); display: block;">{{ $vendor->business_name }}</strong>
+                                <small style="color: var(--text-muted);">{{ $vendor->city ?? 'Ville non renseignée' }}</small>
+                            </div>
+                        </div>
                         <table class="table table-borderless mb-0" style="color: var(--text-dark);">
                             <tr><td style="color: var(--text-muted); width: 150px;">Nom commercial</td><td style="font-weight: 600;">{{ $vendor->business_name }}</td></tr>
                             <tr><td style="color: var(--text-muted);">Nom légal</td><td>{{ $vendor->legal_name ?? '—' }}</td></tr>

@@ -77,9 +77,7 @@
                         <tr>
                             <td class="py-3">
                                 <div class="d-flex align-items-center">
-                                    <div class="rounded-circle d-flex align-items-center justify-content-center mr-3" style="width: 40px; height: 40px; background-color: #E8F5E9; font-weight: 700; color: var(--benin-green); font-size: 15px;">
-                                        {{ strtoupper(substr($user->name, 0, 1)) }}
-                                    </div>
+                                    <x-admin.avatar :user="$user" size="md" class="mr-3" />
                                     <div>
                                         <div style="color: var(--text-dark); font-weight: 600;">{{ $user->name }}</div>
                                         <small style="color: var(--text-muted);">{{ $user->phone }}@if ($user->email) · {{ $user->email }}@endif</small>

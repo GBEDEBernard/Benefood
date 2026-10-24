@@ -293,13 +293,6 @@
                             @foreach ($orders as $order)
                                 @php
                                     $customerName = $order->user?->name ?? 'Client supprimé';
-                                    $nameParts = preg_split('/\s+/', trim($customerName)) ?: [];
-                                    $initials = collect($nameParts)
-                                        ->filter()
-                                        ->take(2)
-                                        ->map(fn (string $part): string => mb_strtoupper(mb_substr($part, 0, 1)))
-                                        ->implode('');
-                                    $initials = $initials !== '' ? $initials : '?';
                                     $statusInfo = \App\Support\AdminLabels::orderStatus($order->status->value);
                                     $statusTone = match ($order->status->value) {
                                         'delivered' => 'success',
@@ -319,7 +312,6 @@
                                         'failed' => 'danger',
                                         default => 'neutral',
                                     };
-                                    $avatarTone = ['green', 'orange', 'blue', 'violet'][$loop->index % 4];
                                 @endphp
                                 <tr class="orders-row" style="--row-index: {{ $loop->index }}">
                                     <td class="orders-col-reference" data-label="Référence">
@@ -344,7 +336,7 @@
                                     </td>
                                     <td class="orders-col-client" data-label="Client">
                                         <div class="orders-person">
-                                            <span class="orders-avatar orders-avatar--{{ $avatarTone }}">{{ $initials }}</span>
+                                            <x-admin.avatar :user="$order->user" :name="$customerName" size="sm" />
                                             <span class="orders-person__text">
                                                 <strong>{{ $customerName }}</strong>
                                                 <small>{{ $order->user?->phone ?? 'Client Béninfood' }}</small>
@@ -353,9 +345,7 @@
                                     </td>
                                     <td class="orders-col-vendor" data-label="Boutique">
                                         <span class="orders-vendor">
-                                            <span class="orders-vendor__icon">
-                                                <i class="ti ti-building-store" aria-hidden="true"></i>
-                                            </span>
+                                            <x-admin.vendor-logo :vendor="$order->vendor" size="sm" />
                                             <span>{{ $order->vendor?->business_name ?? 'Boutique supprimée' }}</span>
                                         </span>
                                     </td>

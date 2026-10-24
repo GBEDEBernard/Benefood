@@ -23,6 +23,13 @@
     <div class="col-md-4">
         <div class="card mb-4" style="border: none; box-shadow: 0 2px 10px rgba(0,0,0,0.05); border-radius: 12px;">
             <div class="card-body">
+                <div class="d-flex align-items-center mb-3">
+                    <x-admin.avatar :user="$driver->user" size="lg" class="mr-3" :online="$driver->available" />
+                    <div>
+                        <strong style="color: var(--text-dark); display: block;">{{ $driver->user?->name ?? 'Livreur' }}</strong>
+                        <small style="color: var(--text-muted);">{{ $driver->user?->phone ?? 'Téléphone non renseigné' }}</small>
+                    </div>
+                </div>
                 <h6 class="font-weight-bold mb-3" style="color: var(--text-dark);">Informations</h6>
                 <ul class="list-unstyled mb-0" style="font-size: 14px;">
                     <li class="d-flex justify-content-between py-1"><span style="color: var(--text-muted);">Téléphone</span><strong>{{ $driver->user?->phone ?? '—' }}</strong></li>

@@ -2,9 +2,7 @@
 
 @section('content')
 <style>
-    .bf-top-search{height:34px;max-width:370px;flex:1;margin:0 auto;display:flex;align-items:center;gap:9px;padding:0 10px;border:1px solid #e5eaf0;border-radius:7px;background:#fafbfd;color:#8c97a6}
-    .bf-top-search>i{font-size:13px}.bf-top-search input{border:0;outline:0;background:transparent;min-width:0;flex:1;font-size:10px;color:#455266}.bf-top-search input::placeholder{color:#939eac}.bf-top-search kbd{background:#fff;border:1px solid #e5eaf0;border-radius:4px;padding:2px 5px;color:#8792a1;font-size:8px;white-space:nowrap}
-    .bf-dashboard{--bf-ink:#17212f;--bf-muted:#778293;--bf-border:#e8edf2;--bf-green:#25934a;--bf-orange:#f5821f;--bf-blue:#3189e8;--bf-purple:#7d4ce0;color:var(--bf-ink);font-family:Roboto,sans-serif}
+    .bf-dashboard{--bf-ink:#26332f;--bf-muted:#78817e;--bf-border:#e5e9e7;--bf-green:#087b46;--bf-orange:#ff8c00;--bf-blue:#2f6fed;--bf-purple:#7d4ce0;color:var(--bf-ink);font-family:Roboto,sans-serif}
     .bf-dashboard-heading{display:flex;align-items:center;justify-content:space-between;gap:20px;margin:0 0 18px}
     .bf-dashboard-heading h1{font-size:25px;line-height:1.2;font-weight:700;margin:3px 0 5px;color:var(--bf-ink)!important;letter-spacing:-.45px}
     .bf-dashboard-heading p{margin:0;color:var(--bf-muted);font-size:12px;line-height:1.5}
@@ -29,13 +27,19 @@
     @media(max-width:1000px){.bf-grid-top,.bf-grid-leaderboards{grid-template-columns:repeat(2,minmax(0,1fr))}.bf-panel-distribution{grid-column:auto}.bf-grid-leaderboards .bf-panel:last-child{grid-column:span 2}}
     @media(max-width:767px){.bf-top-search{display:none}}
     @media(max-width:680px){.bf-dashboard-heading{align-items:flex-start;flex-direction:column}.bf-date-filter{width:100%;justify-content:space-between}.bf-date-filter input{width:calc(50% - 35px)}.bf-kpis{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.bf-kpi-card{padding:11px 9px;min-height:82px}.bf-kpi-value{font-size:14px}.bf-kpi-label{font-size:8px}.bf-grid-top,.bf-grid-leaderboards,.bf-grid-bottom{grid-template-columns:1fr}.bf-grid-leaderboards .bf-panel:last-child{grid-column:auto}.bf-panel-distribution{grid-column:auto}.bf-panel{padding:12px}.bf-panel-commission .bf-chart-area{height:180px}.bf-donut-layout{justify-content:flex-start}.bf-panel-bottom-donut .bf-donut-layout-small{justify-content:flex-start}.bf-dashboard-heading h1{font-size:22px}}
+    .bf-dashboard .bf-eyebrow,.bf-dashboard .bf-panel-head>a,.bf-dashboard .bf-share,.bf-dashboard .bf-order-ref{color:var(--bf-orange)}
+    .bf-dashboard .bf-panel-head>a:hover{color:#d97700}
+    .bf-dashboard .bf-mini-bars span{background:linear-gradient(180deg,#ffa63d,#ffe0bd)}
+    .bf-dashboard .bf-table .bf-avatar,.bf-dashboard .bf-table .bf-product-thumb{width:22px;height:22px;min-width:22px;margin-right:5px;border-radius:6px;font-size:8px}
+    .bf-dashboard .bf-table .bf-avatar__status{display:none}
+    .bf-inline-person{display:inline-flex;align-items:center;gap:5px;min-width:0}
 </style>
 @php
     $money = fn ($amount) => number_format((int) $amount, 0, ',', ' ').' FCFA';
     $number = fn ($amount) => number_format((int) $amount, 0, ',', ' ');
     $commissionTotal = array_sum($chartData['commission_split']);
     $revenueDistributionTotal = array_sum($chartData['revenue_split']);
-    $statusColors = ['#25934a', '#f58a1f', '#2d86e6', '#e34b50', '#9aa4b2', '#7c5ce7'];
+    $statusColors = ['#087b46', '#ff8c00', '#2f6fed', '#d64545', '#9aa4b2', '#7d4ce0'];
     $statusLabels = array_column($chartData['order_statuses'], 'label');
     $statusValues = array_column($chartData['order_statuses'], 'value');
     $paymentLabels = array_column($chartData['payment_methods'], 'label');
@@ -125,7 +129,7 @@
             <div class="bf-panel-head"><h2>Chiffre d’affaires par boutique</h2><a href="{{ route('admin.vendors.index') }}">Voir tout <i class="ti ti-arrow-right"></i></a></div>
             <div class="bf-table-scroll"><table class="bf-table"><thead><tr><th>Boutique</th><th>CA (FCFA)</th><th>Commandes</th><th>Part</th></tr></thead><tbody>
                 @forelse ($leaderboards['vendors'] as $vendor)
-                    <tr><td><span class="bf-table-avatar green"><i class="ti ti-store"></i></span><strong>{{ $vendor->business_name }}</strong></td><td>{{ $money($vendor->revenue) }}</td><td>{{ $number($vendor->orders_count) }}</td><td><span class="bf-share">{{ number_format(((int) $vendor->revenue / max((int) $kpis['ca_month']['value'], 1)) * 100, 1, ',', ' ') }}%</span></td></tr>
+                    <tr><td><span class="bf-inline-person"><x-admin.vendor-logo :vendor="$vendor" size="sm" /><strong>{{ $vendor->business_name }}</strong></span></td><td>{{ $money($vendor->revenue) }}</td><td>{{ $number($vendor->orders_count) }}</td><td><span class="bf-share">{{ number_format(((int) $vendor->revenue / max((int) $kpis['ca_month']['value'], 1)) * 100, 1, ',', ' ') }}%</span></td></tr>
                 @empty
                     <tr><td colspan="4" class="bf-empty">Aucune vente sur cette période.</td></tr>
                 @endforelse
@@ -136,7 +140,7 @@
             <div class="bf-panel-head"><h2>Chiffre d’affaires par client</h2><a href="{{ route('admin.clients.index') }}">Voir tout <i class="ti ti-arrow-right"></i></a></div>
             <div class="bf-table-scroll"><table class="bf-table"><thead><tr><th>Client</th><th>Dépense totale</th><th>Commandes</th></tr></thead><tbody>
                 @forelse ($leaderboards['clients'] as $client)
-                    <tr><td><span class="bf-table-avatar blue"><i class="ti ti-user"></i></span><strong>{{ $client->name }}</strong></td><td>{{ $money($client->revenue) }}</td><td>{{ $number($client->orders_count) }}</td></tr>
+                    <tr><td><span class="bf-inline-person"><x-admin.avatar :user="$client" size="sm" /><strong>{{ $client->name }}</strong></span></td><td>{{ $money($client->revenue) }}</td><td>{{ $number($client->orders_count) }}</td></tr>
                 @empty
                     <tr><td colspan="3" class="bf-empty">Aucune commande payée sur cette période.</td></tr>
                 @endforelse
@@ -147,7 +151,7 @@
             <div class="bf-panel-head"><h2>Revenus par livreur</h2><a href="{{ route('admin.drivers.index') }}">Voir tout <i class="ti ti-arrow-right"></i></a></div>
             <div class="bf-table-scroll"><table class="bf-table"><thead><tr><th>Livreur</th><th>Part livreur</th><th>Courses</th></tr></thead><tbody>
                 @forelse ($leaderboards['drivers'] as $driver)
-                    <tr><td><span class="bf-table-avatar orange"><i class="ti ti-truck"></i></span><strong>{{ $driver->name }}</strong></td><td>{{ $money($driver->revenue) }}</td><td>{{ $number($driver->deliveries_count) }}</td></tr>
+                    <tr><td><span class="bf-inline-person"><x-admin.avatar :user="$driver" size="sm" /><strong>{{ $driver->name }}</strong></span></td><td>{{ $money($driver->revenue) }}</td><td>{{ $number($driver->deliveries_count) }}</td></tr>
                 @empty
                     <tr><td colspan="3" class="bf-empty">Aucune course terminée sur cette période.</td></tr>
                 @endforelse
@@ -186,7 +190,7 @@
         <div class="bf-panel-head"><div><h2>Dernières commandes</h2><p>Activité récente dans la période choisie</p></div><a href="{{ route('admin.orders.index') }}">Toutes les commandes <i class="ti ti-arrow-right"></i></a></div>
         <div class="bf-table-scroll"><table class="bf-table bf-orders-table"><thead><tr><th>Référence</th><th>Client</th><th>Boutique</th><th>Montant</th><th>Statut</th><th>Date</th></tr></thead><tbody>
             @forelse ($latestOrders as $order)
-                <tr><td><a class="bf-order-ref" href="{{ route('admin.orders.show', $order) }}">{{ $order->reference }}</a></td><td>{{ $order->user?->name ?? '—' }}</td><td>{{ $order->vendor?->business_name ?? '—' }}</td><td><strong>{{ $money($order->total) }}</strong></td><td>{!! \App\Support\AdminLabels::orderStatusBadge($order->status->value) !!}</td><td>{{ $order->created_at?->format('d/m/Y H:i') ?? '—' }}</td></tr>
+                <tr><td><a class="bf-order-ref" href="{{ route('admin.orders.show', $order) }}">{{ $order->reference }}</a></td><td><span class="bf-inline-person"><x-admin.avatar :user="$order->user" size="sm" /><span>{{ $order->user?->name ?? '—' }}</span></span></td><td><span class="bf-inline-person"><x-admin.vendor-logo :vendor="$order->vendor" size="sm" /><span>{{ $order->vendor?->business_name ?? '—' }}</span></span></td><td><strong>{{ $money($order->total) }}</strong></td><td>{!! \App\Support\AdminLabels::orderStatusBadge($order->status->value) !!}</td><td>{{ $order->created_at?->format('d/m/Y H:i') ?? '—' }}</td></tr>
             @empty
                 <tr><td colspan="6" class="bf-empty">Aucune commande sur la période sélectionnée.</td></tr>
             @endforelse
@@ -198,7 +202,7 @@
 @push('scripts')
 <script>
 (function () {
-    var palette = { green: '#26934b', orange: '#f5821f', blue: '#3189e8', purple: '#7d4ce0', red: '#e44c54', gray: '#a9b1bd' };
+    var palette = { green: '#087b46', orange: '#ff8c00', blue: '#2f6fed', purple: '#7d4ce0', red: '#d64545', gray: '#a9b1bd' };
     var labels = @json($chartData['labels']);
     var revenue = @json($chartData['revenue']);
     var commissions = @json($chartData['commissions']);
@@ -208,7 +212,7 @@
     var orderStatusLabels = @json($statusLabels);
     var paymentValues = @json($paymentValues);
     var paymentLabels = @json($paymentLabels);
-    var chartColors = [palette.green, palette.orange, palette.blue, palette.red, palette.purple, palette.gray];
+    var chartColors = [palette.orange, palette.green, palette.blue, palette.red, palette.purple, palette.gray];
 
     if (typeof Chart === 'undefined') return;
 
@@ -220,11 +224,11 @@
     if (commissionCanvas) {
         var ctx = commissionCanvas.getContext('2d');
         var gradient = ctx.createLinearGradient(0, 0, 0, 220);
-        gradient.addColorStop(0, 'rgba(38,147,75,.22)');
-        gradient.addColorStop(1, 'rgba(38,147,75,0)');
+        gradient.addColorStop(0, 'rgba(255,140,0,.2)');
+        gradient.addColorStop(1, 'rgba(255,140,0,0)');
         new Chart(ctx, {
             type: 'line',
-            data: { labels: labels, datasets: [{ data: commissions, borderColor: palette.green, backgroundColor: gradient, borderWidth: 2, pointRadius: 2, pointHoverRadius: 5, pointBackgroundColor: palette.green, fill: true, lineTension: .35 }] },
+            data: { labels: labels, datasets: [{ data: commissions, borderColor: palette.orange, backgroundColor: gradient, borderWidth: 2, pointRadius: 2, pointHoverRadius: 5, pointBackgroundColor: palette.orange, fill: true, lineTension: .35 }] },
             options: { maintainAspectRatio: false, legend: { display: false }, tooltips: { callbacks: { label: function (item) { return ' '+Number(item.yLabel).toLocaleString('fr-FR')+' FCFA'; } } }, scales: { xAxes: [{ gridLines: { display: false }, ticks: { maxTicksLimit: 8, maxRotation: 0 } }], yAxes: [{ ticks: { beginAtZero: true, maxTicksLimit: 5, callback: function (value) { return Number(value).toLocaleString('fr-FR'); } }, gridLines: { color: '#edf0f3', drawBorder: false } }] } }
         });
     }
@@ -245,7 +249,7 @@
     var revenueCanvas = document.getElementById('revenueTrendChart');
     if (revenueCanvas) {
         new Chart(revenueCanvas.getContext('2d'), {
-            type: 'bar', data: { labels: labels, datasets: [{ data: revenue, backgroundColor: palette.green, hoverBackgroundColor: '#1d7b3d', borderRadius: 3, maxBarThickness: 12 }] },
+            type: 'bar', data: { labels: labels, datasets: [{ data: revenue, backgroundColor: palette.orange, hoverBackgroundColor: '#e97800', borderRadius: 3, maxBarThickness: 12 }] },
             options: { maintainAspectRatio: false, legend: { display: false }, tooltips: { callbacks: { label: function (item) { return ' '+Number(item.yLabel).toLocaleString('fr-FR')+' FCFA'; } } }, scales: { xAxes: [{ gridLines: { display: false }, ticks: { maxTicksLimit: 8, maxRotation: 0 } }], yAxes: [{ ticks: { beginAtZero: true, maxTicksLimit: 4, callback: function (value) { return Number(value).toLocaleString('fr-FR'); } }, gridLines: { color: '#edf0f3', drawBorder: false } }] } }
         });
     }
