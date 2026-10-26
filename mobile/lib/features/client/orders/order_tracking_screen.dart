@@ -13,14 +13,17 @@ import '../../../core/theme/app_dimens.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../core/utils/geo.dart';
+import '../../../shared/models/driver_selection.dart';
 import '../../../shared/models/geo_point.dart';
 import '../../../shared/models/order.dart';
 import '../../../shared/models/route_plan.dart';
 import '../../../shared/widgets/app_button.dart';
 import '../../../shared/widgets/app_map.dart';
+import '../../../shared/widgets/app_network_image.dart';
 import '../../../shared/widgets/amount_widgets.dart';
 import '../../../shared/widgets/beninfood_header.dart';
 import '../../../shared/widgets/call_button.dart';
+import '../../../shared/widgets/driver_selection_sheet.dart';
 import '../../../shared/widgets/feedback_widgets.dart';
 import '../../../shared/widgets/package_item_tile.dart';
 import '../../../shared/widgets/state_widgets.dart';
@@ -140,7 +143,9 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
     setState(() => _route = plan);
   }
 
-  bool get _shouldPoll => _order?.delivery?.isActive ?? false;
+  bool get _shouldPoll =>
+      (_order?.delivery?.isActive ?? false) ||
+      (_order?.isWaitingDriver ?? false);
 
   void _schedulePolling() {
     _pollTimer?.cancel();
@@ -169,6 +174,53 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
       _polling = false;
       if (mounted) {
         _schedulePolling();
+      }
+    }
+  }
+
+  Future<void> _openDriverSelection() async {
+    final order = _order;
+    if (order == null) {
+      return;
+    }
+    final accepted = await showDriverSelectionSheet(
+      context,
+      widget.marketplace,
+      targetId: order.id,
+      isParcel: false,
+      onChanged: _refreshSilently,
+    );
+    if (!mounted) {
+      return;
+    }
+    await _refreshSilently();
+    if (!mounted) {
+      return;
+    }
+    if (accepted == true) {
+      showToast(context, 'Votre livreur est en route.');
+    }
+  }
+
+  Future<void> _cancelDriverRequest() async {
+    final order = _order;
+    if (order == null) {
+      return;
+    }
+    setState(() => _actionLoading = true);
+    try {
+      await widget.marketplace.cancelOrderDriverRequest(order.id);
+      if (mounted) {
+        showToast(context, 'Demande de livreur annulée.');
+      }
+      await _refreshSilently();
+    } on ApiException catch (e) {
+      if (mounted) {
+        showToast(context, e.message, isError: true);
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _actionLoading = false);
       }
     }
   }
@@ -666,6 +718,30 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
     return minutes == null ? label : '$label · ~${formatEta(minutes)}';
   }
 
+  /// Carte de choix / attente d'un livreur proche après paiement.
+  Widget? _driverSelectionCard(Order order) {
+    final request = order.driverRequest;
+
+    if (request != null && request.isPending) {
+      return _WaitingDriverCard(
+        request: request,
+        cancelling: _actionLoading,
+        onCancel: _cancelDriverRequest,
+      );
+    }
+
+    if (!order.canChooseDriver) {
+      return null;
+    }
+
+    return _ChooseDriverCard(
+      refused: request?.isRefused ?? false,
+      expired: request?.isExpired ?? false,
+      reason: request?.refusalReason,
+      onChoose: _openDriverSelection,
+    );
+  }
+
   Widget _buildBody() {
     if (_loading) {
       return const Center(child: CircularProgressIndicator());
@@ -690,6 +766,10 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
           const SizedBox(height: 16),
           _liveTrackingMap(order),
           const SizedBox(height: 16),
+          if (_driverSelectionCard(order) != null) ...[
+            _driverSelectionCard(order)!,
+            const SizedBox(height: 16),
+          ],
           if (order.canCancel ||
               order.isAwaitingPayment ||
               order.isPaid ||
@@ -730,7 +810,10 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                   _SummaryRow(label: 'Sous-total', amount: order.subtotal),
                   _SummaryRow(label: 'Livraison', amount: order.deliveryFee),
                   if ((order.financials?.serviceFee ?? 0) > 0)
-                    _SummaryRow(label: 'Commission client', amount: order.financials!.serviceFee!),
+                    _SummaryRow(
+                      label: 'Commission client',
+                      amount: order.financials!.serviceFee!,
+                    ),
                   const SizedBox(height: 4),
                   _SummaryRow(
                     label: 'Total',
@@ -804,6 +887,240 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
         ],
       ),
     );
+  }
+}
+
+class _ChooseDriverCard extends StatelessWidget {
+  const _ChooseDriverCard({
+    required this.refused,
+    required this.expired,
+    required this.reason,
+    required this.onChoose,
+  });
+
+  final bool refused;
+  final bool expired;
+  final String? reason;
+  final VoidCallback onChoose;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final showNotice = refused || expired;
+
+    return Card(
+      elevation: 0,
+      color: AppColors.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppDimens.radiusLg),
+        side: const BorderSide(color: AppColors.border),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: AppColors.orangeLight,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(
+                    Icons.delivery_dining,
+                    color: AppColors.orange,
+                    size: 24,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Choisissez votre livreur',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Livreurs proches, distances et délais de route en temps réel.',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            if (showNotice) ...[
+              const SizedBox(height: 10),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: AppColors.goldLight,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  refused
+                      ? 'Le livreur a décliné la demande. Choisissez un autre livreur proche.'
+                      : (reason != null && reason!.trim().isNotEmpty
+                            ? 'Demande expirée : ${reason!.trim()}'
+                            : 'La demande a expiré. Choisissez un autre livreur proche.'),
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.goldDark,
+                  ),
+                ),
+              ),
+            ],
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: onChoose,
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.orange,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+                icon: const Icon(Icons.person_search_outlined, size: 19),
+                label: const Text('Choisir mon livreur'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _WaitingDriverCard extends StatelessWidget {
+  const _WaitingDriverCard({
+    required this.request,
+    required this.cancelling,
+    required this.onCancel,
+  });
+
+  final DriverRequestInfo request;
+  final bool cancelling;
+  final VoidCallback onCancel;
+
+  @override
+  Widget build(BuildContext context) {
+    final driver = request.driver;
+
+    return Card(
+      elevation: 0,
+      color: AppColors.goldLight,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppDimens.radiusLg),
+        side: BorderSide(color: AppColors.gold.withValues(alpha: 0.35)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                ClipOval(
+                  child: SizedBox(
+                    width: 46,
+                    height: 46,
+                    child: AppNetworkImage(
+                      url: driver?.avatarUrl,
+                      fit: BoxFit.cover,
+                      fallback: Container(
+                        color: AppColors.goldLight,
+                        child: const Icon(
+                          Icons.delivery_dining,
+                          color: AppColors.goldDark,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        driver?.displayName ?? 'Votre livreur',
+                        style: const TextStyle(
+                          fontSize: 14.5,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.goldDark,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      const Text(
+                        'Demande envoyée, en attente de sa réponse…',
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          color: AppColors.goldDark,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: AppColors.goldDark,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Text(
+              request.waitsForReady
+                  ? 'Le livreur sera notifié dès que la commande sera prête.'
+                  : _countdown(request),
+              style: const TextStyle(
+                fontSize: 12.5,
+                fontWeight: FontWeight.w600,
+                color: AppColors.goldDark,
+              ),
+            ),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton(
+                onPressed: cancelling ? null : onCancel,
+                child: Text(cancelling ? 'Annulation…' : 'Annuler la demande'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _countdown(DriverRequestInfo request) {
+    final seconds = request.secondsRemaining;
+    if (seconds == null) {
+      return 'Le livreur peut accepter la course dès maintenant.';
+    }
+    if (seconds <= 0) {
+      return 'La demande a expiré. Choisissez un autre livreur.';
+    }
+    final minutes = seconds ~/ 60;
+    final rest = seconds % 60;
+    return 'Réponse attendue sous ${minutes > 0 ? '$minutes min $rest s' : '$rest s'}.';
   }
 }
 

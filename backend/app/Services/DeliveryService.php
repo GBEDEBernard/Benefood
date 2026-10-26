@@ -8,7 +8,9 @@ use App\Enums\OrderStatus;
 use App\Exceptions\DomainException;
 use App\Models\Delivery;
 use App\Models\DriverProfile;
+use App\Models\Order;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Livraisons temps réel (M9 — J97 à J106) : disponibilité du livreur,
@@ -16,7 +18,11 @@ use Illuminate\Database\Eloquent\Collection;
  */
 class DeliveryService
 {
-    public function __construct(private readonly OrderService $orders) {}
+    public function __construct(
+        private readonly OrderService $orders,
+        private readonly DriverAvailabilityService $availability,
+        private readonly DriverSelectionService $driverSelection,
+    ) {}
 
     /**
      * Bascule la disponibilité du livreur et journalise le changement.
@@ -154,6 +160,8 @@ class DeliveryService
      */
     public function availableOffers(?DriverProfile $driver = null): Collection
     {
+        $this->driverSelection->expireStale();
+
         return Delivery::query()
             ->whereNull('driver_profile_id')
             ->where('status', DeliveryStatus::Assigned->value)
@@ -172,42 +180,68 @@ class DeliveryService
      */
     public function acceptOffer(Delivery $delivery, DriverProfile $driver): Delivery
     {
-        $this->assertOfferOpen($delivery, $driver);
+        return DB::transaction(function () use ($delivery, $driver): Delivery {
+            $lockedDelivery = Delivery::query()->whereKey($delivery->id)->lockForUpdate()->firstOrFail();
+            $lockedDelivery->load('order');
 
-        $this->assertDriverAvailable($driver);
+            $lockedDriver = DriverProfile::query()->whereKey($driver->id)->lockForUpdate()->firstOrFail();
 
-        $delivery->order->load('delivery');
-        $this->orders->assignDriver($delivery->order, $driver->id, $driver->user_id);
+            $this->assertOfferOpen($lockedDelivery, $lockedDriver);
+            $this->availability->assertCanAccept($lockedDriver);
 
-        $delivery->refresh();
+            /** @var Order $order */
+            $order = Order::query()->whereKey($lockedDelivery->order_id)->lockForUpdate()->firstOrFail();
+            $lockedDelivery->setRelation('order', $order);
 
-        $delivery->statusHistory()->create([
-            'from_status' => DeliveryStatus::Assigned->value,
-            'to_status' => DeliveryStatus::Assigned->value,
-            'actor' => 'driver',
-            'reason' => 'Course acceptée par le livreur',
-            'created_at' => now(),
-        ]);
+            // Seconde vérification avec la commande verrouillée : évite qu'une
+            // annulation ou une affectation concurrente passe entre-temps.
+            $this->assertOfferOpen($lockedDelivery, $lockedDriver);
 
-        return $delivery->fresh(['order.vendor', 'order.user', 'order.financials', 'vendor', 'driverProfile.user']);
+            $this->orders->assignDriver($order, $lockedDriver->id, $lockedDriver->user_id);
+            $this->driverSelection->markAccepted($order, $lockedDriver);
+
+            $lockedDelivery->refresh();
+
+            $lockedDelivery->statusHistory()->create([
+                'from_status' => DeliveryStatus::Assigned->value,
+                'to_status' => DeliveryStatus::Assigned->value,
+                'actor' => 'driver',
+                'reason' => 'Course acceptée par le livreur',
+                'created_at' => now(),
+            ]);
+
+            return $lockedDelivery->fresh(['order.vendor', 'order.user', 'order.financials', 'vendor', 'driverProfile.user']);
+        });
     }
 
     /**
-     * Le livreur décline une course : laissée ouverte pour un autre livreur.
+     * Le livreur décline une course : la demande ciblée est close et la course
+     * est laissée ouverte pour un autre livreur.
      */
     public function declineOffer(Delivery $delivery, DriverProfile $driver, ?string $reason = null): Delivery
     {
-        $this->assertOfferOpen($delivery, $driver);
+        return DB::transaction(function () use ($delivery, $driver, $reason): Delivery {
+            $lockedDelivery = Delivery::query()->whereKey($delivery->id)->lockForUpdate()->firstOrFail();
+            $lockedDelivery->load('order');
 
-        $delivery->statusHistory()->create([
-            'from_status' => DeliveryStatus::Assigned->value,
-            'to_status' => DeliveryStatus::Assigned->value,
-            'actor' => 'driver',
-            'reason' => $reason !== null && $reason !== '' ? 'Course déclinée : '.$reason : 'Course déclinée par le livreur',
-            'created_at' => now(),
-        ]);
+            $lockedDriver = DriverProfile::query()->whereKey($driver->id)->lockForUpdate()->firstOrFail();
 
-        return $delivery->fresh();
+            $this->assertOfferOpen($lockedDelivery, $lockedDriver);
+
+            $this->driverSelection->markRefused($lockedDelivery->order, $lockedDriver, $reason);
+
+            $lockedDelivery->update(['targeted_driver_profile_id' => null]);
+
+            $lockedDelivery->statusHistory()->create([
+                'from_status' => DeliveryStatus::Assigned->value,
+                'to_status' => DeliveryStatus::Assigned->value,
+                'actor' => 'driver',
+                'reason' => $reason !== null && $reason !== '' ? 'Course déclinée : '.$reason : 'Course déclinée par le livreur',
+                'created_at' => now(),
+            ]);
+
+            return $lockedDelivery->fresh();
+        });
     }
 
     /**
@@ -393,35 +427,6 @@ class DeliveryService
 
         if ($delivery->status !== DeliveryStatus::Assigned || ! $delivery->order?->isReady()) {
             throw new DomainException('delivery.not_open', 'Cette course n\'est plus disponible.', 409);
-        }
-    }
-
-    private function assertDriverAvailable(DriverProfile $driver): void
-    {
-        if (! (bool) $driver->available) {
-            throw new DomainException('delivery.driver_offline', 'Activez votre disponibilité avant d\'accepter une course.', 409);
-        }
-
-        if ($driver->status !== DriverStatus::Active->value) {
-            throw new DomainException('delivery.driver_inactive', 'Ce livreur ne peut pas accepter de courses.', 409);
-        }
-
-        $maxActive = max(1, (int) config('beninfood.tracking.max_active_missions', 2));
-        $activeCount = $driver->deliveries()
-            ->whereIn('status', [
-                DeliveryStatus::Assigned,
-                DeliveryStatus::EnRoutePickup,
-                DeliveryStatus::PickedUp,
-                DeliveryStatus::InDelivery,
-            ])
-            ->count();
-
-        if ($activeCount >= $maxActive) {
-            throw new DomainException(
-                'delivery.max_active_missions',
-                "Vous avez déjà {$maxActive} mission(s) en cours. Terminez-en une avant d'en accepter une nouvelle.",
-                409,
-            );
         }
     }
 

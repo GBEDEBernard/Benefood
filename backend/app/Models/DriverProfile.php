@@ -57,6 +57,16 @@ class DriverProfile extends Model
         return $this->hasMany(Delivery::class, 'driver_profile_id');
     }
 
+    public function parcels(): HasMany
+    {
+        return $this->hasMany(Parcel::class, 'driver_profile_id');
+    }
+
+    public function assignmentRequests(): HasMany
+    {
+        return $this->hasMany(DriverAssignmentRequest::class, 'driver_profile_id');
+    }
+
     public function locations(): HasMany
     {
         return $this->hasMany(DeliveryLocation::class, 'driver_profile_id');

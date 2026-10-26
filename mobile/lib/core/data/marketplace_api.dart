@@ -6,6 +6,7 @@ import '../../shared/models/checkout.dart';
 import '../../shared/models/complaint.dart';
 import '../../shared/models/delivery.dart';
 import '../../shared/models/driver_mission.dart';
+import '../../shared/models/driver_selection.dart';
 import '../../shared/models/favorite_driver.dart';
 import '../../shared/models/order.dart';
 import '../../shared/models/geo_point.dart';
@@ -310,6 +311,36 @@ class MarketplaceApi {
       body: {'reason': reason},
     );
     return Order.fromJson(_dataObject(response) ?? {});
+  }
+
+  // --------------------------------------------------------- Choix du livreur
+
+  /// Livreurs proches du point de collecte, avec distances et ETA routières.
+  Future<DriverSelectionPage> orderNearbyDrivers(
+    String orderId, {
+    double? radiusKm,
+  }) async {
+    final response = await _api.get(
+      '/orders/$orderId/nearby-drivers',
+      query: {if (radiusKm != null) 'radius_km': radiusKm.toString()},
+    );
+    return DriverSelectionPage.fromJson(_dataObject(response) ?? {});
+  }
+
+  /// Demande explicitement un livreur proche pour une commande payée.
+  Future<DriverRequestInfo> requestOrderDriver(
+    String orderId,
+    String driverProfileId,
+  ) async {
+    final response = await _api.post(
+      '/orders/$orderId/driver-request',
+      body: {'driver_profile_id': driverProfileId},
+    );
+    return DriverRequestInfo.fromJson(_dataObject(response) ?? {});
+  }
+
+  Future<void> cancelOrderDriverRequest(String orderId) async {
+    await _api.delete('/orders/$orderId/driver-request');
   }
 
   Future<List<Complaint>> complaints({int perPage = 25}) async {
@@ -1239,6 +1270,34 @@ class MarketplaceApi {
     return _dataObject(response) ?? {};
   }
 
+  /// Livreurs proches du point de ramassage d'un colis.
+  Future<DriverSelectionPage> parcelNearbyDrivers(
+    String parcelId, {
+    double? radiusKm,
+  }) async {
+    final response = await _api.get(
+      '/parcels/$parcelId/nearby-drivers',
+      query: {if (radiusKm != null) 'radius_km': radiusKm.toString()},
+    );
+    return DriverSelectionPage.fromJson(_dataObject(response) ?? {});
+  }
+
+  /// Demande explicitement un livreur proche pour un colis payé.
+  Future<DriverRequestInfo> requestParcelDriver(
+    String parcelId,
+    String driverProfileId,
+  ) async {
+    final response = await _api.post(
+      '/parcels/$parcelId/driver-request',
+      body: {'driver_profile_id': driverProfileId},
+    );
+    return DriverRequestInfo.fromJson(_dataObject(response) ?? {});
+  }
+
+  Future<void> cancelParcelDriverRequest(String parcelId) async {
+    await _api.delete('/parcels/$parcelId/driver-request');
+  }
+
   // ------------------------------------------------------------------
   // Service colis — livreur (cahier v1.0, phase 3)
   // ------------------------------------------------------------------
@@ -1257,6 +1316,14 @@ class MarketplaceApi {
 
   Future<Parcel> acceptParcelDelivery(String id) async {
     final response = await _api.post('/driver/me/parcels/$id/accept');
+    return Parcel.fromJson(_dataObject(response) ?? {});
+  }
+
+  Future<Parcel> declineParcelOffer(String id, {String? reason}) async {
+    final response = await _api.post(
+      '/driver/me/parcels/$id/decline',
+      body: {if (reason != null) 'reason': reason},
+    );
     return Parcel.fromJson(_dataObject(response) ?? {});
   }
 

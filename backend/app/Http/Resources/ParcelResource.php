@@ -49,8 +49,10 @@ class ParcelResource extends JsonResource
             'targeted_driver' => $this->whenLoaded('targetedDriverProfile', fn () => $this->targetedDriverProfile === null ? null : [
                 'id' => $this->targetedDriverProfile->id,
                 'name' => $this->targetedDriverProfile->user?->name,
-                'phone' => $this->targetedDriverProfile->user?->phone,
             ]),
+            'driver_request' => $this->whenLoaded('driverAssignmentRequest', fn () => $this->driverAssignmentRequest === null
+                ? null
+                : (new DriverAssignmentRequestResource($this->driverAssignmentRequest))->resolve()),
             'driver' => $this->whenLoaded('driverProfile', fn () => $this->driverProfile === null ? null : [
                 'id' => $this->driverProfile->id,
                 'name' => $this->driverProfile->user?->name,

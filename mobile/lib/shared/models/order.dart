@@ -1,3 +1,4 @@
+import 'driver_selection.dart';
 import 'geo_point.dart';
 
 class OrderVendor {
@@ -317,6 +318,7 @@ class Order {
     this.deliveryAddress,
     this.deliveryAddressSnapshot,
     this.delivery,
+    this.driverRequest,
     this.statusHistory = const [],
     this.refunds = const [],
     this.currency = 'XOF',
@@ -359,6 +361,9 @@ class Order {
   final AddressSnapshot? deliveryAddressSnapshot;
 
   final OrderDelivery? delivery;
+
+  /// Dernière demande de livreur proche (sélection après paiement).
+  final DriverRequestInfo? driverRequest;
   final List<OrderStatusHistory> statusHistory;
   final List<OrderRefund> refunds;
   final String currency;
@@ -402,6 +407,21 @@ class Order {
   /// Point GPS de la destination (suivi client).
   GeoPoint? get dropoffPoint => deliveryAddressSnapshot?.point;
 
+  /// Un livreur peut encore être choisi parmi les livreurs proches.
+  bool get canChooseDriver {
+    final assignable = const {
+      'paid',
+      'accepted',
+      'preparing',
+      'ready',
+    }.contains(status);
+    return assignable &&
+        delivery?.driver == null &&
+        !(driverRequest?.isPending ?? false);
+  }
+
+  bool get isWaitingDriver => driverRequest?.isPending ?? false;
+
   bool get canCancel =>
       status == 'awaiting_payment' ||
       status == 'paid' ||
@@ -432,6 +452,7 @@ class Order {
     deliveryAddress: deliveryAddress,
     deliveryAddressSnapshot: deliveryAddressSnapshot,
     delivery: delivery,
+    driverRequest: driverRequest,
     statusHistory: statusHistory,
     refunds: refunds,
     currency: currency,
@@ -522,6 +543,11 @@ class Order {
           ? null
           : AddressSnapshot.fromJson(json['delivery_address']),
       delivery: delivery,
+      driverRequest: json['driver_request'] is Map<String, dynamic>
+          ? DriverRequestInfo.fromJson(
+              json['driver_request'] as Map<String, dynamic>,
+            )
+          : null,
       statusHistory: history,
       refunds: refunds,
       currency: _s(json['currency'], 'XOF'),

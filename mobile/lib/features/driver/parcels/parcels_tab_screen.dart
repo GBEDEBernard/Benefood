@@ -92,6 +92,45 @@ class _DriverParcelsScreenState extends State<DriverParcelsScreen> {
     }
   }
 
+  Future<void> _decline(Parcel parcel) async {
+    final reason = await _askDeclineReason();
+    if (reason == null || !mounted) {
+      return;
+    }
+    await _runAction(
+      parcel,
+      (id) => widget.marketplace.declineParcelOffer(id, reason: reason),
+    );
+  }
+
+  Future<String?> _askDeclineReason() async {
+    final controller = TextEditingController();
+    final reason = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Décliner l\'offre'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          maxLines: 3,
+          decoration: const InputDecoration(labelText: 'Raison (optionnel)'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Retour'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(controller.text.trim()),
+            child: const Text('Décliner'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    return reason;
+  }
+
   Future<String?> _askConfirmationCode() async {
     final controller = TextEditingController();
     final code = await showDialog<String>(
@@ -243,6 +282,7 @@ class _DriverParcelsScreenState extends State<DriverParcelsScreen> {
                 onAccept: (parcel) {
                   _runAction(parcel, widget.marketplace.acceptParcelDelivery);
                 },
+                onDecline: _decline,
               ),
               const SizedBox(height: AppDimens.sm),
             ],
@@ -452,11 +492,13 @@ class _OfferCard extends StatelessWidget {
     required this.parcel,
     required this.busy,
     required this.onAccept,
+    required this.onDecline,
   });
 
   final Parcel parcel;
   final String? busy;
   final ValueChanged<Parcel> onAccept;
+  final ValueChanged<Parcel> onDecline;
 
   @override
   Widget build(BuildContext context) {
@@ -559,12 +601,22 @@ class _OfferCard extends StatelessWidget {
                     ],
                   ),
                 ),
-                AppButton(
-                  label: 'Accepter',
-                  icon: Icons.check,
-                  fullWidth: false,
-                  onPressed: busy == null ? () => onAccept(parcel) : null,
-                  loading: busy == parcel.id,
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextButton(
+                      onPressed: busy == null ? () => onDecline(parcel) : null,
+                      child: const Text('Décliner'),
+                    ),
+                    const SizedBox(width: 6),
+                    AppButton(
+                      label: 'Accepter',
+                      icon: Icons.check,
+                      fullWidth: false,
+                      onPressed: busy == null ? () => onAccept(parcel) : null,
+                      loading: busy == parcel.id,
+                    ),
+                  ],
                 ),
               ],
             ),

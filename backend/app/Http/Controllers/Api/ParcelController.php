@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\ParcelResource;
 use App\Models\DriverProfile;
 use App\Models\Parcel;
+use App\Services\DriverSelectionService;
 use App\Services\ParcelService;
 use App\Support\Api;
 use Illuminate\Http\JsonResponse;
@@ -16,7 +17,10 @@ use Illuminate\Http\Request;
  */
 class ParcelController extends Controller
 {
-    public function __construct(private readonly ParcelService $parcels) {}
+    public function __construct(
+        private readonly ParcelService $parcels,
+        private readonly DriverSelectionService $driverSelection,
+    ) {}
 
     // ------------------------------------------------------------------- Client
 
@@ -50,8 +54,10 @@ class ParcelController extends Controller
 
     public function index(Request $request): JsonResponse
     {
+        $this->driverSelection->expireStale();
+
         $parcels = $request->user()->parcels()
-            ->with(['driverProfile.user', 'statusHistory'])
+            ->with(['driverProfile.user', 'statusHistory', 'driverAssignmentRequest.driverProfile.user'])
             ->orderByDesc('created_at')
             ->paginate((int) $request->query('per_page', config('beninfood.pagination.per_page')));
 
@@ -71,7 +77,15 @@ class ParcelController extends Controller
             return Api::error('Ressource introuvable.', 'not_found', 404);
         }
 
-        return Api::ok(new ParcelResource($parcel->load(['user', 'payment', 'driverProfile.user', 'statusHistory'])));
+        $this->driverSelection->expireStale($parcel);
+
+        return Api::ok(new ParcelResource($parcel->load([
+            'user',
+            'payment',
+            'driverProfile.user',
+            'statusHistory',
+            'driverAssignmentRequest.driverProfile.user',
+        ])));
     }
 
     public function cancel(Request $request, Parcel $parcel): JsonResponse
@@ -111,16 +125,22 @@ class ParcelController extends Controller
 
     public function accept(Request $request, Parcel $parcel): JsonResponse
     {
-        $driver = $this->driverProfile($request);
+        $parcel = $this->parcels->acceptOffer($parcel, $this->driverProfile($request));
 
-        $reservedForOther = $parcel->targeted_driver_profile_id !== null
-            && $parcel->targeted_driver_profile_id !== $driver->id;
+        return Api::ok(new ParcelResource($parcel));
+    }
 
-        if ($parcel->driver_profile_id !== null || $parcel->status->value !== 'paid' || $reservedForOther) {
-            return Api::error('Ce colis n\'est plus disponible.', 'parcel.not_available', 409);
-        }
+    public function decline(Request $request, Parcel $parcel): JsonResponse
+    {
+        $data = $request->validate([
+            'reason' => ['sometimes', 'nullable', 'string', 'max:500'],
+        ]);
 
-        $parcel = $this->parcels->assignDriver($parcel, $driver, $driver->user_id);
+        $parcel = $this->parcels->declineOffer(
+            $parcel,
+            $this->driverProfile($request),
+            $data['reason'] ?? null,
+        );
 
         return Api::ok(new ParcelResource($parcel));
     }

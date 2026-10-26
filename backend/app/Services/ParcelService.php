@@ -30,6 +30,8 @@ class ParcelService
         private readonly CashService $cash,
         private readonly RefundService $refunds,
         private readonly ConfirmationCodeService $confirmationCodes,
+        private readonly DriverAvailabilityService $availability,
+        private readonly DriverSelectionService $driverSelection,
     ) {}
 
     /**
@@ -186,6 +188,7 @@ class ParcelService
     public function assignDriver(Parcel $parcel, DriverProfile $driver, ?string $actorId = null): Parcel
     {
         $this->assertTransition($parcel, ParcelStatus::Assigned);
+        $this->availability->assertCanAccept($driver);
 
         $platformDue = (int) $parcel->platform_amount + (int) $parcel->creation_fee;
 
@@ -222,6 +225,67 @@ class ParcelService
         $this->logTransition($parcel, $from, ParcelStatus::Assigned, 'driver', $actorId, null);
 
         return $parcel->fresh(['driverProfile.user', 'statusHistory']);
+    }
+
+    /**
+     * Acceptation d'une offre colis avec verrouillage (double affectation
+     * impossible) et clôture de la demande ciblée éventuelle.
+     */
+    public function acceptOffer(Parcel $parcel, DriverProfile $driver): Parcel
+    {
+        return DB::transaction(function () use ($parcel, $driver): Parcel {
+            $locked = Parcel::query()->whereKey($parcel->id)->lockForUpdate()->firstOrFail();
+            $lockedDriver = DriverProfile::query()->whereKey($driver->id)->lockForUpdate()->firstOrFail();
+
+            $this->assertOfferOpen($locked, $lockedDriver);
+
+            $locked = $this->assignDriver($locked, $lockedDriver, $lockedDriver->user_id);
+            $this->driverSelection->markAccepted($locked, $lockedDriver);
+
+            return $locked;
+        });
+    }
+
+    /**
+     * Refus d'une offre colis : la demande ciblée est close et le colis reste
+     * disponible pour les autres livreurs.
+     */
+    public function declineOffer(Parcel $parcel, DriverProfile $driver, ?string $reason = null): Parcel
+    {
+        return DB::transaction(function () use ($parcel, $driver, $reason): Parcel {
+            $locked = Parcel::query()->whereKey($parcel->id)->lockForUpdate()->firstOrFail();
+            $lockedDriver = DriverProfile::query()->whereKey($driver->id)->lockForUpdate()->firstOrFail();
+
+            $this->assertOfferOpen($locked, $lockedDriver);
+
+            $this->driverSelection->markRefused($locked, $lockedDriver, $reason);
+
+            $this->logTransition(
+                $locked,
+                ParcelStatus::Paid,
+                ParcelStatus::Paid,
+                'driver',
+                $lockedDriver->user_id,
+                $reason !== null && $reason !== '' ? 'Colis décliné : '.$reason : 'Colis décliné par le livreur',
+            );
+
+            return $locked->fresh(['driverProfile.user', 'statusHistory']);
+        });
+    }
+
+    private function assertOfferOpen(Parcel $parcel, DriverProfile $driver): void
+    {
+        if ($parcel->driver_profile_id !== null) {
+            throw new DomainException('parcel.not_available', 'Ce colis a déjà été pris en charge.', 409);
+        }
+
+        if ($parcel->status !== ParcelStatus::Paid) {
+            throw new DomainException('parcel.not_available', 'Ce colis n\'est plus disponible.', 409);
+        }
+
+        if ($parcel->targeted_driver_profile_id !== null && $parcel->targeted_driver_profile_id !== $driver->id) {
+            throw new DomainException('parcel.reserved', 'Ce colis est réservé à un autre livreur.', 409);
+        }
     }
 
     public function markEnRoutePickup(Parcel $parcel, ?string $actorId = null): Parcel
@@ -360,6 +424,8 @@ class ParcelService
     /** Colis payés en attente d'un livreur. @return Collection<int, Parcel> */
     public function availableOffers(?DriverProfile $driver = null): Collection
     {
+        $this->driverSelection->expireStale();
+
         return Parcel::query()
             ->whereNull('driver_profile_id')
             ->where('status', ParcelStatus::Paid->value)

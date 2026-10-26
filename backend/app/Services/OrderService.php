@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Enums\DeliveryStatus;
+use App\Enums\DriverAssignmentRequestStatus;
 use App\Enums\OrderStatus;
 use App\Enums\PaymentMethod;
 use App\Enums\PaymentStatus;
@@ -11,6 +12,7 @@ use App\Models\Address;
 use App\Models\Cart;
 use App\Models\CartItem;
 use App\Models\CommissionRate;
+use App\Models\DriverAssignmentRequest;
 use App\Models\DriverProfile;
 use App\Models\Order;
 use App\Models\Vendor;
@@ -38,6 +40,7 @@ class OrderService
         private readonly CashService $cash,
         private readonly FavoriteDriverService $favoriteDrivers,
         private readonly ConfirmationCodeService $confirmationCodes,
+        private readonly DriverSelectionService $driverSelection,
     ) {}
 
     // ------------------------------------------------------------------ J82
@@ -422,6 +425,8 @@ class OrderService
             }
         });
 
+        $this->driverSelection->markOfferedForOrder($order);
+
         if ($target?->user !== null) {
             $this->notifications->notifyEvent('delivery.offered', [$target->user], [
                 'reference' => $order->reference,
@@ -439,6 +444,18 @@ class OrderService
      */
     private function resolveTargetDriver(Order $order, ?string $targetDriverProfileId, bool $overrideDriver): ?DriverProfile
     {
+        // Une demande explicite du client reste prioritaire sur le choix du
+        // vendeur : elle a été enregistrée après le paiement et attend l'offre.
+        if (DriverAssignmentRequest::query()
+            ->where('assignable_type', Order::class)
+            ->where('assignable_id', $order->id)
+            ->where('status', DriverAssignmentRequestStatus::Pending->value)
+            ->exists()) {
+            return $order->preferred_driver_profile_id !== null
+                ? DriverProfile::find($order->preferred_driver_profile_id)
+                : null;
+        }
+
         if (! $overrideDriver) {
             return $order->preferred_driver_profile_id !== null
                 ? DriverProfile::find($order->preferred_driver_profile_id)

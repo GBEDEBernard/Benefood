@@ -54,6 +54,9 @@ class OrderResource extends JsonResource
             ],
             'notes' => $this->notes,
             'delivery' => $this->whenLoaded('delivery', fn () => $this->deliveryPayload()),
+            'driver_request' => $this->whenLoaded('driverAssignmentRequest', fn () => $this->driverAssignmentRequest === null
+                ? null
+                : (new DriverAssignmentRequestResource($this->driverAssignmentRequest))->resolve()),
             'payment' => $this->whenLoaded('payment', fn () => [
                 'id' => $this->payment->id,
                 'reference' => $this->payment->reference,

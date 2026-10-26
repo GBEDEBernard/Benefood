@@ -230,6 +230,21 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Sélection d'un livreur proche
+    |--------------------------------------------------------------------------
+    | Recherche autour du point de collecte, fraîcheur GPS exigée, extension
+    | progressive du rayon et délai de réponse avant expiration de la demande.
+    */
+    'driver_selection' => [
+        'radius_km' => (float) env('BENINFOOD_DRIVER_SELECTION_RADIUS_KM', 5),
+        'max_radius_km' => (float) env('BENINFOOD_DRIVER_SELECTION_MAX_RADIUS_KM', 15),
+        'location_max_age_s' => (int) env('BENINFOOD_DRIVER_SELECTION_LOCATION_MAX_AGE_S', 300),
+        'request_ttl_s' => (int) env('BENINFOOD_DRIVER_SELECTION_REQUEST_TTL_S', 120),
+        'max_candidates' => (int) env('BENINFOOD_DRIVER_SELECTION_MAX_CANDIDATES', 15),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Suivi temps réel des livraisons
     |--------------------------------------------------------------------------
     | Seuils partagés par l'API et l'app mobile : fraîcheur de la position,

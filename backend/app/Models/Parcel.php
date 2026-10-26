@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\Relations\MorphOne;
 
 /**
  * Envoi de colis (cahier de conception v1.0, phase 3) : prix par distance,
@@ -73,6 +74,12 @@ class Parcel extends Model
     public function statusHistory(): HasMany
     {
         return $this->hasMany(ParcelStatusHistory::class);
+    }
+
+    /** Dernière demande explicite adressée à un livreur proche. */
+    public function driverAssignmentRequest(): MorphOne
+    {
+        return $this->morphOne(DriverAssignmentRequest::class, 'assignable')->latestOfMany('created_at');
     }
 
     /** Montant total payé par l'expéditeur (livraison + création). */

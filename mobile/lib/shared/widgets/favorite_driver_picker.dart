@@ -188,7 +188,6 @@ class _FavoriteDriverPickerSheetState extends State<_FavoriteDriverPickerSheet> 
     final parts = [
       if (driver.vehicle != null && driver.vehicle!.trim().isNotEmpty) driver.vehicle!.trim(),
       if (driver.rating != null && driver.rating! > 0) '★ ${driver.rating!.toStringAsFixed(1)}',
-      if (driver.phone != null && driver.phone!.trim().isNotEmpty) driver.phone!.trim(),
     ];
     return parts.isEmpty ? 'Livreur Béninfood' : parts.join(' · ');
   }

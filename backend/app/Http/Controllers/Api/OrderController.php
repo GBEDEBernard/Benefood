@@ -9,6 +9,7 @@ use App\Http\Resources\OrderResource;
 use App\Models\Address;
 use App\Models\Order;
 use App\Services\CartService;
+use App\Services\DriverSelectionService;
 use App\Services\OrderService;
 use App\Support\Api;
 use Illuminate\Http\JsonResponse;
@@ -22,6 +23,7 @@ class OrderController extends Controller
     public function __construct(
         private readonly OrderService $orders,
         private readonly CartService $cartService,
+        private readonly DriverSelectionService $driverSelection,
     ) {}
 
     public function summary(Request $request): JsonResponse
@@ -102,7 +104,19 @@ class OrderController extends Controller
             return Api::error('Ressource introuvable.', 'not_found', 404);
         }
 
-        $order->load(['vendor', 'items.product.images', 'payment', 'financials', 'statusHistory', 'refunds', 'review', 'delivery.driverProfile.user']);
+        $this->driverSelection->expireStale($order);
+
+        $order->load([
+            'vendor',
+            'items.product.images',
+            'payment',
+            'financials',
+            'statusHistory',
+            'refunds',
+            'review',
+            'delivery.driverProfile.user',
+            'driverAssignmentRequest.driverProfile.user',
+        ]);
 
         return Api::ok(new OrderResource($order));
     }

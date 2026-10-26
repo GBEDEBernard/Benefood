@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\DeliveryQuoteController;
 use App\Http\Controllers\Api\DeliveryZoneController;
 use App\Http\Controllers\Api\DriverController;
 use App\Http\Controllers\Api\DriverFloatController;
+use App\Http\Controllers\Api\DriverSelectionController;
 use App\Http\Controllers\Api\DriverStatsController;
 use App\Http\Controllers\Api\FavoriteDriverController;
 use App\Http\Controllers\Api\HealthController;
@@ -170,6 +171,7 @@ Route::middleware('auth:sanctum')->group(function (): void {
             Route::get('/', [ParcelController::class, 'driverIndex'])->name('api.v1.driver.me.parcels.index');
             Route::get('/offers', [ParcelController::class, 'offers'])->name('api.v1.driver.me.parcels.offers');
             Route::post('/{parcel}/accept', [ParcelController::class, 'accept'])->name('api.v1.driver.me.parcels.accept');
+            Route::post('/{parcel}/decline', [ParcelController::class, 'decline'])->name('api.v1.driver.me.parcels.decline');
             Route::post('/{parcel}/start-pickup', [ParcelController::class, 'startPickup'])->name('api.v1.driver.me.parcels.start-pickup');
             Route::post('/{parcel}/pickup', [ParcelController::class, 'pickup'])->name('api.v1.driver.me.parcels.pickup');
             Route::post('/{parcel}/start', [ParcelController::class, 'start'])->name('api.v1.driver.me.parcels.start');
@@ -202,6 +204,9 @@ Route::middleware('auth:sanctum')->group(function (): void {
         Route::post('/summary', [OrderController::class, 'summary'])->name('api.v1.orders.summary')->middleware('permission:client.orders.manage');
         Route::post('/', [OrderController::class, 'store'])->name('api.v1.orders.store')->middleware('permission:client.orders.manage');
         Route::get('/', [OrderController::class, 'index'])->name('api.v1.orders.index')->middleware('permission:client.orders.manage');
+        Route::get('/{order}/nearby-drivers', [DriverSelectionController::class, 'nearbyOrder'])->name('api.v1.orders.nearby-drivers')->middleware('permission:client.orders.manage');
+        Route::post('/{order}/driver-request', [DriverSelectionController::class, 'requestOrder'])->name('api.v1.orders.driver-request.store')->middleware('permission:client.orders.manage');
+        Route::delete('/{order}/driver-request', [DriverSelectionController::class, 'cancelOrder'])->name('api.v1.orders.driver-request.destroy')->middleware('permission:client.orders.manage');
         Route::get('/{order}', [OrderController::class, 'show'])->name('api.v1.orders.show')->middleware('permission:client.orders.manage');
         Route::post('/{order}/cancel', [OrderController::class, 'cancel'])->name('api.v1.orders.cancel')->middleware('permission:client.orders.manage');
         Route::post('/{order}/confirm-delivery', [OrderController::class, 'confirmDelivery'])->name('api.v1.orders.confirm-delivery')->middleware('permission:client.orders.manage');
@@ -220,6 +225,9 @@ Route::middleware('auth:sanctum')->group(function (): void {
         Route::post('/quote', [ParcelController::class, 'quote'])->name('api.v1.parcels.quote')->middleware('permission:client.parcels.manage|vendor.parcels.manage');
         Route::post('/', [ParcelController::class, 'store'])->name('api.v1.parcels.store')->middleware('permission:client.parcels.manage|vendor.parcels.manage');
         Route::get('/', [ParcelController::class, 'index'])->name('api.v1.parcels.index')->middleware('permission:client.parcels.manage|vendor.parcels.manage');
+        Route::get('/{parcel}/nearby-drivers', [DriverSelectionController::class, 'nearbyParcel'])->name('api.v1.parcels.nearby-drivers')->middleware('permission:client.parcels.manage|vendor.parcels.manage');
+        Route::post('/{parcel}/driver-request', [DriverSelectionController::class, 'requestParcel'])->name('api.v1.parcels.driver-request.store')->middleware('permission:client.parcels.manage|vendor.parcels.manage');
+        Route::delete('/{parcel}/driver-request', [DriverSelectionController::class, 'cancelParcel'])->name('api.v1.parcels.driver-request.destroy')->middleware('permission:client.parcels.manage|vendor.parcels.manage');
         Route::get('/{parcel}', [ParcelController::class, 'show'])->name('api.v1.parcels.show')->middleware('permission:client.parcels.manage|vendor.parcels.manage');
         Route::post('/{parcel}/cancel', [ParcelController::class, 'cancel'])->name('api.v1.parcels.cancel')->middleware('permission:client.parcels.manage|vendor.parcels.manage');
     });

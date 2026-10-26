@@ -1,3 +1,4 @@
+import 'driver_selection.dart';
 import 'geo_point.dart';
 
 /// Envoi de colis (cahier de conception v1.0, phase 3).
@@ -27,6 +28,7 @@ class Parcel {
     this.confirmationCode,
     this.sender,
     this.driver,
+    this.driverRequest,
     this.position,
     this.payment,
     this.statusHistory = const [],
@@ -69,6 +71,9 @@ class Parcel {
   final ParcelSender? sender;
   final ParcelDriver? driver;
 
+  /// Dernière demande de livreur proche (sélection après paiement).
+  final DriverRequestInfo? driverRequest;
+
   /// Dernière position partagée par le livreur pendant la course.
   final ParcelPosition? position;
   final ParcelPayment? payment;
@@ -102,6 +107,14 @@ class Parcel {
 
   /// Le colis a été payé et attend encore un livreur (offre disponible).
   bool get isAvailable => status == 'paid';
+
+  /// Un livreur proche peut encore être choisi après le paiement.
+  bool get canChooseDriver =>
+      status == 'paid' &&
+      driver == null &&
+      !(driverRequest?.isPending ?? false);
+
+  bool get isWaitingDriver => driverRequest?.isPending ?? false;
 
   /// Actions livreur.
   bool get isEnRoutePickup => status == 'en_route_pickup';
@@ -165,6 +178,11 @@ class Parcel {
           : null,
       driver: rawDriver is Map<String, dynamic>
           ? ParcelDriver.fromJson(rawDriver)
+          : null,
+      driverRequest: json['driver_request'] is Map<String, dynamic>
+          ? DriverRequestInfo.fromJson(
+              json['driver_request'] as Map<String, dynamic>,
+            )
           : null,
       position: rawPosition is Map<String, dynamic>
           ? ParcelPosition.fromJson(rawPosition)

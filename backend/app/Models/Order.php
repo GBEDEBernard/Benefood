@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\Relations\MorphOne;
 
 /**
  * Commande (J29 §5, J83/J84) : totaux recalculés côté serveur et snapshot
@@ -98,6 +99,12 @@ class Order extends Model
     public function delivery(): HasOne
     {
         return $this->hasOne(Delivery::class);
+    }
+
+    /** Dernière demande explicite adressée à un livreur proche. */
+    public function driverAssignmentRequest(): MorphOne
+    {
+        return $this->morphOne(DriverAssignmentRequest::class, 'assignable')->latestOfMany('created_at');
     }
 
     public function review(): HasOne

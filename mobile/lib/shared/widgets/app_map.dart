@@ -11,6 +11,27 @@ import '../../core/utils/geo.dart';
 import '../models/geo_point.dart';
 import 'app_network_image.dart';
 
+/// Marqueur supplémentaire affiché en plus des points principaux.
+class AppMapMarker {
+  const AppMapMarker({
+    required this.point,
+    this.label,
+    this.imageUrl,
+    this.heading,
+    this.icon = Icons.two_wheeler,
+    this.color,
+    this.size = 38,
+  });
+
+  final GeoPoint point;
+  final String? label;
+  final String? imageUrl;
+  final double? heading;
+  final IconData icon;
+  final Color? color;
+  final double size;
+}
+
 /// Carte de localisation réutilisable (J162 / J177).
 ///
 /// Affiche la position courante (`origin`, le livreur ou l'utilisateur), la
@@ -48,6 +69,7 @@ class AppMap extends StatefulWidget {
     this.targetColor,
     this.secondaryIcon = Icons.storefront_outlined,
     this.secondaryColor,
+    this.extraMarkers = const [],
   });
 
   /// Position de l'utilisateur (livreur) : `null` si inconnue.
@@ -115,6 +137,9 @@ class AppMap extends StatefulWidget {
   /// Icône et couleur du marqueur secondaire (boutique, adresse…).
   final IconData secondaryIcon;
   final Color? secondaryColor;
+
+  /// Marqueurs additionnels (ex. livreurs proches autour d'un point).
+  final List<AppMapMarker> extraMarkers;
 
   @override
   State<AppMap> createState() => _AppMapState();
@@ -209,6 +234,7 @@ class _AppMapState extends State<AppMap> {
       targetColor: widget.targetColor,
       secondaryIcon: widget.secondaryIcon,
       secondaryColor: widget.secondaryColor,
+      extraMarkers: widget.extraMarkers,
     );
   }
 
@@ -276,6 +302,7 @@ class _AppMapState extends State<AppMap> {
       if (widget.origin != null) widget.origin!.latLng,
       if (widget.target != null) widget.target!.latLng,
       if (widget.secondary != null) widget.secondary!.latLng,
+      for (final marker in widget.extraMarkers) marker.point.latLng,
     ];
     final originMarkerSize = widget.originImageUrl == null
         ? (widget.originIsDriver ? 44.0 : 28.0)
@@ -413,6 +440,25 @@ class _AppMapState extends State<AppMap> {
                                           widget.targetColor ??
                                           AppColors.orange,
                                       rounded: _isShopIcon(widget.targetIcon),
+                                    ),
+                            ),
+                          for (final extra in widget.extraMarkers)
+                            _marker(
+                              point: extra.point,
+                              size: extra.size,
+                              label: extra.label,
+                              child: extra.imageUrl == null
+                                  ? _MotoMarker(heading: extra.heading)
+                                  : _PhotoMarker(
+                                      imageUrl: extra.imageUrl!,
+                                      size: extra.size,
+                                      fallback: _MotoMarker(
+                                        heading: extra.heading,
+                                      ),
+                                      badgeIcon: extra.icon,
+                                      badgeColor:
+                                          extra.color ?? AppColors.orange,
+                                      heading: extra.heading,
                                     ),
                             ),
                           if (widget.origin != null)

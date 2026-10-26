@@ -11,6 +11,7 @@ Artisan::command('inspire', function () {
 Schedule::command('orders:expire-payments')->everyMinute()->withoutOverlapping();
 Schedule::command('orders:auto-confirm-deliveries')->everyMinute()->withoutOverlapping();
 Schedule::command('parcels:expire-unpaid')->everyMinute()->withoutOverlapping();
+Schedule::command('driver-assignments:expire')->everyMinute()->withoutOverlapping();
 Schedule::command('payments:reconcile')->everyFifteenMinutes()->withoutOverlapping();
 Schedule::command('tokens:cleanup')->daily();
 Schedule::command('deliveries:purge-locations')->daily();

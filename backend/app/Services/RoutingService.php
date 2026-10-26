@@ -158,10 +158,19 @@ class RoutingService
      */
     private function withEta(array $route): array
     {
-        $coefficient = max(0.1, (float) config('beninfood.tracking.eta_coefficient', 1.3));
-        $route['eta_s'] = (int) round($route['duration_s'] * $coefficient);
+        $route['eta_s'] = $this->etaSeconds((int) $route['duration_s']);
 
         return $route;
+    }
+
+    /**
+     * Applique le coefficient de prudence à une durée de trajet (secondes).
+     */
+    public function etaSeconds(int $durationSeconds): int
+    {
+        $coefficient = max(0.1, (float) config('beninfood.tracking.eta_coefficient', 1.3));
+
+        return (int) round(max(0, $durationSeconds) * $coefficient);
     }
 
     /**
