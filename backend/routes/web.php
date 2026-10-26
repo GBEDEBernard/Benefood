@@ -18,6 +18,7 @@ use App\Http\Controllers\Admin\AdminProductsController;
 use App\Http\Controllers\Admin\AdminRatesController;
 use App\Http\Controllers\Admin\AdminRefundsController;
 use App\Http\Controllers\Admin\AdminReportsController;
+use App\Http\Controllers\Admin\AdminSearchController;
 use App\Http\Controllers\Admin\AdminZonesController;
 use App\Http\Controllers\Admin\RolesController;
 use App\Http\Controllers\Admin\UsersController;
@@ -49,6 +50,9 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function (): v
 
     // Dashboard
     Route::get('', [AdminController::class, 'index'])->name('dashboard');
+
+    // ---------- Recherche globale ----------
+    Route::get('recherche', [AdminSearchController::class, 'index'])->name('search.index');
 
     // ---------- Phase 06 — Utilisateurs ----------
     Route::resource('users', UsersController::class)->only(['index', 'show']);

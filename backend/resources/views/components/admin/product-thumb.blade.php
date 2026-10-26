@@ -9,7 +9,7 @@
 
     if ($product !== null && $product->relationLoaded('images')) {
         $primaryImage = $product->images->firstWhere('is_main', true) ?? $product->images->first();
-        $path = $primaryImage?->path ?? $path;
+        $path = $primaryImage?->thumb_path ?: $primaryImage?->path ?: $path;
     }
 
     $imageUrl = \App\Support\AdminMedia::url($path);

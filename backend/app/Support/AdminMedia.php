@@ -2,8 +2,6 @@
 
 namespace App\Support;
 
-use Illuminate\Support\Facades\Storage;
-
 final class AdminMedia
 {
     private const AVATAR_TONES = ['sage', 'amber', 'clay', 'mint', 'sand', 'slate'];
@@ -30,7 +28,7 @@ final class AdminMedia
             $path = substr($path, strlen('storage/'));
         }
 
-        return Storage::disk('public')->url($path);
+        return '/storage/'.$path;
     }
 
     public static function initials(?string $name): string

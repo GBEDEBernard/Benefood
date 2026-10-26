@@ -59,6 +59,33 @@ class AdminCatalogTest extends TestCase
             ->assertSee($product->name);
     }
 
+    public function test_admin_product_list_displays_main_image_thumbnail(): void
+    {
+        $vendor = $this->vendor();
+        $category = $this->category();
+        $product = Product::factory()->create(['vendor_id' => $vendor->id, 'category_id' => $category->id]);
+
+        $product->images()->create([
+            'path' => 'products/'.$vendor->id.'/'.$product->id.'/secondaire.webp',
+            'thumb_path' => 'products/'.$vendor->id.'/'.$product->id.'/secondaire_thumb.webp',
+            'is_main' => false,
+            'sort_order' => 2,
+        ]);
+
+        $product->images()->create([
+            'path' => 'products/'.$vendor->id.'/'.$product->id.'/principale.webp',
+            'thumb_path' => 'products/'.$vendor->id.'/'.$product->id.'/principale_thumb.webp',
+            'is_main' => true,
+            'sort_order' => 1,
+        ]);
+
+        $this->actingAs($this->admin())
+            ->get(route('admin.products.index'))
+            ->assertOk()
+            ->assertSee('/storage/products/'.$vendor->id.'/'.$product->id.'/principale_thumb.webp', false)
+            ->assertDontSee('/storage/products/'.$vendor->id.'/'.$product->id.'/secondaire_thumb.webp', false);
+    }
+
     public function test_admin_can_create_product_with_initial_traceability(): void
     {
         $vendor = $this->vendor();

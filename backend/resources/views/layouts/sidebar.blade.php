@@ -119,7 +119,7 @@
     ];
 @endphp
 
-<aside class="app-navbar">
+<aside class="app-navbar" id="bfSidebar" aria-label="Navigation principale">
     <div class="bf-sidebar-brand">
         <span class="bf-brand-mark">
             <img src="{{ asset('assets/img/logo.jpeg') }}" alt="Logo Béninfood" width="36" height="36">
@@ -142,7 +142,7 @@
 
                     <li class="{{ $isActive ? 'active' : '' }}">
                         @if (! empty($item['children']))
-                            <a class="has-arrow" href="javascript:void(0)" aria-expanded="{{ $isActive ? 'true' : 'false' }}">
+                            <a class="has-arrow" href="javascript:void(0)" aria-expanded="{{ $isActive ? 'true' : 'false' }}" data-bf-label="{{ $item['label'] }}">
                                 <i class="nav-icon ti {{ $item['icon'] }}" aria-hidden="true"></i>
                                 <span class="nav-title">{{ $item['label'] }}</span>
                             </a>
@@ -160,7 +160,7 @@
                                 @endforeach
                             </ul>
                         @else
-                            <a href="{{ route($item['route']) }}">
+                            <a href="{{ route($item['route']) }}" data-bf-label="{{ $item['label'] }}">
                                 <i class="nav-icon ti {{ $item['icon'] }}" aria-hidden="true"></i>
                                 <span class="nav-title">{{ $item['label'] }}</span>
                             </a>
