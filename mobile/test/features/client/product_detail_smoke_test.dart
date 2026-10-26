@@ -94,6 +94,21 @@ MockClient _mockBackend() {
       isFavorite = false;
       return http.Response('', 204, headers: json);
     }
+    if (request.method == 'POST' && path.endsWith('/cart/items')) {
+      return http.Response(
+        jsonEncode({
+          'data': {
+            'id': 'cart-1',
+            'items': <Object?>[],
+            'subtotal': 5000,
+            'items_count': 1,
+            'currency': 'XOF',
+          },
+        }),
+        200,
+        headers: json,
+      );
+    }
     return http.Response(
       jsonEncode({'message': 'Not found'}),
       404,
@@ -166,6 +181,19 @@ void main() {
     expect(find.text('4,6 (12 avis)'), findsOneWidget);
     expect(find.text('30'), findsOneWidget);
     expect(find.text('Chez Awa'), findsOneWidget);
+  });
+
+  testWidgets('ajouter au panier garde la fiche produit ouverte', (tester) async {
+    await _pump(tester);
+
+    final addButton = find.text('Ajouter au panier');
+    await tester.ensureVisible(addButton);
+    await tester.tap(addButton);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Poulet braisé'), findsOneWidget);
+    expect(find.text('Ajouter au panier'), findsOneWidget);
+    expect(find.text('accueil'), findsNothing);
   });
 
   testWidgets('le bouton cœur ajoute et retire le produit des favoris', (tester) async {

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../../core/data/marketplace_api.dart';
 import '../../../core/theme/app_colors.dart';
@@ -43,8 +42,7 @@ class _ClientSubShellState extends State<ClientSubShell> {
   }
 
   void _selectTab(int index) {
-    ClientNavigation.requestedTab.value = index;
-    context.go('/client');
+    ClientNavigation.openTab(context, index);
   }
 
   @override

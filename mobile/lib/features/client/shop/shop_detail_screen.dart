@@ -15,6 +15,7 @@ import '../../../shared/widgets/beninfood_header.dart';
 import '../../../shared/widgets/feedback_widgets.dart';
 import '../../../shared/widgets/product_review_sheet.dart';
 import '../../../shared/widgets/state_widgets.dart';
+import '../presentation/client_shell.dart';
 
 /// Fiche boutique (J149) : couverture, infos, onglets (Plats / Avis / Infos)
 /// et barre de panier flottante.
@@ -174,8 +175,8 @@ class _ShopDetailScreenState extends State<ShopDetailScreen> {
     await _refreshCart();
   }
 
-  void _openCheckout() {
-    context.push('/client/checkout');
+  void _openCart() {
+    ClientNavigation.openTab(context, 2);
   }
 
   Future<void> _addToCart(Product product) async {
@@ -229,7 +230,7 @@ class _ShopDetailScreenState extends State<ShopDetailScreen> {
           ),
         ],
       ),
-      bottomNavigationBar: _CartBar(cart: _cart, onTap: _openCheckout),
+      bottomNavigationBar: _CartBar(cart: _cart, onTap: _openCart),
     );
   }
 

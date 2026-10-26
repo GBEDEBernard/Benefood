@@ -8,6 +8,7 @@ import 'package:http/testing.dart';
 
 import 'package:beninfood/core/data/marketplace_api.dart';
 import 'package:beninfood/core/http/api_client.dart';
+import 'package:beninfood/features/client/presentation/client_shell.dart';
 import 'package:beninfood/features/client/shop/shop_detail_screen.dart';
 import 'package:beninfood/shared/widgets/state_widgets.dart';
 
@@ -163,6 +164,11 @@ GoRouter _router(MarketplaceApi api) {
             const Scaffold(body: Center(child: Text('produit'))),
       ),
       GoRoute(
+        path: '/client',
+        builder: (context, state) =>
+            const Scaffold(body: Center(child: Text('client'))),
+      ),
+      GoRoute(
         path: '/client/checkout',
         builder: (context, state) =>
             const Scaffold(body: Center(child: Text('checkout'))),
@@ -269,6 +275,18 @@ void main() {
     await tester.tap(find.text('Poulet braisé'));
     await tester.pumpAndSettle();
     expect(find.text('produit'), findsOneWidget);
+  });
+
+  testWidgets('la barre panier ouvre l’onglet panier', (tester) async {
+    ClientNavigation.requestedTab.value = null;
+    addTearDown(() => ClientNavigation.requestedTab.value = null);
+    await _pump(tester);
+
+    await tester.tap(find.text('Voir le panier'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('client'), findsOneWidget);
+    expect(ClientNavigation.requestedTab.value, 2);
   });
 
   testWidgets('aimer un plat : le cœur et le compteur se mettent à jour', (

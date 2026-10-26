@@ -135,7 +135,6 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       await widget.marketplace.addToCart(product.id, quantity: _quantity);
       if (mounted) {
         showToast(context, 'Produit ajouté au panier');
-        context.go('/client');
       }
     } on ApiException catch (e) {
       if (mounted) {

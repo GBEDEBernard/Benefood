@@ -20,6 +20,11 @@ class ClientNavigation {
   ClientNavigation._();
 
   static final ValueNotifier<int?> requestedTab = ValueNotifier<int?>(null);
+
+  static void openTab(BuildContext context, int index) {
+    requestedTab.value = index;
+    context.go('/client');
+  }
 }
 
 /// Espace Client (J148+) : accueil, catégories, panier, commandes, profil.
@@ -43,6 +48,7 @@ class ClientShell extends StatefulWidget {
 class _ClientShellState extends State<ClientShell> {
   int _index = 0;
   int _cartCount = 0;
+  int _cartVersion = 0;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   bool _statusLoading = true;
@@ -131,10 +137,12 @@ class _ClientShellState extends State<ClientShell> {
   }
 
   void _selectTab(int index) {
-    if (_index == index) {
-      return;
-    }
-    setState(() => _index = index);
+    setState(() {
+      _index = index;
+      if (index == 2) {
+        _cartVersion++;
+      }
+    });
     _refreshCartCount();
   }
 
@@ -192,6 +200,7 @@ class _ClientShellState extends State<ClientShell> {
             onOpenMenu: () => _scaffoldKey.currentState?.openDrawer(),
           ),
           CartScreen(
+            key: ValueKey('cart-$_cartVersion'),
             marketplace: widget.marketplace,
             onOpenMenu: () => _scaffoldKey.currentState?.openDrawer(),
           ),
