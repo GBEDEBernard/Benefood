@@ -116,6 +116,59 @@ class OrderFlowTest extends TestCase
             ->assertJsonPath('errors.0.code', 'order.delivery_location_required');
     }
 
+    public function test_commission_changes_apply_immediately_to_new_orders_only(): void
+    {
+        $client = $this->actingUser('client');
+        $vendor = $this->activeVendor($client);
+        $product = $this->vendorProduct($vendor, price: 1000, stock: 20);
+        $this->deliverySetup($vendor);
+        $address = $this->clientAddress($client);
+        $this->addToCart($client, $product, 1);
+
+        $this->postJson('/api/v1/orders/summary', ['address_id' => $address->id])
+            ->assertOk()
+            ->assertJsonPath('data.service_fee', 50)
+            ->assertJsonPath('data.commission.rate', 10)
+            ->assertJsonPath('data.total', 2550);
+
+        $first = Order::where('reference', $this->placeOrder($client, $address))->firstOrFail();
+
+        $admin = User::factory()->create();
+        $admin->roles()->attach(Role::where('slug', 'admin-technique')->firstOrFail(), ['is_active' => true]);
+
+        $this->actingAs($admin)->put(route('admin.commissions.platform-settings'), [
+            'service_fee_rate' => 0,
+            'delivery_commission_rate' => 0,
+            'parcel_commission_rate' => 3,
+            'gateway_fee_basis_points' => 120,
+            'minimum_payout' => 1495,
+        ])->assertRedirect();
+
+        $this->actingAs($admin)->post(route('admin.commissions.store'), [
+            'rate' => 20,
+            'notes' => 'Nouvelle commission vendeur',
+        ])->assertRedirect();
+
+        $this->addToCart($client, $product, 1);
+
+        $this->postJson('/api/v1/orders/summary', ['address_id' => $address->id])
+            ->assertOk()
+            ->assertJsonPath('data.service_fee', 0)
+            ->assertJsonPath('data.commission.rate', 20)
+            ->assertJsonPath('data.total', 2500);
+
+        $second = Order::where('reference', $this->placeOrder($client, $address))->firstOrFail();
+
+        $this->assertSame(50, $first->financials->service_fee);
+        $this->assertSame(100, $first->financials->commission_amount);
+        $this->assertSame(2550, $first->total);
+
+        $this->assertSame(0, $second->financials->service_fee);
+        $this->assertSame(0, $second->financials->delivery_commission_amount);
+        $this->assertSame(200, $second->financials->commission_amount);
+        $this->assertSame(2500, $second->total);
+    }
+
     public function test_client_can_create_full_order_with_server_totals(): void
     {
         $client = $this->actingUser('client');
@@ -130,9 +183,9 @@ class OrderFlowTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.subtotal', 1000)
             ->assertJsonPath('data.delivery_fee', 1500)
-            // Cahier v1.0 : frais de service client 5 % de (nourriture + livraison).
-            ->assertJsonPath('data.service_fee', 125)
-            ->assertJsonPath('data.total', 2625)
+            // Commission client 5 % du sous-total produits uniquement.
+            ->assertJsonPath('data.service_fee', 50)
+            ->assertJsonPath('data.total', 2550)
             ->assertJsonPath('data.commission.rate', 10)
             ->assertJsonPath('data.commission.amount', 100)
             ->assertJsonPath('data.currency', 'XOF')
@@ -144,7 +197,7 @@ class OrderFlowTest extends TestCase
 
         $this->assertNotNull($order->reference);
         $this->assertSame(1000, $order->subtotal);
-        $this->assertSame(2625, $order->total);
+        $this->assertSame(2550, $order->total);
         $this->assertNotNull($order->address_snapshot);
         $this->assertSame('Sonner avant de livrer', $order->address_snapshot['notes']);
         $this->assertSame(1500, $order->delivery_rate_snapshot['price']);
@@ -162,14 +215,14 @@ class OrderFlowTest extends TestCase
         $this->assertDatabaseHas('order_financials', [
             'order_id' => $order->id,
             'commission_amount' => 100,
-            'service_fee' => 125,
+            'service_fee' => 50,
             'vendor_amount' => 900,
             'delivery_commission_amount' => 300,
             'delivery_partner_amount' => 1200,
-            'platform_amount' => 525,
-            'total_client' => 2625,
+            'platform_amount' => 450,
+            'total_client' => 2550,
         ]);
-        $this->assertDatabaseHas('payments', ['order_id' => $order->id, 'status' => 'initiated', 'amount' => 2625]);
+        $this->assertDatabaseHas('payments', ['order_id' => $order->id, 'status' => 'initiated', 'amount' => 2550]);
         $this->assertSame(8, $product->fresh()->stock_qty);
         $this->assertSame(CartStatus::Converted->value, $order->cart->fresh()->status->value);
 

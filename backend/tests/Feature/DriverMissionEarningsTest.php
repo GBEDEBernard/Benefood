@@ -78,7 +78,7 @@ class DriverMissionEarningsTest extends TestCase
             $this->getJson('/api/v1/driver/me/deliveries')->assertOk()->json('data')
         )->keyBy('order.reference');
 
-        $this->assertSame(413345, $deliveries[$references[1306]]['order']['total']);
+        $this->assertSame(413306, $deliveries[$references[1306]]['order']['total']);
         $this->assertSame(1306, $deliveries[$references[1306]]['client_delivery_fee']);
         $this->assertSame(1110, $deliveries[$references[1306]]['driver_earnings']);
         $this->assertSame(1110, $deliveries[$references[1306]]['partner_amount']);

@@ -15,6 +15,7 @@ use App\Services\FinanceService;
 use App\Services\ParcelPricingService;
 use App\Services\ParcelService;
 use App\Services\Payments\PaymentGateway;
+use App\Services\PlatformPricingSettings;
 use App\Services\RefundService;
 use Database\Seeders\NotificationTemplatesSeeder;
 use Database\Seeders\RolesAndPermissionsSeeder;
@@ -88,9 +89,36 @@ class ParcelFeatureTest extends TestCase
 
         $breakdown = $pricing->quote(5.0);
         $this->assertSame(1000, $breakdown['delivery_fee']);
+        $this->assertSame(150, $breakdown['creation_fee']);
+        $this->assertSame(1150, $breakdown['total_amount']);
         $this->assertSame(800, $breakdown['partner_amount']);
         $this->assertSame(200, $breakdown['platform_amount']);
         $this->assertSame(800 + 200, $breakdown['delivery_fee']);
+    }
+
+    public function test_creation_fee_is_snapshotted_and_applies_immediately_to_new_parcels(): void
+    {
+        $client = $this->client();
+        $parcels = app(ParcelService::class);
+
+        $first = $parcels->create($client, $this->pickup(), $this->dropoff());
+
+        $this->assertSame(150, $first->creation_fee);
+        $this->assertSame(1150, $first->totalAmount());
+        $this->assertSame(1150, (int) $first->payment->amount);
+
+        app(PlatformPricingSettings::class)->update(['parcel_creation_fee' => 300]);
+
+        $quote = app(ParcelPricingService::class)->quote(5.0);
+        $this->assertSame(300, $quote['creation_fee']);
+        $this->assertSame(1300, $quote['total_amount']);
+
+        $second = $parcels->create($client, $this->pickup(), $this->dropoff());
+
+        $this->assertSame(300, $second->creation_fee);
+        $this->assertSame(1300, $second->totalAmount());
+        $this->assertSame(1300, (int) $second->payment->amount);
+        $this->assertSame(150, $first->fresh()->creation_fee);
     }
 
     public function test_client_creates_parcel_awaiting_payment(): void
@@ -105,8 +133,12 @@ class ParcelFeatureTest extends TestCase
             ->assertCreated()
             ->assertJsonPath('data.status', 'awaiting_payment')
             ->assertJsonPath('data.payment_status', 'initiated')
+            ->assertJsonPath('data.delivery_fee', 1000)
+            ->assertJsonPath('data.creation_fee', 150)
+            ->assertJsonPath('data.total_amount', 1150)
             ->assertJsonPath('data.partner_amount', 800)
             ->assertJsonPath('data.platform_amount', 200)
+            ->assertJsonPath('data.payment.amount', 1150)
             ->assertJsonPath('data.payment.id', fn ($id) => $id !== null);
 
         $this->assertDatabaseCount('parcels', 1);
@@ -205,7 +237,7 @@ class ParcelFeatureTest extends TestCase
                 'transaction' => [
                     'id' => 'tx-parcel-'.fake()->numerify('####'),
                     'status' => 'success',
-                    'amount' => (int) $parcel->delivery_fee,
+                    'amount' => $parcel->totalAmount(),
                     'metadata' => ['type' => 'parcel', 'parcel_id' => $parcel->id],
                 ],
             ],
@@ -226,7 +258,7 @@ class ParcelFeatureTest extends TestCase
         $this->postJson('/api/v1/payments/create', ['parcel_id' => $parcel->id])
             ->assertOk()
             ->assertJsonPath('data.provider', 'fedapay')
-            ->assertJsonPath('data.amount', (int) $parcel->delivery_fee)
+            ->assertJsonPath('data.amount', $parcel->totalAmount())
             ->assertJsonPath('data.status', 'pending');
     }
 
@@ -278,7 +310,7 @@ class ParcelFeatureTest extends TestCase
             'ok' => true,
             'status' => 'approved',
             'paid' => true,
-            'amount' => $parcel->delivery_fee,
+            'amount' => $parcel->totalAmount(),
             'data' => ['id' => 'TX-PARCEL-VERIFY', 'status' => 'approved'],
         ];
         $this->app->instance(PaymentGateway::class, $fake);
@@ -476,7 +508,7 @@ class ParcelFeatureTest extends TestCase
         $this->postJson("/api/v1/driver/me/parcels/{$parcel->id}/start")->assertOk();
         $this->postJson("/api/v1/driver/me/parcels/{$parcel->id}/deliver", ['proof_code' => (string) $parcel->fresh()->confirmation_code])->assertOk();
 
-        $this->assertSame(1000 - (int) $parcel->platform_amount, (int) $driver->fresh()->prepaid_balance);
+        $this->assertSame(1000 - (int) $parcel->platform_amount - (int) $parcel->creation_fee, (int) $driver->fresh()->prepaid_balance);
         $this->assertSame(1, $driver->fresh()->floatTransactions()->where('type', 'debit')->where('reference_type', 'parcel_cash_settle')->count());
 
         $wallet = app(FinanceService::class)->walletFor($driver);
@@ -523,7 +555,7 @@ class ParcelFeatureTest extends TestCase
             'entry_type' => 'payment',
             'reference_type' => 'parcel',
             'reference_id' => $parcel->id,
-            'credit' => (int) $parcel->delivery_fee,
+            'credit' => $parcel->totalAmount(),
             'participant' => $client->id,
         ]);
         $this->assertDatabaseHas('financial_journal', [
@@ -531,6 +563,13 @@ class ParcelFeatureTest extends TestCase
             'reference_type' => 'parcel',
             'reference_id' => $parcel->id,
             'credit' => (int) $parcel->platform_amount,
+        ]);
+        $this->assertDatabaseHas('financial_journal', [
+            'entry_type' => 'fee',
+            'reference_type' => 'parcel',
+            'reference_id' => $parcel->id,
+            'credit' => (int) $parcel->creation_fee,
+            'participant' => $client->id,
         ]);
     }
 
@@ -575,6 +614,13 @@ class ParcelFeatureTest extends TestCase
             'credit' => (int) $parcel->platform_amount,
         ]);
         $this->assertDatabaseHas('financial_journal', [
+            'entry_type' => 'fee',
+            'reference_type' => 'parcel',
+            'reference_id' => $parcel->id,
+            'credit' => (int) $parcel->creation_fee,
+            'participant' => $client->id,
+        ]);
+        $this->assertDatabaseHas('financial_journal', [
             'entry_type' => 'transfer',
             'reference_type' => 'parcel',
             'reference_id' => $parcel->id,
@@ -604,6 +650,13 @@ class ParcelFeatureTest extends TestCase
             'entry_type' => 'reversal',
             'reference_type' => 'parcel',
             'reference_id' => $parcel->id,
+            'debit' => (int) $parcel->creation_fee,
+            'participant' => $client->id,
+        ]);
+        $this->assertDatabaseHas('financial_journal', [
+            'entry_type' => 'reversal',
+            'reference_type' => 'parcel',
+            'reference_id' => $parcel->id,
             'debit' => (int) $parcel->partner_amount,
         ]);
     }
@@ -618,7 +671,7 @@ class ParcelFeatureTest extends TestCase
 
         $this->assertDatabaseHas('refunds', [
             'parcel_id' => $parcel->id,
-            'amount' => (int) $parcel->delivery_fee,
+            'amount' => $parcel->totalAmount(),
             'status' => 'pending',
         ]);
     }

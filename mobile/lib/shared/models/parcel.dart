@@ -2,8 +2,8 @@ import 'geo_point.dart';
 
 /// Envoi de colis (cahier de conception v1.0, phase 3).
 ///
-/// Reflet du `ParcelResource` : statut, adresses (ramassage/dépose), tarif
-/// réparti 80 % livreur / 20 % plateforme, livreur assigné et journal d'état.
+/// Reflet du `ParcelResource` : statut, adresses (ramassage/dépose), frais de
+/// livraison + frais de création, livreur assigné et journal d'état.
 class Parcel {
   const Parcel({
     required this.id,
@@ -17,6 +17,8 @@ class Parcel {
     this.dropoff,
     this.distanceKm,
     this.deliveryFee = 0,
+    this.creationFee = 0,
+    this.totalAmount = 0,
     this.commissionRate = 20,
     this.commissionAmount = 0,
     this.partnerAmount = 0,
@@ -48,6 +50,12 @@ class Parcel {
   final ParcelAddress? dropoff;
   final double? distanceKm;
   final int deliveryFee;
+
+  /// Frais fixes payés par le créateur du colis, en plus de la livraison.
+  final int creationFee;
+
+  /// Total payé par le créateur (livraison + création).
+  final int totalAmount;
   final int commissionRate;
   final int commissionAmount;
   final int partnerAmount;
@@ -90,8 +98,7 @@ class Parcel {
     'in_delivery',
   }.contains(status);
 
-  bool get isPickupPhase =>
-      status == 'assigned' || status == 'en_route_pickup';
+  bool get isPickupPhase => status == 'assigned' || status == 'en_route_pickup';
 
   /// Le colis a été payé et attend encore un livreur (offre disponible).
   bool get isAvailable => status == 'paid';
@@ -139,6 +146,10 @@ class Parcel {
           : null,
       distanceKm: _d(json['distance_km']),
       deliveryFee: _i(json['delivery_fee']),
+      creationFee: _i(json['creation_fee']),
+      totalAmount: json['total_amount'] != null
+          ? _i(json['total_amount'])
+          : _i(json['delivery_fee']) + _i(json['creation_fee']),
       commissionRate: _i(json['commission_rate'], 20),
       commissionAmount: _i(json['commission_amount']),
       partnerAmount: _i(json['partner_amount']),
@@ -257,12 +268,7 @@ class ParcelAddress {
 
 /// Expéditeur d'un colis.
 class ParcelSender {
-  const ParcelSender({
-    required this.id,
-    this.name,
-    this.phone,
-    this.avatarUrl,
-  });
+  const ParcelSender({required this.id, this.name, this.phone, this.avatarUrl});
 
   final String id;
   final String? name;

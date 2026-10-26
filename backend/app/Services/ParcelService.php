@@ -15,8 +15,9 @@ use Illuminate\Support\Str;
 
 /**
  * Service colis (cahier de conception v1.0, phase 3) : création, tarification
- * par distance, validation du paiement, attribution à un livreur et libération
- * des fonds (80 % livreur / 20 % plateforme).
+ * par distance, frais fixe de création payé par l'expéditeur, validation du
+ * paiement, attribution à un livreur et libération des fonds (80 % livreur /
+ * 20 % plateforme sur la livraison).
  */
 class ParcelService
 {
@@ -90,6 +91,7 @@ class ParcelService
                 'dropoff_snapshot' => $dropoff,
                 'distance_km' => $breakdown['distance_km'],
                 'delivery_fee' => $breakdown['delivery_fee'],
+                'creation_fee' => $breakdown['creation_fee'],
                 'pricing_snapshot' => $breakdown['pricing_snapshot'],
                 'commission_rate' => $breakdown['commission_rate'],
                 'commission_amount' => $breakdown['commission_amount'],
@@ -102,7 +104,7 @@ class ParcelService
                 $parcel->payment()->create([
                     'reference' => 'PAY-'.Str::upper(Str::random(12)),
                     'gateway' => 'fedapay',
-                    'amount' => $breakdown['delivery_fee'],
+                    'amount' => $breakdown['total_amount'],
                     'status' => PaymentStatus::Initiated->value,
                     'expires_at' => $parcel->payment_deadline_at,
                 ]);
@@ -185,10 +187,12 @@ class ParcelService
     {
         $this->assertTransition($parcel, ParcelStatus::Assigned);
 
-        if ($parcel->isCash() && ! $this->cash->hasFloat($driver, (int) $parcel->platform_amount)) {
+        $platformDue = (int) $parcel->platform_amount + (int) $parcel->creation_fee;
+
+        if ($parcel->isCash() && ! $this->cash->hasFloat($driver, $platformDue)) {
             throw new DomainException(
                 'parcel.cash_insufficient_float',
-                'Flottant insuffisant pour accepter ce colis payé en espèces ('.(int) $parcel->platform_amount.' F requis).',
+                'Flottant insuffisant pour accepter ce colis payé en espèces ('.$platformDue.' F requis).',
                 409,
             );
         }
@@ -255,10 +259,10 @@ class ParcelService
                     // crédité directement (aucun séquestre en amont).
                     $this->cash->debitFloat(
                         $driver,
-                        (int) $parcel->platform_amount,
+                        (int) $parcel->platform_amount + (int) $parcel->creation_fee,
                         'parcel_cash_settle',
                         $parcel->id,
-                        'Commission colis espèces — '.$parcel->reference,
+                        'Commission et frais de création colis espèces — '.$parcel->reference,
                     );
 
                     $this->finance->creditDriverEarning(
@@ -286,10 +290,10 @@ class ParcelService
             }
 
             $this->finance->creditPlatform(
-                (int) $parcel->platform_amount,
+                (int) $parcel->platform_amount + (int) $parcel->creation_fee,
                 'parcel_platform_credit',
                 $parcel->id,
-                'Commission plateforme — '.$parcel->reference,
+                'Commission et frais de création — '.$parcel->reference,
             );
 
             $this->confirmationCodes->markConfirmed($parcel);

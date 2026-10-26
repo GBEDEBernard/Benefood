@@ -68,7 +68,7 @@ class AdminController extends Controller
             ->whereBetween('created_at', [$from, $to])
             ->where('payment_status', PaymentStatus::Confirmed->value)
             ->where('status', '!=', ParcelStatus::Cancelled->value);
-        $parcelCommissionTotal = (int) (clone $parcelBase)->sum('platform_amount');
+        $parcelCommissionTotal = (int) (clone $parcelBase)->sum('platform_amount') + (int) (clone $parcelBase)->sum('creation_fee');
 
         $dailyRevenueRows = (clone $successfulOrders)
             ->selectRaw('DATE(orders.created_at) as day, SUM(orders.total) as amount')
@@ -86,7 +86,7 @@ class AdminController extends Controller
             ->get()
             ->keyBy(fn ($row) => Carbon::parse($row->day)->format('Y-m-d'));
         $dailyParcelCommissionRows = (clone $parcelBase)
-            ->selectRaw('DATE(created_at) as day, SUM(platform_amount) as amount')
+            ->selectRaw('DATE(created_at) as day, SUM(platform_amount + creation_fee) as amount')
             ->groupBy('day')
             ->get()
             ->keyBy(fn ($row) => Carbon::parse($row->day)->format('Y-m-d'));

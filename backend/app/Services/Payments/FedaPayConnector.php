@@ -70,7 +70,7 @@ class FedaPayConnector implements PaymentGateway
         $parcel->loadMissing('user', 'payment');
 
         return $this->collect(
-            amount: (int) round($parcel->payment?->amount ?? $parcel->delivery_fee),
+            amount: (int) round($parcel->payment?->amount ?? $parcel->totalAmount()),
             description: 'Colis '.$parcel->reference,
             customer: $parcel->user,
             metadata: array_filter([

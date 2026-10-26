@@ -13,6 +13,7 @@ use App\Models\Vendor;
 use App\Services\PlatformPricingSettings;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
@@ -42,15 +43,15 @@ class AdminCommissionsController extends Controller
             ->join('order_financials', 'order_financials.order_id', '=', 'orders.id')
             ->where('orders.status', 'not like', 'cancelled')
             ->where('orders.status', 'not like', 'refunded')
-            ->selectRaw('DATE_FORMAT(orders.created_at, "%Y-%m") as month, SUM(order_financials.commission_amount) as total')
+            ->selectRaw('DATE_FORMAT(orders.created_at, "%Y-%m") as month, SUM(order_financials.platform_amount) as total')
             ->groupBy('month')
             ->pluck('total', 'month');
 
-        // Colis : la commission porteuse est la part plateforme (20 % des frais).
+        // Colis : commission livreur + frais fixes de création payés par l'expéditeur.
         $parcelRevenue = Parcel::query()
             ->where('payment_status', PaymentStatus::Confirmed->value)
             ->where('status', '!=', ParcelStatus::Cancelled->value)
-            ->selectRaw('DATE_FORMAT(created_at, "%Y-%m") as month, SUM(platform_amount) as total')
+            ->selectRaw('DATE_FORMAT(created_at, "%Y-%m") as month, SUM(platform_amount + creation_fee) as total')
             ->groupBy('month')
             ->pluck('total', 'month');
 
@@ -65,10 +66,20 @@ class AdminCommissionsController extends Controller
             ])
             ->values();
 
+        $platformSettings = app(PlatformPricingSettings::class)->all();
+
+        $activeVendorRate = CommissionRate::query()
+            ->where('is_active', true)
+            ->where('effective_from', '<=', now())
+            ->where(fn ($q) => $q->whereNull('effective_to')->orWhere('effective_to', '>=', now()))
+            ->orderByDesc('effective_from')
+            ->value('rate');
+
         return view('admin.commissions.index', [
             'rates' => $rates,
             'vendors' => Vendor::query()->with('settings')->orderBy('business_name')->get(),
-            'platformSettings' => app(PlatformPricingSettings::class)->all(),
+            'platformSettings' => $platformSettings,
+            'activeVendorRate' => $activeVendorRate !== null ? (int) $activeVendorRate : $platformSettings['vendor_commission_rate'],
             'monthlyRevenue' => $monthlyRevenue,
             'filters' => [
                 'scope' => $request->query('scope'),
@@ -87,19 +98,38 @@ class AdminCommissionsController extends Controller
             'notes' => ['nullable', 'string', 'max:500'],
         ]);
 
-        DB::transaction(function () use ($data): void {
-            CommissionRate::where('is_active', true)->update(['is_active' => false]);
+        $effectiveFrom = Carbon::parse($data['effective_from'] ?? now());
+
+        DB::transaction(function () use ($data, $effectiveFrom): void {
+            if (! $effectiveFrom->isFuture()) {
+                CommissionRate::query()
+                    ->where('is_active', true)
+                    ->where('effective_from', '<=', now())
+                    ->where(fn ($q) => $q->whereNull('effective_to')->orWhere('effective_to', '>=', now()))
+                    ->update(['is_active' => false, 'effective_to' => $effectiveFrom]);
+            }
+
             CommissionRate::create([
                 'rate' => $data['rate'],
-                'effective_from' => $data['effective_from'] ?? now(),
+                'effective_from' => $effectiveFrom,
                 'effective_to' => $data['effective_to'] ?? null,
                 'is_active' => true,
                 'notes' => $data['notes'] ?? null,
                 'created_by' => Auth::id(),
             ]);
+
+            if (! $effectiveFrom->isFuture()) {
+                app(PlatformPricingSettings::class)->update(
+                    ['vendor_commission_rate' => $data['rate']],
+                    Auth::id(),
+                );
+            }
         });
 
-        return redirect()->route('admin.commissions.index')->with('success', 'Nouveau taux de commission enregistré.');
+        return redirect()->route('admin.commissions.index')
+            ->with('success', $effectiveFrom->isFuture()
+                ? 'Le nouveau taux vendeur est programmé.'
+                : 'Le nouveau taux vendeur est appliqué aux nouvelles commandes.');
     }
 
     public function destroy(CommissionRate $rate): RedirectResponse
@@ -110,7 +140,7 @@ class AdminCommissionsController extends Controller
             $rate->update(['is_active' => false, 'effective_to' => now()]);
         }
 
-        return back()->with('success', 'Le taux a été clôturé.');
+        return back()->with('success', 'Le taux a été clôturé. Les nouvelles commandes utilisent désormais le taux en vigueur ou le taux vendeur par défaut.');
     }
 
     public function updatePlatformSettings(Request $request, PlatformPricingSettings $settings): RedirectResponse
@@ -121,13 +151,14 @@ class AdminCommissionsController extends Controller
             'service_fee_rate' => ['required', 'integer', 'min:0', 'max:100'],
             'delivery_commission_rate' => ['required', 'integer', 'min:0', 'max:100'],
             'parcel_commission_rate' => ['required', 'integer', 'min:0', 'max:100'],
+            'parcel_creation_fee' => ['sometimes', 'integer', 'min:0'],
             'gateway_fee_basis_points' => ['required', 'integer', 'min:0', 'max:10000'],
             'minimum_payout' => ['required', 'integer', 'min:0'],
         ]);
 
         $settings->update($data, $request->user()->id);
 
-        return back()->with('success', 'Les taux et frais de la plateforme ont été mis à jour.');
+        return back()->with('success', 'Les commissions et frais ont été mis à jour. Ils s\'appliquent immédiatement aux nouvelles commandes et aux nouveaux colis.');
     }
 
     public function updateVendorRate(Request $request, Vendor $vendor): RedirectResponse
@@ -143,6 +174,6 @@ class AdminCommissionsController extends Controller
             ['commission_exception_rate' => $data['commission_exception_rate'] ?? null],
         );
 
-        return back()->with('success', 'La commission spécifique de la boutique a été mise à jour.');
+        return back()->with('success', 'La commission spécifique de la boutique a été mise à jour et s\'applique dès la prochaine vente.');
     }
 }

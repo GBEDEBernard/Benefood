@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
 @section('content')
-<x-admin.page-header title="Commissions" subtitle="Phase 16 — Taux de commission et historique">
+<x-admin.page-header title="Commissions" subtitle="Commissions client, vendeur, livreur et colis — application immédiate aux nouvelles transactions">
     <a href="{{ route('admin.dashboard') }}" class="btn btn-sm" style="background: #FFFFFF; border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-dark);">
         <i class="ti ti-home"></i> Dashboard
     </a>
@@ -46,7 +46,9 @@
                                     <td class="py-3" style="color: var(--text-muted);">{{ $rate->effective_from?->format('d/m/Y') ?? '—' }}</td>
                                     <td class="py-3" style="color: var(--text-muted);">{{ $rate->effective_to?->format('d/m/Y') ?? 'En cours' }}</td>
                                     <td class="py-3">
-                                        @if ($rate->is_active)
+                                        @if ($rate->is_active && $rate->effective_from?->isFuture())
+                                            <span class="badge badge-pill" style="background-color: #FFF3E0; color: #E65100; font-weight: 600; padding: 6px 12px; border-radius: 20px;">Programmé</span>
+                                        @elseif ($rate->is_active)
                                             <span class="badge badge-pill" style="background-color: #E8F5E9; color: #2E7D32; font-weight: 600; padding: 6px 12px; border-radius: 20px;">Actif</span>
                                         @else
                                             <span class="badge badge-pill" style="background-color: #ECEFF1; color: #37474F; font-weight: 600; padding: 6px 12px; border-radius: 20px;">Clôturé</span>
@@ -84,7 +86,7 @@
         <div class="card mb-4" style="border: none; box-shadow: 0 2px 10px rgba(0,0,0,0.05); border-radius: 12px;">
             <div class="card-header bg-white" style="border-bottom: 1px solid var(--border-color); border-radius: 12px 12px 0 0;">
                 <h6 class="font-weight-bold mb-0" style="color: var(--text-dark);">Taux particuliers par boutique</h6>
-                <small class="text-muted">Un taux laissé vide suit le taux vendeur global actuellement actif.</small>
+                <small class="text-muted">Prioritaire sur le taux global. Un taux laissé vide suit le taux vendeur global actuellement appliqué. Les changements prennent effet dès la prochaine vente.</small>
             </div>
             <div class="table-responsive">
                 <table class="table mb-0" style="font-size: 14px;">
@@ -115,24 +117,26 @@
         <!-- Nouveau taux -->
         <div class="card mb-4" style="border: none; box-shadow: 0 2px 10px rgba(0,0,0,0.05); border-radius: 12px;">
             <div class="card-body">
-                <h6 class="font-weight-bold mb-3" style="color: var(--text-dark);">Nouveau taux</h6>
+                <h6 class="font-weight-bold mb-1" style="color: var(--text-dark);">Commission vendeur globale</h6>
+                <p class="mb-3" style="color: var(--text-muted); font-size: 12.5px;">Prélevée sur le sous-total de chaque vente. Taux actuellement appliqué : <strong>{{ $activeVendorRate }} %</strong>.</p>
                 <form method="POST" action="{{ route('admin.commissions.store') }}">
                     @csrf
                     <div class="form-group mb-3">
-                        <label for="rate" class="font-weight-600" style="color: var(--text-dark);">Taux (%) *</label>
+                        <label for="rate" class="font-weight-600" style="color: var(--text-dark);">Taux de commission vendeur (%) *</label>
                         <input type="number" id="rate" name="rate" min="0" max="100" value="{{ old('rate') }}" class="form-control @error('rate') is-invalid @enderror" required>
                         @error('rate')<div class="invalid-feedback">{{ $message }}</div>@enderror
                     </div>
                     <div class="form-group mb-3">
-                        <label for="effective_from" class="font-weight-600" style="color: var(--text-dark);">Effectif à partir du</label>
+                        <label for="effective_from" class="font-weight-600" style="color: var(--text-dark);">Appliquer à partir du</label>
                         <input type="datetime-local" id="effective_from" name="effective_from" value="{{ old('effective_from', \Carbon\Carbon::now()->format('Y-m-d\TH:i')) }}" class="form-control">
+                        <small class="text-muted">Laissez la date actuelle pour une application immédiate.</small>
                     </div>
                     <div class="form-group mb-3">
                         <label for="notes" class="font-weight-600" style="color: var(--text-dark);">Notes</label>
                         <textarea id="notes" name="notes" rows="2" class="form-control">{{ old('notes') }}</textarea>
                     </div>
                     <button type="submit" class="btn btn-block" style="background-color: var(--benin-green); color: #FFFFFF; border-radius: 8px; font-weight: 500;">
-                        <i class="ti ti-plus"></i> Enregistrer le taux
+                        <i class="ti ti-check"></i> Appliquer la commission vendeur
                     </button>
                 </form>
             </div>
@@ -141,17 +145,18 @@
         <!-- Frais et commissions configurables -->
         <div class="card mb-4" style="border: none; box-shadow: 0 2px 10px rgba(0,0,0,0.05); border-radius: 12px;">
             <div class="card-body">
-                <h6 class="font-weight-bold mb-1" style="color: var(--text-dark);">Frais et commissions plateforme</h6>
-                <p class="mb-3" style="color: var(--text-muted); font-size: 12.5px;">Les taux saisis s’appliquent aux nouvelles commandes et nouveaux colis.</p>
+                <h6 class="font-weight-bold mb-1" style="color: var(--text-dark);">Commissions client, livreur et colis</h6>
+                <p class="mb-3" style="color: var(--text-muted); font-size: 12.5px;">Les taux enregistrés s’appliquent immédiatement aux nouveaux devis, commandes et colis. Les commandes déjà créées gardent leur calcul.</p>
                 <form method="POST" action="{{ route('admin.commissions.platform-settings') }}">
                     @csrf
                     @method('PUT')
-                    <div class="form-group"><label for="service_fee_rate">Frais de service client (%)</label><input id="service_fee_rate" name="service_fee_rate" type="number" min="0" max="100" class="form-control" value="{{ old('service_fee_rate', $platformSettings['service_fee_rate']) }}" required></div>
-                    <div class="form-group"><label for="delivery_commission_rate">Commission plateforme sur livraison (%)</label><input id="delivery_commission_rate" name="delivery_commission_rate" type="number" min="0" max="100" class="form-control" value="{{ old('delivery_commission_rate', $platformSettings['delivery_commission_rate']) }}" required></div>
-                    <div class="form-group"><label for="parcel_commission_rate">Commission plateforme sur colis (%)</label><input id="parcel_commission_rate" name="parcel_commission_rate" type="number" min="0" max="100" class="form-control" value="{{ old('parcel_commission_rate', $platformSettings['parcel_commission_rate']) }}" required></div>
+                    <div class="form-group"><label for="service_fee_rate">Commission client (%)</label><input id="service_fee_rate" name="service_fee_rate" type="number" min="0" max="100" class="form-control" value="{{ old('service_fee_rate', $platformSettings['service_fee_rate']) }}" required><small class="text-muted">Calculée sur le sous-total produits, hors frais de livraison.</small></div>
+                    <div class="form-group"><label for="delivery_commission_rate">Commission livreur (%)</label><input id="delivery_commission_rate" name="delivery_commission_rate" type="number" min="0" max="100" class="form-control" value="{{ old('delivery_commission_rate', $platformSettings['delivery_commission_rate']) }}" required><small class="text-muted">Prélevée sur les frais de livraison des commandes.</small></div>
+                    <div class="form-group"><label for="parcel_commission_rate">Commission livreur colis (%)</label><input id="parcel_commission_rate" name="parcel_commission_rate" type="number" min="0" max="100" class="form-control" value="{{ old('parcel_commission_rate', $platformSettings['parcel_commission_rate']) }}" required><small class="text-muted">Prélevée sur les frais de livraison du colis, payée par le livreur.</small></div>
+                    <div class="form-group"><label for="parcel_creation_fee">Frais de création de colis (F CFA)</label><input id="parcel_creation_fee" name="parcel_creation_fee" type="number" min="0" class="form-control" value="{{ old('parcel_creation_fee', $platformSettings['parcel_creation_fee']) }}" required><small class="text-muted">Montant fixe payé par le créateur du colis, en plus de la livraison. Ce n’est pas une commission.</small></div>
                     <div class="form-group"><label for="gateway_fee_basis_points">Frais passerelle absorbés (points de base)</label><input id="gateway_fee_basis_points" name="gateway_fee_basis_points" type="number" min="0" max="10000" class="form-control" value="{{ old('gateway_fee_basis_points', $platformSettings['gateway_fee_basis_points']) }}" required><small class="text-muted">100 points = 1 %; ce coût n’est pas ajouté au total client.</small></div>
                     <div class="form-group"><label for="minimum_payout">Retrait minimum (F CFA)</label><input id="minimum_payout" name="minimum_payout" type="number" min="0" class="form-control" value="{{ old('minimum_payout', $platformSettings['minimum_payout']) }}" required></div>
-                    <button type="submit" class="btn btn-block" style="background-color: var(--benin-green); color: #FFFFFF; border-radius: 8px; font-weight: 500;"><i class="ti ti-device-floppy"></i> Enregistrer les taux</button>
+                    <button type="submit" class="btn btn-block" style="background-color: var(--benin-green); color: #FFFFFF; border-radius: 8px; font-weight: 500;"><i class="ti ti-device-floppy"></i> Enregistrer les commissions</button>
                 </form>
             </div>
         </div>
@@ -160,7 +165,7 @@
         <div class="card" style="border: none; box-shadow: 0 2px 10px rgba(0,0,0,0.05); border-radius: 12px;">
             <div class="card-body p-0">
                 <div class="card-header" style="background-color: #FFFFFF; border-bottom: 1px solid var(--border-color); border-radius: 12px 12px 0 0;">
-                    <h6 class="font-weight-bold mb-0" style="color: var(--text-dark);">Revenu de commission (12 derniers mois)</h6>
+                    <h6 class="font-weight-bold mb-0" style="color: var(--text-dark);">Revenu plateforme (12 derniers mois)</h6>
                 </div>
                 @if (count($monthlyRevenue) > 0)
                     <div class="table-responsive">

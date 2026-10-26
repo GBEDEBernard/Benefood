@@ -73,7 +73,7 @@
             $kpiCards = [
                 ['label' => 'Chiffre d’affaires', 'value' => $money($kpis['ca_month']['value']), 'trend' => 'Période sélectionnée', 'icon' => 'ti-wallet', 'tone' => 'green'],
                 ['label' => 'Montant total traité', 'value' => $money($kpis['ca_month']['value']), 'trend' => $number($kpis['orders_month']['value']).' commandes', 'icon' => 'ti-exchange-vertical', 'tone' => 'blue'],
-                ['label' => 'Commissions plateforme', 'value' => $money($kpis['commissions_month']), 'trend' => 'Commandes et colis', 'icon' => 'ti-tag', 'tone' => 'purple'],
+                ['label' => 'Revenus plateforme', 'value' => $money($kpis['commissions_month']), 'trend' => 'Commissions et frais', 'icon' => 'ti-tag', 'tone' => 'purple'],
                 ['label' => 'Commandes totales', 'value' => $number($kpis['orders_month']['value']), 'trend' => 'Sur la période', 'icon' => 'ti-shopping-cart', 'tone' => 'green'],
                 ['label' => 'Utilisateurs inscrits', 'value' => $number($users), 'trend' => 'Comptes enregistrés', 'icon' => 'ti-user', 'tone' => 'blue'],
                 ['label' => 'Livreurs actifs', 'value' => $number($kpis['online_drivers']), 'trend' => 'En ligne maintenant', 'icon' => 'ti-truck', 'tone' => 'orange'],
@@ -94,19 +94,19 @@
     <section class="bf-grid bf-grid-top" aria-label="Tendances et répartitions">
         <article class="bf-panel bf-panel-commission">
             <div class="bf-panel-head">
-                <div><h2>Évolution des commissions plateforme</h2><p>Commission cumulée sur la période</p></div>
+                <div><h2>Évolution des revenus plateforme</h2><p>Commissions et frais de création cumulés</p></div>
                 <span class="bf-chart-unit">FCFA</span>
             </div>
             <div class="bf-chart-area"><canvas id="commissionTrendChart" aria-label="Évolution des commissions par jour"></canvas></div>
         </article>
 
         <article class="bf-panel bf-panel-donut">
-            <div class="bf-panel-head"><div><h2>Commissions par service</h2><p>Répartition des commissions</p></div></div>
+            <div class="bf-panel-head"><div><h2>Revenus par service</h2><p>Commandes, colis et frais de création</p></div></div>
             <div class="bf-donut-layout">
-                <div class="bf-donut-wrap"><canvas id="commissionSplitChart" aria-label="Commissions par service"></canvas><div class="bf-donut-center"><strong>{{ $money($commissionTotal) }}</strong><span>Total période</span></div></div>
+                <div class="bf-donut-wrap"><canvas id="commissionSplitChart" aria-label="Revenus par service"></canvas><div class="bf-donut-center"><strong>{{ $money($commissionTotal) }}</strong><span>Total période</span></div></div>
                 <div class="bf-legend-list">
                     <div><i class="bf-dot green"></i><span>Commandes</span><b>{{ $money($chartData['commission_split'][0]) }}</b></div>
-                    <div><i class="bf-dot orange"></i><span>Colis</span><b>{{ $money($chartData['commission_split'][1]) }}</b></div>
+                    <div><i class="bf-dot orange"></i><span>Colis + frais</span><b>{{ $money($chartData['commission_split'][1]) }}</b></div>
                 </div>
             </div>
         </article>

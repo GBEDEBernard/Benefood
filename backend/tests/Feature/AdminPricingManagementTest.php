@@ -46,6 +46,7 @@ class AdminPricingManagementTest extends TestCase
             'order_default_fee' => 1200,
             'parcel_minimum_fee' => 500,
             'parcel_default_fee' => 1100,
+            'parcel_creation_fee' => 200,
             'service_fee_rate' => 6,
             'delivery_commission_rate' => 18,
             'parcel_commission_rate' => 22,
@@ -59,11 +60,13 @@ class AdminPricingManagementTest extends TestCase
             'service_fee_rate' => 6,
             'delivery_commission_rate' => 18,
             'parcel_commission_rate' => 22,
+            'parcel_creation_fee' => 250,
             'gateway_fee_basis_points' => 125,
             'minimum_payout' => 1500,
         ])->assertRedirect();
 
         $this->assertSame(22, app(PlatformPricingSettings::class)->get('parcel_commission_rate'));
+        $this->assertSame(250, app(PlatformPricingSettings::class)->get('parcel_creation_fee'));
 
         $this->post(route('admin.pricing.rules.store'), [
             'service_type' => 'order',

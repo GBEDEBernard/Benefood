@@ -183,11 +183,19 @@ class _ParcelCard extends StatelessWidget {
                   Expanded(
                     child: Text(
                       parcel.reference,
-                      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: AppColors.text),
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.text,
+                      ),
                     ),
                   ),
                   if (palette != null)
-                    StatusBadge(label: palette.$1, color: palette.$2, small: true),
+                    StatusBadge(
+                      label: palette.$1,
+                      color: palette.$2,
+                      small: true,
+                    ),
                 ],
               ),
               const SizedBox(height: AppDimens.sm),
@@ -205,15 +213,24 @@ class _ParcelCard extends StatelessWidget {
               const SizedBox(height: AppDimens.md),
               Row(
                 children: [
-                  Icon(Icons.event_outlined, size: 16, color: theme.colorScheme.onSurfaceVariant),
+                  Icon(
+                    Icons.event_outlined,
+                    size: 16,
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
                   const SizedBox(width: 6),
                   Expanded(
                     child: Text(
                       formatDateTime(parcel.createdAt, fallback: '—'),
-                      style: theme.textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
                     ),
                   ),
-                  AmountText(parcel.deliveryFee, style: const TextStyle(fontWeight: FontWeight.w800)),
+                  AmountText(
+                    parcel.totalAmount,
+                    style: const TextStyle(fontWeight: FontWeight.w800),
+                  ),
                 ],
               ),
               if (parcel.isAwaitingPayment) ...[
@@ -227,7 +244,11 @@ class _ParcelCard extends StatelessWidget {
                   ),
                   child: const Text(
                     'Paiement requis pour qu\'un livreur puisse prendre ce colis.',
-                    style: TextStyle(fontSize: 12, color: AppColors.orangeDark, fontWeight: FontWeight.w600),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppColors.orangeDark,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
               ],
@@ -240,7 +261,11 @@ class _ParcelCard extends StatelessWidget {
 }
 
 class _AddressRow extends StatelessWidget {
-  const _AddressRow({required this.icon, required this.color, required this.text});
+  const _AddressRow({
+    required this.icon,
+    required this.color,
+    required this.text,
+  });
 
   final IconData icon;
   final Color color;
@@ -257,7 +282,10 @@ class _AddressRow extends StatelessWidget {
             text,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
+            style: const TextStyle(
+              fontSize: 13,
+              color: AppColors.textSecondary,
+            ),
           ),
         ),
       ],

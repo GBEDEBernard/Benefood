@@ -3,7 +3,7 @@
 @section('content')
 <x-admin.page-header title="Tarifs et barèmes de distance" subtitle="Paramétrez les frais, les commissions et les paliers appliqués aux commandes et aux colis">
     <a href="{{ route('admin.commissions.index') }}" class="btn btn-sm" style="background:#fff;border:1px solid var(--border-color);border-radius:8px;color:var(--text-dark)">
-        <i class="ti ti-percentage"></i> Historique des commissions vendeur
+        <i class="ti ti-percentage"></i> Gérer les commissions (client, vendeur, livreur, colis)
     </a>
 </x-admin.page-header>
 
@@ -41,6 +41,11 @@
                 <div class="col-lg-3 col-md-6 form-group">
                     <label for="parcel_default_fee">Repli si coordonnées absentes (colis)</label>
                     <input id="parcel_default_fee" name="parcel_default_fee" type="number" min="0" step="1" required class="form-control" value="{{ old('parcel_default_fee', $settings['parcel_default_fee']) }}">
+                </div>
+                <div class="col-lg-3 col-md-6 form-group">
+                    <label for="parcel_creation_fee">Frais de création de colis (F CFA)</label>
+                    <input id="parcel_creation_fee" name="parcel_creation_fee" type="number" min="0" step="1" required class="form-control" value="{{ old('parcel_creation_fee', $settings['parcel_creation_fee']) }}">
+                    <small class="text-muted">Payé par le créateur du colis, en plus de la livraison.</small>
                 </div>
             </div>
             <div class="d-flex justify-content-end">

@@ -125,7 +125,7 @@ class PaymentSettlementService
                 }
 
                 if ($parcel && $parcel->status->isAwaitingPayment()) {
-                    $this->parcels->confirmPayment($parcel, (int) ($payment?->amount ?? $parcel->delivery_fee));
+                    $this->parcels->confirmPayment($parcel, (int) ($payment?->amount ?? $parcel->totalAmount()));
                 }
             } elseif (in_array($status, ['failed', 'cancelled'], true)) {
                 $failureStatus = $status === 'cancelled' ? PaymentStatus::Cancelled : PaymentStatus::Failed;

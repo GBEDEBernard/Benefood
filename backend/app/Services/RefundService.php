@@ -224,7 +224,7 @@ class RefundService
             return null;
         }
 
-        $refund = $this->createPendingParcelRefund($parcel, (int) $parcel->delivery_fee, $reason, $actorId);
+        $refund = $this->createPendingParcelRefund($parcel, $parcel->totalAmount(), $reason, $actorId);
 
         if ($this->shouldAutoExecute()) {
             return $this->executeParcelRefund($refund, $actorId);

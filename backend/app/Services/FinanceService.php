@@ -18,6 +18,9 @@ use Illuminate\Support\Facades\DB;
  * Règle d'or : le client paie une seule fois vers la plateforme, puis le
  * système répartit vers les wallets internes. Les parts vendeur/livreur sont
  * d'abord créditées **en attente** (séquestre) puis libérées après livraison.
+ *
+ * Commissions : client sur le sous-total produits, vendeur sur le sous-total
+ * de chaque vente, livreur sur les frais de livraison, colis sur les frais.
  */
 class FinanceService
 {
@@ -56,7 +59,8 @@ class FinanceService
     {
         $rates = $this->rates();
 
-        $serviceFee = $this->percent($subtotal + $deliveryFee, $rates['service_fee_rate']);
+        // Commission client : uniquement sur la valeur des produits (hors livraison).
+        $serviceFee = $this->percent($subtotal, $rates['service_fee_rate']);
         $totalClient = $subtotal + $deliveryFee + $serviceFee;
 
         $commissionAmount = $this->percent($subtotal, $vendorCommissionRate);
@@ -462,18 +466,21 @@ class FinanceService
     // ------------------------------------------------------------- Cycle colis
 
     /**
-     * Encaissement en ligne d'un colis : journalise le paiement client et la
-     * commission retenue par la plateforme (part livreur séquestrée à part).
+     * Encaissement en ligne d'un colis : journalise le paiement client, la
+     * commission retenue par la plateforme (part livreur séquestrée à part) et
+     * les frais fixes de création payés par l'expéditeur.
      */
     public function recordParcelPayment(Parcel $parcel): void
     {
+        $total = $parcel->totalAmount();
+
         $this->journal->record([
             'entry_type' => JournalEntryType::Payment,
             'reference_type' => 'parcel',
             'reference_id' => $parcel->id,
-            'credit' => (int) $parcel->delivery_fee,
+            'credit' => $total,
             'participant' => $parcel->user_id,
-            'balance_after' => (int) $parcel->delivery_fee,
+            'balance_after' => $total,
             'actor' => 'system',
         ]);
 
@@ -484,6 +491,17 @@ class FinanceService
                 'reference_id' => $parcel->id,
                 'credit' => (int) $parcel->platform_amount,
                 'participant' => null,
+                'actor' => 'system',
+            ]);
+        }
+
+        if ((int) $parcel->creation_fee > 0) {
+            $this->journal->record([
+                'entry_type' => JournalEntryType::Fee,
+                'reference_type' => 'parcel',
+                'reference_id' => $parcel->id,
+                'credit' => (int) $parcel->creation_fee,
+                'participant' => $parcel->user_id,
                 'actor' => 'system',
             ]);
         }
@@ -502,6 +520,17 @@ class FinanceService
                 'reference_id' => $parcel->id,
                 'credit' => (int) $parcel->platform_amount,
                 'participant' => null,
+                'actor' => 'system',
+            ]);
+        }
+
+        if ($parcel->isCash() && (int) $parcel->creation_fee > 0) {
+            $this->journal->record([
+                'entry_type' => JournalEntryType::Fee,
+                'reference_type' => 'parcel',
+                'reference_id' => $parcel->id,
+                'credit' => (int) $parcel->creation_fee,
+                'participant' => $parcel->user_id,
                 'actor' => 'system',
             ]);
         }
@@ -531,6 +560,17 @@ class FinanceService
                 'reference_type' => 'parcel',
                 'reference_id' => $parcel->id,
                 'debit' => (int) $parcel->platform_amount,
+                'participant' => $parcel->user_id,
+                'actor' => $actor,
+            ]);
+        }
+
+        if ((int) $parcel->creation_fee > 0) {
+            $this->journal->record([
+                'entry_type' => JournalEntryType::Reversal,
+                'reference_type' => 'parcel',
+                'reference_id' => $parcel->id,
+                'debit' => (int) $parcel->creation_fee,
                 'participant' => $parcel->user_id,
                 'actor' => $actor,
             ]);

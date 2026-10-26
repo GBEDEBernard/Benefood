@@ -49,31 +49,31 @@ class FinanceDistributionTest extends TestCase
 
         // Commande moyenne : 5 000 nourriture + 1 000 livraison.
         $moyenne = $finance->breakdown(5000, 1000, 10);
-        $this->assertSame(300, $moyenne['service_fee']);
-        $this->assertSame(6300, $moyenne['total_client']);
+        $this->assertSame(250, $moyenne['service_fee']);
+        $this->assertSame(6250, $moyenne['total_client']);
         $this->assertSame(4500, $moyenne['vendor_amount']);
         $this->assertSame(800, $moyenne['delivery_partner_amount']);
         $this->assertSame(200, $moyenne['delivery_commission_amount']);
-        $this->assertSame(1000, $moyenne['platform_amount']);
-        $this->assertSame(76, $moyenne['payment_fee']); // 1,2 % de 6 300
+        $this->assertSame(950, $moyenne['platform_amount']);
+        $this->assertSame(75, $moyenne['payment_fee']); // 1,2 % de 6 250
 
         // Petite commande.
         $petite = $finance->breakdown(1000, 500, 10);
-        $this->assertSame(75, $petite['service_fee']);
-        $this->assertSame(1575, $petite['total_client']);
+        $this->assertSame(50, $petite['service_fee']);
+        $this->assertSame(1550, $petite['total_client']);
         $this->assertSame(900, $petite['vendor_amount']);
         $this->assertSame(400, $petite['delivery_partner_amount']);
-        $this->assertSame(275, $petite['platform_amount']);
+        $this->assertSame(250, $petite['platform_amount']);
         $this->assertSame(19, $petite['payment_fee']);
 
         // Grosse commande.
         $grosse = $finance->breakdown(20000, 1000, 10);
-        $this->assertSame(1050, $grosse['service_fee']);
-        $this->assertSame(22050, $grosse['total_client']);
+        $this->assertSame(1000, $grosse['service_fee']);
+        $this->assertSame(22000, $grosse['total_client']);
         $this->assertSame(18000, $grosse['vendor_amount']);
         $this->assertSame(800, $grosse['delivery_partner_amount']);
-        $this->assertSame(3250, $grosse['platform_amount']);
-        $this->assertSame(265, $grosse['payment_fee']);
+        $this->assertSame(3200, $grosse['platform_amount']);
+        $this->assertSame(264, $grosse['payment_fee']);
     }
 
     public function test_payment_credits_vendor_pending_then_delivery_releases_funds(): void

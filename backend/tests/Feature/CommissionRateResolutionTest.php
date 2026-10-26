@@ -6,7 +6,9 @@ use App\Models\CommissionRate;
 use App\Models\Role;
 use App\Models\User;
 use App\Models\Vendor;
+use App\Services\FinanceService;
 use App\Services\OrderService;
+use App\Services\PlatformPricingSettings;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
@@ -87,5 +89,34 @@ class CommissionRateResolutionTest extends TestCase
         CommissionRate::create(['rate' => 18, 'is_active' => true, 'effective_from' => now()->subDay(), 'created_by' => $vendor->user_id]);
 
         $this->assertSame(18, $this->commissionFor($vendor));
+    }
+
+    public function test_future_rate_is_ignored_until_its_effective_date(): void
+    {
+        $vendor = $this->vendor();
+        CommissionRate::create(['rate' => 9, 'is_active' => true, 'effective_from' => now()->subDay(), 'created_by' => $vendor->user_id]);
+        CommissionRate::create(['rate' => 25, 'is_active' => true, 'effective_from' => now()->addDay(), 'created_by' => $vendor->user_id]);
+
+        $this->assertSame(9, $this->commissionFor($vendor));
+    }
+
+    public function test_client_commission_uses_product_subtotal_and_rate_changes_apply_immediately(): void
+    {
+        $finance = app(FinanceService::class);
+
+        $before = $finance->breakdown(10000, 1000, 10);
+        $this->assertSame(500, $before['service_fee']);
+        $this->assertSame(11500, $before['total_client']);
+
+        app(PlatformPricingSettings::class)->update([
+            'service_fee_rate' => 2,
+            'delivery_commission_rate' => 10,
+        ]);
+
+        $after = $finance->breakdown(10000, 1000, 10);
+        $this->assertSame(200, $after['service_fee']);
+        $this->assertSame(11200, $after['total_client']);
+        $this->assertSame(100, $after['delivery_commission_amount']);
+        $this->assertSame(900, $after['delivery_partner_amount']);
     }
 }

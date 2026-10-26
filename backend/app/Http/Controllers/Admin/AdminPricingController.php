@@ -36,6 +36,7 @@ class AdminPricingController extends Controller
             'order_default_fee' => ['required', 'integer', 'min:0'],
             'parcel_minimum_fee' => ['required', 'integer', 'min:0'],
             'parcel_default_fee' => ['required', 'integer', 'min:0'],
+            'parcel_creation_fee' => ['sometimes', 'integer', 'min:0'],
         ]);
 
         $settings->update($data, $request->user()->id);

@@ -33,9 +33,9 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Frais de service client (cahier de conception v1.0)
+    | Commission client (cahier de conception v1.0)
     |--------------------------------------------------------------------------
-    | Taux en pourcentage prélevé au client sur (nourriture + livraison).
+    | Taux en pourcentage prélevé au client sur le sous-total produits.
     */
     'service_fee' => [
         'rate' => (int) env('BENINFOOD_SERVICE_FEE_RATE', 5),
@@ -94,11 +94,12 @@ return [
     |--------------------------------------------------------------------------
     | Envoi de colis (cahier de conception v1.0, phase 3)
     |--------------------------------------------------------------------------
-    | Prix du colis selon la distance (paliers), commission plateforme et
-    | tarif par défaut quand la distance n'est pas calculable.
+    | Prix du colis selon la distance (paliers), commission livreur, frais de
+    | création payés par l'expéditeur et tarif par défaut.
     */
     'parcels' => [
         'commission_rate' => (int) env('BENINFOOD_PARCEL_COMMISSION_RATE', 20),
+        'creation_fee' => (int) env('BENINFOOD_PARCEL_CREATION_FEE', 150),
         'default_fee' => (int) env('BENINFOOD_PARCEL_DEFAULT_FEE', 1000),
         'tiers' => [
             ['max_km' => 3, 'fee' => 500],

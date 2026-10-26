@@ -21,7 +21,7 @@ class OrderSummary {
   final int total;
   final double? deliveryDistanceKm;
 
-  /// Frais de service client (5 %, cahier v1.0).
+  /// Commission client (taux dynamique, sur le sous-total produits).
   final int serviceFee;
   final String? vendorId;
   final String? vendorName;

@@ -8,28 +8,33 @@ use App\Models\DistancePricingRule;
  * Tarification des colis (cahier de conception v1.0, phase 3).
  *
  * Le prix dépend de la distance : 500 F (≤ 3 km), 1 000 F (≤ 7 km),
- * 2 000 F au-delà. Le livreur perçoit 80 %, la plateforme 20 %.
+ * 2 000 F au-delà. Le livreur perçoit 80 %, la plateforme 20 %. Un frais fixe
+ * de création est ajouté au montant payé par l'expéditeur.
  */
 class ParcelPricingService
 {
     /**
-     * @return array{distance_km: ?float, delivery_fee: int, commission_rate: int, commission_amount: int, partner_amount: int, platform_amount: int, pricing_snapshot: array<string, mixed>}
+     * @return array{distance_km: ?float, delivery_fee: int, creation_fee: int, total_amount: int, commission_rate: int, commission_amount: int, partner_amount: int, platform_amount: int, pricing_snapshot: array<string, mixed>}
      */
     public function quote(?float $distanceKm): array
     {
         $pricing = $this->feeQuote($distanceKm);
         $fee = $pricing['fee'];
-        $rate = app(PlatformPricingSettings::class)->get('parcel_commission_rate');
+        $settings = app(PlatformPricingSettings::class);
+        $rate = $settings->get('parcel_commission_rate');
+        $creationFee = max(0, $settings->get('parcel_creation_fee'));
         $commission = (int) round($fee * $rate / 100);
 
         return [
             'distance_km' => $distanceKm,
             'delivery_fee' => $fee,
+            'creation_fee' => $creationFee,
+            'total_amount' => $fee + $creationFee,
             'commission_rate' => $rate,
             'commission_amount' => $commission,
             'partner_amount' => $fee - $commission,
             'platform_amount' => $commission,
-            'pricing_snapshot' => $pricing['snapshot'],
+            'pricing_snapshot' => $pricing['snapshot'] + ['creation_fee' => $creationFee],
         ];
     }
 

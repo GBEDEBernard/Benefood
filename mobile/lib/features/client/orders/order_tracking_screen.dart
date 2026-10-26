@@ -730,7 +730,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                   _SummaryRow(label: 'Sous-total', amount: order.subtotal),
                   _SummaryRow(label: 'Livraison', amount: order.deliveryFee),
                   if ((order.financials?.serviceFee ?? 0) > 0)
-                    _SummaryRow(label: 'Frais de service', amount: order.financials!.serviceFee!),
+                    _SummaryRow(label: 'Commission client', amount: order.financials!.serviceFee!),
                   const SizedBox(height: 4),
                   _SummaryRow(
                     label: 'Total',

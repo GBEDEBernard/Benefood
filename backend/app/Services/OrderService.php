@@ -100,7 +100,7 @@ class OrderService
                 'amount' => $breakdown['commission_amount'],
                 'internal' => true,
             ],
-            // Cahier v1.0 : frais de service client (5 %) et part livreur.
+            // Commission client (taux dynamique, sur le sous-total produits) et part livreur.
             'service_fee' => $breakdown['service_fee'],
             'delivery_commission' => $breakdown['delivery_commission_amount'],
             'total' => $breakdown['total_client'],
@@ -779,6 +779,7 @@ class OrderService
 
         $rate = CommissionRate::query()
             ->where('is_active', true)
+            ->where('effective_from', '<=', now())
             ->where(fn ($q) => $q->whereNull('effective_to')->orWhere('effective_to', '>=', now()))
             ->orderByDesc('effective_from')
             ->first();

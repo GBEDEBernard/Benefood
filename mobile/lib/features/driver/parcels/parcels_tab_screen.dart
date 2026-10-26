@@ -5,6 +5,7 @@ import '../../../core/navigation/notification_router.dart';
 import '../../../core/errors/api_exception.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_dimens.dart';
+import '../../../core/utils/formatters.dart';
 import '../../../shared/models/parcel.dart';
 import '../../../shared/widgets/amount_widgets.dart';
 import '../../../shared/widgets/app_button.dart';
@@ -415,6 +416,17 @@ class _RunCard extends StatelessWidget {
                           fontWeight: FontWeight.w800,
                         ),
                       ),
+                      if (parcel.isCash) ...[
+                        const SizedBox(height: 6),
+                        Text(
+                          'À collecter : ${formatAmount(parcel.totalAmount)}',
+                          style: const TextStyle(
+                            fontSize: 12.5,
+                            color: AppColors.orangeDark,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),
@@ -533,6 +545,17 @@ class _OfferCard extends StatelessWidget {
                           fontWeight: FontWeight.w800,
                         ),
                       ),
+                      if (parcel.isCash) ...[
+                        const SizedBox(height: 6),
+                        Text(
+                          'À collecter : ${formatAmount(parcel.totalAmount)}',
+                          style: const TextStyle(
+                            fontSize: 12.5,
+                            color: AppColors.orangeDark,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),

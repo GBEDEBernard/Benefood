@@ -58,8 +58,11 @@ class _ParcelPaymentMethodScreenState extends State<ParcelPaymentMethodScreen> {
                 ),
                 const SizedBox(height: 6),
                 const Text(
-                  'Choisissez comment régler les frais de livraison.',
-                  style: TextStyle(fontSize: 13.5, color: AppColors.textSecondary),
+                  'Choisissez comment régler le montant du colis (livraison + frais de création).',
+                  style: TextStyle(
+                    fontSize: 13.5,
+                    color: AppColors.textSecondary,
+                  ),
                 ),
                 const SizedBox(height: AppDimens.xl),
                 Container(
@@ -73,12 +76,18 @@ class _ParcelPaymentMethodScreenState extends State<ParcelPaymentMethodScreen> {
                       const Expanded(
                         child: Text(
                           'Montant à régler',
-                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
                       ),
                       AmountText(
                         widget.amount,
-                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w900,
+                        ),
                       ),
                     ],
                   ),
@@ -95,7 +104,8 @@ class _ParcelPaymentMethodScreenState extends State<ParcelPaymentMethodScreen> {
                 _PaymentOption(
                   icon: Icons.payments_outlined,
                   title: 'Espèces à la livraison',
-                  subtitle: 'Vous remettez les frais au livreur à la réception.',
+                  subtitle:
+                      'Vous remettez le montant total au livreur à la réception.',
                   selected: _selected == 'cash',
                   onTap: () => setState(() => _selected = 'cash'),
                 ),
@@ -145,7 +155,9 @@ class _PaymentOption extends StatelessWidget {
             color: selected ? AppColors.green : AppColors.border,
             width: selected ? 1.6 : 1.2,
           ),
-          color: selected ? AppColors.greenLight.withValues(alpha: 0.4) : AppColors.surface,
+          color: selected
+              ? AppColors.greenLight.withValues(alpha: 0.4)
+              : AppColors.surface,
         ),
         child: Row(
           children: [
@@ -153,7 +165,9 @@ class _PaymentOption extends StatelessWidget {
               width: 46,
               height: 46,
               decoration: BoxDecoration(
-                color: selected ? AppColors.greenLight : AppColors.surfaceVariant,
+                color: selected
+                    ? AppColors.greenLight
+                    : AppColors.surfaceVariant,
                 borderRadius: BorderRadius.circular(AppDimens.radiusMd),
               ),
               child: Icon(
@@ -168,18 +182,26 @@ class _PaymentOption extends StatelessWidget {
                 children: [
                   Text(
                     title,
-                    style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 15,
+                    ),
                   ),
                   const SizedBox(height: 2),
                   Text(
                     subtitle,
-                    style: const TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
+                    style: const TextStyle(
+                      fontSize: 12.5,
+                      color: AppColors.textSecondary,
+                    ),
                   ),
                 ],
               ),
             ),
             Icon(
-              selected ? Icons.radio_button_checked : Icons.radio_button_unchecked,
+              selected
+                  ? Icons.radio_button_checked
+                  : Icons.radio_button_unchecked,
               color: selected ? AppColors.green : AppColors.textSecondary,
             ),
           ],

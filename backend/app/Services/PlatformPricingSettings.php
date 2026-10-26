@@ -22,6 +22,9 @@ class PlatformPricingSettings
                 'order_default_fee' => (int) config('beninfood.delivery_pricing.default_fee', 1000),
                 'parcel_minimum_fee' => 500,
                 'parcel_default_fee' => (int) config('beninfood.parcels.default_fee', 1000),
+                // Montant fixe payé par le créateur du colis (hors commission).
+                'parcel_creation_fee' => (int) config('beninfood.parcels.creation_fee', 150),
+                // Taux de la commission client, calculée sur le sous-total produits.
                 'service_fee_rate' => (int) config('beninfood.service_fee.rate', 5),
                 'delivery_commission_rate' => (int) config('beninfood.delivery_commission.rate', 20),
                 'parcel_commission_rate' => (int) config('beninfood.parcels.commission_rate', 20),

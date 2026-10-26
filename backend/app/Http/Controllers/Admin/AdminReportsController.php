@@ -92,6 +92,7 @@ class AdminReportsController extends Controller
                 'base' => $order->financials->commission_base,
                 'rate' => $order->financials->commission_rate,
                 'commission' => $order->financials->commission_amount,
+                'fee' => 0,
                 'vendor' => $order->financials->vendor_amount,
                 'partner' => $order->financials->delivery_partner_amount,
             ]);
@@ -105,6 +106,7 @@ class AdminReportsController extends Controller
                 'base' => $parcel->delivery_fee,
                 'rate' => $parcel->commission_rate,
                 'commission' => $parcel->commission_amount,
+                'fee' => (int) $parcel->creation_fee,
                 'vendor' => null,
                 'partner' => $parcel->partner_amount,
             ]);
@@ -113,7 +115,7 @@ class AdminReportsController extends Controller
         $rows = $rows->sortBy('date')->values();
 
         return $this->csv('commissions-', function ($handle) use ($rows): void {
-            fputcsv($handle, ['Type', 'Référence', 'Date', 'Base commission', 'Taux (%)', 'Commission', 'Montant vendeur', 'Part livreur']);
+            fputcsv($handle, ['Type', 'Référence', 'Date', 'Base commission', 'Taux (%)', 'Commission', 'Frais création', 'Montant vendeur', 'Part livreur']);
             foreach ($rows as $row) {
                 fputcsv($handle, [
                     $row['type'],
@@ -122,6 +124,7 @@ class AdminReportsController extends Controller
                     $row['base'],
                     $row['rate'],
                     $row['commission'],
+                    $row['fee'],
                     $row['vendor'] ?? '',
                     $row['partner'],
                 ]);

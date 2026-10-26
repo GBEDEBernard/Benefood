@@ -171,7 +171,7 @@ class DeliveryConfirmationAndDisputeTest extends TestCase
         $this->assertSame(4500, (int) $finance->walletFor($vendor)->fresh()->available_balance);
         $this->assertSame(0, (int) $finance->walletFor($driver)->fresh()->pending_balance);
         $this->assertSame(800, (int) $finance->walletFor($driver)->fresh()->available_balance);
-        $this->assertSame(1000, (int) $finance->platformWallet()->fresh()->available_balance);
+        $this->assertSame(950, (int) $finance->platformWallet()->fresh()->available_balance);
     }
 
     public function test_a_wrong_confirmation_code_blocks_delivery_and_counts_attempts(): void

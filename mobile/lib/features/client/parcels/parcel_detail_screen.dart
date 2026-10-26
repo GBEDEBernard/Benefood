@@ -385,9 +385,7 @@ class _ParcelDetailScreenState extends State<ParcelDetailScreen> {
               secondary: parcel.isPickupPhase
                   ? parcel.dropoffPoint
                   : parcel.pickupPoint,
-              secondaryLabel: parcel.isPickupPhase
-                  ? 'Livraison'
-                  : 'Ramassage',
+              secondaryLabel: parcel.isPickupPhase ? 'Livraison' : 'Ramassage',
               secondaryImageUrl: parcel.isPickupPhase
                   ? null
                   : parcel.sender?.avatarUrl,
@@ -469,7 +467,7 @@ class _ParcelDetailScreenState extends State<ParcelDetailScreen> {
                 leading: const Icon(Icons.payments_outlined),
                 title: const Text('Paiement requis'),
                 subtitle: Text(
-                  'Frais de livraison : ${formatAmount(parcel.deliveryFee)}',
+                  'Montant à payer : ${formatAmount(parcel.totalAmount)}',
                 ),
                 trailing: _actionId == 'pay'
                     ? const SizedBox(
@@ -550,11 +548,52 @@ class _RouteCard extends StatelessWidget {
                 const Expanded(
                   child: Text(
                     'Frais de livraison',
-                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
                   ),
                 ),
                 AmountText(
                   parcel.deliveryFee,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+            if (parcel.creationFee > 0) ...[
+              const SizedBox(height: 6),
+              Row(
+                children: [
+                  const Expanded(
+                    child: Text(
+                      'Frais de création',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  AmountText(
+                    parcel.creationFee,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+            const Divider(height: AppDimens.xl),
+            Row(
+              children: [
+                const Expanded(
+                  child: Text(
+                    'Total',
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800),
+                  ),
+                ),
+                AmountText(
+                  parcel.totalAmount,
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w900,

@@ -435,7 +435,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                             ),
                           ),
                         if (_summary!.serviceFee > 0)
-                          _SummaryRow(label: 'Frais de service', amount: _summary!.serviceFee),
+                          _SummaryRow(label: 'Commission client', amount: _summary!.serviceFee),
                         if (_summary!.deliveryZoneName != null)
                           Padding(
                             padding: const EdgeInsets.only(top: 2),
@@ -578,7 +578,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 _SummaryRow(label: 'Sous-total', amount: order.subtotal),
                 _SummaryRow(label: 'Livraison', amount: order.deliveryFee),
                 if ((order.financials?.serviceFee ?? 0) > 0)
-                  _SummaryRow(label: 'Frais de service', amount: order.financials!.serviceFee!),
+                  _SummaryRow(label: 'Commission client', amount: order.financials!.serviceFee!),
                 const SizedBox(height: 4),
                 _SummaryRow(label: 'Total à payer', amount: order.total, emphasized: true),
               ],

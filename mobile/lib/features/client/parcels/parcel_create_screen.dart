@@ -109,35 +109,40 @@ class _ParcelCreateScreenState extends State<ParcelCreateScreen> {
   }
 
   Map<String, dynamic> get _pickup => {
-        if (_pickupLabel.text.trim().isNotEmpty) 'label': _pickupLabel.text.trim(),
-        if (_pickupAddress.text.trim().isNotEmpty) 'address_text': _pickupAddress.text.trim(),
-        if (_pickupLandmark.text.trim().isNotEmpty) 'landmark': _pickupLandmark.text.trim(),
-        if (_pickupArea.text.trim().isNotEmpty) 'area': _pickupArea.text.trim(),
-        if (_pickupCity.text.trim().isNotEmpty) 'city': _pickupCity.text.trim(),
-        if (_pickupLatitude != null) 'latitude': _pickupLatitude,
-        if (_pickupLongitude != null) 'longitude': _pickupLongitude,
-        if (_pickupContactName.text.trim().isNotEmpty)
-          'contact_name': _pickupContactName.text.trim(),
-        if (_pickupContactPhone.text.trim().isNotEmpty)
-          'contact_phone': _pickupContactPhone.text.trim(),
-      };
+    if (_pickupLabel.text.trim().isNotEmpty) 'label': _pickupLabel.text.trim(),
+    if (_pickupAddress.text.trim().isNotEmpty)
+      'address_text': _pickupAddress.text.trim(),
+    if (_pickupLandmark.text.trim().isNotEmpty)
+      'landmark': _pickupLandmark.text.trim(),
+    if (_pickupArea.text.trim().isNotEmpty) 'area': _pickupArea.text.trim(),
+    if (_pickupCity.text.trim().isNotEmpty) 'city': _pickupCity.text.trim(),
+    if (_pickupLatitude != null) 'latitude': _pickupLatitude,
+    if (_pickupLongitude != null) 'longitude': _pickupLongitude,
+    if (_pickupContactName.text.trim().isNotEmpty)
+      'contact_name': _pickupContactName.text.trim(),
+    if (_pickupContactPhone.text.trim().isNotEmpty)
+      'contact_phone': _pickupContactPhone.text.trim(),
+  };
 
   Map<String, dynamic> get _dropoff {
     if (_sameAsPickup) {
       return _pickup;
     }
     return {
-      if (_dropoffLabel.text.trim().isNotEmpty) 'label': _dropoffLabel.text.trim(),
-      if (_dropoffAddress.text.trim().isNotEmpty) 'address_text': _dropoffAddress.text.trim(),
-      if (_dropoffLandmark.text.trim().isNotEmpty) 'landmark': _dropoffLandmark.text.trim(),
+      if (_dropoffLabel.text.trim().isNotEmpty)
+        'label': _dropoffLabel.text.trim(),
+      if (_dropoffAddress.text.trim().isNotEmpty)
+        'address_text': _dropoffAddress.text.trim(),
+      if (_dropoffLandmark.text.trim().isNotEmpty)
+        'landmark': _dropoffLandmark.text.trim(),
       if (_dropoffArea.text.trim().isNotEmpty) 'area': _dropoffArea.text.trim(),
-        if (_dropoffCity.text.trim().isNotEmpty) 'city': _dropoffCity.text.trim(),
-        if (_dropoffLatitude != null) 'latitude': _dropoffLatitude,
-        if (_dropoffLongitude != null) 'longitude': _dropoffLongitude,
-        if (_dropoffContactName.text.trim().isNotEmpty)
-          'contact_name': _dropoffContactName.text.trim(),
-        if (_dropoffContactPhone.text.trim().isNotEmpty)
-          'contact_phone': _dropoffContactPhone.text.trim(),
+      if (_dropoffCity.text.trim().isNotEmpty) 'city': _dropoffCity.text.trim(),
+      if (_dropoffLatitude != null) 'latitude': _dropoffLatitude,
+      if (_dropoffLongitude != null) 'longitude': _dropoffLongitude,
+      if (_dropoffContactName.text.trim().isNotEmpty)
+        'contact_name': _dropoffContactName.text.trim(),
+      if (_dropoffContactPhone.text.trim().isNotEmpty)
+        'contact_phone': _dropoffContactPhone.text.trim(),
     };
   }
 
@@ -165,7 +170,8 @@ class _ParcelCreateScreenState extends State<ParcelCreateScreen> {
 
   bool get _pickupAddressOk => _pickupAddress.text.trim().isNotEmpty;
 
-  bool get _dropoffAddressOk => _sameAsPickup || _dropoffAddress.text.trim().isNotEmpty;
+  bool get _dropoffAddressOk =>
+      _sameAsPickup || _dropoffAddress.text.trim().isNotEmpty;
 
   bool get _addressesFilled => _pickupAddressOk && _dropoffAddressOk;
 
@@ -216,7 +222,11 @@ class _ParcelCreateScreenState extends State<ParcelCreateScreen> {
     });
     if (geo == null) {
       if (mounted) {
-        showToast(context, _locationFailureMessage(result.failure), isError: true);
+        showToast(
+          context,
+          _locationFailureMessage(result.failure),
+          isError: true,
+        );
       }
       return;
     }
@@ -235,30 +245,50 @@ class _ParcelCreateScreenState extends State<ParcelCreateScreen> {
     });
   }
 
-  static String _locationFailureMessage(LocationFailure? failure) => switch (failure) {
-        LocationFailure.serviceDisabled => 'Localisation indisponible : activez le GPS de votre appareil.',
-        LocationFailure.permissionDenied => 'Localisation refusée : autorisez l\'accès à votre position dans les réglages.',
-        _ => 'Position introuvable pour le moment. Vérifiez le GPS puis réessayez.',
-      };
+  static String _locationFailureMessage(
+    LocationFailure? failure,
+  ) => switch (failure) {
+    LocationFailure.serviceDisabled =>
+      'Localisation indisponible : activez le GPS de votre appareil.',
+    LocationFailure.permissionDenied =>
+      'Localisation refusée : autorisez l\'accès à votre position dans les réglages.',
+    _ => 'Position introuvable pour le moment. Vérifiez le GPS puis réessayez.',
+  };
 
   void _goNext() {
     FocusManager.instance.primaryFocus?.unfocus();
     if (_step == 0) {
       if (!_pickupAddressOk) {
-        showToast(context, 'Renseignez l\'adresse de ramassage.', isError: true);
+        showToast(
+          context,
+          'Renseignez l\'adresse de ramassage.',
+          isError: true,
+        );
         return;
       }
       if (!_dropoffAddressOk) {
-        showToast(context, 'Renseignez l\'adresse de livraison ou cochez « Identique au ramassage ».', isError: true);
+        showToast(
+          context,
+          'Renseignez l\'adresse de livraison ou cochez « Identique au ramassage ».',
+          isError: true,
+        );
         return;
       }
       if (_pickupLatitude == null || _pickupLongitude == null) {
-        showToast(context, 'Placez le repère de ramassage sur la carte.', isError: true);
+        showToast(
+          context,
+          'Placez le repère de ramassage sur la carte.',
+          isError: true,
+        );
         return;
       }
       if (!_sameAsPickup &&
           (_dropoffLatitude == null || _dropoffLongitude == null)) {
-        showToast(context, 'Placez le repère de livraison sur la carte.', isError: true);
+        showToast(
+          context,
+          'Placez le repère de livraison sur la carte.',
+          isError: true,
+        );
         return;
       }
       setState(() => _step = 1);
@@ -286,7 +316,10 @@ class _ParcelCreateScreenState extends State<ParcelCreateScreen> {
 
   Future<void> _estimate() async {
     if (!_addressesFilled) {
-      setState(() => _quoteError = 'Renseignez les adresses de ramassage et de livraison.');
+      setState(
+        () => _quoteError =
+            'Renseignez les adresses de ramassage et de livraison.',
+      );
       return;
     }
     setState(() {
@@ -294,7 +327,10 @@ class _ParcelCreateScreenState extends State<ParcelCreateScreen> {
       _quoteError = null;
     });
     try {
-      final quote = await widget.marketplace.parcelQuote(pickup: _pickup, dropoff: _dropoff);
+      final quote = await widget.marketplace.parcelQuote(
+        pickup: _pickup,
+        dropoff: _dropoff,
+      );
       if (mounted) {
         setState(() {
           _quote = quote;
@@ -312,7 +348,11 @@ class _ParcelCreateScreenState extends State<ParcelCreateScreen> {
   }
 
   Future<void> _create() async {
-    final fee = (_quote?['delivery_fee'] as num?)?.toInt() ?? 0;
+    final quote = _quote;
+    final fee =
+        (quote?['total_amount'] as num?)?.toInt() ??
+        ((quote?['delivery_fee'] as num?)?.toInt() ?? 0) +
+            ((quote?['creation_fee'] as num?)?.toInt() ?? 0);
     final method = await Navigator.of(context).push<String>(
       MaterialPageRoute<String>(
         builder: (_) => ParcelPaymentMethodScreen(
@@ -697,7 +737,12 @@ class _ParcelCreateScreenState extends State<ParcelCreateScreen> {
                     ),
                     hint: const Text('Sélectionner'),
                     items: _parcelTypes
-                        .map((type) => DropdownMenuItem<String>(value: type, child: Text(type)))
+                        .map(
+                          (type) => DropdownMenuItem<String>(
+                            value: type,
+                            child: Text(type),
+                          ),
+                        )
                         .toList(),
                     onChanged: (value) => setState(() => _parcelType = value),
                   ),
@@ -710,7 +755,9 @@ class _ParcelCreateScreenState extends State<ParcelCreateScreen> {
                     label: 'Poids (kg)',
                     hint: 'Ex : 2',
                     icon: Icons.monitor_weight_outlined,
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
                   ),
                 ),
               ],
@@ -751,13 +798,19 @@ class _ParcelCreateScreenState extends State<ParcelCreateScreen> {
                       width: 40,
                       height: 40,
                       decoration: BoxDecoration(
-                        color: _favoriteDriverName == null ? AppColors.surfaceVariant : AppColors.greenLight,
+                        color: _favoriteDriverName == null
+                            ? AppColors.surfaceVariant
+                            : AppColors.greenLight,
                         borderRadius: BorderRadius.circular(AppDimens.radiusMd),
                       ),
                       child: Icon(
-                        _favoriteDriverName == null ? Icons.public : Icons.delivery_dining,
+                        _favoriteDriverName == null
+                            ? Icons.public
+                            : Icons.delivery_dining,
                         size: 20,
-                        color: _favoriteDriverName == null ? AppColors.textSecondary : AppColors.green,
+                        color: _favoriteDriverName == null
+                            ? AppColors.textSecondary
+                            : AppColors.green,
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -767,19 +820,28 @@ class _ParcelCreateScreenState extends State<ParcelCreateScreen> {
                         children: [
                           Text(
                             _favoriteDriverName ?? 'Aucun livreur (optionnel)',
-                            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 15,
+                            ),
                           ),
                           const SizedBox(height: 2),
                           Text(
                             _favoriteDriverName == null
                                 ? 'L\'offre sera visible par tous les livreurs disponibles'
                                 : 'Ce livreur recevra l\'offre en priorité',
-                            style: const TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
+                            style: const TextStyle(
+                              fontSize: 12.5,
+                              color: AppColors.textSecondary,
+                            ),
                           ),
                         ],
                       ),
                     ),
-                    const Icon(Icons.chevron_right, color: AppColors.textSecondary),
+                    const Icon(
+                      Icons.chevron_right,
+                      color: AppColors.textSecondary,
+                    ),
                   ],
                 ),
               ),
@@ -839,7 +901,11 @@ class _ParcelCreateScreenState extends State<ParcelCreateScreen> {
       ),
       const SizedBox(height: AppDimens.lg),
       if (_quoteError != null)
-        _QuoteErrorCard(message: _quoteError!, onRetry: _estimate, loading: _quoting)
+        _QuoteErrorCard(
+          message: _quoteError!,
+          onRetry: _estimate,
+          loading: _quoting,
+        )
       else if (_quote != null)
         _QuoteCard(quote: _quote!)
       else
@@ -899,7 +965,10 @@ class _ParcelCreateScreenState extends State<ParcelCreateScreen> {
                 minimumSize: Size.zero,
                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
               ),
-              child: const Text('Retirer', style: TextStyle(color: AppColors.textSecondary)),
+              child: const Text(
+                'Retirer',
+                style: TextStyle(color: AppColors.textSecondary),
+              ),
             ),
           ],
         ),
@@ -916,7 +985,12 @@ class _ParcelCreateScreenState extends State<ParcelCreateScreen> {
       child: SafeArea(
         top: false,
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(AppDimens.pagePadding, AppDimens.md, AppDimens.pagePadding, AppDimens.md),
+          padding: const EdgeInsets.fromLTRB(
+            AppDimens.pagePadding,
+            AppDimens.md,
+            AppDimens.pagePadding,
+            AppDimens.md,
+          ),
           child: Row(
             children: [
               if (_step > 0) ...[
@@ -962,7 +1036,11 @@ class _LocateChip extends StatelessWidget {
     return OutlinedButton.icon(
       onPressed: loading ? null : onPressed,
       icon: loading
-          ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2))
+          ? const SizedBox(
+              width: 14,
+              height: 14,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
           : const Icon(Icons.my_location, size: 16),
       label: const Text('Ma position'),
       style: OutlinedButton.styleFrom(
@@ -972,7 +1050,9 @@ class _LocateChip extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 12),
         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
         textStyle: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppDimens.radiusPill)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppDimens.radiusPill),
+        ),
       ),
     );
   }
@@ -985,7 +1065,6 @@ class _StepIndicator extends StatelessWidget {
   final ValueChanged<int>? onStepTap;
 
   static const _labels = ['Adresses', 'Colis', 'Confirmation'];
-
 
   @override
   Widget build(BuildContext context) {
@@ -1025,8 +1104,12 @@ class _StepIndicator extends StatelessWidget {
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 11.5,
-                      fontWeight: index == current ? FontWeight.w800 : FontWeight.w600,
-                      color: index <= current ? AppColors.green : AppColors.textFaint,
+                      fontWeight: index == current
+                          ? FontWeight.w800
+                          : FontWeight.w600,
+                      color: index <= current
+                          ? AppColors.green
+                          : AppColors.textFaint,
                     ),
                   ),
                 ],
@@ -1038,11 +1121,11 @@ class _StepIndicator extends StatelessWidget {
   }
 
   Widget _segment({required bool active, required bool visible}) => Container(
-        height: 2,
-        color: !visible
-            ? Colors.transparent
-            : (active ? AppColors.green : AppColors.border),
-      );
+    height: 2,
+    color: !visible
+        ? Colors.transparent
+        : (active ? AppColors.green : AppColors.border),
+  );
 }
 
 class _StepDot extends StatelessWidget {
@@ -1109,7 +1192,11 @@ class _SameAddressToggle extends StatelessWidget {
           const Expanded(
             child: Text(
               'Identique à l\'adresse de ramassage',
-              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textSecondary),
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textSecondary,
+              ),
             ),
           ),
         ],
@@ -1135,7 +1222,11 @@ class _SameAddressStrip extends StatelessWidget {
           Expanded(
             child: Text(
               'La livraison utilisera l\'adresse de ramassage.',
-              style: TextStyle(fontSize: 12.5, color: AppColors.green, fontWeight: FontWeight.w600),
+              style: TextStyle(
+                fontSize: 12.5,
+                color: AppColors.green,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
         ],
@@ -1196,7 +1287,11 @@ class _SectionHeader extends StatelessWidget {
         Expanded(
           child: Text(
             title,
-            style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: AppColors.text),
+            style: const TextStyle(
+              fontWeight: FontWeight.w800,
+              fontSize: 16,
+              color: AppColors.text,
+            ),
           ),
         ),
         ?trailing,
@@ -1226,10 +1321,19 @@ class _PrimaryActionButton extends StatelessWidget {
         onPressed: loading ? null : onPressed,
         style: FilledButton.styleFrom(
           padding: const EdgeInsets.symmetric(horizontal: AppDimens.lg),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppDimens.radiusLg)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppDimens.radiusLg),
+          ),
         ),
         child: loading
-            ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.4, color: Colors.white))
+            ? const SizedBox(
+                width: 22,
+                height: 22,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2.4,
+                  color: Colors.white,
+                ),
+              )
             : Row(
                 children: [
                   const SizedBox(width: 22),
@@ -1237,7 +1341,10 @@ class _PrimaryActionButton extends StatelessWidget {
                     child: Text(
                       label,
                       textAlign: TextAlign.center,
-                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ),
                   Icon(icon, size: 22),
@@ -1269,18 +1376,28 @@ class _InfoBanner extends StatelessWidget {
               color: Colors.white,
               borderRadius: BorderRadius.circular(AppDimens.radiusMd),
             ),
-            child: const Icon(Icons.delivery_dining, color: AppColors.orange, size: 24),
+            child: const Icon(
+              Icons.delivery_dining,
+              color: AppColors.orange,
+              size: 24,
+            ),
           ),
           const SizedBox(width: AppDimens.md),
           const Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Estimation de livraison', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14)),
+                Text(
+                  'Estimation de livraison',
+                  style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14),
+                ),
                 SizedBox(height: 2),
                 Text(
                   'Les frais seront calculés après validation des adresses.',
-                  style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AppColors.textSecondary,
+                  ),
                 ),
               ],
             ),
@@ -1324,11 +1441,55 @@ class _SummaryRow extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(label, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary, fontWeight: FontWeight.w600)),
+              Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: AppColors.textSecondary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
               const SizedBox(height: 2),
-              Text(value, style: const TextStyle(fontSize: 14, color: AppColors.text, fontWeight: FontWeight.w700, height: 1.35)),
+              Text(
+                value,
+                style: const TextStyle(
+                  fontSize: 14,
+                  color: AppColors.text,
+                  fontWeight: FontWeight.w700,
+                  height: 1.35,
+                ),
+              ),
             ],
           ),
+        ),
+      ],
+    );
+  }
+}
+
+class _QuoteLine extends StatelessWidget {
+  const _QuoteLine({required this.label, required this.amount});
+
+  final String label;
+  final int amount;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: Text(
+            label,
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textSecondary,
+            ),
+          ),
+        ),
+        AmountText(
+          amount,
+          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
         ),
       ],
     );
@@ -1344,6 +1505,8 @@ class _QuoteCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final distance = quote['distance_km'];
     final fee = (quote['delivery_fee'] as num?)?.toInt() ?? 0;
+    final creationFee = (quote['creation_fee'] as num?)?.toInt() ?? 0;
+    final total = (quote['total_amount'] as num?)?.toInt() ?? fee + creationFee;
 
     return _SectionCard(
       child: Column(
@@ -1351,7 +1514,7 @@ class _QuoteCard extends StatelessWidget {
         children: [
           const _SectionHeader(
             icon: Icons.local_shipping_outlined,
-            title: 'Frais de livraison',
+            title: 'Frais du colis',
             color: AppColors.green,
             background: AppColors.greenLight,
           ),
@@ -1359,8 +1522,18 @@ class _QuoteCard extends StatelessWidget {
           if (distance is num)
             Text(
               'Distance estimée : ${distance.toStringAsFixed(1)} km',
-              style: const TextStyle(fontSize: 13, color: AppColors.textSecondary, fontWeight: FontWeight.w600),
+              style: const TextStyle(
+                fontSize: 13,
+                color: AppColors.textSecondary,
+                fontWeight: FontWeight.w600,
+              ),
             ),
+          const SizedBox(height: AppDimens.md),
+          _QuoteLine(label: 'Frais de livraison', amount: fee),
+          if (creationFee > 0) ...[
+            const SizedBox(height: 8),
+            _QuoteLine(label: 'Frais de création', amount: creationFee),
+          ],
           const SizedBox(height: AppDimens.md),
           Container(
             padding: const EdgeInsets.all(AppDimens.md),
@@ -1371,9 +1544,19 @@ class _QuoteCard extends StatelessWidget {
             child: Row(
               children: [
                 const Expanded(
-                  child: Text('Frais de livraison', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+                  child: Text(
+                    'Total à payer',
+                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+                  ),
                 ),
-                AmountText(fee, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: AppColors.orangeDark)),
+                AmountText(
+                  total,
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w900,
+                    color: AppColors.orangeDark,
+                  ),
+                ),
               ],
             ),
           ),
@@ -1392,7 +1575,11 @@ class _QuoteCard extends StatelessWidget {
                 Expanded(
                   child: Text(
                     'Le paiement en ligne libère aussitôt le colis pour les livreurs.',
-                    style: TextStyle(fontSize: 12, color: AppColors.green, fontWeight: FontWeight.w600),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppColors.green,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
               ],
@@ -1412,9 +1599,18 @@ class _QuoteLoadingCard extends StatelessWidget {
     return _SectionCard(
       child: Row(
         children: [
-          SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.4)),
+          SizedBox(
+            width: 22,
+            height: 22,
+            child: CircularProgressIndicator(strokeWidth: 2.4),
+          ),
           SizedBox(width: AppDimens.md),
-          Expanded(child: Text('Calcul des frais de livraison…', style: TextStyle(fontSize: 14, color: AppColors.textSecondary))),
+          Expanded(
+            child: Text(
+              'Calcul des frais de livraison…',
+              style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
+            ),
+          ),
         ],
       ),
     );
@@ -1422,7 +1618,11 @@ class _QuoteLoadingCard extends StatelessWidget {
 }
 
 class _QuoteErrorCard extends StatelessWidget {
-  const _QuoteErrorCard({required this.message, required this.onRetry, this.loading = false});
+  const _QuoteErrorCard({
+    required this.message,
+    required this.onRetry,
+    this.loading = false,
+  });
 
   final String message;
   final VoidCallback onRetry;
@@ -1439,17 +1639,30 @@ class _QuoteErrorCard extends StatelessWidget {
               const Icon(Icons.error_outline, color: AppColors.red),
               const SizedBox(width: 8),
               const Expanded(
-                child: Text('Devis indisponible', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
+                child: Text(
+                  'Devis indisponible',
+                  style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15),
+                ),
               ),
             ],
           ),
           const SizedBox(height: AppDimens.sm),
-          Text(message, style: const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+          Text(
+            message,
+            style: const TextStyle(
+              fontSize: 13,
+              color: AppColors.textSecondary,
+            ),
+          ),
           const SizedBox(height: AppDimens.md),
           OutlinedButton.icon(
             onPressed: loading ? null : onRetry,
             icon: loading
-                ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
                 : const Icon(Icons.refresh, size: 18),
             label: const Text('Réessayer'),
           ),

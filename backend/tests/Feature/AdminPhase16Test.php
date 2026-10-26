@@ -135,7 +135,7 @@ class AdminPhase16Test extends TestCase
             ->get(route('admin.dashboard'))
             ->assertOk()
             ->assertSee('Chiffre d’affaires')
-            ->assertSee('Évolution des commissions plateforme')
+            ->assertSee('Évolution des revenus plateforme')
             ->assertSee('Commandes par statut')
             ->assertSee('Livreurs actifs')
             ->assertSee('Dernières commandes');

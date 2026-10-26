@@ -13,7 +13,8 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 
 /**
  * Envoi de colis (cahier de conception v1.0, phase 3) : prix par distance,
- * répartition 80 % livreur / 20 % plateforme.
+ * frais fixe de création payé par l'expéditeur, répartition 80 % livreur /
+ * 20 % plateforme sur les frais de livraison.
  */
 class Parcel extends Model
 {
@@ -32,6 +33,7 @@ class Parcel extends Model
             'pricing_snapshot' => 'array',
             'distance_km' => 'decimal:2',
             'delivery_fee' => 'integer',
+            'creation_fee' => 'integer',
             'commission_rate' => 'integer',
             'commission_amount' => 'integer',
             'partner_amount' => 'integer',
@@ -71,6 +73,12 @@ class Parcel extends Model
     public function statusHistory(): HasMany
     {
         return $this->hasMany(ParcelStatusHistory::class);
+    }
+
+    /** Montant total payé par l'expéditeur (livraison + création). */
+    public function totalAmount(): int
+    {
+        return (int) $this->delivery_fee + (int) $this->creation_fee;
     }
 
     public function isPaid(): bool
