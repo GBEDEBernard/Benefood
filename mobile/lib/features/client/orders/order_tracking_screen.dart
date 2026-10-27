@@ -23,6 +23,7 @@ import '../../../shared/widgets/app_network_image.dart';
 import '../../../shared/widgets/amount_widgets.dart';
 import '../../../shared/widgets/beninfood_header.dart';
 import '../../../shared/widgets/call_button.dart';
+import '../../../shared/widgets/driver_picker_sheet.dart';
 import '../drivers/driver_selection_screen.dart';
 import '../../../shared/widgets/feedback_widgets.dart';
 import '../../../shared/widgets/package_item_tile.dart';
@@ -275,6 +276,156 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
         showToast(context, e.message, isError: true);
       }
     }
+  }
+
+  bool _canReassign(Order order) {
+    final active = order.status == 'picked_up' || order.status == 'in_delivery';
+    return active && order.delivery?.driver != null;
+  }
+
+  Future<void> _changeDriver() async {
+    final order = _order;
+    if (order == null) {
+      return;
+    }
+    final driverPoint = order.delivery?.position?.point;
+    final searchPoint = driverPoint ?? order.dropoffPoint;
+    if (searchPoint == null) {
+      showToast(
+        context,
+        'Position de remise indisponible. Réessayez lorsque le suivi GPS est actif.',
+        isError: true,
+      );
+      return;
+    }
+
+    final reason = await _askReassignReason();
+    if (reason == null || !mounted) {
+      return;
+    }
+
+    setState(() => _actionLoading = true);
+    try {
+      final drivers = await widget.marketplace.replacementDrivers(
+        order.id,
+        latitude: searchPoint.latitude,
+        longitude: searchPoint.longitude,
+      );
+      if (!mounted) {
+        return;
+      }
+      if (drivers.isEmpty) {
+        showToast(
+          context,
+          'Aucun livreur disponible autour du point de remise.',
+          isError: true,
+        );
+        return;
+      }
+
+      setState(() => _actionLoading = false);
+      final choice = await showDriverPickerSheet(
+        context,
+        drivers: drivers,
+        title: 'Choisir le nouveau livreur',
+        subtitle:
+            'La course sera partagée au prorata du trajet déjà effectué. Aucun frais supplémentaire ne vous sera facturé.',
+      );
+      if (choice == null || !mounted) {
+        return;
+      }
+
+      setState(() => _actionLoading = true);
+      final result = await widget.marketplace.reassignOrder(
+        order.id,
+        driverProfileId: choice.id,
+        reason: reason,
+        latitude: driverPoint?.latitude,
+        longitude: driverPoint?.longitude,
+      );
+      if (!mounted) {
+        return;
+      }
+      await _refreshSilently();
+      if (!mounted) {
+        return;
+      }
+      final code = result['handover_code']?.toString();
+      if (code != null && code.isNotEmpty) {
+        await showDialog<void>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Nouveau livreur affecté'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Code de remise à communiquer au nouveau livreur :'),
+                const SizedBox(height: 12),
+                SelectableText(
+                  code,
+                  style: const TextStyle(
+                    fontSize: 26,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 4,
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              FilledButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Compris'),
+              ),
+            ],
+          ),
+        );
+      }
+      if (mounted) {
+        showToast(context, '${choice.displayName} reprend la livraison.');
+      }
+    } on ApiException catch (e) {
+      if (mounted) {
+        showToast(context, e.message, isError: true);
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _actionLoading = false);
+      }
+    }
+  }
+
+  Future<String?> _askReassignReason() {
+    final controller = TextEditingController();
+    return showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Changer de livreur'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          maxLines: 3,
+          decoration: const InputDecoration(
+            labelText: 'Que s\'est-il passé ? *',
+            hintText: 'Livreur injoignable, colis endommagé…',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Retour'),
+          ),
+          FilledButton(
+            onPressed: () {
+              if (controller.text.trim().length >= 3) {
+                Navigator.of(context).pop(controller.text.trim());
+              }
+            },
+            child: const Text('Continuer'),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<String?> _askCancelReason() {
@@ -771,6 +922,26 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
             _driverSelectionCard(order)!,
             const SizedBox(height: 16),
           ],
+          if (_canReassign(order)) ...[
+            Card(
+              child: ListTile(
+                onTap: _actionLoading ? null : _changeDriver,
+                leading: const Icon(Icons.swap_horiz, color: AppColors.orange),
+                title: const Text('Changer de livreur'),
+                subtitle: const Text(
+                  'Le nouveau livreur reprend le colis au point de remise.',
+                ),
+                trailing: _actionLoading
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.chevron_right),
+              ),
+            ),
+            const SizedBox(height: 8),
+          ],
           if (order.canCancel ||
               order.isAwaitingPayment ||
               order.isPaid ||
@@ -809,7 +980,15 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                     ),
                   const Divider(height: 24),
                   _SummaryRow(label: 'Sous-total', amount: order.subtotal),
-                  _SummaryRow(label: 'Livraison', amount: order.deliveryFee),
+                  _SummaryRow(
+                    label: 'Livraison (base)',
+                    amount: order.deliveryFee,
+                  ),
+                  if (order.approachFee > 0)
+                    _SummaryRow(
+                      label: 'Approche livreur',
+                      amount: order.approachFee,
+                    ),
                   if ((order.financials?.serviceFee ?? 0) > 0)
                     _SummaryRow(
                       label: 'Commission client',

@@ -31,6 +31,17 @@ List<Map<String, dynamic>> _dataList(Map<String, dynamic> response) {
   return [];
 }
 
+List<NearbyDriver> _driversFromPayload(Map<String, dynamic> response) {
+  final raw = _dataObject(response)?['drivers'];
+  if (raw is! List) {
+    return const [];
+  }
+  return raw
+      .whereType<Map<String, dynamic>>()
+      .map(NearbyDriver.fromJson)
+      .toList();
+}
+
 /// Repository partagé (catalogue public + client).
 class MarketplaceApi {
   MarketplaceApi(this._api);
@@ -246,12 +257,84 @@ class MarketplaceApi {
     await _api.delete('/cart');
   }
 
-  Future<OrderSummary> orderSummary(String addressId) async {
+  Future<OrderSummary> orderSummary(
+    String addressId, {
+    String? driverProfileId,
+  }) async {
     final response = await _api.post(
       '/orders/summary',
-      body: {'address_id': addressId},
+      body: {
+        'address_id': addressId,
+        if (driverProfileId != null && driverProfileId.isNotEmpty)
+          'driver_profile_id': driverProfileId,
+      },
     );
     return OrderSummary.fromJson(_dataObject(response) ?? {});
+  }
+
+  /// Livreurs proches du commerce, avant la création de la commande.
+  Future<List<NearbyDriver>> checkoutDrivers(
+    String addressId, {
+    double? radiusKm,
+  }) async {
+    final response = await _api.post(
+      '/orders/checkout-drivers',
+      body: {
+        'address_id': addressId,
+        if (radiusKm != null) 'radius_km': radiusKm,
+      },
+    );
+    return _driversFromPayload(response);
+  }
+
+  /// Livreurs disponibles autour du point de remise pour remplacer le livreur.
+  Future<List<NearbyDriver>> replacementDrivers(
+    String orderId, {
+    required double latitude,
+    required double longitude,
+    double? radiusKm,
+  }) async {
+    final response = await _api.post(
+      '/orders/$orderId/replacement-drivers',
+      body: {
+        'latitude': latitude,
+        'longitude': longitude,
+        if (radiusKm != null) 'radius_km': radiusKm,
+      },
+    );
+    return _driversFromPayload(response);
+  }
+
+  /// Signale un incident client sur une commande en cours.
+  Future<void> reportOrderIncident(
+    String orderId, {
+    required String reason,
+    String type = 'client',
+  }) async {
+    await _api.post(
+      '/orders/$orderId/incident',
+      body: {'reason': reason, 'type': type},
+    );
+  }
+
+  /// Remplace le livreur après un incident et renvoie le code de remise.
+  Future<Map<String, dynamic>> reassignOrder(
+    String orderId, {
+    required String driverProfileId,
+    required String reason,
+    double? latitude,
+    double? longitude,
+  }) async {
+    final response = await _api.post(
+      '/orders/$orderId/reassign',
+      body: {
+        'driver_profile_id': driverProfileId,
+        'reason': reason,
+        if (latitude != null) 'latitude': latitude,
+        if (longitude != null) 'longitude': longitude,
+      },
+    );
+    return _dataObject(response) ?? {};
   }
 
   /// Crée la commande du panier ouvert.
@@ -262,7 +345,7 @@ class MarketplaceApi {
     String addressId, {
     String? notes,
     String paymentMethod = 'online',
-    String? favoriteDriverId,
+    String? driverProfileId,
   }) async {
     final response = await _api.post(
       '/orders',
@@ -270,7 +353,7 @@ class MarketplaceApi {
         'address_id': addressId,
         'payment_method': paymentMethod,
         if (notes != null && notes.isNotEmpty) 'notes': notes,
-        'favorite_driver_id': ?favoriteDriverId,
+        'driver_profile_id': ?driverProfileId,
       },
     );
     return Order.fromJson(_dataObject(response) ?? {});
@@ -405,9 +488,7 @@ class MarketplaceApi {
       ...deliveries.map(DriverMission.fromDelivery),
       ...parcels.map(DriverMission.fromParcel),
     ];
-    missions.sort(
-      (a, b) => (b.createdAt ?? '').compareTo(a.createdAt ?? ''),
-    );
+    missions.sort((a, b) => (b.createdAt ?? '').compareTo(a.createdAt ?? ''));
     return missions;
   }
 
@@ -497,12 +578,28 @@ class MarketplaceApi {
     return Delivery.fromJson(_dataObject(response) ?? {});
   }
 
-  Future<Delivery> reportIncident(String id, String message) async {
+  Future<Delivery> reportIncident(
+    String id,
+    String message, {
+    String type = 'other',
+  }) async {
     final response = await _api.post(
       '/driver/me/deliveries/$id/incident',
-      body: {'message': message},
+      body: {'message': message, 'type': type},
     );
     return Delivery.fromJson(_dataObject(response) ?? {});
+  }
+
+  /// Confirme la remise du colis au livreur remplaçant avec le code client.
+  Future<Map<String, dynamic>> confirmHandover(
+    String deliveryId,
+    String code,
+  ) async {
+    final response = await _api.post(
+      '/driver/me/deliveries/$deliveryId/handover',
+      body: {'code': code},
+    );
+    return _dataObject(response) ?? {};
   }
 
   Future<Map<String, dynamic>> setAvailability(

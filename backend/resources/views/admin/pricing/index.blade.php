@@ -43,6 +43,16 @@
                     <input id="parcel_default_fee" name="parcel_default_fee" type="number" min="0" step="1" required class="form-control" value="{{ old('parcel_default_fee', $settings['parcel_default_fee']) }}">
                 </div>
                 <div class="col-lg-3 col-md-6 form-group">
+                    <label for="approach_free_km">Frais d'approche : km offerts</label>
+                    <input id="approach_free_km" name="approach_free_km" type="number" min="0" max="100" step="1" required class="form-control" value="{{ old('approach_free_km', $settings['approach_free_km']) }}">
+                    <small class="text-muted">Trajet du livreur vers le commerce.</small>
+                </div>
+                <div class="col-lg-3 col-md-6 form-group">
+                    <label for="approach_per_km">Frais d'approche par km (F CFA)</label>
+                    <input id="approach_per_km" name="approach_per_km" type="number" min="0" step="1" required class="form-control" value="{{ old('approach_per_km', $settings['approach_per_km']) }}">
+                    <small class="text-muted">Au-delà des km offerts (ex. 50 F/km).</small>
+                </div>
+                <div class="col-lg-3 col-md-6 form-group">
                     <label for="parcel_creation_fee">Frais de création de colis (F CFA)</label>
                     <input id="parcel_creation_fee" name="parcel_creation_fee" type="number" min="0" step="1" required class="form-control" value="{{ old('parcel_creation_fee', $settings['parcel_creation_fee']) }}">
                     <small class="text-muted">Payé par le créateur du colis, en plus de la livraison.</small>

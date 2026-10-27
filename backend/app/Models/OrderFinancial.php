@@ -24,6 +24,8 @@ class OrderFinancial extends Model
             'subtotal' => 'integer',
             'discount' => 'integer',
             'delivery_fee' => 'integer',
+            'approach_fee' => 'integer',
+            'delivery_total' => 'integer',
             'service_fee' => 'integer',
             'payment_fee' => 'integer',
             'commission_base' => 'integer',
@@ -33,6 +35,8 @@ class OrderFinancial extends Model
             'delivery_commission_rate' => 'integer',
             'delivery_commission_amount' => 'integer',
             'delivery_partner_amount' => 'integer',
+            'base_partner_amount' => 'integer',
+            'approach_partner_amount' => 'integer',
             'platform_amount' => 'integer',
             'total_client' => 'integer',
         ];

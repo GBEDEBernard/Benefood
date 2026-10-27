@@ -38,24 +38,33 @@ class DeliveryOrder {
     final rawItems = json['items'];
     // L'API renvoie l'objet `address_snapshot` ; on tolère aussi l'ancienne
     // forme (chaîne) pour les commandes créées avant le passage aux cartes.
-    final snapshot = rawAddress == null ? null : AddressSnapshot.fromJson(rawAddress);
+    final snapshot = rawAddress == null
+        ? null
+        : AddressSnapshot.fromJson(rawAddress);
     final display = rawAddress is String && rawAddress.isNotEmpty
         ? rawAddress
         : (snapshot == null || snapshot.display.isEmpty)
-            ? null
-            : snapshot.display;
+        ? null
+        : snapshot.display;
     return DeliveryOrder(
       id: _s(json['id']),
-      reference: json['reference'] is String ? json['reference'] as String : null,
+      reference: json['reference'] is String
+          ? json['reference'] as String
+          : null,
       status: json['status'] is String ? json['status'] as String : null,
       total: _iNull(json['total']),
       subtotal: _iNull(json['subtotal']),
       deliveryFee: _iNull(json['delivery_fee']),
       address: display,
       addressSnapshot: snapshot,
-      client: rawClient is Map<String, dynamic> ? DeliveryClient.fromJson(rawClient) : null,
+      client: rawClient is Map<String, dynamic>
+          ? DeliveryClient.fromJson(rawClient)
+          : null,
       items: rawItems is List
-          ? rawItems.whereType<Map<String, dynamic>>().map(DeliveryOrderItem.fromJson).toList()
+          ? rawItems
+                .whereType<Map<String, dynamic>>()
+                .map(DeliveryOrderItem.fromJson)
+                .toList()
           : const [],
     );
   }
@@ -75,11 +84,14 @@ class DeliveryOrderItem {
   final int quantity;
   final String? imageUrl;
 
-  factory DeliveryOrderItem.fromJson(Map<String, dynamic> json) => DeliveryOrderItem(
+  factory DeliveryOrderItem.fromJson(Map<String, dynamic> json) =>
+      DeliveryOrderItem(
         id: _s(json['id']),
         name: _s(json['name']),
         quantity: _i(json['quantity']),
-        imageUrl: json['image_url'] is String ? json['image_url'] as String : null,
+        imageUrl: json['image_url'] is String
+            ? json['image_url'] as String
+            : null,
       );
 }
 
@@ -99,12 +111,37 @@ class DeliveryClient {
   final String? avatarUrl;
 
   factory DeliveryClient.fromJson(Map<String, dynamic> json) => DeliveryClient(
+    id: _s(json['id']),
+    name: json['name'] is String ? json['name'] as String : null,
+    phone: json['phone'] is String ? json['phone'] as String : null,
+    avatarUrl: json['avatar_url'] is String
+        ? json['avatar_url'] as String
+        : null,
+  );
+}
+
+class DeliveryHandover {
+  const DeliveryHandover({
+    required this.id,
+    required this.sequence,
+    this.baseFee = 0,
+    this.approachFee = 0,
+    this.partnerAmount = 0,
+  });
+
+  final String id;
+  final int sequence;
+  final int baseFee;
+  final int approachFee;
+  final int partnerAmount;
+
+  factory DeliveryHandover.fromJson(Map<String, dynamic> json) =>
+      DeliveryHandover(
         id: _s(json['id']),
-        name: json['name'] is String ? json['name'] as String : null,
-        phone: json['phone'] is String ? json['phone'] as String : null,
-        avatarUrl: json['avatar_url'] is String
-            ? json['avatar_url'] as String
-            : null,
+        sequence: _i(json['sequence']),
+        baseFee: _i(json['base_fee']),
+        approachFee: _i(json['approach_fee']),
+        partnerAmount: _i(json['partner_amount']),
       );
 }
 
@@ -134,17 +171,19 @@ class DeliveryVendor {
   final double? longitude;
 
   factory DeliveryVendor.fromJson(Map<String, dynamic> json) => DeliveryVendor(
-        id: _s(json['id']),
-        businessName: json['business_name'] is String ? json['business_name'] as String : null,
-        type: json['type'] is String ? json['type'] as String : null,
-        logoUrl: json['logo_url'] is String ? json['logo_url'] as String : null,
-        coverUrl: json['cover_url'] is String ? json['cover_url'] as String : null,
-        address: json['address'] is String ? json['address'] as String : null,
-        city: json['city'] is String ? json['city'] as String : null,
-        phone: json['phone'] is String ? json['phone'] as String : null,
-        latitude: _d(json['latitude']),
-        longitude: _d(json['longitude']),
-      );
+    id: _s(json['id']),
+    businessName: json['business_name'] is String
+        ? json['business_name'] as String
+        : null,
+    type: json['type'] is String ? json['type'] as String : null,
+    logoUrl: json['logo_url'] is String ? json['logo_url'] as String : null,
+    coverUrl: json['cover_url'] is String ? json['cover_url'] as String : null,
+    address: json['address'] is String ? json['address'] as String : null,
+    city: json['city'] is String ? json['city'] as String : null,
+    phone: json['phone'] is String ? json['phone'] as String : null,
+    latitude: _d(json['latitude']),
+    longitude: _d(json['longitude']),
+  );
 }
 
 class Delivery {
@@ -156,6 +195,7 @@ class Delivery {
     this.driverEarnings,
     this.order,
     this.vendor,
+    this.pendingHandover,
     this.proofCode,
     this.createdAt,
     this.assignedAt,
@@ -171,6 +211,10 @@ class Delivery {
   final int? driverEarnings;
   final DeliveryOrder? order;
   final DeliveryVendor? vendor;
+
+  /// Segment en attente de remise : le livreur doit saisir le code fourni
+  /// par le client avant de poursuivre la course.
+  final DeliveryHandover? pendingHandover;
   final String? proofCode;
   final String? createdAt;
   final String? assignedAt;
@@ -187,6 +231,7 @@ class Delivery {
   bool get canPickup => status == 'assigned' || status == 'en_route_pickup';
   bool get canStart => status == 'picked_up';
   bool get canDeliver => status == 'in_delivery';
+  bool get hasPendingHandover => pendingHandover != null;
 
   /// Point de collecte : les coordonnées du vendeur.
   GeoPoint? get pickupPoint {
@@ -212,6 +257,10 @@ class Delivery {
     if (rawVendor is Map<String, dynamic>) {
       vendor = DeliveryVendor.fromJson(rawVendor);
     }
+    final rawHandover = json['pending_handover'];
+    final pendingHandover = rawHandover is Map<String, dynamic>
+        ? DeliveryHandover.fromJson(rawHandover)
+        : null;
 
     return Delivery(
       id: _s(json['id']),
@@ -221,7 +270,10 @@ class Delivery {
       driverEarnings: _iNull(json['driver_earnings']),
       order: order,
       vendor: vendor,
-      proofCode: json['proof_code'] is String ? json['proof_code'] as String : null,
+      pendingHandover: pendingHandover,
+      proofCode: json['proof_code'] is String
+          ? json['proof_code'] as String
+          : null,
       createdAt: _nullable(json['created_at']),
       assignedAt: _nullable(json['assigned_at']),
       pickedUpAt: _nullable(json['picked_up_at']),
@@ -231,7 +283,8 @@ class Delivery {
   }
 }
 
-String _s(dynamic value, [String fallback = '']) => value is String ? value : fallback;
+String _s(dynamic value, [String fallback = '']) =>
+    value is String ? value : fallback;
 
 String? _nullable(dynamic value) => value is String ? value : null;
 

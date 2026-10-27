@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Delivery extends Model
 {
@@ -21,6 +22,7 @@ class Delivery extends Model
             'status' => DeliveryStatus::class,
             'fee' => 'integer',
             'partner_amount' => 'integer',
+            'reassignment_count' => 'integer',
             'pickup_latitude' => 'float',
             'pickup_longitude' => 'float',
             'dropoff_latitude' => 'float',
@@ -64,6 +66,28 @@ class Delivery extends Model
     public function locations(): HasMany
     {
         return $this->hasMany(DeliveryLocation::class);
+    }
+
+    public function assignments(): HasMany
+    {
+        return $this->hasMany(DeliveryAssignment::class)->orderBy('sequence');
+    }
+
+    public function activeAssignment(): HasOne
+    {
+        return $this->hasOne(DeliveryAssignment::class)
+            ->whereIn('status', [DeliveryAssignment::STATUS_ACTIVE, DeliveryAssignment::STATUS_PENDING_HANDOVER])
+            ->latestOfMany('sequence');
+    }
+
+    public function incidents(): HasMany
+    {
+        return $this->hasMany(DeliveryIncident::class)->latest();
+    }
+
+    public function reassignments(): HasMany
+    {
+        return $this->hasMany(DeliveryReassignmentRequest::class)->latest();
     }
 
     public function isAvailable(): bool

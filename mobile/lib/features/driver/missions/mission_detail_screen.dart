@@ -138,6 +138,74 @@ class _MissionDetailScreenState extends State<MissionDetailScreen> {
     }
   }
 
+  Future<void> _confirmHandover() async {
+    final mission = _mission;
+    if (mission == null) {
+      return;
+    }
+    final code = await _askHandoverCode();
+    if (code == null || !mounted) {
+      return;
+    }
+    setState(() => _actionLoading = true);
+    try {
+      await widget.marketplace.confirmHandover(mission.id, code);
+      if (mounted) {
+        showToast(context, 'Remise du colis confirmée.');
+        await _load();
+      }
+    } on ApiException catch (e) {
+      if (mounted) {
+        showToast(context, e.message, isError: true);
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _actionLoading = false);
+      }
+    }
+  }
+
+  Future<String?> _askHandoverCode() {
+    final controller = TextEditingController();
+    return showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Confirmer la remise'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Saisissez le code communiqué par le client pour reprendre la livraison.',
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: controller,
+              autofocus: true,
+              textCapitalization: TextCapitalization.characters,
+              decoration: const InputDecoration(labelText: 'Code de remise *'),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Retour'),
+          ),
+          FilledButton(
+            onPressed: () {
+              final value = controller.text.trim();
+              if (value.isNotEmpty) {
+                Navigator.of(context).pop(value);
+              }
+            },
+            child: const Text('Valider'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _openNavigation() async {
     final mission = _mission;
     if (mission == null) {
@@ -278,6 +346,10 @@ class _MissionDetailScreenState extends State<MissionDetailScreen> {
         children: [
           _MissionHero(mission: mission),
           const SizedBox(height: AppDimens.md),
+          if (mission.isActive && mission.hasPendingHandover) ...[
+            _HandoverCard(loading: _actionLoading, onConfirm: _confirmHandover),
+            const SizedBox(height: AppDimens.md),
+          ],
           if (mission.isActive) _buildAction(mission),
           if (mission.isDelivered) ...[
             const SizedBox(height: AppDimens.md),
@@ -301,7 +373,8 @@ class _MissionDetailScreenState extends State<MissionDetailScreen> {
               ],
             ),
           ],
-          if (mission.isOrder && (mission.description?.trim().isNotEmpty ?? false)) ...[
+          if (mission.isOrder &&
+              (mission.description?.trim().isNotEmpty ?? false)) ...[
             const SizedBox(height: AppDimens.md),
             _NoteCard(note: mission.description!.trim()),
           ],
@@ -326,6 +399,10 @@ class _MissionDetailScreenState extends State<MissionDetailScreen> {
   }
 
   Widget _buildAction(DriverMission mission) {
+    if (mission.hasPendingHandover) {
+      return const SizedBox.shrink();
+    }
+
     final requiredAction = switch (mission.status) {
       'assigned' => _startPickup,
       'picked_up' => _startDelivery,
@@ -372,16 +449,16 @@ class _MissionDetailScreenState extends State<MissionDetailScreen> {
         Text(
           switch (mission.status) {
             'assigned' => 'Confirmez votre départ vers le point de collecte.',
-            'en_route_pickup' => 'La confirmation de collecte se fait dans la navigation.',
-            'picked_up' => 'La livraison sera activée après confirmation du départ.',
-            'in_delivery' => 'Saisissez le code client pour finaliser la livraison.',
+            'en_route_pickup' =>
+              'La confirmation de collecte se fait dans la navigation.',
+            'picked_up' =>
+              'La livraison sera activée après confirmation du départ.',
+            'in_delivery' =>
+              'Saisissez le code client pour finaliser la livraison.',
             _ => '',
           },
           textAlign: TextAlign.center,
-          style: const TextStyle(
-            fontSize: 11.5,
-            color: AppColors.textFaint,
-          ),
+          style: const TextStyle(fontSize: 11.5, color: AppColors.textFaint),
         ),
       ],
     );
@@ -437,10 +514,7 @@ class _MissionHero extends StatelessWidget {
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 9,
-                  vertical: 4,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
                 decoration: BoxDecoration(
                   color: Colors.white.withValues(alpha: 0.18),
                   borderRadius: BorderRadius.circular(AppDimens.radiusPill),
@@ -493,8 +567,9 @@ class _MissionHero extends StatelessWidget {
                   icon: mission.isParcel
                       ? Icons.inventory_2_outlined
                       : Icons.storefront_outlined,
-                  iconColor:
-                      mission.isParcel ? AppColors.green : AppColors.orange,
+                  iconColor: mission.isParcel
+                      ? AppColors.green
+                      : AppColors.orange,
                 ),
               ),
               const SizedBox(width: 13),
@@ -534,9 +609,7 @@ class _MissionHero extends StatelessWidget {
             decoration: BoxDecoration(
               color: Colors.white.withValues(alpha: 0.13),
               borderRadius: BorderRadius.circular(AppDimens.radiusMd),
-              border: Border.all(
-                color: Colors.white.withValues(alpha: 0.18),
-              ),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
             ),
             child: Row(
               children: [
@@ -567,6 +640,73 @@ class _MissionHero extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _HandoverCard extends StatelessWidget {
+  const _HandoverCard({required this.loading, required this.onConfirm});
+
+  final bool loading;
+  final VoidCallback onConfirm;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      color: AppColors.orangeLight,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(
+                  Icons.handshake_outlined,
+                  color: AppColors.orangeDark,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Reprise du colis',
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.orangeDark,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Ce colis vous a été remis par un autre livreur. Demandez le code de remise au client pour confirmer la reprise.',
+              style: TextStyle(fontSize: 12.5, color: AppColors.orangeDark),
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: loading ? null : onConfirm,
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.orangeDark,
+                  foregroundColor: Colors.white,
+                ),
+                icon: loading
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Icon(Icons.lock_open_outlined, size: 18),
+                label: const Text('Confirmer la remise'),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -644,16 +784,16 @@ class _MapPreview extends StatelessWidget {
         targetIcon: mission.isPickupPhase
             ? Icons.storefront_outlined
             : Icons.location_on_outlined,
-        targetColor:
-            mission.isPickupPhase ? AppColors.gold : AppColors.orange,
+        targetColor: mission.isPickupPhase ? AppColors.gold : AppColors.orange,
         secondary: other.point,
         secondaryLabel: other.title,
         secondaryImageUrl: other.imageUrl,
         secondaryIcon: mission.isPickupPhase
             ? Icons.place_outlined
             : Icons.inventory_2_outlined,
-        secondaryColor:
-            mission.isPickupPhase ? AppColors.orange : AppColors.gold,
+        secondaryColor: mission.isPickupPhase
+            ? AppColors.orange
+            : AppColors.gold,
         height: 210,
       ),
     );
@@ -779,11 +919,7 @@ class _StopTile extends StatelessWidget {
             ),
           ),
           if (phone.isNotEmpty)
-            CallButton(
-              label: 'Appeler',
-              phone: phone,
-              compact: true,
-            ),
+            CallButton(label: 'Appeler', phone: phone, compact: true),
         ],
       ),
     );
@@ -943,11 +1079,7 @@ class _MissionTimeline extends StatelessWidget {
       Icons.inventory_2_outlined,
       AppColors.gold,
     ),
-    _TimelineStep(
-      'En route vers le client',
-      Icons.two_wheeler,
-      AppColors.blue,
-    ),
+    _TimelineStep('En route vers le client', Icons.two_wheeler, AppColors.blue),
     _TimelineStep(
       mission.isParcel ? 'Livré' : 'Livrée',
       Icons.verified_outlined,
@@ -1036,10 +1168,7 @@ class _MissionTimeline extends StatelessWidget {
                   const SizedBox(width: 11),
                   Expanded(
                     child: Padding(
-                      padding: EdgeInsets.only(
-                        top: 3,
-                        bottom: isLast ? 0 : 17,
-                      ),
+                      padding: EdgeInsets.only(top: 3, bottom: isLast ? 0 : 17),
                       child: Text(
                         step.label,
                         style: TextStyle(

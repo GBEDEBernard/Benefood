@@ -17,6 +17,9 @@ class NearbyDriver {
     this.distanceToDropoffKm,
     this.etaTotalSeconds,
     this.position,
+    this.approachFee,
+    this.approachDistanceKm,
+    this.approachBillableKm,
   });
 
   final String id;
@@ -43,6 +46,11 @@ class NearbyDriver {
   final int? etaTotalSeconds;
   final DriverLivePosition? position;
 
+  /// Frais d'approche estimés pour rejoindre le point de collecte.
+  final int? approachFee;
+  final double? approachDistanceKm;
+  final double? approachBillableKm;
+
   String get displayName =>
       (name != null && name!.trim().isNotEmpty) ? name!.trim() : 'Livreur';
 
@@ -65,6 +73,9 @@ class NearbyDriver {
     position: json['position'] is Map<String, dynamic>
         ? DriverLivePosition.fromJson(json['position'] as Map<String, dynamic>)
         : null,
+    approachFee: _iNull(json['approach_fee']),
+    approachDistanceKm: _dNull(json['approach_distance_km']),
+    approachBillableKm: _dNull(json['approach_billable_km']),
   );
 }
 
@@ -273,7 +284,9 @@ class DriverSelectionDiagnostics {
 
   /// Des livreurs sont en ligne mais aucun ne possède de position exploitable.
   bool get hasPositionIssue =>
-      hasOnlineDrivers && freshPosition == 0 && (stalePosition > 0 || withoutPosition > 0);
+      hasOnlineDrivers &&
+      freshPosition == 0 &&
+      (stalePosition > 0 || withoutPosition > 0);
 
   factory DriverSelectionDiagnostics.fromJson(Map<String, dynamic> json) =>
       DriverSelectionDiagnostics(

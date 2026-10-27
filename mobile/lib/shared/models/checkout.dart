@@ -5,6 +5,10 @@ class OrderSummary {
     required this.subtotal,
     required this.deliveryFee,
     required this.total,
+    this.approachFee = 0,
+    this.deliveryTotal = 0,
+    this.approachDistanceKm,
+    this.selectedDriver,
     this.deliveryDistanceKm,
     this.serviceFee = 0,
     this.vendorId,
@@ -19,6 +23,12 @@ class OrderSummary {
   final int subtotal;
   final int deliveryFee;
   final int total;
+
+  /// Frais d'approche du livreur choisi (trajet livreur → boutique).
+  final int approachFee;
+  final int deliveryTotal;
+  final double? approachDistanceKm;
+  final SummaryDriver? selectedDriver;
   final double? deliveryDistanceKm;
 
   /// Commission client (taux dynamique, sur le sous-total produits).
@@ -34,7 +44,10 @@ class OrderSummary {
     final rawItems = json['items'];
     List<SummaryItem> items = [];
     if (rawItems is List) {
-      items = rawItems.whereType<Map<String, dynamic>>().map(SummaryItem.fromJson).toList();
+      items = rawItems
+          .whereType<Map<String, dynamic>>()
+          .map(SummaryItem.fromJson)
+          .toList();
     }
 
     final rawVendor = json['vendor'];
@@ -42,7 +55,9 @@ class OrderSummary {
     String? vendorName;
     if (rawVendor is Map<String, dynamic>) {
       vendorId = rawVendor['id'] is String ? rawVendor['id'] as String : null;
-      vendorName = rawVendor['business_name'] is String ? rawVendor['business_name'] as String : null;
+      vendorName = rawVendor['business_name'] is String
+          ? rawVendor['business_name'] as String
+          : null;
     }
 
     final rawCommission = json['commission'];
@@ -50,7 +65,9 @@ class OrderSummary {
     int? amount;
     if (rawCommission is Map<String, dynamic>) {
       rate = rawCommission['rate'] is int ? rawCommission['rate'] as int : null;
-      amount = rawCommission['amount'] is int ? rawCommission['amount'] as int : null;
+      amount = rawCommission['amount'] is int
+          ? rawCommission['amount'] as int
+          : null;
     }
 
     final rawZone = json['delivery_zone'];
@@ -63,6 +80,17 @@ class OrderSummary {
       items: items,
       subtotal: _i(json['subtotal']),
       deliveryFee: _i(json['delivery_fee']),
+      approachFee: _i(json['approach_fee']),
+      deliveryTotal: _i(
+        json['delivery_total'],
+        _i(json['delivery_fee']) + _i(json['approach_fee']),
+      ),
+      approachDistanceKm: _dNull(json['approach_distance_km']),
+      selectedDriver: json['selected_driver'] is Map<String, dynamic>
+          ? SummaryDriver.fromJson(
+              json['selected_driver'] as Map<String, dynamic>,
+            )
+          : null,
       deliveryDistanceKm: json['delivery_distance_km'] is num
           ? (json['delivery_distance_km'] as num).toDouble()
           : null,
@@ -76,6 +104,21 @@ class OrderSummary {
       currency: _s(json['currency'], 'XOF'),
     );
   }
+}
+
+class SummaryDriver {
+  const SummaryDriver({required this.id, this.name});
+
+  final String id;
+  final String? name;
+
+  String get displayName =>
+      (name != null && name!.trim().isNotEmpty) ? name!.trim() : 'Livreur';
+
+  factory SummaryDriver.fromJson(Map<String, dynamic> json) => SummaryDriver(
+    id: _s(json['id']),
+    name: json['name'] is String ? json['name'] as String : null,
+  );
 }
 
 class SummaryItem {
@@ -94,12 +137,12 @@ class SummaryItem {
   final int subtotal;
 
   factory SummaryItem.fromJson(Map<String, dynamic> json) => SummaryItem(
-        productId: _s(json['product_id']),
-        name: _s(json['name']),
-        quantity: _i(json['quantity']),
-        unitPrice: _i(json['unit_price']),
-        subtotal: _i(json['subtotal']),
-      );
+    productId: _s(json['product_id']),
+    name: _s(json['name']),
+    quantity: _i(json['quantity']),
+    unitPrice: _i(json['unit_price']),
+    subtotal: _i(json['subtotal']),
+  );
 }
 
 /// Devis de livraison renvoyé par `POST /delivery/quote` (J73/J176).
@@ -124,10 +167,18 @@ class DeliveryQuote {
     final rawZone = json['zone'];
     return DeliveryQuote(
       deliveryFee: _i(json['delivery_fee']),
-      zoneId: rawZone is Map<String, dynamic> && rawZone['id'] is String ? rawZone['id'] as String : null,
-      zoneName: rawZone is Map<String, dynamic> && rawZone['name'] is String ? rawZone['name'] as String : null,
-      matchedBy: json['matched_by'] is String ? json['matched_by'] as String : null,
-      distanceKm: json['distance_km'] is num ? (json['distance_km'] as num).toDouble() : null,
+      zoneId: rawZone is Map<String, dynamic> && rawZone['id'] is String
+          ? rawZone['id'] as String
+          : null,
+      zoneName: rawZone is Map<String, dynamic> && rawZone['name'] is String
+          ? rawZone['name'] as String
+          : null,
+      matchedBy: json['matched_by'] is String
+          ? json['matched_by'] as String
+          : null,
+      distanceKm: json['distance_km'] is num
+          ? (json['distance_km'] as num).toDouble()
+          : null,
       currency: _s(json['currency'], 'XOF'),
     );
   }
@@ -159,7 +210,8 @@ class PaginationMeta {
   }
 }
 
-String _s(dynamic value, [String fallback = '']) => value is String ? value : fallback;
+String _s(dynamic value, [String fallback = '']) =>
+    value is String ? value : fallback;
 
 int _i(dynamic value, [int fallback = 0]) {
   if (value is int) {
@@ -169,4 +221,14 @@ int _i(dynamic value, [int fallback = 0]) {
     return int.tryParse(value) ?? fallback;
   }
   return fallback;
+}
+
+double? _dNull(dynamic value) {
+  if (value is num) {
+    return value.toDouble();
+  }
+  if (value is String) {
+    return double.tryParse(value);
+  }
+  return null;
 }

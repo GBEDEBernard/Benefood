@@ -6,6 +6,7 @@ use App\Exceptions\DomainException;
 use App\Models\DeliveryRate;
 use App\Models\DeliveryZone;
 use App\Models\DistancePricingRule;
+use App\Models\DriverProfile;
 use App\Models\Vendor;
 use Illuminate\Support\Str;
 
@@ -138,6 +139,52 @@ class DeliveryPricingService
             'delivery_fee' => $distanceKm !== null ? max($minimumFee, $deliveryFee) : $deliveryFee,
             'distance_km' => $distanceKm,
             'distance_pricing_rule' => $distanceRule['snapshot'] ?? null,
+        ];
+    }
+
+    /**
+     * Frais d'approche : trajet du livreur jusqu'au point de collecte.
+     *
+     * Les premiers kilomètres sont offerts, puis chaque kilomètre est facturé
+     * au tarif configuré par la porteuse. Le montant est arrondi au franc.
+     *
+     * @return array{distance_km: ?float, billable_km: float, fee: int, snapshot: array<string, mixed>}
+     */
+    public function approachQuote(DriverProfile $driver, Vendor $vendor): array
+    {
+        $pickupLatitude = $vendor->pickup_latitude ?? $vendor->latitude;
+        $pickupLongitude = $vendor->pickup_longitude ?? $vendor->longitude;
+
+        $distanceKm = $this->distanceKm(
+            $driver->last_latitude,
+            $driver->last_longitude,
+            $pickupLatitude,
+            $pickupLongitude,
+        );
+
+        $settings = app(PlatformPricingSettings::class);
+        $freeKm = max(0, $settings->get('approach_free_km'));
+        $perKm = max(0, $settings->get('approach_per_km'));
+        $billableKm = $distanceKm === null ? 0.0 : max(0.0, $distanceKm - $freeKm);
+        $fee = (int) round($billableKm * $perKm);
+
+        return [
+            'distance_km' => $distanceKm !== null ? round($distanceKm, 3) : null,
+            'billable_km' => round($billableKm, 3),
+            'fee' => $fee,
+            'snapshot' => [
+                'driver_profile_id' => $driver->id,
+                'driver_latitude' => $driver->last_latitude,
+                'driver_longitude' => $driver->last_longitude,
+                'pickup_latitude' => $pickupLatitude,
+                'pickup_longitude' => $pickupLongitude,
+                'distance_km' => $distanceKm !== null ? round($distanceKm, 3) : null,
+                'free_km' => $freeKm,
+                'per_km' => $perKm,
+                'billable_km' => round($billableKm, 3),
+                'fee' => $fee,
+                'computed_at' => now()->toIso8601String(),
+            ],
         ];
     }
 

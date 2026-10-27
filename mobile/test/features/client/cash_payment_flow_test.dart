@@ -4,11 +4,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:latlong2/latlong.dart';
 
 import 'package:beninfood/core/data/marketplace_api.dart';
 import 'package:beninfood/core/http/api_client.dart';
 import 'package:beninfood/features/client/checkout/checkout_screen.dart';
 import 'package:beninfood/features/client/orders/orders_screen.dart';
+import 'package:beninfood/shared/widgets/map_picker.dart';
 
 class _NoopTokenStore implements TokenStore {
   @override
@@ -25,26 +27,26 @@ class _NoopTokenStore implements TokenStore {
 }
 
 Map<String, dynamic> _orderPayload({required String paymentMethod}) => {
-      'id': 'o1',
-      'reference': 'BEN-261013-CASH01',
-      'status': 'awaiting_payment',
-      'payment_status': 'initiated',
-      'payment_method': paymentMethod,
+  'id': 'o1',
+  'reference': 'BEN-261013-CASH01',
+  'status': 'awaiting_payment',
+  'payment_status': 'initiated',
+  'payment_method': paymentMethod,
+  'subtotal': 5000,
+  'delivery_fee': 1000,
+  'total': 6300,
+  'created_at': '2026-10-13T10:00:00Z',
+  'vendor': {'id': 'v1', 'business_name': 'Chez Awalou'},
+  'items': [
+    {
+      'id': 'i1',
+      'name': 'Poulet DG',
+      'quantity': 1,
+      'unit_price': 5000,
       'subtotal': 5000,
-      'delivery_fee': 1000,
-      'total': 6300,
-      'created_at': '2026-10-13T10:00:00Z',
-      'vendor': {'id': 'v1', 'business_name': 'Chez Awalou'},
-      'items': [
-        {
-          'id': 'i1',
-          'name': 'Poulet DG',
-          'quantity': 1,
-          'unit_price': 5000,
-          'subtotal': 5000,
-        },
-      ],
-    };
+    },
+  ],
+};
 
 /// Backend simulé du checkout : adresses, récapitulatif, commande et paiement.
 class _CheckoutBackend {
@@ -53,95 +55,130 @@ class _CheckoutBackend {
   int paymentCreateCalls = 0;
 
   MockClient client() => MockClient((request) async {
-        final jsonHeaders = {'content-type': 'application/json'};
-        final path = request.url.path;
+    final jsonHeaders = {'content-type': 'application/json'};
+    final path = request.url.path;
 
-        if (path.endsWith('/addresses')) {
-          if (request.method == 'POST') {
-            final body = jsonDecode(request.body) as Map<String, dynamic>;
-            addressBodies.add(body);
-            return http.Response(
-              jsonEncode({
-                'data': {
-                  'id': 'a2',
-                  'label': body['label'],
-                  'full_address': body['full_address'],
-                  'city': body['city'],
-                  'area': body['area'],
-                },
-              }),
-              201,
-              headers: jsonHeaders,
-            );
-          }
-          return http.Response(
-            jsonEncode({
-              'data': [
-                {
-                  'id': 'a1',
-                  'full_address': 'Akpakpa, Cotonou',
-                  'city': 'Cotonou',
-                },
-              ],
-            }),
-            200,
-            headers: jsonHeaders,
-          );
-        }
+    if (path.endsWith('/addresses')) {
+      if (request.method == 'POST') {
+        final body = jsonDecode(request.body) as Map<String, dynamic>;
+        addressBodies.add(body);
+        return http.Response(
+          jsonEncode({
+            'data': {
+              'id': 'a2',
+              'label': body['label'],
+              'full_address': body['full_address'],
+              'city': body['city'],
+              'area': body['area'],
+              'latitude': body['latitude'],
+              'longitude': body['longitude'],
+            },
+          }),
+          201,
+          headers: jsonHeaders,
+        );
+      }
+      return http.Response(
+        jsonEncode({
+          'data': [
+            {
+              'id': 'a1',
+              'full_address': 'Akpakpa, Cotonou',
+              'city': 'Cotonou',
+              'latitude': 6.37,
+              'longitude': 2.42,
+            },
+          ],
+        }),
+        200,
+        headers: jsonHeaders,
+      );
+    }
 
-        if (path.endsWith('/orders/summary')) {
-          return http.Response(
-            jsonEncode({
-              'data': {
-                'subtotal': 5000,
-                'delivery_fee': 1000,
-                'service_fee': 300,
-                'total': 6300,
-                'items': const [],
+    if (path.endsWith('/orders/checkout-drivers')) {
+      return http.Response(
+        jsonEncode({
+          'data': {
+            'pickup': {'name': 'Chez Awalou'},
+            'dropoff': {'name': 'Akpakpa'},
+            'radius_km': 5,
+            'drivers': [
+              {
+                'id': 'd1',
+                'name': 'Awa Diallo',
+                'rating': 4.8,
+                'vehicle': 'Moto',
+                'distance_to_pickup_km': 2.4,
+                'eta_to_pickup_s': 420,
+                'approach_fee': 0,
               },
-            }),
-            200,
-            headers: jsonHeaders,
-          );
-        }
+            ],
+          },
+        }),
+        200,
+        headers: jsonHeaders,
+      );
+    }
 
-        if (path.endsWith('/payments/create')) {
-          paymentCreateCalls++;
-          return http.Response(
-            jsonEncode({
-              'data': {
-                'provider': 'fedapay',
-                'status': 'pending',
-                'amount': 6300,
-                'checkout_url': null,
-                'transaction_id': null,
-              },
-            }),
-            200,
-            headers: jsonHeaders,
-          );
-        }
+    if (path.endsWith('/orders/summary')) {
+      return http.Response(
+        jsonEncode({
+          'data': {
+            'subtotal': 5000,
+            'delivery_fee': 1000,
+            'service_fee': 300,
+            'total': 6300,
+            'items': const [],
+          },
+        }),
+        200,
+        headers: jsonHeaders,
+      );
+    }
 
-        if (path.endsWith('/orders')) {
-          final body = jsonDecode(request.body) as Map<String, dynamic>;
-          orderBodies.add(body);
-          return http.Response(
-            jsonEncode({
-              'data': _orderPayload(
-                paymentMethod: body['payment_method'] as String? ?? 'online',
-              ),
-            }),
-            201,
-            headers: jsonHeaders,
-          );
-        }
+    if (path.endsWith('/payments/create')) {
+      paymentCreateCalls++;
+      return http.Response(
+        jsonEncode({
+          'data': {
+            'provider': 'fedapay',
+            'status': 'pending',
+            'amount': 6300,
+            'checkout_url': null,
+            'transaction_id': null,
+          },
+        }),
+        200,
+        headers: jsonHeaders,
+      );
+    }
 
-        return http.Response(jsonEncode({'message': 'Not found'}), 404,
-            headers: jsonHeaders);
-      });
+    if (path.endsWith('/orders')) {
+      final body = jsonDecode(request.body) as Map<String, dynamic>;
+      orderBodies.add(body);
+      return http.Response(
+        jsonEncode({
+          'data': _orderPayload(
+            paymentMethod: body['payment_method'] as String? ?? 'online',
+          ),
+        }),
+        201,
+        headers: jsonHeaders,
+      );
+    }
+
+    return http.Response(
+      jsonEncode({'message': 'Not found'}),
+      404,
+      headers: jsonHeaders,
+    );
+  });
 }
 
-Future<void> _pumpCheckout(WidgetTester tester, _CheckoutBackend backend) async {
+Future<void> _pumpCheckout(
+  WidgetTester tester,
+  _CheckoutBackend backend,
+) async {
   final api = ApiClient(
     tokenStore: _NoopTokenStore(),
     httpClient: backend.client(),
@@ -150,8 +187,20 @@ Future<void> _pumpCheckout(WidgetTester tester, _CheckoutBackend backend) async 
   await tester.pumpWidget(
     MaterialApp(home: CheckoutScreen(marketplace: MarketplaceApi(api))),
   );
-  await tester.pump();
-  await tester.pump(const Duration(milliseconds: 300));
+  await tester.pumpAndSettle();
+}
+
+Future<void> _selectDriver(WidgetTester tester) async {
+  final choose = find.text('Choisir un livreur');
+  await tester.scrollUntilVisible(
+    choose,
+    200,
+    scrollable: find.byType(Scrollable).first,
+  );
+  await tester.tap(choose);
+  await tester.pumpAndSettle();
+  await tester.tap(find.text('Awa Diallo'));
+  await tester.pumpAndSettle();
 }
 
 Future<void> _tapCommander(WidgetTester tester) async {
@@ -161,142 +210,160 @@ Future<void> _tapCommander(WidgetTester tester) async {
     scrollable: find.byType(Scrollable).first,
   );
   await tester.tap(find.byType(FilledButton).last);
-  await tester.pump();
-  await tester.pump(const Duration(milliseconds: 300));
+  await tester.pumpAndSettle();
 }
 
 void main() {
   testWidgets(
-      'checkout : l\'option « paiement à la livraison » envoie payment_method=cash '
-      'et n\'appelle pas la passerelle', (tester) async {
-    final backend = _CheckoutBackend();
-    await _pumpCheckout(tester, backend);
+    'checkout : l\'option « paiement à la livraison » envoie payment_method=cash '
+    'et n\'appelle pas la passerelle',
+    (tester) async {
+      final backend = _CheckoutBackend();
+      await _pumpCheckout(tester, backend);
+      await _selectDriver(tester);
 
-    expect(find.text('Mode de paiement'), findsOneWidget);
+      await tester.scrollUntilVisible(
+        find.text('Mode de paiement'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      expect(find.text('Mode de paiement'), findsOneWidget);
 
-    // L'en-tête BÉN INFOOD occupe le haut de l'écran : les options de
-    // paiement se trouvent plus bas dans la liste, on défile jusqu'à elles.
-    final onlineOption = find.text('Mobile Money (en ligne)');
-    await tester.scrollUntilVisible(
-      onlineOption,
-      200,
-      scrollable: find.byType(Scrollable).first,
-    );
-    expect(onlineOption, findsOneWidget);
+      // L'en-tête BÉN INFOOD occupe le haut de l'écran : les options de
+      // paiement se trouvent plus bas dans la liste, on défile jusqu'à elles.
+      final onlineOption = find.text('Mobile Money (en ligne)');
+      await tester.scrollUntilVisible(
+        onlineOption,
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      expect(onlineOption, findsOneWidget);
 
-    final cashOption = find.text('Paiement à la livraison');
-    await tester.scrollUntilVisible(
-      cashOption,
-      300,
-      scrollable: find.byType(Scrollable).first,
-    );
-    await tester.ensureVisible(cashOption);
-    await tester.pumpAndSettle();
-    await tester.tap(cashOption);
-    await tester.pump();
-    expect(
-      find.textContaining('en espèces pour le livreur'),
-      findsOneWidget,
-      reason: 'montant à prévoir affiché au client',
-    );
+      final cashOption = find.text('Paiement à la livraison');
+      await tester.scrollUntilVisible(
+        cashOption,
+        300,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.ensureVisible(cashOption);
+      await tester.pumpAndSettle();
+      await tester.tap(cashOption);
+      await tester.pump();
+      expect(
+        find.textContaining('en espèces pour le livreur'),
+        findsOneWidget,
+        reason: 'montant à prévoir affiché au client',
+      );
 
-    await _tapCommander(tester);
+      await _tapCommander(tester);
 
-    expect(backend.orderBodies, hasLength(1));
-    expect(backend.orderBodies.single['payment_method'], 'cash');
-    expect(
-      backend.paymentCreateCalls,
-      0,
-      reason: 'commandes cash : aucun appel à la passerelle de paiement',
-    );
-    expect(find.text('Commande enregistrée !'), findsOneWidget);
-    expect(find.textContaining('en espèces au livreur'), findsOneWidget);
-    expect(tester.takeException(), isNull);
-  });
-
-  testWidgets('checkout : Mobile Money reste le défaut et passe par la passerelle',
-      (tester) async {
-    final backend = _CheckoutBackend();
-    await _pumpCheckout(tester, backend);
-
-    await _tapCommander(tester);
-
-    expect(backend.orderBodies.single['payment_method'], 'online');
-    expect(backend.paymentCreateCalls, 1);
-    expect(tester.takeException(), isNull);
-  });
+      expect(backend.orderBodies, hasLength(1));
+      expect(backend.orderBodies.single['payment_method'], 'cash');
+      expect(
+        backend.paymentCreateCalls,
+        0,
+        reason: 'commandes cash : aucun appel à la passerelle de paiement',
+      );
+      expect(find.text('Commande enregistrée !'), findsOneWidget);
+      expect(find.textContaining('en espèces au livreur'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   testWidgets(
-      'checkout : « Ajouter une nouvelle adresse » ouvre le formulaire et '
-      'sélectionne l\'adresse créée', (tester) async {
-    final backend = _CheckoutBackend();
-    await _pumpCheckout(tester, backend);
+    'checkout : Mobile Money reste le défaut et passe par la passerelle',
+    (tester) async {
+      final backend = _CheckoutBackend();
+      await _pumpCheckout(tester, backend);
+      await _selectDriver(tester);
 
-    expect(find.text('Adresse de livraison'), findsOneWidget);
+      await _tapCommander(tester);
 
-    final addButton = find.text('Ajouter une nouvelle adresse');
-    await tester.scrollUntilVisible(
-      addButton,
-      200,
-      scrollable: find.byType(Scrollable).first,
-    );
-    await tester.ensureVisible(addButton);
-    await tester.pumpAndSettle();
-    await tester.tap(addButton);
-    await tester.pumpAndSettle();
+      expect(backend.orderBodies.single['payment_method'], 'online');
+      expect(backend.paymentCreateCalls, 1);
+      expect(tester.takeException(), isNull);
+    },
+  );
 
-    expect(find.text('Nouvelle adresse'), findsOneWidget);
+  testWidgets(
+    'checkout : « Ajouter une nouvelle adresse » ouvre le formulaire et '
+    'sélectionne l\'adresse créée',
+    (tester) async {
+      final backend = _CheckoutBackend();
+      await _pumpCheckout(tester, backend);
 
-    await tester.enterText(find.byType(TextFormField).at(0), 'Maison');
-    await tester.enterText(
-      find.byType(TextFormField).at(1),
-      'Rue 12, Fidjrossè',
-    );
-    await tester.tap(find.text('Enregistrer'));
-    await tester.pumpAndSettle();
+      expect(find.text('Adresse de livraison'), findsOneWidget);
 
-    expect(backend.addressBodies, hasLength(1));
-    expect(
-      backend.addressBodies.single['full_address'],
-      'Rue 12, Fidjrossè',
-    );
-    expect(find.text('Nouvelle adresse'), findsNothing);
-    await tester.scrollUntilVisible(
-      find.text('Maison'),
-      -300,
-      scrollable: find.byType(Scrollable).first,
-    );
-    expect(find.text('Maison'), findsOneWidget);
-    expect(tester.takeException(), isNull);
-  });
+      final addButton = find.text('Ajouter une nouvelle adresse');
+      await tester.scrollUntilVisible(
+        addButton,
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.ensureVisible(addButton);
+      await tester.pumpAndSettle();
+      await tester.tap(addButton);
+      await tester.pumpAndSettle();
 
-  testWidgets('commandes : une commande cash en attente s\'affiche « à la livraison »',
-      (tester) async {
-    final backend = _CheckoutBackend();
-    final api = ApiClient(
-      tokenStore: _NoopTokenStore(),
-      httpClient: MockClient((request) async {
-        return http.Response(
-          jsonEncode({
-            'data': [_orderPayload(paymentMethod: 'cash')],
-          }),
-          200,
-          headers: {'content-type': 'application/json'},
-        );
-      }),
-      baseUrl: 'http://api.test',
-    );
+      expect(find.text('Nouvelle adresse'), findsOneWidget);
 
-    await tester.pumpWidget(
-      MaterialApp(home: OrdersScreen(marketplace: MarketplaceApi(api))),
-    );
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 300));
+      tester
+          .widget<MapPicker>(find.byType(MapPicker))
+          .onChanged(const LatLng(6.37, 2.42));
+      await tester.pump();
 
-    expect(find.text('À la livraison'), findsOneWidget);
-    expect(find.text('Paiement en espèces à la livraison'), findsOneWidget);
-    expect(find.text('À payer'), findsNothing);
-    expect(tester.takeException(), isNull);
-    expect(backend.orderBodies, isEmpty);
-  });
+      await tester.enterText(find.byType(TextFormField).at(0), 'Maison');
+      await tester.enterText(
+        find.byType(TextFormField).at(1),
+        'Rue 12, Fidjrossè',
+      );
+      await tester.ensureVisible(find.text('Enregistrer'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Enregistrer'));
+      await tester.pumpAndSettle();
+
+      expect(backend.addressBodies, hasLength(1));
+      expect(backend.addressBodies.single['full_address'], 'Rue 12, Fidjrossè');
+      expect(find.text('Nouvelle adresse'), findsNothing);
+      await tester.scrollUntilVisible(
+        find.text('Maison'),
+        -300,
+        scrollable: find.byType(Scrollable).first,
+      );
+      expect(find.text('Maison'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'commandes : une commande cash en attente s\'affiche « à la livraison »',
+    (tester) async {
+      final backend = _CheckoutBackend();
+      final api = ApiClient(
+        tokenStore: _NoopTokenStore(),
+        httpClient: MockClient((request) async {
+          return http.Response(
+            jsonEncode({
+              'data': [_orderPayload(paymentMethod: 'cash')],
+            }),
+            200,
+            headers: {'content-type': 'application/json'},
+          );
+        }),
+        baseUrl: 'http://api.test',
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(home: OrdersScreen(marketplace: MarketplaceApi(api))),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(find.text('À la livraison'), findsOneWidget);
+      expect(find.text('Paiement en espèces à la livraison'), findsOneWidget);
+      expect(find.text('À payer'), findsNothing);
+      expect(tester.takeException(), isNull);
+      expect(backend.orderBodies, isEmpty);
+    },
+  );
 }

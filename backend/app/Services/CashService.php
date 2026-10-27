@@ -139,14 +139,7 @@ class CashService
                 );
             }
 
-            $this->finance->releaseDriverEarning(
-                $this->finance->walletFor($driver),
-                (int) ($order->financials?->delivery_fee ?? 0),
-                (int) ($order->financials?->delivery_commission_amount ?? 0),
-                'order_driver_release',
-                $order->id,
-                $order->reference,
-            );
+            $this->finance->releaseDriverAssignments($order);
 
             $this->finance->creditPlatform(
                 (int) ($order->financials?->platform_amount ?? 0),

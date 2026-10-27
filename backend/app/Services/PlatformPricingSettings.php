@@ -20,6 +20,9 @@ class PlatformPricingSettings
             $defaults = [
                 'order_minimum_fee' => (int) config('beninfood.delivery_pricing.min_fee', 500),
                 'order_default_fee' => (int) config('beninfood.delivery_pricing.default_fee', 1000),
+                // Frais d'approche : trajet du livreur vers le point de collecte.
+                'approach_free_km' => (int) config('beninfood.delivery_pricing.approach_free_km', 3),
+                'approach_per_km' => (int) config('beninfood.delivery_pricing.approach_per_km', 50),
                 'parcel_minimum_fee' => 500,
                 'parcel_default_fee' => (int) config('beninfood.parcels.default_fee', 1000),
                 // Montant fixe payé par le créateur du colis (hors commission).

@@ -7,8 +7,12 @@ use App\Enums\DriverStatus;
 use App\Enums\OrderStatus;
 use App\Exceptions\DomainException;
 use App\Models\Delivery;
+use App\Models\DeliveryAssignment;
+use App\Models\DeliveryIncident;
+use App\Models\DeliveryReassignmentRequest;
 use App\Models\DriverProfile;
 use App\Models\Order;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -23,6 +27,8 @@ class DeliveryService
         private readonly OrderService $orders,
         private readonly DriverAvailabilityService $availability,
         private readonly DriverSelectionService $driverSelection,
+        private readonly DeliveryAssignmentService $assignments,
+        private readonly NotificationService $notifications,
     ) {}
 
     /**
@@ -301,6 +307,7 @@ class DeliveryService
     public function markPickedUp(Delivery $delivery, DriverProfile $driver): Delivery
     {
         $this->assertDeliveryOwned($delivery, $driver);
+        $this->assertAssignmentActive($delivery, $driver);
 
         if (! in_array($delivery->status, [DeliveryStatus::Assigned, DeliveryStatus::EnRoutePickup], true)) {
             throw new DomainException(
@@ -333,6 +340,7 @@ class DeliveryService
     public function markInDelivery(Delivery $delivery, DriverProfile $driver): Delivery
     {
         $this->assertDeliveryOwned($delivery, $driver);
+        $this->assertAssignmentActive($delivery, $driver);
 
         $delivery->order->load('delivery');
         $this->orders->markInDelivery($delivery->order, $driver->user_id);
@@ -360,6 +368,7 @@ class DeliveryService
     public function markDelivered(Delivery $delivery, DriverProfile $driver, array $proof = []): Delivery
     {
         $this->assertDeliveryOwned($delivery, $driver);
+        $this->assertAssignmentActive($delivery, $driver);
 
         $code = trim((string) ($proof['proof_code'] ?? ''));
 
@@ -371,6 +380,7 @@ class DeliveryService
             );
         }
 
+        $fromStatus = $delivery->status;
         $delivery->order->load('delivery');
         $this->orders->markDelivered($delivery->order, $code, $driver->user_id);
 
@@ -389,7 +399,7 @@ class DeliveryService
         ]);
 
         $delivery->statusHistory()->create([
-            'from_status' => DeliveryStatus::InDelivery->value,
+            'from_status' => $fromStatus->value,
             'to_status' => DeliveryStatus::Delivered->value,
             'actor' => 'driver',
             'reason' => null,
@@ -402,7 +412,7 @@ class DeliveryService
     /**
      * Signale un incident sur une course en cours.
      */
-    public function reportIncident(Delivery $delivery, DriverProfile $driver, string $message): Delivery
+    public function reportIncident(Delivery $delivery, DriverProfile $driver, string $message, string $type = 'other'): Delivery
     {
         if ($delivery->driver_profile_id !== $driver->id) {
             throw new DomainException('delivery.not_owned', 'Cette course ne vous appartient pas.', 404);
@@ -411,6 +421,16 @@ class DeliveryService
         if (in_array($delivery->status, [DeliveryStatus::Delivered, DeliveryStatus::Cancelled], true)) {
             throw new DomainException('delivery.already_closed', 'Cette course est déjà terminée.', 422);
         }
+
+        DeliveryIncident::create([
+            'delivery_id' => $delivery->id,
+            'order_id' => $delivery->order_id,
+            'reported_by_user_id' => $driver->user_id,
+            'driver_profile_id' => $driver->id,
+            'type' => $type,
+            'message' => $message,
+            'status' => 'open',
+        ]);
 
         $delivery->statusHistory()->create([
             'from_status' => $delivery->status->value,
@@ -421,6 +441,136 @@ class DeliveryService
         ]);
 
         return $delivery->fresh();
+    }
+
+    /**
+     * Incident signalé par le client : il peut précéder une réassignation ou
+     * rester un simple signalement visible par la porteuse.
+     */
+    public function reportClientIncident(Order $order, User $client, string $message, string $type = 'client'): DeliveryIncident
+    {
+        if ($order->user_id !== $client->id) {
+            throw new DomainException('delivery.not_found', 'Commande introuvable.', 404);
+        }
+
+        $delivery = $order->delivery;
+
+        if ($delivery === null) {
+            throw new DomainException('delivery.not_found', 'Aucune course associée à cette commande.', 404);
+        }
+
+        if (in_array($delivery->status, [DeliveryStatus::Delivered, DeliveryStatus::Cancelled], true)) {
+            throw new DomainException('delivery.already_closed', 'Cette course est déjà terminée.', 422);
+        }
+
+        return DeliveryIncident::create([
+            'delivery_id' => $delivery->id,
+            'order_id' => $order->id,
+            'reported_by_user_id' => $client->id,
+            'driver_profile_id' => $delivery->driver_profile_id,
+            'type' => $type,
+            'message' => $message,
+            'status' => 'open',
+        ]);
+    }
+
+    /**
+     * Le client remplace le livreur en cours de trajet (après incident, sans
+     * validation préalable de la porteuse).
+     *
+     * @return array{assignment: DeliveryAssignment, reassignment: DeliveryReassignmentRequest, handover_code: string}
+     */
+    public function reassignOrder(
+        Order $order,
+        User $client,
+        DriverProfile $newDriver,
+        string $reason,
+        ?float $latitude = null,
+        ?float $longitude = null,
+    ): array {
+        if ($order->user_id !== $client->id) {
+            throw new DomainException('delivery.not_found', 'Commande introuvable.', 404);
+        }
+
+        if (! in_array($order->status, [OrderStatus::PickedUp, OrderStatus::InDelivery], true)) {
+            throw new DomainException(
+                'delivery.reassignment_not_allowed',
+                'Le remplacement du livreur est possible uniquement après le ramassage et avant la livraison.',
+                409,
+            );
+        }
+
+        $delivery = $order->fresh(['delivery.driverProfile', 'delivery.assignments'])->delivery;
+
+        if ($delivery === null || $delivery->driverProfile === null) {
+            throw new DomainException('delivery.no_driver', 'Aucun livreur à remplacer sur cette course.', 409);
+        }
+
+        $handoverLatitude = $latitude ?? $delivery->driverProfile->last_latitude;
+        $handoverLongitude = $longitude ?? $delivery->driverProfile->last_longitude;
+
+        if ($handoverLatitude === null || $handoverLongitude === null) {
+            throw new DomainException(
+                'delivery.handover_location_required',
+                'La position de remise du colis est indisponible.',
+                422,
+            );
+        }
+
+        $incident = DeliveryIncident::create([
+            'delivery_id' => $delivery->id,
+            'order_id' => $order->id,
+            'reported_by_user_id' => $client->id,
+            'driver_profile_id' => $delivery->driver_profile_id,
+            'type' => 'reassignment',
+            'message' => $reason,
+            'status' => 'open',
+            'metadata' => [
+                'handover_latitude' => $handoverLatitude,
+                'handover_longitude' => $handoverLongitude,
+            ],
+        ]);
+
+        $assignment = $this->assignments->reassign(
+            $delivery,
+            $newDriver,
+            (float) $handoverLatitude,
+            (float) $handoverLongitude,
+            $reason,
+            $incident,
+        );
+
+        $this->notifications->notifyEvent('order.driver_reassigned', [$client], [
+            'reference' => $order->reference,
+            'order_id' => $order->id,
+            'handover_code' => $assignment->handover_code,
+        ]);
+
+        $reassignment = $delivery->reassignments()->latest()->firstOrFail();
+
+        return [
+            'assignment' => $assignment,
+            'reassignment' => $reassignment,
+            'handover_code' => (string) $assignment->handover_code,
+        ];
+    }
+
+    /** Confirmation de la remise par le nouveau livreur. */
+    public function confirmHandover(Delivery $delivery, DriverProfile $driver, string $code): DeliveryAssignment
+    {
+        $this->assertDeliveryOwned($delivery, $driver);
+
+        $assignment = $delivery->assignments()
+            ->where('driver_profile_id', $driver->id)
+            ->where('status', DeliveryAssignment::STATUS_PENDING_HANDOVER)
+            ->latest('sequence')
+            ->first();
+
+        if ($assignment === null) {
+            throw new DomainException('delivery.handover_not_expected', 'Aucune remise en attente pour cette course.', 409);
+        }
+
+        return $this->assignments->confirmHandover($assignment, $driver, $code);
     }
 
     /**
@@ -456,6 +606,22 @@ class DeliveryService
     {
         if ($delivery->driver_profile_id !== $driver->id) {
             throw new DomainException('delivery.not_owned', 'Cette course ne vous appartient pas.', 404);
+        }
+    }
+
+    private function assertAssignmentActive(Delivery $delivery, DriverProfile $driver): void
+    {
+        $assignment = $delivery->assignments()
+            ->where('driver_profile_id', $driver->id)
+            ->latest('sequence')
+            ->first();
+
+        if ($assignment !== null && $assignment->status === DeliveryAssignment::STATUS_PENDING_HANDOVER) {
+            throw new DomainException(
+                'delivery.handover_required',
+                'Confirmez d\'abord la remise du colis avec le code fourni par le client.',
+                409,
+            );
         }
     }
 }

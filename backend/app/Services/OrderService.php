@@ -12,6 +12,7 @@ use App\Models\Address;
 use App\Models\Cart;
 use App\Models\CartItem;
 use App\Models\CommissionRate;
+use App\Models\DeliveryAssignment;
 use App\Models\DriverAssignmentRequest;
 use App\Models\DriverProfile;
 use App\Models\Order;
@@ -41,6 +42,7 @@ class OrderService
         private readonly FavoriteDriverService $favoriteDrivers,
         private readonly ConfirmationCodeService $confirmationCodes,
         private readonly DriverSelectionService $driverSelection,
+        private readonly DeliveryAssignmentService $assignments,
     ) {}
 
     // ------------------------------------------------------------------ J82
@@ -54,7 +56,7 @@ class OrderService
     {
         $this->assertCartOpen($cart);
 
-        $cart->loadMissing('items.product', 'vendor');
+        $cart->loadMissing('items.product', 'vendor', 'user');
 
         $this->assertVendorSellable($cart->vendor);
         $this->assertItemsOrderable($cart->items);
@@ -78,9 +80,16 @@ class OrderService
         }
 
         $delivery = $this->deliveryQuote($cart, $options);
+        $selectedDriver = $this->resolveCheckoutDriver(
+            $cart,
+            $cart->vendor,
+            isset($options['driver_profile_id']) ? (string) $options['driver_profile_id'] : null,
+            true,
+        );
+        $approach = $this->approachQuote($cart->vendor, $selectedDriver);
 
         $commissionRate = $this->resolveCommissionRate($cart->vendor);
-        $breakdown = $this->finance->breakdown($subtotal, (int) $delivery['fee'], $commissionRate);
+        $breakdown = $this->finance->breakdown($subtotal, (int) $delivery['fee'], $commissionRate, (int) $approach['fee']);
 
         return [
             'vendor' => [
@@ -90,6 +99,13 @@ class OrderService
             'items' => $entries,
             'subtotal' => $subtotal,
             'delivery_fee' => $breakdown['delivery_fee'],
+            'approach_fee' => $breakdown['approach_fee'],
+            'delivery_total' => $breakdown['delivery_total'],
+            'approach_distance_km' => $approach['distance_km'],
+            'selected_driver' => $selectedDriver === null ? null : [
+                'id' => $selectedDriver->id,
+                'name' => $selectedDriver->user?->name,
+            ],
             'delivery_distance_km' => $delivery['distance_km'] !== null ? round($delivery['distance_km'], 2) : null,
             'delivery_zone' => [
                 'id' => $delivery['zone_id'],
@@ -116,7 +132,7 @@ class OrderService
      *
      * @throws DomainException order.*  si une contrainte n'est pas satisfaite
      */
-    public function createFromCart(Cart $cart, Address $address, ?string $notes = null, string $paymentMethod = 'online', ?string $preferredDriverProfileId = null): Order
+    public function createFromCart(Cart $cart, Address $address, ?string $notes = null, string $paymentMethod = 'online', ?string $preferredDriverProfileId = null, bool $allowNearbyDriver = false): Order
     {
         $this->assertCartOpen($cart);
 
@@ -128,14 +144,11 @@ class OrderService
         $this->assertItemsOrderable($cart->items);
         $this->assertItemsStocked($cart->items);
 
-        $preferredDriver = null;
-
-        if ($preferredDriverProfileId !== null) {
-            $cart->loadMissing('user');
-            $preferredDriver = $this->favoriteDrivers->acceptedDriverFor($cart->user, $preferredDriverProfileId);
-        }
+        $cart->loadMissing('user');
+        $preferredDriver = $this->resolveCheckoutDriver($cart, $vendor, $preferredDriverProfileId, $allowNearbyDriver);
 
         $delivery = $this->deliveryQuote($cart, ['address' => $address]);
+        $approach = $this->approachQuote($vendor, $preferredDriver);
         $paymentMethod = $this->normalizePaymentMethod($paymentMethod);
 
         $subtotal = 0;
@@ -155,7 +168,7 @@ class OrderService
         }
 
         $commissionRate = $this->resolveCommissionRate($vendor);
-        $breakdown = $this->finance->breakdown($subtotal, (int) $delivery['fee'], $commissionRate);
+        $breakdown = $this->finance->breakdown($subtotal, (int) $delivery['fee'], $commissionRate, (int) $approach['fee']);
         $deliveryFee = $breakdown['delivery_fee'];
         $total = $breakdown['total_client'];
 
@@ -165,7 +178,7 @@ class OrderService
 
         $confirmationCode = null;
 
-        $order = DB::transaction(function () use ($cart, $address, $notes, $delivery, $lines, $subtotal, $commissionRate, $breakdown, $deliveryFee, $total, $reference, $paymentMethod, $paymentDeadline, $preferredDriver, &$confirmationCode) {
+        $order = DB::transaction(function () use ($cart, $address, $notes, $delivery, $approach, $lines, $subtotal, $commissionRate, $breakdown, $deliveryFee, $total, $reference, $paymentMethod, $paymentDeadline, $preferredDriver, &$confirmationCode) {
             $order = Order::create([
                 'reference' => $reference,
                 'user_id' => $cart->user_id,
@@ -181,6 +194,9 @@ class OrderService
                 'subtotal' => $subtotal,
                 'discount' => 0,
                 'delivery_fee' => $deliveryFee,
+                'approach_fee' => (int) $breakdown['approach_fee'],
+                'approach_distance_km' => $approach['distance_km'],
+                'approach_pricing_snapshot' => $approach['snapshot'],
                 'total' => $total,
                 'address_snapshot' => $this->snapshotAddress($address, $notes),
                 'delivery_rate_snapshot' => $delivery['rate_snapshot'],
@@ -207,6 +223,8 @@ class OrderService
                 'subtotal' => $subtotal,
                 'discount' => 0,
                 'delivery_fee' => $deliveryFee,
+                'approach_fee' => (int) $breakdown['approach_fee'],
+                'delivery_total' => (int) $breakdown['delivery_total'],
                 'service_fee' => $breakdown['service_fee'],
                 'payment_fee' => $breakdown['payment_fee'],
                 'commission_base' => $breakdown['commission_base'],
@@ -216,6 +234,8 @@ class OrderService
                 'delivery_commission_rate' => $breakdown['delivery_commission_rate'],
                 'delivery_commission_amount' => $breakdown['delivery_commission_amount'],
                 'delivery_partner_amount' => $breakdown['delivery_partner_amount'],
+                'base_partner_amount' => $breakdown['base_partner_amount'],
+                'approach_partner_amount' => $breakdown['approach_partner_amount'],
                 'platform_amount' => $breakdown['platform_amount'],
                 'total_client' => $breakdown['total_client'],
             ]);
@@ -412,7 +432,7 @@ class OrderService
                     'vendor_id' => $order->vendor_id,
                     'zone_id' => $order->zone_id,
                     'status' => DeliveryStatus::Assigned->value,
-                    'fee' => $order->delivery_fee,
+                    'fee' => (int) $order->delivery_fee + (int) $order->approach_fee,
                     'partner_amount' => (int) ($order->financials?->delivery_partner_amount ?? 0),
                     'pickup_latitude' => $order->vendor?->pickup_latitude ?? $order->vendor?->latitude,
                     'pickup_longitude' => $order->vendor?->pickup_longitude ?? $order->vendor?->longitude,
@@ -507,9 +527,16 @@ class OrderService
 
         $this->logTransition($order, $from, OrderStatus::Assigned, 'driver', $actorId, null);
 
-        // Le livreur n'est connu qu'à l'assignation : on crédite sa part en attente.
+        // Le livreur n'est connu qu'à l'assignation : on crédite sa part en attente
+        // et on fige son segment de livraison.
         if ($driver !== null) {
-            $this->finance->creditDriverForDelivery($order, $driver);
+            $delivery = $order->fresh('delivery')->delivery;
+
+            if ($delivery !== null) {
+                $this->assignments->start($delivery, $driver);
+            } else {
+                $this->finance->creditDriverForDelivery($order, $driver);
+            }
         }
 
         return $order->fresh(['statusHistory', 'delivery']);
@@ -584,6 +611,10 @@ class OrderService
             }
 
             $this->logTransition($order, $from, OrderStatus::Delivered, 'driver', $actorId, 'Code de confirmation validé');
+
+            if ($order->delivery !== null) {
+                $this->assignments->completeActive($order->delivery);
+            }
 
             if ($isCash) {
                 // Commande cash : le livreur encaisse sur place, le règlement est
@@ -808,7 +839,67 @@ class OrderService
 
     // -----------------------------------------------------------------------
     /**
-     * @param  array{address?: Address, addressData?: array<string, mixed>}  $options
+     * Livreur choisi au checkout : favori accepté en priorité, sinon livreur
+     * actif et disponible autour du commerce.
+     */
+    private function resolveCheckoutDriver(Cart $cart, Vendor $vendor, ?string $driverProfileId, bool $allowNearbyDriver = true): ?DriverProfile
+    {
+        if ($driverProfileId === null || $driverProfileId === '') {
+            return null;
+        }
+
+        $driver = DriverProfile::query()->whereKey($driverProfileId)->with('user')->first();
+
+        if ($driver === null) {
+            throw new DomainException('order.driver_not_found', 'Livreur introuvable.', 404);
+        }
+
+        try {
+            return $this->favoriteDrivers->acceptedDriverFor($cart->user, $driverProfileId);
+        } catch (DomainException $exception) {
+            if (! $allowNearbyDriver) {
+                throw $exception;
+            }
+            // Pas un favori accepté : le checkout permet aussi de choisir un
+            // livreur proche parmi ceux proposés par la plateforme.
+        }
+
+        $pickupLatitude = $vendor->pickup_latitude ?? $vendor->latitude;
+        $pickupLongitude = $vendor->pickup_longitude ?? $vendor->longitude;
+
+        if ($pickupLatitude === null || $pickupLongitude === null) {
+            throw new DomainException(
+                'order.pickup_location_required',
+                'La position du commerce est indisponible pour calculer les frais d\'approche.',
+                422,
+            );
+        }
+
+        $this->driverSelection->assertSelectableAt($driver, (float) $pickupLatitude, (float) $pickupLongitude);
+
+        return $driver;
+    }
+
+    /**
+     * @return array{fee: int, distance_km: ?float, snapshot: ?array<string, mixed>}
+     */
+    private function approachQuote(Vendor $vendor, ?DriverProfile $driver): array
+    {
+        if ($driver === null) {
+            return ['fee' => 0, 'distance_km' => null, 'snapshot' => null];
+        }
+
+        $quote = $this->delivery->approachQuote($driver, $vendor);
+
+        return [
+            'fee' => (int) $quote['fee'],
+            'distance_km' => $quote['distance_km'],
+            'snapshot' => $quote['snapshot'],
+        ];
+    }
+
+    /**
+     * @param  array{address?: Address, addressData?: array<string, mixed>, driver_profile_id?: string|null}  $options
      * @return array{fee: int, zone_id: string|null, rate_snapshot: array<string, mixed>}
      */
     private function deliveryQuote(Cart $cart, array $options): array
@@ -964,12 +1055,49 @@ class OrderService
 
         $this->logTransition($order, $from, OrderStatus::Cancelled, $actorType, $actorId, $reason);
 
+        $this->cancelDelivery($order);
+
         // Contre-passe les séquestres non encore libérés (commande payée annulée).
         $this->finance->reverseOrderDistribution($order, $actorId);
 
         if ($order->payment()->exists() && in_array($order->payment->status, [PaymentStatus::Initiated, PaymentStatus::Pending], true)) {
             $order->payment->update(['status' => PaymentStatus::Cancelled->value]);
         }
+    }
+
+    /**
+     * Clôt la course éventuellement ouverte : le livreur ne doit plus pouvoir
+     * accepter ou poursuivre une commande annulée.
+     */
+    private function cancelDelivery(Order $order): void
+    {
+        $delivery = $order->delivery()->first();
+
+        if ($delivery === null || in_array($delivery->status, [DeliveryStatus::Delivered, DeliveryStatus::Cancelled], true)) {
+            return;
+        }
+
+        $from = $delivery->status;
+
+        $delivery->update([
+            'status' => DeliveryStatus::Cancelled->value,
+            'targeted_driver_profile_id' => null,
+        ]);
+
+        $delivery->statusHistory()->create([
+            'from_status' => $from->value,
+            'to_status' => DeliveryStatus::Cancelled->value,
+            'actor' => 'system',
+            'reason' => 'Commande annulée',
+            'created_at' => now(),
+        ]);
+
+        $delivery->assignments()
+            ->whereIn('status', [DeliveryAssignment::STATUS_ACTIVE, DeliveryAssignment::STATUS_PENDING_HANDOVER])
+            ->update([
+                'status' => DeliveryAssignment::STATUS_CANCELLED,
+                'completed_at' => now(),
+            ]);
     }
 
     private function assertVendorRefusable(Order $order): void

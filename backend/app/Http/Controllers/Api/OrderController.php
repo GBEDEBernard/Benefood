@@ -7,8 +7,10 @@ use App\Enums\VendorStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\OrderResource;
 use App\Models\Address;
+use App\Models\DriverProfile;
 use App\Models\Order;
 use App\Services\CartService;
+use App\Services\DeliveryService;
 use App\Services\DriverSelectionService;
 use App\Services\OrderService;
 use App\Support\Api;
@@ -24,6 +26,7 @@ class OrderController extends Controller
         private readonly OrderService $orders,
         private readonly CartService $cartService,
         private readonly DriverSelectionService $driverSelection,
+        private readonly DeliveryService $deliveries,
     ) {}
 
     public function summary(Request $request): JsonResponse
@@ -31,6 +34,7 @@ class OrderController extends Controller
         $data = $request->validate([
             'address_id' => ['required', 'uuid', 'exists:addresses,id'],
             'payment_method' => ['sometimes', 'string', 'in:online,cash'],
+            'driver_profile_id' => ['sometimes', 'nullable', 'uuid', 'exists:driver_profiles,id'],
         ]);
 
         $address = $this->userAddress($request, $data['address_id']);
@@ -47,7 +51,55 @@ class OrderController extends Controller
         return Api::ok($this->orders->summary($cart, [
             'address' => $address,
             'payment_method' => $data['payment_method'] ?? 'online',
+            'driver_profile_id' => $data['driver_profile_id'] ?? null,
         ]));
+    }
+
+    public function checkoutDrivers(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'address_id' => ['required', 'uuid', 'exists:addresses,id'],
+            'radius_km' => ['sometimes', 'numeric', 'min:0.5', 'max:100'],
+        ]);
+
+        $address = $this->userAddress($request, $data['address_id']);
+        $cart = $this->userOpenCart($request);
+
+        if ($address === null) {
+            return Api::error('Adresse introuvable.', 'not_found', 404);
+        }
+
+        if ($cart === null) {
+            return Api::error('Votre panier est vide.', 'order.empty_cart', 422);
+        }
+
+        return Api::ok($this->driverSelection->nearbyForCheckout(
+            $cart,
+            $request->user(),
+            $address->toHierarchy(),
+            isset($data['radius_km']) ? (float) $data['radius_km'] : null,
+        ));
+    }
+
+    public function replacementDrivers(Request $request, Order $order): JsonResponse
+    {
+        if ($order->user_id !== $request->user()->id) {
+            return Api::error('Ressource introuvable.', 'not_found', 404);
+        }
+
+        $data = $request->validate([
+            'latitude' => ['required', 'numeric', 'between:-90,90'],
+            'longitude' => ['required', 'numeric', 'between:-180,180'],
+            'radius_km' => ['sometimes', 'numeric', 'min:0.5', 'max:100'],
+        ]);
+
+        return Api::ok($this->driverSelection->nearbyForReassignment(
+            $order,
+            $request->user(),
+            (float) $data['latitude'],
+            (float) $data['longitude'],
+            isset($data['radius_km']) ? (float) $data['radius_km'] : null,
+        ));
     }
 
     public function store(Request $request): JsonResponse
@@ -57,6 +109,7 @@ class OrderController extends Controller
             'notes' => ['sometimes', 'nullable', 'string', 'max:1000'],
             'payment_method' => ['sometimes', 'string', 'in:online,cash'],
             'favorite_driver_id' => ['sometimes', 'nullable', 'uuid', 'exists:driver_profiles,id'],
+            'driver_profile_id' => ['sometimes', 'nullable', 'uuid', 'exists:driver_profiles,id'],
         ]);
 
         $address = $this->userAddress($request, $data['address_id']);
@@ -75,7 +128,8 @@ class OrderController extends Controller
             $address,
             $data['notes'] ?? null,
             $data['payment_method'] ?? 'online',
-            $data['favorite_driver_id'] ?? null,
+            $data['driver_profile_id'] ?? $data['favorite_driver_id'] ?? null,
+            array_key_exists('driver_profile_id', $data),
         );
 
         return Api::created(new OrderResource($order));
@@ -185,6 +239,80 @@ class OrderController extends Controller
         return Api::ok(new OrderResource($order->load(['statusHistory', 'payment', 'refunds'])));
     }
 
+    public function reportIncident(Request $request, Order $order): JsonResponse
+    {
+        if ($order->user_id !== $request->user()->id) {
+            return Api::error('Ressource introuvable.', 'not_found', 404);
+        }
+
+        $data = $request->validate([
+            'reason' => ['required', 'string', 'max:1000'],
+            'type' => ['sometimes', 'string', 'max:40'],
+        ]);
+
+        $incident = $this->deliveries->reportClientIncident(
+            $order,
+            $request->user(),
+            $data['reason'],
+            $data['type'] ?? 'client',
+        );
+
+        return Api::created([
+            'id' => $incident->id,
+            'type' => $incident->type,
+            'message' => $incident->message,
+            'status' => $incident->status,
+            'created_at' => $incident->created_at?->toIso8601String(),
+        ]);
+    }
+
+    public function reassign(Request $request, Order $order): JsonResponse
+    {
+        if ($order->user_id !== $request->user()->id) {
+            return Api::error('Ressource introuvable.', 'not_found', 404);
+        }
+
+        $data = $request->validate([
+            'driver_profile_id' => ['required', 'uuid', 'exists:driver_profiles,id'],
+            'reason' => ['required', 'string', 'max:500'],
+            'latitude' => ['sometimes', 'numeric', 'between:-90,90'],
+            'longitude' => ['sometimes', 'numeric', 'between:-180,180'],
+        ]);
+
+        $driver = DriverProfile::findOrFail($data['driver_profile_id']);
+
+        $result = $this->deliveries->reassignOrder(
+            $order,
+            $request->user(),
+            $driver,
+            $data['reason'],
+            isset($data['latitude']) ? (float) $data['latitude'] : null,
+            isset($data['longitude']) ? (float) $data['longitude'] : null,
+        );
+
+        return Api::ok([
+            'handover_code' => $result['handover_code'],
+            'assignment' => [
+                'id' => $result['assignment']->id,
+                'sequence' => $result['assignment']->sequence,
+                'status' => $result['assignment']->status,
+                'base_fee' => $result['assignment']->base_fee,
+                'approach_fee' => $result['assignment']->approach_fee,
+                'partner_amount' => $result['assignment']->partner_amount,
+                'base_partner_amount' => $result['assignment']->base_partner_amount,
+                'approach_partner_amount' => $result['assignment']->approach_partner_amount,
+            ],
+            'reassignment' => [
+                'id' => $result['reassignment']->id,
+                'status' => $result['reassignment']->status,
+                'old_driver_profile_id' => $result['reassignment']->old_driver_profile_id,
+                'new_driver_profile_id' => $result['reassignment']->new_driver_profile_id,
+                'reason' => $result['reassignment']->reason,
+                'handover_code' => $result['reassignment']->handover_code,
+            ],
+        ]);
+    }
+
     public function vendorCancel(Request $request, Order $order): JsonResponse
     {
         if (! $this->isOwnVendorOrder($request, $order) || in_array($order->status, [OrderStatus::Cancelled, OrderStatus::Delivered, OrderStatus::Refunded])) {
@@ -219,6 +347,7 @@ class OrderController extends Controller
 
         $data = $request->validate([
             'favorite_driver_id' => ['sometimes', 'nullable', 'uuid', 'exists:driver_profiles,id'],
+            'driver_profile_id' => ['sometimes', 'nullable', 'uuid', 'exists:driver_profiles,id'],
         ]);
 
         $order = $this->orders->markReady(

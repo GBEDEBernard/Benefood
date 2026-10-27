@@ -34,6 +34,8 @@ class AdminPricingController extends Controller
         $data = $request->validate([
             'order_minimum_fee' => ['required', 'integer', 'min:0'],
             'order_default_fee' => ['required', 'integer', 'min:0'],
+            'approach_free_km' => ['sometimes', 'integer', 'min:0', 'max:100'],
+            'approach_per_km' => ['sometimes', 'integer', 'min:0', 'max:100000'],
             'parcel_minimum_fee' => ['required', 'integer', 'min:0'],
             'parcel_default_fee' => ['required', 'integer', 'min:0'],
             'parcel_creation_fee' => ['sometimes', 'integer', 'min:0'],

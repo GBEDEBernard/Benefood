@@ -74,6 +74,12 @@ class OrderFinancials {
     this.deliveryPartnerAmount,
     this.totalClient,
     this.serviceFee,
+    this.approachFee,
+    this.deliveryTotal,
+    this.deliveryCommissionRate,
+    this.deliveryCommissionAmount,
+    this.basePartnerAmount,
+    this.approachPartnerAmount,
   });
 
   final int? commissionRate;
@@ -85,6 +91,12 @@ class OrderFinancials {
 
   /// Commission client (taux dynamique, sur le sous-total produits).
   final int? serviceFee;
+  final int? approachFee;
+  final int? deliveryTotal;
+  final int? deliveryCommissionRate;
+  final int? deliveryCommissionAmount;
+  final int? basePartnerAmount;
+  final int? approachPartnerAmount;
 
   factory OrderFinancials.fromJson(Map<String, dynamic> json) =>
       OrderFinancials(
@@ -95,6 +107,12 @@ class OrderFinancials {
         deliveryPartnerAmount: _iNull(json['delivery_partner_amount']),
         totalClient: _iNull(json['total_client']),
         serviceFee: _iNull(json['service_fee']),
+        approachFee: _iNull(json['approach_fee']),
+        deliveryTotal: _iNull(json['delivery_total']),
+        deliveryCommissionRate: _iNull(json['delivery_commission_rate']),
+        deliveryCommissionAmount: _iNull(json['delivery_commission_amount']),
+        basePartnerAmount: _iNull(json['base_partner_amount']),
+        approachPartnerAmount: _iNull(json['approach_partner_amount']),
       );
 }
 
@@ -312,6 +330,8 @@ class Order {
     required this.subtotal,
     required this.deliveryFee,
     required this.total,
+    this.approachFee = 0,
+    this.approachDistanceKm,
     this.vendor,
     this.payment,
     this.financials,
@@ -350,6 +370,10 @@ class Order {
   final List<OrderItem> items;
   final int subtotal;
   final int deliveryFee;
+
+  /// Frais d'approche figés au checkout (trajet livreur → boutique).
+  final int approachFee;
+  final double? approachDistanceKm;
   final int total;
   final OrderVendor? vendor;
   final OrderPayment? payment;
@@ -422,11 +446,15 @@ class Order {
 
   bool get isWaitingDriver => driverRequest?.isPending ?? false;
 
+  int get deliveryTotal => deliveryFee + approachFee;
+
   bool get canCancel =>
       status == 'awaiting_payment' ||
       status == 'paid' ||
       status == 'accepted' ||
-      status == 'preparing';
+      status == 'preparing' ||
+      status == 'ready' ||
+      status == 'assigned';
 
   bool get canVendorAccept => status == 'awaiting_payment' || status == 'paid';
   bool get canVendorPrepare => status == 'accepted';
@@ -445,6 +473,8 @@ class Order {
     items: items,
     subtotal: subtotal,
     deliveryFee: deliveryFee,
+    approachFee: approachFee,
+    approachDistanceKm: approachDistanceKm,
     total: total,
     vendor: vendor,
     payment: payment,
@@ -534,6 +564,8 @@ class Order {
       items: items,
       subtotal: _i(json['subtotal']),
       deliveryFee: _i(json['delivery_fee']),
+      approachFee: _i(json['approach_fee']),
+      approachDistanceKm: _dNull(json['approach_distance_km']),
       total: _i(json['total']),
       vendor: vendor,
       payment: payment,

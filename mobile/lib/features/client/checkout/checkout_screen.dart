@@ -6,11 +6,12 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../shared/models/address.dart';
 import '../../../shared/models/checkout.dart';
+import '../../../shared/models/driver_selection.dart';
 import '../../../shared/models/order.dart';
 import '../../../shared/widgets/app_button.dart';
 import '../../../shared/widgets/amount_widgets.dart';
 import '../../../shared/widgets/beninfood_header.dart';
-import '../../../shared/widgets/favorite_driver_picker.dart';
+import '../../../shared/widgets/driver_picker_sheet.dart';
 import '../../../shared/widgets/fedapay_checkout_screen.dart';
 import '../../../shared/widgets/feedback_widgets.dart';
 import '../../../shared/widgets/state_widgets.dart';
@@ -44,9 +45,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   /// (espèces remises au livreur — cahier de conception v1.0).
   String _paymentMethod = 'online';
 
-  /// Livreur favori visé (optionnel) : l'offre lui sera réservée en priorité.
-  String? _favoriteDriverId;
-  String? _favoriteDriverName;
+  /// Livreur choisi au checkout : son approche est intégrée au total avant
+  /// le paiement et il sera affecté en priorité à la commande.
+  NearbyDriver? _selectedDriver;
+  bool _driversLoading = false;
 
   @override
   void initState() {
@@ -104,7 +106,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       _summaryError = null;
     });
     try {
-      final summary = await widget.marketplace.orderSummary(address.id);
+      final summary = await widget.marketplace.orderSummary(
+        address.id,
+        driverProfileId: _selectedDriver?.id,
+      );
       if (mounted) {
         setState(() => _summary = summary);
       }
@@ -145,9 +150,25 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     await _loadSummary();
   }
 
+  Future<void> _selectAddress(Address address) async {
+    setState(() {
+      _selectedAddress = address;
+      _selectedDriver = null;
+    });
+    await _loadSummary();
+  }
+
   Future<void> _createOrder() async {
     final address = _selectedAddress;
     if (address == null) {
+      return;
+    }
+    if (_selectedDriver == null) {
+      showToast(
+        context,
+        'Choisissez un livreur avant de commander.',
+        isError: true,
+      );
       return;
     }
     setState(() => _creating = true);
@@ -155,7 +176,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       final order = await widget.marketplace.createOrder(
         address.id,
         paymentMethod: _paymentMethod,
-        favoriteDriverId: _favoriteDriverId,
+        driverProfileId: _selectedDriver?.id,
       );
       if (!mounted) {
         return;
@@ -179,20 +200,54 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     }
   }
 
-  Future<void> _pickFavoriteDriver() async {
-    final choice = await showFavoriteDriverPicker(
-      context,
-      widget.marketplace,
-      title: 'Livreur favori (optionnel)',
-      selectedId: _favoriteDriverId,
-    );
-    if (choice == null || !mounted) {
+  Future<void> _pickDriver() async {
+    final address = _selectedAddress;
+    if (address == null) {
       return;
     }
-    setState(() {
-      _favoriteDriverId = choice.driverId;
-      _favoriteDriverName = choice.isNone ? null : choice.label;
-    });
+    if (!address.hasCoordinates) {
+      showToast(
+        context,
+        'Positionnez votre adresse avant de choisir un livreur.',
+        isError: true,
+      );
+      return;
+    }
+
+    setState(() => _driversLoading = true);
+    try {
+      final drivers = await widget.marketplace.checkoutDrivers(address.id);
+      if (!mounted) {
+        return;
+      }
+      if (drivers.isEmpty) {
+        showToast(
+          context,
+          'Aucun livreur disponible autour de cette boutique.',
+          isError: true,
+        );
+        return;
+      }
+      setState(() => _driversLoading = false);
+      final choice = await showDriverPickerSheet(
+        context,
+        drivers: drivers,
+        selectedId: _selectedDriver?.id,
+      );
+      if (choice == null || !mounted) {
+        return;
+      }
+      setState(() => _selectedDriver = choice);
+      await _loadSummary();
+    } on ApiException catch (e) {
+      if (mounted) {
+        showToast(context, e.message, isError: true);
+      }
+    } finally {
+      if (mounted && _driversLoading) {
+        setState(() => _driversLoading = false);
+      }
+    }
   }
 
   Future<void> _startPayment(Order order) async {
@@ -309,7 +364,11 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                     padding: const EdgeInsets.all(20),
                     child: Column(
                       children: [
-                        Icon(Icons.add_location_alt_outlined, size: 36, color: AppColors.textSecondary),
+                        Icon(
+                          Icons.add_location_alt_outlined,
+                          size: 36,
+                          color: AppColors.textSecondary,
+                        ),
                         const SizedBox(height: 8),
                         Text(
                           'Aucune adresse enregistrée.',
@@ -324,10 +383,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   _AddressCard(
                     address: a,
                     selected: _selectedAddress?.id == a.id,
-                    onTap: () {
-                      setState(() => _selectedAddress = a);
-                      _loadSummary();
-                    },
+                    onTap: () => _selectAddress(a),
                   ),
                 if (_selectedAddress != null &&
                     !_selectedAddress!.hasCoordinates)
@@ -365,11 +421,15 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               ],
               OutlinedButton.icon(
                 onPressed: () async {
-                  final created = await showAddAddressSheet(context, widget.marketplace);
+                  final created = await showAddAddressSheet(
+                    context,
+                    widget.marketplace,
+                  );
                   if (created != null && mounted) {
                     setState(() {
                       _addresses = [created, ..._addresses];
                       _selectedAddress = created;
+                      _selectedDriver = null;
                     });
                     await _loadSummary();
                   }
@@ -378,7 +438,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 label: const Text('Ajouter une nouvelle adresse'),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: AppColors.orange,
-                  side: BorderSide(color: AppColors.orange.withValues(alpha: 0.5)),
+                  side: BorderSide(
+                    color: AppColors.orange.withValues(alpha: 0.5),
+                  ),
                   minimumSize: const Size.fromHeight(48),
                 ),
               ),
@@ -391,12 +453,19 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                     padding: const EdgeInsets.all(12),
                     child: Row(
                       children: [
-                        Icon(Icons.error_outline, color: Theme.of(context).colorScheme.onErrorContainer),
+                        Icon(
+                          Icons.error_outline,
+                          color: Theme.of(context).colorScheme.onErrorContainer,
+                        ),
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
                             'Livraison impossible : $_summaryError',
-                            style: TextStyle(color: Theme.of(context).colorScheme.onErrorContainer),
+                            style: TextStyle(
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onErrorContainer,
+                            ),
                           ),
                         ),
                       ],
@@ -416,15 +485,42 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                     padding: const EdgeInsets.all(16),
                     child: Column(
                       children: [
-                        _SummaryRow(label: 'Sous-total', amount: _summary!.subtotal),
-                        _SummaryRow(label: 'Livraison', amount: _summary!.deliveryFee),
+                        _SummaryRow(
+                          label: 'Sous-total',
+                          amount: _summary!.subtotal,
+                        ),
+                        _SummaryRow(
+                          label: 'Livraison (base)',
+                          amount: _summary!.deliveryFee,
+                        ),
+                        if (_summary!.approachFee > 0)
+                          _SummaryRow(
+                            label: 'Approche livreur',
+                            amount: _summary!.approachFee,
+                          ),
                         if (_summary!.deliveryDistanceKm != null)
                           Padding(
                             padding: const EdgeInsets.only(top: 2, bottom: 6),
                             child: Align(
                               alignment: Alignment.centerRight,
                               child: Text(
-                                'Distance estimée : ${_summary!.deliveryDistanceKm!.toStringAsFixed(2)} km',
+                                'Trajet boutique → vous : ${_summary!.deliveryDistanceKm!.toStringAsFixed(2)} km',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.onSurfaceVariant,
+                                ),
+                              ),
+                            ),
+                          ),
+                        if (_summary!.approachDistanceKm != null)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 6),
+                            child: Align(
+                              alignment: Alignment.centerRight,
+                              child: Text(
+                                'Approche livreur : ${formatDistance(_summary!.approachDistanceKm)}',
                                 style: TextStyle(
                                   fontSize: 12,
                                   color: Theme.of(
@@ -435,14 +531,20 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                             ),
                           ),
                         if (_summary!.serviceFee > 0)
-                          _SummaryRow(label: 'Commission client', amount: _summary!.serviceFee),
+                          _SummaryRow(
+                            label: 'Commission client',
+                            amount: _summary!.serviceFee,
+                          ),
                         if (_summary!.deliveryZoneName != null)
                           Padding(
                             padding: const EdgeInsets.only(top: 2),
                             child: Align(
                               alignment: Alignment.centerRight,
                               child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 4,
+                                ),
                                 decoration: BoxDecoration(
                                   color: AppColors.greenLight,
                                   borderRadius: BorderRadius.circular(8),
@@ -459,7 +561,11 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                             ),
                           ),
                         const Divider(height: 24),
-                        _SummaryRow(label: 'Total', amount: _summary!.total, emphasized: true),
+                        _SummaryRow(
+                          label: 'Total',
+                          amount: _summary!.total,
+                          emphasized: true,
+                        ),
                       ],
                     ),
                   ),
@@ -473,22 +579,31 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 Card(
                   child: RadioGroup<String>(
                     groupValue: _paymentMethod,
-                    onChanged: (value) => setState(() => _paymentMethod = value ?? 'online'),
+                    onChanged: (value) =>
+                        setState(() => _paymentMethod = value ?? 'online'),
                     child: Column(
                       children: [
                         const RadioListTile<String>(
                           value: 'online',
                           activeColor: AppColors.orange,
                           title: Text('Mobile Money (en ligne)'),
-                          subtitle: Text('Réglez maintenant, la commande part aussitôt'),
-                          secondary: Icon(Icons.phone_android, color: AppColors.orange),
+                          subtitle: Text(
+                            'Réglez maintenant, la commande part aussitôt',
+                          ),
+                          secondary: Icon(
+                            Icons.phone_android,
+                            color: AppColors.orange,
+                          ),
                         ),
                         const RadioListTile<String>(
                           value: 'cash',
                           activeColor: AppColors.orange,
                           title: Text('Paiement à la livraison'),
                           subtitle: Text('Vous payez le livreur en espèces'),
-                          secondary: Icon(Icons.payments_outlined, color: AppColors.orange),
+                          secondary: Icon(
+                            Icons.payments_outlined,
+                            color: AppColors.orange,
+                          ),
                         ),
                         if (_paymentMethod == 'cash')
                           Padding(
@@ -496,12 +611,18 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                             child: Row(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Icon(Icons.info_outline, size: 16, color: AppColors.textSecondary),
+                                Icon(
+                                  Icons.info_outline,
+                                  size: 16,
+                                  color: AppColors.textSecondary,
+                                ),
                                 const SizedBox(width: 8),
                                 Expanded(
                                   child: Text(
                                     'Prévoyez ${formatAmount(_summary!.total)} en espèces pour le livreur.',
-                                    style: Theme.of(context).textTheme.bodySmall,
+                                    style: Theme.of(
+                                      context,
+                                    ).textTheme.bodySmall,
                                   ),
                                 ),
                               ],
@@ -514,28 +635,46 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 const SizedBox(height: 20),
                 _SectionTitle(
                   icon: Icons.delivery_dining_outlined,
-                  title: 'Livreur favori (optionnel)',
+                  title: 'Votre livreur',
                 ),
                 const SizedBox(height: 8),
                 Card(
                   margin: EdgeInsets.zero,
                   child: ListTile(
-                    onTap: _pickFavoriteDriver,
-                    leading: const Icon(Icons.delivery_dining_outlined, color: AppColors.orange),
-                    title: Text(_favoriteDriverName ?? 'Aucun livreur'),
-                    subtitle: Text(
-                      _favoriteDriverName == null
-                          ? 'L\'offre sera visible par tous les livreurs disponibles'
-                          : 'Ce livreur recevra l\'offre en priorité',
+                    onTap: _driversLoading ? null : _pickDriver,
+                    leading: const Icon(
+                      Icons.delivery_dining_outlined,
+                      color: AppColors.orange,
                     ),
-                    trailing: const Icon(Icons.chevron_right),
+                    title: Text(
+                      _selectedDriver?.displayName ?? 'Choisir un livreur',
+                    ),
+                    subtitle: Text(
+                      _driversLoading
+                          ? 'Recherche des livreurs disponibles…'
+                          : _selectedDriver == null
+                          ? 'Le livreur et son approche sont choisis avant le paiement'
+                          : 'Approche ${formatDistance(_selectedDriver!.distanceToPickupKm)}'
+                                '${_selectedDriver!.approachFee != null ? ' · ${formatAmount(_selectedDriver!.approachFee!)}' : ''}',
+                    ),
+                    trailing: _driversLoading
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.chevron_right),
                   ),
                 ),
                 const SizedBox(height: 20),
                 AppButton(
-                  label: _paymentMethod == 'cash' ? 'Commander et payer à la livraison' : 'Commander',
+                  label: _paymentMethod == 'cash'
+                      ? 'Commander et payer à la livraison'
+                      : 'Commander',
                   icon: Icons.shopping_bag_outlined,
-                  onPressed: _creating ? null : _createOrder,
+                  onPressed: _creating || _selectedDriver == null
+                      ? null
+                      : _createOrder,
                   loading: _creating,
                 ),
               ],
@@ -551,9 +690,15 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        Text('Commande ${order.reference}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+        Text(
+          'Commande ${order.reference}',
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+        ),
         const SizedBox(height: 4),
-        Text('À régler : ${formatAmount(order.total)}', style: Theme.of(context).textTheme.bodyMedium),
+        Text(
+          'À régler : ${formatAmount(order.total)}',
+          style: Theme.of(context).textTheme.bodyMedium,
+        ),
         const SizedBox(height: 16),
         Card(
           child: Padding(
@@ -566,28 +711,55 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                     padding: const EdgeInsets.only(bottom: 8),
                     child: Row(
                       children: [
-                        Expanded(child: Text('${item.quantity} × ${item.name}', maxLines: 1, overflow: TextOverflow.ellipsis)),
+                        Expanded(
+                          child: Text(
+                            '${item.quantity} × ${item.name}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
                         const SizedBox(width: 8),
                         Flexible(
-                          child: AmountText(item.subtotal, maxLines: 1, overflow: TextOverflow.ellipsis),
+                          child: AmountText(
+                            item.subtotal,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
                       ],
                     ),
                   ),
                 const Divider(height: 24),
                 _SummaryRow(label: 'Sous-total', amount: order.subtotal),
-                _SummaryRow(label: 'Livraison', amount: order.deliveryFee),
+                _SummaryRow(
+                  label: 'Livraison (base)',
+                  amount: order.deliveryFee,
+                ),
+                if (order.approachFee > 0)
+                  _SummaryRow(
+                    label: 'Approche livreur',
+                    amount: order.approachFee,
+                  ),
                 if ((order.financials?.serviceFee ?? 0) > 0)
-                  _SummaryRow(label: 'Commission client', amount: order.financials!.serviceFee!),
+                  _SummaryRow(
+                    label: 'Commission client',
+                    amount: order.financials!.serviceFee!,
+                  ),
                 const SizedBox(height: 4),
-                _SummaryRow(label: 'Total à payer', amount: order.total, emphasized: true),
+                _SummaryRow(
+                  label: 'Total à payer',
+                  amount: order.total,
+                  emphasized: true,
+                ),
               ],
             ),
           ),
         ),
         const SizedBox(height: 24),
         AppButton(
-          label: order.isAwaitingPayment ? 'Payer maintenant' : 'Voir la commande',
+          label: order.isAwaitingPayment
+              ? 'Payer maintenant'
+              : 'Voir la commande',
           icon: Icons.payment,
           onPressed: () => _startPayment(order),
           loading: _creating,
@@ -627,7 +799,11 @@ class _SectionTitle extends StatelessWidget {
 }
 
 class _AddressCard extends StatelessWidget {
-  const _AddressCard({required this.address, required this.selected, required this.onTap});
+  const _AddressCard({
+    required this.address,
+    required this.selected,
+    required this.onTap,
+  });
 
   final Address address;
   final bool selected;
@@ -655,12 +831,16 @@ class _AddressCard extends StatelessWidget {
                 width: 42,
                 height: 42,
                 decoration: BoxDecoration(
-                  color: selected ? AppColors.orangeLight : AppColors.surfaceVariant,
+                  color: selected
+                      ? AppColors.orangeLight
+                      : AppColors.surfaceVariant,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(
                   selected ? Icons.location_on : Icons.location_on_outlined,
-                  color: selected ? AppColors.orangeDark : AppColors.textSecondary,
+                  color: selected
+                      ? AppColors.orangeDark
+                      : AppColors.textSecondary,
                   size: 22,
                 ),
               ),
@@ -676,20 +856,30 @@ class _AddressCard extends StatelessWidget {
                             address.label ?? 'Adresse',
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14.5),
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 14.5,
+                            ),
                           ),
                         ),
                         if (address.isDefault) ...[
                           const SizedBox(width: 8),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 2,
+                            ),
                             decoration: BoxDecoration(
                               color: AppColors.goldLight,
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: const Text(
                               'Par défaut',
-                              style: TextStyle(fontSize: 10.5, color: AppColors.gold, fontWeight: FontWeight.w700),
+                              style: TextStyle(
+                                fontSize: 10.5,
+                                color: AppColors.gold,
+                                fontWeight: FontWeight.w700,
+                              ),
                             ),
                           ),
                         ],
@@ -700,7 +890,10 @@ class _AddressCard extends StatelessWidget {
                       _addressSummary(address),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        color: AppColors.textSecondary,
+                      ),
                     ),
                   ],
                 ),
@@ -733,7 +926,11 @@ class _AddressCard extends StatelessWidget {
 }
 
 class _SummaryRow extends StatelessWidget {
-  const _SummaryRow({required this.label, this.amount, this.emphasized = false});
+  const _SummaryRow({
+    required this.label,
+    this.amount,
+    this.emphasized = false,
+  });
 
   final String label;
   final int? amount;
@@ -742,7 +939,9 @@ class _SummaryRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final style = emphasized
-        ? Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)
+        ? Theme.of(
+            context,
+          ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)
         : Theme.of(context).textTheme.bodyMedium;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),

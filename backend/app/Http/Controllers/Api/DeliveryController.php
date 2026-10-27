@@ -76,7 +76,7 @@ class DeliveryController extends Controller
 
         return Api::ok(DeliveryResource::collection(
             $this->deliveryService->driverDeliveries($driver)
-                ->map(fn (Delivery $delivery) => $delivery->load(['order.vendor', 'order.user', 'order.items.product', 'order.financials', 'vendor', 'statusHistory', 'driverProfile.user']))
+                ->map(fn (Delivery $delivery) => $delivery->load(['order.vendor', 'order.user', 'order.items.product', 'order.financials', 'vendor', 'statusHistory', 'driverProfile.user', 'assignments']))
         )->resolve());
     }
 
@@ -135,11 +135,37 @@ class DeliveryController extends Controller
     {
         $data = $request->validate([
             'message' => ['required', 'string', 'max:1000'],
+            'type' => ['sometimes', 'string', 'max:40'],
         ]);
 
-        $delivery = $this->deliveryService->reportIncident($delivery, $this->driverProfile($request), $data['message']);
+        $delivery = $this->deliveryService->reportIncident(
+            $delivery,
+            $this->driverProfile($request),
+            $data['message'],
+            $data['type'] ?? 'other',
+        );
 
         return Api::ok(new DeliveryResource($delivery));
+    }
+
+    public function confirmHandover(Request $request, Delivery $delivery): JsonResponse
+    {
+        $data = $request->validate([
+            'code' => ['required', 'string', 'max:12'],
+        ]);
+
+        $assignment = $this->deliveryService->confirmHandover(
+            $delivery,
+            $this->driverProfile($request),
+            $data['code'],
+        );
+
+        return Api::ok([
+            'id' => $assignment->id,
+            'sequence' => $assignment->sequence,
+            'status' => $assignment->status,
+            'handover_confirmed_at' => $assignment->handover_confirmed_at?->toIso8601String(),
+        ]);
     }
 
     private function driverProfile(Request $request): DriverProfile

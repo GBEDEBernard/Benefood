@@ -165,6 +165,7 @@ Route::middleware('auth:sanctum')->group(function (): void {
             Route::post('/{delivery}/start', [DeliveryController::class, 'start'])->name('api.v1.driver.me.deliveries.start');
             Route::post('/{delivery}/deliver', [DeliveryController::class, 'deliver'])->name('api.v1.driver.me.deliveries.deliver');
             Route::post('/{delivery}/incident', [DeliveryController::class, 'incident'])->name('api.v1.driver.me.deliveries.incident');
+            Route::post('/{delivery}/handover', [DeliveryController::class, 'confirmHandover'])->name('api.v1.driver.me.deliveries.handover');
         });
 
         Route::prefix('parcels')->middleware('permission:driver.parcels.manage')->group(function (): void {
@@ -202,14 +203,18 @@ Route::middleware('auth:sanctum')->group(function (): void {
 
     Route::prefix('orders')->group(function (): void {
         Route::post('/summary', [OrderController::class, 'summary'])->name('api.v1.orders.summary')->middleware('permission:client.orders.manage');
+        Route::post('/checkout-drivers', [OrderController::class, 'checkoutDrivers'])->name('api.v1.orders.checkout-drivers')->middleware('permission:client.orders.manage');
         Route::post('/', [OrderController::class, 'store'])->name('api.v1.orders.store')->middleware('permission:client.orders.manage');
         Route::get('/', [OrderController::class, 'index'])->name('api.v1.orders.index')->middleware('permission:client.orders.manage');
         Route::get('/{order}/nearby-drivers', [DriverSelectionController::class, 'nearbyOrder'])->name('api.v1.orders.nearby-drivers')->middleware('permission:client.orders.manage');
+        Route::post('/{order}/replacement-drivers', [OrderController::class, 'replacementDrivers'])->name('api.v1.orders.replacement-drivers')->middleware('permission:client.orders.manage');
         Route::post('/{order}/driver-request', [DriverSelectionController::class, 'requestOrder'])->name('api.v1.orders.driver-request.store')->middleware('permission:client.orders.manage');
         Route::post('/{order}/driver-request/auto', [DriverSelectionController::class, 'autoOrder'])->name('api.v1.orders.driver-request.auto')->middleware('permission:client.orders.manage');
         Route::delete('/{order}/driver-request', [DriverSelectionController::class, 'cancelOrder'])->name('api.v1.orders.driver-request.destroy')->middleware('permission:client.orders.manage');
         Route::get('/{order}', [OrderController::class, 'show'])->name('api.v1.orders.show')->middleware('permission:client.orders.manage');
         Route::post('/{order}/cancel', [OrderController::class, 'cancel'])->name('api.v1.orders.cancel')->middleware('permission:client.orders.manage');
+        Route::post('/{order}/incident', [OrderController::class, 'reportIncident'])->name('api.v1.orders.incident')->middleware('permission:client.orders.manage');
+        Route::post('/{order}/reassign', [OrderController::class, 'reassign'])->name('api.v1.orders.reassign')->middleware('permission:client.orders.manage');
         Route::post('/{order}/confirm-delivery', [OrderController::class, 'confirmDelivery'])->name('api.v1.orders.confirm-delivery')->middleware('permission:client.orders.manage');
         Route::post('/{order}/dispute', [OrderController::class, 'dispute'])->name('api.v1.orders.dispute')->middleware('permission:client.orders.manage');
     });

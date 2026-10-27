@@ -66,6 +66,11 @@ return [
     | sur le tarif de la zone configurée, sinon `default_fee`.
     */
     'delivery_pricing' => [
+        // Frais d'approche du livreur vers le commerce : les premiers km sont
+        // offerts, puis facturés au tarif configuré. Le client les paie une
+        // seule fois, même en cas de réassignation.
+        'approach_free_km' => (int) env('DELIVERY_APPROACH_FREE_KM', 3),
+        'approach_per_km' => (int) env('DELIVERY_APPROACH_PER_KM', 50),
         'min_fee' => (int) env('BENINFOOD_DELIVERY_MIN_FEE', 500),
         'flat_km' => (float) env('BENINFOOD_DELIVERY_FLAT_KM', 3),
         'base_km' => (float) env('BENINFOOD_DELIVERY_BASE_KM', 8),

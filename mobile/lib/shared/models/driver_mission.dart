@@ -62,6 +62,7 @@ class DriverMission {
     this.merchantType,
     this.merchantLogoUrl,
     this.distanceKm,
+    this.hasPendingHandover = false,
     this.createdAt,
     this.deliveredAt,
   });
@@ -80,6 +81,9 @@ class DriverMission {
   final String? merchantType;
   final String? merchantLogoUrl;
   final double? distanceKm;
+
+  /// Une remise de colis attend la validation du code fourni par le client.
+  final bool hasPendingHandover;
   final String? createdAt;
   final String? deliveredAt;
 
@@ -185,6 +189,7 @@ class DriverMission {
     merchantType: merchantType,
     merchantLogoUrl: merchantLogoUrl,
     distanceKm: distanceKm,
+    hasPendingHandover: hasPendingHandover,
     createdAt: createdAt,
     deliveredAt: deliveredAt,
   );
@@ -240,6 +245,7 @@ class DriverMission {
       merchantName: vendor?.businessName,
       merchantType: vendor?.type,
       merchantLogoUrl: vendor?.logoUrl ?? vendor?.coverUrl,
+      hasPendingHandover: delivery.hasPendingHandover,
       createdAt: delivery.createdAt,
       deliveredAt: delivery.deliveredAt,
     );

@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Enums\JournalEntryType;
 use App\Enums\WalletTransactionType;
+use App\Models\DeliveryAssignment;
 use App\Models\DriverProfile;
 use App\Models\Order;
 use App\Models\Parcel;
@@ -49,25 +50,37 @@ class FinanceService
      * Répartition financière d'une commande, calculée et figée côté serveur.
      *
      * @return array{
-     *   subtotal:int, delivery_fee:int, service_fee:int, payment_fee:int,
+     *   subtotal:int, delivery_fee:int, approach_fee:int, delivery_total:int,
+     *   service_fee:int, payment_fee:int,
      *   commission_base:int, commission_rate:int, commission_amount:int,
      *   vendor_amount:int, delivery_commission_rate:int, delivery_commission_amount:int,
-     *   delivery_partner_amount:int, platform_amount:int, total_client:int
+     *   delivery_partner_amount:int, base_partner_amount:int, approach_partner_amount:int,
+     *   platform_amount:int, total_client:int
      * }
      */
-    public function breakdown(int $subtotal, int $deliveryFee, int $vendorCommissionRate): array
+    public function breakdown(int $subtotal, int $deliveryFee, int $vendorCommissionRate, int $approachFee = 0): array
     {
         $rates = $this->rates();
 
+        $approachFee = max(0, $approachFee);
+        $deliveryTotal = $deliveryFee + $approachFee;
+
         // Commission client : uniquement sur la valeur des produits (hors livraison).
         $serviceFee = $this->percent($subtotal, $rates['service_fee_rate']);
-        $totalClient = $subtotal + $deliveryFee + $serviceFee;
+        $totalClient = $subtotal + $deliveryTotal + $serviceFee;
 
         $commissionAmount = $this->percent($subtotal, $vendorCommissionRate);
         $vendorAmount = $subtotal - $commissionAmount;
 
-        $deliveryCommission = $this->percent($deliveryFee, $rates['delivery_commission_rate']);
-        $deliveryPartnerAmount = $deliveryFee - $deliveryCommission;
+        // La commission livreur s'applique au total livraison (base + approche).
+        $deliveryCommission = $this->percent($deliveryTotal, $rates['delivery_commission_rate']);
+        $deliveryPartnerAmount = $deliveryTotal - $deliveryCommission;
+
+        // Ventilation de la part livreur entre trajet de base et approche.
+        $basePartnerAmount = $deliveryTotal > 0
+            ? (int) round($deliveryPartnerAmount * $deliveryFee / $deliveryTotal)
+            : 0;
+        $approachPartnerAmount = $deliveryPartnerAmount - $basePartnerAmount;
 
         // Frais de passerelle : coût absorbé par la plateforme (1,2 % du payé).
         $paymentFee = (int) round($totalClient * $rates['gateway_fee_basis_points'] / 10000);
@@ -75,6 +88,8 @@ class FinanceService
         return [
             'subtotal' => $subtotal,
             'delivery_fee' => $deliveryFee,
+            'approach_fee' => $approachFee,
+            'delivery_total' => $deliveryTotal,
             'service_fee' => $serviceFee,
             'payment_fee' => $paymentFee,
             'commission_base' => $subtotal,
@@ -84,6 +99,8 @@ class FinanceService
             'delivery_commission_rate' => $rates['delivery_commission_rate'],
             'delivery_commission_amount' => $deliveryCommission,
             'delivery_partner_amount' => $deliveryPartnerAmount,
+            'base_partner_amount' => $basePartnerAmount,
+            'approach_partner_amount' => $approachPartnerAmount,
             'platform_amount' => $commissionAmount + $deliveryCommission + $serviceFee,
             'total_client' => $totalClient,
         ];
@@ -341,9 +358,16 @@ class FinanceService
      */
     public function creditDriverForDelivery(Order $order, DriverProfile $driver): void
     {
-        $order->loadMissing('financials');
+        $order->loadMissing('financials', 'delivery.assignments');
 
-        $amount = (int) ($order->financials->delivery_fee ?? 0);
+        $assignment = $order->delivery?->assignments
+            ?->first(fn (DeliveryAssignment $item) => $item->driver_profile_id === $driver->id
+                && in_array($item->status, [DeliveryAssignment::STATUS_ACTIVE, DeliveryAssignment::STATUS_PENDING_HANDOVER], true));
+
+        $amount = (int) ($assignment?->gross_amount
+            ?? $order->financials?->delivery_total
+            ?? $order->financials?->delivery_fee
+            ?? 0);
 
         if ($amount <= 0) {
             return;
@@ -353,7 +377,7 @@ class FinanceService
             $this->walletFor($driver),
             $amount,
             'order_driver_credit',
-            $order->id,
+            $assignment?->id ?? $order->id,
             'Prix de livraison (en attente) — '.$order->reference,
         );
     }
@@ -363,7 +387,7 @@ class FinanceService
      */
     public function releaseOrderFunds(Order $order): void
     {
-        $order->loadMissing('financials', 'vendor', 'delivery.driverProfile');
+        $order->loadMissing('financials', 'vendor', 'delivery.assignments.driverProfile', 'delivery.driverProfile');
 
         $financials = $order->financials;
 
@@ -393,14 +417,75 @@ class FinanceService
             ]);
         }
 
-        $driver = $order->delivery?->driverProfile;
+        $this->releaseDriverAssignments($order);
+
+        $this->creditPlatform(
+            (int) $financials->platform_amount,
+            'order_platform_credit',
+            $order->id,
+            'Commissions et frais plateforme — '.$order->reference,
+        );
+    }
+
+    /**
+     * Libère le séquestre de chaque segment de livraison (livreur initial et
+     * remplaçants). Chaque segment porte sa propre commission, calculée au
+     * prorata de sa part livreur.
+     */
+    public function releaseDriverAssignments(Order $order): void
+    {
+        $order->loadMissing('financials', 'delivery.assignments.driverProfile', 'delivery.driverProfile');
+
+        $financials = $order->financials;
+        $delivery = $order->delivery;
+
+        if ($financials === null) {
+            return;
+        }
+
+        $assignments = $delivery?->assignments ?? collect();
+
+        if ($assignments->isNotEmpty()) {
+            foreach ($assignments as $assignment) {
+                $driver = $assignment->driverProfile;
+
+                if ($driver === null || (int) $assignment->gross_amount <= 0) {
+                    continue;
+                }
+
+                $driverWallet = $this->walletFor($driver);
+
+                $this->releaseDriverEarning(
+                    $driverWallet,
+                    (int) $assignment->gross_amount,
+                    (int) $assignment->commission_amount,
+                    'order_driver_release',
+                    $assignment->id,
+                    $order->reference.' · segment '.$assignment->sequence,
+                );
+
+                $this->journal->record([
+                    'entry_type' => JournalEntryType::Transfer,
+                    'reference_type' => 'order',
+                    'reference_id' => $order->id,
+                    'credit' => (int) $assignment->partner_amount,
+                    'participant' => $driver->user_id,
+                    'balance_after' => (int) $driverWallet->fresh()->available_balance,
+                    'actor' => 'system',
+                ]);
+            }
+
+            return;
+        }
+
+        $driver = $delivery?->driverProfile;
 
         if ($driver !== null) {
             $driverWallet = $this->walletFor($driver);
 
             $this->releaseDriverEarning(
                 $driverWallet,
-                (int) $financials->delivery_fee,
+                (int) ($financials->delivery_total ?? $financials->delivery_fee),
                 (int) $financials->delivery_commission_amount,
                 'order_driver_release',
                 $order->id,
@@ -417,13 +502,6 @@ class FinanceService
                 'actor' => 'system',
             ]);
         }
-
-        $this->creditPlatform(
-            (int) $financials->platform_amount,
-            'order_platform_credit',
-            $order->id,
-            'Commissions et frais plateforme — '.$order->reference,
-        );
     }
 
     /**
@@ -432,7 +510,7 @@ class FinanceService
      */
     public function reverseOrderDistribution(Order $order, ?string $actor = null): void
     {
-        $order->loadMissing('financials', 'vendor', 'delivery.driverProfile');
+        $order->loadMissing('financials', 'vendor', 'delivery.assignments.driverProfile', 'delivery.driverProfile');
 
         $financials = $order->financials;
 
@@ -450,12 +528,32 @@ class FinanceService
             );
         }
 
+        $assignments = $order->delivery?->assignments ?? collect();
+
+        if ($assignments->isNotEmpty()) {
+            foreach ($assignments as $assignment) {
+                if ($assignment->driverProfile === null || (int) $assignment->gross_amount <= 0) {
+                    continue;
+                }
+
+                $this->debitPending(
+                    $this->walletFor($assignment->driverProfile),
+                    (int) $assignment->gross_amount,
+                    'order_driver_reversal',
+                    $assignment->id,
+                    'Annulation part livreur — '.$order->reference.' · segment '.$assignment->sequence,
+                );
+            }
+
+            return;
+        }
+
         $driver = $order->delivery?->driverProfile;
 
-        if ($driver !== null && $financials->delivery_fee > 0) {
+        if ($driver !== null && (int) ($financials->delivery_total ?? $financials->delivery_fee) > 0) {
             $this->debitPending(
                 $this->walletFor($driver),
-                (int) $financials->delivery_fee,
+                (int) ($financials->delivery_total ?? $financials->delivery_fee),
                 'order_driver_reversal',
                 $order->id,
                 'Annulation part livreur — '.$order->reference,

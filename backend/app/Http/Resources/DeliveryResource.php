@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Models\DeliveryAssignment;
 use App\Services\PlatformPricingSettings;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -84,6 +85,18 @@ class DeliveryResource extends JsonResource
                 'pickup_longitude' => $this->vendor->pickup_longitude,
                 'pickup_landmark' => $this->vendor->pickup_landmark,
             ]),
+            'pending_handover' => $this->whenLoaded('assignments', function () {
+                $assignment = $this->assignments
+                    ->first(fn ($item) => $item->status === DeliveryAssignment::STATUS_PENDING_HANDOVER);
+
+                return $assignment === null ? null : [
+                    'id' => $assignment->id,
+                    'sequence' => $assignment->sequence,
+                    'base_fee' => $assignment->base_fee,
+                    'approach_fee' => $assignment->approach_fee,
+                    'partner_amount' => $assignment->partner_amount,
+                ];
+            }),
             'driver' => $this->whenLoaded('driverProfile', fn () => [
                 'id' => $this->driverProfile->id,
                 'user_id' => $this->driverProfile->user_id,
