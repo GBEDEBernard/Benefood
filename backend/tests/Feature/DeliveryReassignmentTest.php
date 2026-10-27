@@ -6,6 +6,7 @@ use App\Enums\OrderStatus;
 use App\Exceptions\DomainException;
 use App\Models\Delivery;
 use App\Models\DriverProfile;
+use App\Models\Notification;
 use App\Models\Order;
 use App\Models\OrderFinancial;
 use App\Models\Role;
@@ -234,9 +235,9 @@ class DeliveryReassignmentTest extends TestCase
         $this->assertSame(0, (int) $order->fresh()->delivery->reassignment_count);
     }
 
-    public function test_client_cancellation_closes_delivery_and_active_assignment(): void
+    public function test_client_cancellation_closes_delivery_assignment_and_notifies_driver(): void
     {
-        [$client, , , $order, $delivery] = $this->pickedUpOrderWithDriver();
+        [$client, $oldDriver, , $order, $delivery] = $this->pickedUpOrderWithDriver();
         $order->update([
             'status' => OrderStatus::Assigned->value,
             'payment_status' => 'pending',
@@ -250,5 +251,14 @@ class DeliveryReassignmentTest extends TestCase
             'delivery_id' => $delivery->id,
             'status' => 'cancelled',
         ]);
+
+        $notification = Notification::query()
+            ->where('user_id', $oldDriver->user_id)
+            ->where('type', 'delivery.cancelled')
+            ->first();
+
+        $this->assertNotNull($notification);
+        $this->assertSame($delivery->id, $notification->data['delivery_id']);
+        $this->assertStringContainsString($order->reference, (string) $notification->body);
     }
 }

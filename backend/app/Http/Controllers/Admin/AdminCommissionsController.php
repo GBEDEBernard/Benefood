@@ -150,6 +150,7 @@ class AdminCommissionsController extends Controller
         $data = $request->validate([
             'service_fee_rate' => ['required', 'integer', 'min:0', 'max:100'],
             'delivery_commission_rate' => ['required', 'integer', 'min:0', 'max:100'],
+            'driver_max_active_missions' => ['sometimes', 'integer', 'min:1', 'max:50'],
             'parcel_commission_rate' => ['required', 'integer', 'min:0', 'max:100'],
             'parcel_creation_fee' => ['sometimes', 'integer', 'min:0'],
             'gateway_fee_basis_points' => ['required', 'integer', 'min:0', 'max:10000'],
@@ -158,7 +159,7 @@ class AdminCommissionsController extends Controller
 
         $settings->update($data, $request->user()->id);
 
-        return back()->with('success', 'Les commissions et frais ont été mis à jour. Ils s\'appliquent immédiatement aux nouvelles commandes et aux nouveaux colis.');
+        return back()->with('success', 'Les commissions, frais et limites de missions ont été mis à jour. Ils s\'appliquent immédiatement aux nouvelles commandes et aux nouveaux colis.');
     }
 
     public function updateVendorRate(Request $request, Vendor $vendor): RedirectResponse

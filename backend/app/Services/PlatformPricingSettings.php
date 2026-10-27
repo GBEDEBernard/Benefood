@@ -30,6 +30,8 @@ class PlatformPricingSettings
                 // Taux de la commission client, calculée sur le sous-total produits.
                 'service_fee_rate' => (int) config('beninfood.service_fee.rate', 5),
                 'delivery_commission_rate' => (int) config('beninfood.delivery_commission.rate', 20),
+                // Nombre de courses et colis simultanés autorisés par livreur.
+                'driver_max_active_missions' => max(1, (int) config('beninfood.tracking.max_active_missions', 2)),
                 'parcel_commission_rate' => (int) config('beninfood.parcels.commission_rate', 20),
                 'gateway_fee_basis_points' => (int) config('beninfood.payment_gateway.fee_rate_basis_points', 120),
                 'minimum_payout' => (int) config('beninfood.wallet.min_payout', 1000),

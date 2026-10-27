@@ -59,6 +59,7 @@ class AdminPricingManagementTest extends TestCase
         $this->put(route('admin.commissions.platform-settings'), [
             'service_fee_rate' => 6,
             'delivery_commission_rate' => 18,
+            'driver_max_active_missions' => 3,
             'parcel_commission_rate' => 22,
             'parcel_creation_fee' => 250,
             'gateway_fee_basis_points' => 125,
@@ -67,6 +68,7 @@ class AdminPricingManagementTest extends TestCase
 
         $this->assertSame(22, app(PlatformPricingSettings::class)->get('parcel_commission_rate'));
         $this->assertSame(250, app(PlatformPricingSettings::class)->get('parcel_creation_fee'));
+        $this->assertSame(3, app(PlatformPricingSettings::class)->get('driver_max_active_missions'));
 
         $this->post(route('admin.pricing.rules.store'), [
             'service_type' => 'order',

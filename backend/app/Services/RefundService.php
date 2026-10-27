@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\DeliveryStatus;
 use App\Enums\JournalEntryType;
 use App\Enums\OrderStatus;
 use App\Enums\PaymentStatus;
@@ -311,11 +312,22 @@ class RefundService
     private function notifyCancellation(Order $order, ?Refund $refund, string $actorType): void
     {
         $reference = $order->reference;
+        $data = ['order_id' => $order->id, 'reference' => $reference];
 
-        $this->notifications->notifyEvent('order.cancelled', [$order->user, $order->vendor?->user], ['order_id' => $order->id, 'reference' => $reference]);
+        $delivery = $order->delivery()->with('driverProfile.user')->first();
+
+        if ($delivery !== null
+            && $delivery->status !== DeliveryStatus::Delivered
+            && $delivery->driverProfile?->user !== null) {
+            $this->notifications->notifyEvent('delivery.cancelled', [$delivery->driverProfile->user], $data + [
+                'delivery_id' => $delivery->id,
+            ]);
+        }
+
+        $this->notifications->notifyEvent('order.cancelled', [$order->user, $order->vendor?->user], $data);
 
         if ($refund !== null && $refund->status === RefundStatus::Pending) {
-            $this->notifications->notifyEvent('order.refund_initiated', [$order->user], ['order_id' => $order->id, 'reference' => $reference, 'amount' => $refund->amount]);
+            $this->notifications->notifyEvent('order.refund_initiated', [$order->user], $data + ['amount' => $refund->amount]);
         }
     }
 }

@@ -14,6 +14,8 @@ use App\Models\DriverProfile;
  */
 class DriverAvailabilityService
 {
+    public function __construct(private readonly PlatformPricingSettings $settings) {}
+
     /**
      * Statuts d'une livraison qui immobilisent le livreur.
      *
@@ -40,7 +42,7 @@ class DriverAvailabilityService
 
     public function maxActiveMissions(): int
     {
-        return max(1, (int) config('beninfood.tracking.max_active_missions', 2));
+        return max(1, $this->settings->get('driver_max_active_missions'));
     }
 
     public function activeMissionsCount(DriverProfile $driver): int

@@ -9,6 +9,8 @@ use App\Models\Order;
 use App\Models\User;
 use App\Models\Vendor;
 use App\Services\DeliveryService;
+use App\Services\DriverAvailabilityService;
+use App\Services\PlatformPricingSettings;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -31,9 +33,9 @@ class DriverMissionLimitTest extends TestCase
         ]);
     }
 
-    public function test_a_driver_cannot_exceed_two_active_missions(): void
+    public function test_a_driver_cannot_exceed_the_configured_active_mission_limit(): void
     {
-        config()->set('beninfood.tracking.max_active_missions', 2);
+        app(PlatformPricingSettings::class)->update(['driver_max_active_missions' => 2]);
 
         $client = User::factory()->create(['phone' => fake()->unique()->numerify('+22997######')]);
         $vendor = Vendor::factory()->create();
@@ -71,5 +73,17 @@ class DriverMissionLimitTest extends TestCase
         }
 
         $this->assertNull($delivery->fresh()->driver_profile_id);
+    }
+
+    public function test_max_active_missions_is_dynamic(): void
+    {
+        $settings = app(PlatformPricingSettings::class);
+        $availability = app(DriverAvailabilityService::class);
+
+        $settings->update(['driver_max_active_missions' => 3]);
+        $this->assertSame(3, $availability->maxActiveMissions());
+
+        $settings->update(['driver_max_active_missions' => 1]);
+        $this->assertSame(1, $availability->maxActiveMissions());
     }
 }

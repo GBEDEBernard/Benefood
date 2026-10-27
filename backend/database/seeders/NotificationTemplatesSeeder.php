@@ -51,6 +51,12 @@ class NotificationTemplatesSeeder extends Seeder
                 'body' => 'Votre commande #{reference} a été annulée.',
             ],
             [
+                'event' => 'delivery.cancelled',
+                'channel' => NotificationTemplateChannel::Push->value,
+                'subject' => 'Course annulée',
+                'body' => 'La course #{reference} a été annulée. Vous êtes de nouveau disponible pour d\'autres missions.',
+            ],
+            [
                 'event' => 'order.refund_initiated',
                 'channel' => NotificationTemplateChannel::Push->value,
                 'subject' => 'Remboursement en cours',
