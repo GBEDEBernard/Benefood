@@ -17,9 +17,20 @@ void main() {
         },
         'dropoff': {'latitude': 6.37, 'longitude': 2.391, 'address': 'Ganhi'},
         'radius_km': 5,
-        'requested_radius_km': 5,
+        'requested_radius_km': 3,
         'max_radius_km': 15,
-        'expanded': false,
+        'expanded': true,
+        'trip': {'distance_km': 2.8, 'duration_s': 720},
+        'diagnostics': {
+          'online_drivers': 4,
+          'with_position': 2,
+          'fresh_position': 0,
+          'stale_position': 1,
+          'without_position': 1,
+          'within_max_radius': 0,
+          'max_radius_km': 15,
+          'location_max_age_s': 300,
+        },
         'drivers': [
           {
             'id': 'drv-1',
@@ -46,7 +57,15 @@ void main() {
       });
 
       expect(page.radiusKm, 5);
-      expect(page.expanded, isFalse);
+      expect(page.requestedRadiusKm, 3);
+      expect(page.expanded, isTrue);
+      expect(page.tripDistanceKm, 2.8);
+      expect(page.tripDurationSeconds, 720);
+      expect(page.diagnostics.onlineDrivers, 4);
+      expect(page.diagnostics.freshPosition, 0);
+      expect(page.diagnostics.stalePosition, 1);
+      expect(page.diagnostics.withoutPosition, 1);
+      expect(page.diagnostics.hasPositionIssue, isTrue);
       expect(page.pickup?.display, contains('Marché Dantokpa'));
       expect(page.drivers, hasLength(1));
 
@@ -61,6 +80,14 @@ void main() {
       expect(driver.position?.latitude, 6.366);
       expect(driver.position?.heading, 90);
       expect(driver.position?.ageSeconds, 12);
+    });
+
+    test('diagnostics absents : aucun problème de position signalé', () {
+      final page = DriverSelectionPage.fromJson({'drivers': []});
+
+      expect(page.diagnostics.onlineDrivers, 0);
+      expect(page.diagnostics.hasPositionIssue, isFalse);
+      expect(page.tripDistanceKm, isNull);
     });
 
     test('parse une demande en attente avant que la commande soit prête', () {

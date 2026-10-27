@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -9,6 +10,8 @@ import '../../../core/auth/session_provider.dart';
 import '../../../core/data/marketplace_api.dart';
 import '../../../core/navigation/notification_router.dart';
 import '../../../core/errors/api_exception.dart';
+import '../../../core/services/driver_presence_service.dart';
+import '../../../core/services/location_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_dimens.dart';
 import '../../../core/utils/formatters.dart';
@@ -60,7 +63,8 @@ class DriverAccountScreen extends StatefulWidget {
   State<DriverAccountScreen> createState() => _DriverAccountScreenState();
 }
 
-class _DriverAccountScreenState extends State<DriverAccountScreen> {
+class _DriverAccountScreenState extends State<DriverAccountScreen>
+    with WidgetsBindingObserver {
   Map<String, dynamic>? _status;
   Map<String, dynamic>? _wallet;
   List<Delivery> _deliveries = [];
@@ -75,7 +79,22 @@ class _DriverAccountScreenState extends State<DriverAccountScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _load();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && _available) {
+      unawaited(DriverPresenceService.reportNow());
+    }
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    DriverPresenceService.pauseHeartbeat();
+    super.dispose();
   }
 
   Map<String, dynamic>? get _profile {
@@ -118,6 +137,7 @@ class _DriverAccountScreenState extends State<DriverAccountScreen> {
           _statsLoaded = _statsLoaded || statsLoaded;
           _loading = false;
         });
+        unawaited(DriverPresenceService.sync(widget.marketplace, _available));
       }
     } on ApiException catch (e) {
       if (mounted) {
@@ -183,7 +203,21 @@ class _DriverAccountScreenState extends State<DriverAccountScreen> {
       _toggling = true;
     });
     try {
-      await widget.marketplace.setAvailability(value);
+      if (value) {
+        final failure = await DriverPresenceService.goOnline(widget.marketplace);
+        if (failure != null) {
+          if (mounted) {
+            setState(() {
+              _available = previous;
+              _toggling = false;
+            });
+            showToast(context, _locationFailureMessage(failure), isError: true);
+          }
+          return;
+        }
+      } else {
+        await DriverPresenceService.goOffline(widget.marketplace);
+      }
       if (mounted) {
         setState(() => _toggling = false);
       }
@@ -198,6 +232,15 @@ class _DriverAccountScreenState extends State<DriverAccountScreen> {
     }
   }
 
+  static String _locationFailureMessage(LocationFailure failure) => switch (failure) {
+    LocationFailure.serviceDisabled =>
+      'Activez le GPS de votre téléphone pour passer en ligne.',
+    LocationFailure.permissionDenied =>
+      'Autorisez la localisation pour recevoir des courses à proximité.',
+    LocationFailure.unavailable =>
+      'Position GPS introuvable. Réessayez dans un endroit dégagé.',
+  };
+
   Future<void> _confirmLogout() async {
     final confirmed = await showConfirmDialog(
       context,
@@ -208,6 +251,7 @@ class _DriverAccountScreenState extends State<DriverAccountScreen> {
     if (!confirmed || !mounted) {
       return;
     }
+    DriverPresenceService.stop();
     await widget.session.logout();
     if (mounted) {
       context.go('/landing');

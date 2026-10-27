@@ -23,7 +23,7 @@ import '../../../shared/widgets/app_network_image.dart';
 import '../../../shared/widgets/amount_widgets.dart';
 import '../../../shared/widgets/beninfood_header.dart';
 import '../../../shared/widgets/call_button.dart';
-import '../../../shared/widgets/driver_selection_sheet.dart';
+import '../drivers/driver_selection_screen.dart';
 import '../../../shared/widgets/feedback_widgets.dart';
 import '../../../shared/widgets/package_item_tile.dart';
 import '../../../shared/widgets/state_widgets.dart';
@@ -183,10 +183,11 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
     if (order == null) {
       return;
     }
-    final accepted = await showDriverSelectionSheet(
+    final accepted = await showDriverSelectionPage(
       context,
       widget.marketplace,
       targetId: order.id,
+      reference: order.reference,
       isParcel: false,
       onChanged: _refreshSilently,
     );

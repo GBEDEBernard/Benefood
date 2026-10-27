@@ -21,7 +21,7 @@ import '../../../shared/widgets/app_button.dart';
 import '../../../shared/widgets/app_map.dart';
 import '../../../shared/widgets/app_network_image.dart';
 import '../../../shared/widgets/call_button.dart';
-import '../../../shared/widgets/driver_selection_sheet.dart';
+import '../drivers/driver_selection_screen.dart';
 import '../../../shared/widgets/beninfood_header.dart';
 import '../../../shared/widgets/feedback_widgets.dart';
 import '../../../shared/widgets/fedapay_checkout_screen.dart';
@@ -193,10 +193,11 @@ class _ParcelDetailScreenState extends State<ParcelDetailScreen> {
     if (parcel == null) {
       return;
     }
-    final accepted = await showDriverSelectionSheet(
+    final accepted = await showDriverSelectionPage(
       context,
       widget.marketplace,
       targetId: parcel.id,
+      reference: parcel.reference,
       isParcel: true,
       onChanged: _refreshSilently,
     );

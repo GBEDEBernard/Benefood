@@ -63,6 +63,14 @@ class AppConfig {
     defaultValue: 10,
   );
 
+  /// Fréquence d'envoi de la position d'un livreur en ligne mais sans mission
+  /// (secondes). Doit rester inférieure à la fraîcheur GPS exigée côté serveur
+  /// (300 s par défaut) pour que le livreur reste visible des clients.
+  static const int idleLocationIntervalSeconds = int.fromEnvironment(
+    'IDLE_LOCATION_INTERVAL_S',
+    defaultValue: 60,
+  );
+
   /// Âge à partir duquel la position est signalée comme ancienne.
   static const int staleWarnSeconds = int.fromEnvironment(
     'STALE_WARN_S',

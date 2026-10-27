@@ -1,6 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../../core/data/marketplace_api.dart';
+import '../../../core/services/driver_presence_service.dart';
+import '../../../core/services/location_service.dart';
 import '../../../core/errors/api_exception.dart';
 import '../../../core/navigation/notification_router.dart';
 import '../../../core/theme/app_colors.dart';
@@ -40,7 +44,7 @@ class DriverHomeScreen extends StatefulWidget {
 }
 
 class DriverHomeScreenState extends State<DriverHomeScreen>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   List<DriverMission> _missions = [];
   Map<String, dynamic> _wallet = const {};
   bool _available = false;
@@ -56,7 +60,17 @@ class DriverHomeScreenState extends State<DriverHomeScreen>
       duration: const Duration(seconds: 2),
       vsync: this,
     );
+    WidgetsBinding.instance.addObserver(this);
     _load();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Au retour au premier plan, la position peut être périmée : on la renvoie
+    // tout de suite pour rester visible des clients.
+    if (state == AppLifecycleState.resumed && _available) {
+      unawaited(DriverPresenceService.reportNow());
+    }
   }
 
   @override
@@ -93,6 +107,8 @@ class DriverHomeScreenState extends State<DriverHomeScreen>
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    DriverPresenceService.pauseHeartbeat();
     _pulseController.dispose();
     super.dispose();
   }
@@ -129,6 +145,7 @@ class DriverHomeScreenState extends State<DriverHomeScreen>
           _loading = false;
         });
         _syncPulse();
+        unawaited(DriverPresenceService.sync(widget.marketplace, _available));
       }
     } on ApiException catch (e) {
       if (mounted) {
@@ -147,13 +164,30 @@ class DriverHomeScreenState extends State<DriverHomeScreen>
       _toggling = true;
     });
     try {
-      await widget.marketplace.setAvailability(value);
+      if (value) {
+        final failure = await DriverPresenceService.goOnline(widget.marketplace);
+        if (failure != null) {
+          if (mounted) {
+            setState(() {
+              _available = previous;
+              _toggling = false;
+            });
+            _syncPulse();
+            showToast(context, _locationFailureMessage(failure), isError: true);
+          }
+          return;
+        }
+      } else {
+        await DriverPresenceService.goOffline(widget.marketplace);
+      }
       if (mounted) {
         setState(() => _toggling = false);
         _syncPulse();
         showToast(
           context,
-          value ? 'Vous êtes disponible.' : 'Vous êtes indisponible.',
+          value
+              ? 'Vous êtes en ligne, votre position est partagée.'
+              : 'Vous êtes indisponible.',
         );
       }
     } on ApiException catch (e) {
@@ -167,6 +201,15 @@ class DriverHomeScreenState extends State<DriverHomeScreen>
       }
     }
   }
+
+  static String _locationFailureMessage(LocationFailure failure) => switch (failure) {
+    LocationFailure.serviceDisabled =>
+      'Activez le GPS de votre téléphone pour passer en ligne.',
+    LocationFailure.permissionDenied =>
+      'Autorisez la localisation pour recevoir des courses à proximité.',
+    LocationFailure.unavailable =>
+      'Position GPS introuvable. Réessayez dans un endroit dégagé.',
+  };
 
   Future<void> _openMission(DriverMission mission) async {
     await Navigator.of(context).push(

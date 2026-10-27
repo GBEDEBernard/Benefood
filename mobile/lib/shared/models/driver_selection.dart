@@ -46,6 +46,9 @@ class NearbyDriver {
   String get displayName =>
       (name != null && name!.trim().isNotEmpty) ? name!.trim() : 'Livreur';
 
+  /// Âge de la dernière position GPS connue (secondes).
+  int? get positionAgeSeconds => position?.ageSeconds;
+
   factory NearbyDriver.fromJson(Map<String, dynamic> json) => NearbyDriver(
     id: _s(json['id']),
     name: _stringOrNull(json['name']),
@@ -96,6 +99,7 @@ class DriverLivePosition {
 /// Lieu de collecte ou de livraison renvoyé avec la sélection.
 class DriverSelectionPlace {
   const DriverSelectionPlace({
+    this.name,
     this.latitude,
     this.longitude,
     this.address,
@@ -103,6 +107,8 @@ class DriverSelectionPlace {
     this.city,
   });
 
+  /// Nom du commerce (collecte) ou libellé de l'adresse (livraison).
+  final String? name;
   final double? latitude;
   final double? longitude;
   final String? address;
@@ -112,6 +118,27 @@ class DriverSelectionPlace {
   GeoPoint? get point => latitude != null && longitude != null
       ? GeoPoint(latitude!, longitude!)
       : null;
+
+  /// Titre mis en avant : nom du commerce / libellé de l'adresse.
+  String get title {
+    for (final candidate in [name, address, city]) {
+      if (candidate != null && candidate.trim().isNotEmpty) {
+        return candidate.trim();
+      }
+    }
+    return 'Adresse non précisée';
+  }
+
+  /// Ligne secondaire : adresse complète, point de repère et ville.
+  String get subtitle {
+    final parts = [
+      if (address != null && address != name) address,
+      if (landmark != null && landmark!.trim().isNotEmpty)
+        'près de ${landmark!.trim()}',
+      city,
+    ].whereType<String>().where((part) => part.trim().isNotEmpty).toList();
+    return parts.isEmpty ? ' ' : parts.join(' · ');
+  }
 
   String get display {
     final parts = [
@@ -125,6 +152,7 @@ class DriverSelectionPlace {
 
   factory DriverSelectionPlace.fromJson(Map<String, dynamic> json) =>
       DriverSelectionPlace(
+        name: _stringOrNull(json['name']),
         latitude: _dNull(json['latitude']),
         longitude: _dNull(json['longitude']),
         address: _stringOrNull(json['address']),
@@ -216,21 +244,72 @@ class DriverRequestDriver {
       );
 }
 
+/// Compteurs de disponibilité renvoyés par la recherche : ils permettent de
+/// distinguer « aucun livreur », « GPS absent » et « GPS périmé ».
+class DriverSelectionDiagnostics {
+  const DriverSelectionDiagnostics({
+    this.onlineDrivers = 0,
+    this.withPosition = 0,
+    this.freshPosition = 0,
+    this.stalePosition = 0,
+    this.withoutPosition = 0,
+    this.withinMaxRadius = 0,
+    this.maxRadiusKm = 0,
+    this.locationMaxAgeSeconds = 0,
+  });
+
+  static const empty = DriverSelectionDiagnostics();
+
+  final int onlineDrivers;
+  final int withPosition;
+  final int freshPosition;
+  final int stalePosition;
+  final int withoutPosition;
+  final int withinMaxRadius;
+  final double maxRadiusKm;
+  final int locationMaxAgeSeconds;
+
+  bool get hasOnlineDrivers => onlineDrivers > 0;
+
+  /// Des livreurs sont en ligne mais aucun ne possède de position exploitable.
+  bool get hasPositionIssue =>
+      hasOnlineDrivers && freshPosition == 0 && (stalePosition > 0 || withoutPosition > 0);
+
+  factory DriverSelectionDiagnostics.fromJson(Map<String, dynamic> json) =>
+      DriverSelectionDiagnostics(
+        onlineDrivers: _i(json['online_drivers']),
+        withPosition: _i(json['with_position']),
+        freshPosition: _i(json['fresh_position']),
+        stalePosition: _i(json['stale_position']),
+        withoutPosition: _i(json['without_position']),
+        withinMaxRadius: _i(json['within_max_radius']),
+        maxRadiusKm: _d(json['max_radius_km']),
+        locationMaxAgeSeconds: _i(json['location_max_age_s']),
+      );
+}
+
 /// Réponse complète de `GET /orders/{id}/nearby-drivers` (ou colis).
 class DriverSelectionPage {
   const DriverSelectionPage({
     this.pickup,
     this.dropoff,
+    this.tripDistanceKm,
+    this.tripDurationSeconds,
     this.radiusKm = 0,
     this.requestedRadiusKm = 0,
     this.maxRadiusKm = 0,
     this.expanded = false,
     this.drivers = const [],
+    this.diagnostics = DriverSelectionDiagnostics.empty,
     this.request,
   });
 
   final DriverSelectionPlace? pickup;
   final DriverSelectionPlace? dropoff;
+
+  /// Distance routière collecte → adresse du client.
+  final double? tripDistanceKm;
+  final int? tripDurationSeconds;
   final double radiusKm;
   final double requestedRadiusKm;
   final double maxRadiusKm;
@@ -238,10 +317,12 @@ class DriverSelectionPage {
   /// `true` si le rayon a été élargi faute de livreur dans le rayon initial.
   final bool expanded;
   final List<NearbyDriver> drivers;
+  final DriverSelectionDiagnostics diagnostics;
   final DriverRequestInfo? request;
 
   factory DriverSelectionPage.fromJson(Map<String, dynamic> json) {
     final rawDrivers = json['drivers'];
+    final rawTrip = json['trip'];
     return DriverSelectionPage(
       pickup: json['pickup'] is Map<String, dynamic>
           ? DriverSelectionPlace.fromJson(
@@ -253,6 +334,12 @@ class DriverSelectionPage {
               json['dropoff'] as Map<String, dynamic>,
             )
           : null,
+      tripDistanceKm: rawTrip is Map<String, dynamic>
+          ? _dNull(rawTrip['distance_km'])
+          : null,
+      tripDurationSeconds: rawTrip is Map<String, dynamic>
+          ? _iNull(rawTrip['duration_s'])
+          : null,
       radiusKm: _d(json['radius_km']),
       requestedRadiusKm: _d(json['requested_radius_km']),
       maxRadiusKm: _d(json['max_radius_km']),
@@ -263,6 +350,11 @@ class DriverSelectionPage {
                 .map(NearbyDriver.fromJson)
                 .toList()
           : const [],
+      diagnostics: json['diagnostics'] is Map<String, dynamic>
+          ? DriverSelectionDiagnostics.fromJson(
+              json['diagnostics'] as Map<String, dynamic>,
+            )
+          : DriverSelectionDiagnostics.empty,
       request: json['request'] is Map<String, dynamic>
           ? DriverRequestInfo.fromJson(json['request'] as Map<String, dynamic>)
           : null,

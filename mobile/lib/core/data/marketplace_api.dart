@@ -339,6 +339,12 @@ class MarketplaceApi {
     return DriverRequestInfo.fromJson(_dataObject(response) ?? {});
   }
 
+  /// Laisse la plateforme solliciter le livreur disponible le plus proche.
+  Future<DriverRequestInfo> autoAssignOrderDriver(String orderId) async {
+    final response = await _api.post('/orders/$orderId/driver-request/auto');
+    return DriverRequestInfo.fromJson(_dataObject(response) ?? {});
+  }
+
   Future<void> cancelOrderDriverRequest(String orderId) async {
     await _api.delete('/orders/$orderId/driver-request');
   }
@@ -1291,6 +1297,12 @@ class MarketplaceApi {
       '/parcels/$parcelId/driver-request',
       body: {'driver_profile_id': driverProfileId},
     );
+    return DriverRequestInfo.fromJson(_dataObject(response) ?? {});
+  }
+
+  /// Laisse la plateforme solliciter le livreur disponible le plus proche.
+  Future<DriverRequestInfo> autoAssignParcelDriver(String parcelId) async {
+    final response = await _api.post('/parcels/$parcelId/driver-request/auto');
     return DriverRequestInfo.fromJson(_dataObject(response) ?? {});
   }
 

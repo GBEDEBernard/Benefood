@@ -21,6 +21,7 @@ class AppMapMarker {
     this.icon = Icons.two_wheeler,
     this.color,
     this.size = 38,
+    this.highlighted = false,
   });
 
   final GeoPoint point;
@@ -30,6 +31,9 @@ class AppMapMarker {
   final IconData icon;
   final Color? color;
   final double size;
+
+  /// Marqueur sélectionné dans la liste : agrandi et entouré d'un anneau.
+  final bool highlighted;
 }
 
 /// Carte de localisation réutilisable (J162 / J177).
@@ -70,6 +74,12 @@ class AppMap extends StatefulWidget {
     this.secondaryIcon = Icons.storefront_outlined,
     this.secondaryColor,
     this.extraMarkers = const [],
+    this.initialCenter,
+    this.radiusCenter,
+    this.radiusMeters,
+    this.radiusColor,
+    this.recenterPoint,
+    this.recenterTooltip = 'Recentrer la carte',
   });
 
   /// Position de l'utilisateur (livreur) : `null` si inconnue.
@@ -140,6 +150,19 @@ class AppMap extends StatefulWidget {
 
   /// Marqueurs additionnels (ex. livreurs proches autour d'un point).
   final List<AppMapMarker> extraMarkers;
+
+  /// Point sur lequel centrer la carte au premier affichage (par défaut :
+  /// `origin`, puis `target`, puis `secondary`).
+  final GeoPoint? initialCenter;
+
+  /// Cercle de recherche dessiné autour de ce point (rayon en mètres).
+  final GeoPoint? radiusCenter;
+  final double? radiusMeters;
+  final Color? radiusColor;
+
+  /// Point du bouton de recentrage (le point de collecte, par exemple).
+  final GeoPoint? recenterPoint;
+  final String recenterTooltip;
 
   @override
   State<AppMap> createState() => _AppMapState();
@@ -235,6 +258,12 @@ class _AppMapState extends State<AppMap> {
       secondaryIcon: widget.secondaryIcon,
       secondaryColor: widget.secondaryColor,
       extraMarkers: widget.extraMarkers,
+      initialCenter: widget.initialCenter,
+      radiusCenter: widget.radiusCenter,
+      radiusMeters: widget.radiusMeters,
+      radiusColor: widget.radiusColor,
+      recenterPoint: widget.recenterPoint,
+      recenterTooltip: widget.recenterTooltip,
     );
   }
 
@@ -302,8 +331,11 @@ class _AppMapState extends State<AppMap> {
       if (widget.origin != null) widget.origin!.latLng,
       if (widget.target != null) widget.target!.latLng,
       if (widget.secondary != null) widget.secondary!.latLng,
+      if (widget.radiusCenter != null) widget.radiusCenter!.latLng,
       for (final marker in widget.extraMarkers) marker.point.latLng,
     ];
+    final center = widget.initialCenter?.latLng ??
+        (points.isEmpty ? null : points.first);
     final originMarkerSize = widget.originImageUrl == null
         ? (widget.originIsDriver ? 44.0 : 28.0)
         : (widget.originIsDriver ? 44.0 : 36.0);
@@ -320,7 +352,7 @@ class _AppMapState extends State<AppMap> {
                   FlutterMap(
                     mapController: _controller,
                     options: MapOptions(
-                      initialCenter: points.first,
+                      initialCenter: center!,
                       initialZoom: widget.initialZoom,
                       minZoom: 3,
                       maxZoom: 18,
@@ -341,6 +373,21 @@ class _AppMapState extends State<AppMap> {
                         maxNativeZoom: 19,
                         tileDisplay: const TileDisplay.fadeIn(duration: Duration(milliseconds: 150)),
                       ),
+                      if (widget.radiusCenter != null && (widget.radiusMeters ?? 0) > 0)
+                        CircleLayer(
+                          circles: [
+                            CircleMarker(
+                              point: widget.radiusCenter!.latLng,
+                              radius: widget.radiusMeters!,
+                              useRadiusInMeter: true,
+                              color: (widget.radiusColor ?? AppColors.orange)
+                                  .withValues(alpha: 0.06),
+                              borderColor: (widget.radiusColor ?? AppColors.orange)
+                                  .withValues(alpha: 0.55),
+                              borderStrokeWidth: 1.5,
+                            ),
+                          ],
+                        ),
                       if (_routePoints.length >= 2 ||
                           (widget.extraRoute?.length ?? 0) >= 2 ||
                           (widget.highlightRoute?.length ?? 0) >= 2)
@@ -445,15 +492,25 @@ class _AppMapState extends State<AppMap> {
                           for (final extra in widget.extraMarkers)
                             _marker(
                               point: extra.point,
-                              size: extra.size,
+                              size: extra.highlighted
+                                  ? extra.size + 10
+                                  : extra.size,
                               label: extra.label,
                               child: extra.imageUrl == null
-                                  ? _MotoMarker(heading: extra.heading)
+                                  ? _MotoMarker(
+                                      heading: extra.heading,
+                                      color: extra.color,
+                                      highlighted: extra.highlighted,
+                                    )
                                   : _PhotoMarker(
                                       imageUrl: extra.imageUrl!,
-                                      size: extra.size,
+                                      size: extra.highlighted
+                                          ? extra.size + 10
+                                          : extra.size,
                                       fallback: _MotoMarker(
                                         heading: extra.heading,
+                                        color: extra.color,
+                                        highlighted: extra.highlighted,
                                       ),
                                       badgeIcon: extra.icon,
                                       badgeColor:
@@ -495,16 +552,20 @@ class _AppMapState extends State<AppMap> {
                       ),
                     ],
                   ),
-                  if (widget.origin != null)
+                  if (widget.origin != null || widget.recenterPoint != null)
                     Positioned(
                       right: 8,
                       bottom: 8,
                       child: _MapButton(
                         icon: Icons.my_location,
-                        tooltip: 'Recentrer sur ma position',
+                        tooltip: widget.origin != null
+                            ? 'Recentrer sur ma position'
+                            : widget.recenterTooltip,
                         onPressed: () {
                           setState(() => _movedByUser = false);
-                          _centerOn(widget.origin!.latLng);
+                          _centerOn(
+                            (widget.origin ?? widget.recenterPoint)!.latLng,
+                          );
                         },
                       ),
                     ),
@@ -683,30 +744,46 @@ class _PhotoMarker extends StatelessWidget {
 
 /// Marqueur du livreur en déplacement (icône moto).
 class _MotoMarker extends StatelessWidget {
-  const _MotoMarker({this.heading});
+  const _MotoMarker({this.heading, this.color, this.highlighted = false});
 
   /// Cap du véhicule en degrés (0 = Nord). `null` = pas de rotation.
   final double? heading;
 
+  /// Couleur du marqueur (vert pour un livreur disponible, orange sinon).
+  final Color? color;
+
+  /// Marqueur sélectionné : anneau et halo renforcés.
+  final bool highlighted;
+
   @override
   Widget build(BuildContext context) {
+    final accent = color ?? AppColors.orange;
     final icon = Container(
       width: 28,
       height: 28,
       decoration: BoxDecoration(
-        color: AppColors.orange,
+        color: accent,
         shape: BoxShape.circle,
         border: Border.all(color: Colors.white, width: 2),
-        boxShadow: [BoxShadow(color: AppColors.orange.withValues(alpha: 0.45), blurRadius: 8)],
+        boxShadow: [
+          BoxShadow(color: accent.withValues(alpha: 0.45), blurRadius: 8),
+        ],
       ),
       // Flèche orientée quand un cap est connu, moto sinon.
-      child: Icon(heading != null ? Icons.navigation : Icons.two_wheeler, size: 16, color: Colors.white),
+      child: Icon(
+        heading != null ? Icons.navigation : Icons.two_wheeler,
+        size: 16,
+        color: Colors.white,
+      ),
     );
 
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.orange.withValues(alpha: 0.22),
+        color: accent.withValues(alpha: highlighted ? 0.32 : 0.22),
         shape: BoxShape.circle,
+        border: highlighted
+            ? Border.all(color: accent, width: 2)
+            : null,
       ),
       child: Center(
         child: heading != null

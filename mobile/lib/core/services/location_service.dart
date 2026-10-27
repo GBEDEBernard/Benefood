@@ -135,6 +135,42 @@ class LocationService {
     );
   }
 
+  /// Position brute, sans géocodage inverse (battement de présence livreur).
+  ///
+  /// Contrairement à [locate], aucun appel réseau de géocodage n'est fait :
+  /// cette méthode peut être appelée périodiquement sans surcoût.
+  static Future<LocateResult> currentPosition({
+    LocationAccuracy accuracy = LocationAccuracy.medium,
+    Duration timeLimit = const Duration(seconds: 12),
+  }) async {
+    final issue = await accessIssue();
+    if (issue != null) {
+      return LocateResult.failure(issue);
+    }
+
+    try {
+      final position = await Geolocator.getCurrentPosition(
+        locationSettings: LocationSettings(
+          accuracy: accuracy,
+          timeLimit: timeLimit,
+        ),
+      );
+
+      return LocateResult.success(
+        GeoResult(latitude: position.latitude, longitude: position.longitude),
+      );
+    } catch (_) {
+      final last = await Geolocator.getLastKnownPosition();
+      if (last == null) {
+        return const LocateResult.failure(LocationFailure.unavailable);
+      }
+
+      return LocateResult.success(
+        GeoResult(latitude: last.latitude, longitude: last.longitude),
+      );
+    }
+  }
+
   /// Suit la position en continu (carte de mission, guidage GPS).
   ///
   /// Émet un [GeoResult] à chaque déplacement significatif ([distanceFilter]
