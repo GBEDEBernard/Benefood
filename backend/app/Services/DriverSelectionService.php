@@ -16,6 +16,7 @@ use App\Models\Parcel;
 use App\Models\User;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
 /**
@@ -62,6 +63,20 @@ class DriverSelectionService
     public function requestForParcel(Parcel $parcel, User $client, string $driverProfileId): DriverAssignmentRequest
     {
         return $this->requestDriver($parcel, $client, $driverProfileId);
+    }
+
+    /**
+     * Affectation automatique : la plateforme sollicite le livreur disponible
+     * le plus proche, qui doit accepter comme pour une demande manuelle.
+     */
+    public function autoAssignForOrder(Order $order, User $client): DriverAssignmentRequest
+    {
+        return $this->autoAssign($order, $client);
+    }
+
+    public function autoAssignForParcel(Parcel $parcel, User $client): DriverAssignmentRequest
+    {
+        return $this->autoAssign($parcel, $client);
     }
 
     /**
@@ -260,34 +275,182 @@ class DriverSelectionService
         $maxRadius = max($configuredRadius, (float) config('beninfood.driver_selection.max_radius_km', 15));
         $requestedRadius = $radiusKm !== null ? min($maxRadius, max(0.5, $radiusKm)) : $configuredRadius;
 
-        $radius = $requestedRadius;
-        $candidates = collect();
-
-        while (true) {
-            $candidates = $this->eligibleDrivers($context['pickup'], $radius);
-
-            if ($candidates->isNotEmpty() || $radius >= $maxRadius) {
-                break;
-            }
-
-            $radius = min($maxRadius, $radius * 1.5);
-        }
+        [$candidates, $radius] = $this->search($context['pickup'], $requestedRadius, $maxRadius);
 
         $drivers = $this->decorateDrivers($candidates, $context);
         $latest = $assignable->driverAssignmentRequest()->with('driverProfile.user')->first();
+        $diagnostics = $this->diagnostics($context['pickup'], $maxRadius);
+
+        $logContext = [
+            'reference' => $context['reference'],
+            'radius_km' => round($radius, 2),
+            'expanded' => $radius > $requestedRadius,
+            'drivers' => count($drivers),
+        ] + $diagnostics;
+
+        if ($drivers === []) {
+            Log::warning('driver_selection.nearby.empty', $logContext);
+        } else {
+            Log::info('driver_selection.nearby.found', $logContext);
+        }
 
         return [
             'pickup' => $context['pickup'],
             'dropoff' => $context['dropoff'],
+            'trip' => $this->trip($context),
             'radius_km' => round($radius, 2),
             'requested_radius_km' => round($requestedRadius, 2),
             'max_radius_km' => round($maxRadius, 2),
             'expanded' => $radius > $requestedRadius,
             'drivers' => $drivers,
+            'diagnostics' => $diagnostics,
             'request' => $latest !== null
                 ? (new DriverAssignmentRequestResource($latest))->resolve()
                 : null,
         ];
+    }
+
+    /**
+     * Recherche élargie par paliers : rayon initial puis extension progressive
+     * jusqu'au maximum configuré.
+     *
+     * @param  array<string, mixed>  $pickup
+     * @return array{0: Collection<int, DriverProfile>, 1: float}
+     */
+    private function search(array $pickup, float $requestedRadius, float $maxRadius): array
+    {
+        $radius = $requestedRadius;
+
+        while (true) {
+            $candidates = $this->eligibleDrivers($pickup, $radius);
+
+            if ($candidates->isNotEmpty() || $radius >= $maxRadius) {
+                return [$candidates, $radius];
+            }
+
+            $radius = min($maxRadius, $radius * 1.5);
+        }
+    }
+
+    /**
+     * Compteurs de disponibilité (aucune donnée personnelle) : ils permettent
+     * de distinguer « aucun livreur », « GPS absent » et « GPS périmé ».
+     *
+     * @param  array<string, mixed>  $pickup
+     * @return array<string, int|float>
+     */
+    private function diagnostics(array $pickup, float $maxRadius): array
+    {
+        $freshSince = now()->subSeconds($this->locationMaxAgeSeconds());
+
+        $online = DriverProfile::query()
+            ->where('available', true)
+            ->where('status', DriverStatus::Active->value)
+            ->get(['id', 'last_latitude', 'last_longitude', 'last_location_at']);
+
+        $withoutPosition = 0;
+        $stalePosition = 0;
+        $freshPosition = 0;
+        $withinMaxRadius = 0;
+
+        foreach ($online as $driver) {
+            if ($driver->last_latitude === null || $driver->last_longitude === null) {
+                $withoutPosition++;
+
+                continue;
+            }
+
+            if ($driver->last_location_at === null || $driver->last_location_at->lt($freshSince)) {
+                $stalePosition++;
+
+                continue;
+            }
+
+            $freshPosition++;
+
+            $distance = $this->distances->distanceKm(
+                $driver->last_latitude,
+                $driver->last_longitude,
+                $pickup['latitude'],
+                $pickup['longitude'],
+            );
+
+            if ($distance !== null && $distance <= $maxRadius) {
+                $withinMaxRadius++;
+            }
+        }
+
+        return [
+            'online_drivers' => $online->count(),
+            'with_position' => $freshPosition + $stalePosition,
+            'fresh_position' => $freshPosition,
+            'stale_position' => $stalePosition,
+            'without_position' => $withoutPosition,
+            'within_max_radius' => $withinMaxRadius,
+            'max_radius_km' => round($maxRadius, 2),
+            'location_max_age_s' => $this->locationMaxAgeSeconds(),
+        ];
+    }
+
+    /**
+     * Trajet routier du point de collecte vers l'adresse du client.
+     *
+     * @param  array<string, mixed>  $context
+     * @return array{distance_km: float, duration_s: int}|null
+     */
+    private function trip(array $context): ?array
+    {
+        if (($context['dropoff'] ?? null) === null) {
+            return null;
+        }
+
+        $route = $this->routing->plan([$context['pickup'], $context['dropoff']]);
+        $leg = $route['legs'][0] ?? null;
+
+        if ($leg === null) {
+            return null;
+        }
+
+        return [
+            'distance_km' => round((int) $leg['distance_m'] / 1000, 2),
+            'duration_s' => $this->routing->etaSeconds((int) $leg['duration_s']),
+        ];
+    }
+
+    private function autoAssign(Order|Parcel $assignable, User $client): DriverAssignmentRequest
+    {
+        $this->assertOwnedBy($assignable, $client);
+        $this->expireStale($assignable);
+        $this->assertEligible($assignable);
+
+        $context = $this->context($assignable);
+        $this->assertCoordinates($context);
+
+        $configuredRadius = max(0.5, (float) config('beninfood.driver_selection.radius_km', 3));
+        $maxRadius = max($configuredRadius, (float) config('beninfood.driver_selection.max_radius_km', 15));
+
+        [$candidates] = $this->search($context['pickup'], $configuredRadius, $maxRadius);
+        $driver = $candidates->first();
+
+        if ($driver === null) {
+            Log::warning('driver_selection.auto.none', [
+                'reference' => $context['reference'],
+                'radius_km' => round($maxRadius, 2),
+            ]);
+
+            throw new DomainException(
+                'driver_selection.no_driver_available',
+                'Aucun livreur disponible pour le moment. Nous vous préviendrons dès qu\'un livreur se connecte.',
+                409,
+            );
+        }
+
+        Log::info('driver_selection.auto.requested', [
+            'reference' => $context['reference'],
+            'driver_profile_id' => $driver->id,
+        ]);
+
+        return $this->requestDriver($assignable, $client, $driver->id);
     }
 
     private function requestDriver(Order|Parcel $assignable, User $client, string $driverProfileId): DriverAssignmentRequest
@@ -560,6 +723,7 @@ class DriverSelectionService
             return [
                 'reference' => $assignable->reference,
                 'pickup' => [
+                    'name' => $vendor?->name,
                     'latitude' => $vendor?->pickup_latitude ?? $vendor?->latitude,
                     'longitude' => $vendor?->pickup_longitude ?? $vendor?->longitude,
                     'address' => $vendor?->pickup_address ?? $vendor?->address,
@@ -567,6 +731,7 @@ class DriverSelectionService
                     'city' => $vendor?->city,
                 ],
                 'dropoff' => [
+                    'name' => $address['label'] ?? null,
                     'latitude' => $address['latitude'] ?? null,
                     'longitude' => $address['longitude'] ?? null,
                     'address' => $address['full_address'] ?? $address['address_text'] ?? null,
@@ -582,6 +747,7 @@ class DriverSelectionService
         return [
             'reference' => $assignable->reference,
             'pickup' => [
+                'name' => $pickup['label'] ?? null,
                 'latitude' => $pickup['latitude'] ?? null,
                 'longitude' => $pickup['longitude'] ?? null,
                 'address' => $pickup['address_text'] ?? $pickup['label'] ?? null,
@@ -589,6 +755,7 @@ class DriverSelectionService
                 'city' => $pickup['city'] ?? null,
             ],
             'dropoff' => [
+                'name' => $dropoff['label'] ?? null,
                 'latitude' => $dropoff['latitude'] ?? null,
                 'longitude' => $dropoff['longitude'] ?? null,
                 'address' => $dropoff['address_text'] ?? $dropoff['label'] ?? null,

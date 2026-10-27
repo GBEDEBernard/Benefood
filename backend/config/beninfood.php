@@ -236,7 +236,7 @@ return [
     | progressive du rayon et délai de réponse avant expiration de la demande.
     */
     'driver_selection' => [
-        'radius_km' => (float) env('BENINFOOD_DRIVER_SELECTION_RADIUS_KM', 5),
+        'radius_km' => (float) env('BENINFOOD_DRIVER_SELECTION_RADIUS_KM', 3),
         'max_radius_km' => (float) env('BENINFOOD_DRIVER_SELECTION_MAX_RADIUS_KM', 15),
         'location_max_age_s' => (int) env('BENINFOOD_DRIVER_SELECTION_LOCATION_MAX_AGE_S', 300),
         'request_ttl_s' => (int) env('BENINFOOD_DRIVER_SELECTION_REQUEST_TTL_S', 120),

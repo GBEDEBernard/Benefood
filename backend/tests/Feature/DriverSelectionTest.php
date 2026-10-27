@@ -202,6 +202,10 @@ class DriverSelectionTest extends TestCase
             ->assertJsonPath('data.drivers.0.distance_to_dropoff_km', 3)
             ->assertJsonPath('data.drivers.0.eta_total_s', 1170)
             ->assertJsonPath('data.drivers.0.position.latitude', 6.366)
+            ->assertJsonPath('data.diagnostics.online_drivers', 3)
+            ->assertJsonPath('data.diagnostics.fresh_position', 2)
+            ->assertJsonPath('data.diagnostics.stale_position', 1)
+            ->assertJsonPath('data.diagnostics.within_max_radius', 1)
             ->assertJsonMissingPath('data.drivers.0.phone')
             ->assertJsonMissingPath('data.drivers.0.position.phone');
 
@@ -477,5 +481,90 @@ class DriverSelectionTest extends TestCase
             ->assertJsonPath('data.driver_request.status', 'accepted')
             ->assertJsonPath('data.driver.id', $driver->id)
             ->assertJsonPath('data.driver.phone', $driver->user->phone);
+    }
+
+    public function test_going_online_with_gps_makes_a_new_driver_visible(): void
+    {
+        [$client, , , $order] = $this->paidOrderSetup();
+
+        $driver = $this->driver('Nouveau Livreur', 0, 0, [
+            'available' => false,
+            'last_latitude' => null,
+            'last_longitude' => null,
+            'last_location_at' => null,
+        ]);
+
+        $this->actAs($driver->user);
+        $this->postJson('/api/v1/driver/me/availability', [
+            'available' => true,
+            'latitude' => 6.366,
+            'longitude' => 2.391,
+        ])->assertOk();
+
+        $fresh = $driver->fresh();
+        $this->assertTrue((bool) $fresh->available);
+        $this->assertNotNull($fresh->last_latitude);
+        $this->assertNotNull($fresh->last_location_at);
+
+        $this->actAs($client);
+        $this->getJson("/api/v1/orders/{$order->id}/nearby-drivers")
+            ->assertOk()
+            ->assertJsonPath('data.drivers.0.id', $driver->id)
+            ->assertJsonPath('data.diagnostics.online_drivers', 1)
+            ->assertJsonPath('data.diagnostics.fresh_position', 1)
+            ->assertJsonPath('data.diagnostics.without_position', 0);
+    }
+
+    public function test_going_online_without_gps_does_not_fake_position_freshness(): void
+    {
+        $driver = $this->driver('GPS Ancien', 6.366, 2.391, [
+            'available' => false,
+            'last_location_at' => now()->subHour(),
+        ]);
+
+        $this->actAs($driver->user);
+        $this->postJson('/api/v1/driver/me/availability', ['available' => true])->assertOk();
+
+        $fresh = $driver->fresh();
+        $this->assertTrue((bool) $fresh->available);
+        $this->assertTrue($fresh->last_location_at->lt(now()->subMinutes(30)));
+    }
+
+    public function test_auto_assignment_requests_the_nearest_available_driver(): void
+    {
+        [$client, , , $order] = $this->paidOrderSetup();
+
+        $nearest = $this->driver('Livreur Proche', 6.366, 2.391);
+        $this->driver('Livreur Plus Loin', 6.42, 2.45);
+
+        $this->actAs($client);
+        $request = $this->postJson("/api/v1/orders/{$order->id}/driver-request/auto")
+            ->assertCreated()
+            ->assertJsonPath('data.status', 'pending')
+            ->assertJsonPath('data.driver.id', $nearest->id)
+            ->assertJsonMissingPath('data.driver.phone')
+            ->json('data.id');
+
+        $this->assertDatabaseHas('orders', [
+            'id' => $order->id,
+            'preferred_driver_profile_id' => $nearest->id,
+        ]);
+        $this->assertDatabaseHas('driver_assignment_requests', [
+            'id' => $request,
+            'status' => 'pending',
+        ]);
+    }
+
+    public function test_auto_assignment_reports_when_no_driver_is_available(): void
+    {
+        [$client, , , $order] = $this->paidOrderSetup();
+        $this->driver('GPS Périmé', 6.366, 2.391, ['last_location_at' => now()->subHour()]);
+
+        $this->actAs($client);
+        $this->postJson("/api/v1/orders/{$order->id}/driver-request/auto")
+            ->assertStatus(409)
+            ->assertJsonPath('errors.0.code', 'driver_selection.no_driver_available');
+
+        $this->assertDatabaseCount('driver_assignment_requests', 0);
     }
 }

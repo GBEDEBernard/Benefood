@@ -11,6 +11,7 @@ use App\Models\DriverProfile;
 use App\Models\Order;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 /**
  * Livraisons temps réel (M9 — J97 à J106) : disponibilité du livreur,
@@ -31,8 +32,15 @@ class DeliveryService
      */
     public function toggleAvailability(DriverProfile $profile, bool $online, array $location = []): DriverProfile
     {
-        if (! in_array($profile->status, [DriverStatus::Active->value, DriverStatus::Validated->value], true)) {
-            throw new DomainException('delivery.driver_inactive', 'Ce livreur ne peut pas accepter de courses.', 409);
+        // Seul un compte actif peut recevoir des missions (voir
+        // DriverAvailabilityService::assertCanAccept) : refuser tôt évite qu'un
+        // livreur « validé » se croie en ligne sans jamais être proposé.
+        if ($profile->status !== DriverStatus::Active->value) {
+            throw new DomainException(
+                'delivery.driver_inactive',
+                'Votre compte livreur doit être activé par la plateforme avant de passer en ligne.',
+                409,
+            );
         }
 
         $wasOnline = (bool) $profile->available;
@@ -46,12 +54,26 @@ class DeliveryService
                 'last_heading' => null,
             ]);
         } else {
+            $latitude = $location['latitude'] ?? null;
+            $longitude = $location['longitude'] ?? null;
+            $hasPosition = $latitude !== null && $longitude !== null;
+
             $profile->update([
                 'available' => true,
-                'last_latitude' => $location['latitude'] ?? $profile->last_latitude,
-                'last_longitude' => $location['longitude'] ?? $profile->last_longitude,
-                'last_location_at' => now(),
+                'last_latitude' => $hasPosition ? $latitude : $profile->last_latitude,
+                'last_longitude' => $hasPosition ? $longitude : $profile->last_longitude,
+                // Sans nouvelle position, on ne rafraîchit pas l'horodatage :
+                // une coordonnée périmée ne doit jamais paraître « fraîche ».
+                'last_location_at' => $hasPosition ? now() : $profile->last_location_at,
             ]);
+
+            if (! $hasPosition) {
+                Log::info('driver.availability.online_without_position', [
+                    'driver_profile_id' => $profile->id,
+                    'has_previous_position' => $profile->last_latitude !== null
+                        && $profile->last_longitude !== null,
+                ]);
+            }
         }
 
         $profile->availabilityLogs()->create([

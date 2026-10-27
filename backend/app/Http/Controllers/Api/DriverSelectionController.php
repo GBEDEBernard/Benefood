@@ -43,6 +43,13 @@ class DriverSelectionController extends Controller
         return Api::created(new DriverAssignmentRequestResource($assignment));
     }
 
+    public function autoOrder(Request $request, Order $order): JsonResponse
+    {
+        $assignment = $this->selection->autoAssignForOrder($order, $request->user());
+
+        return Api::created(new DriverAssignmentRequestResource($assignment));
+    }
+
     public function cancelOrder(Request $request, Order $order): JsonResponse
     {
         $assignment = $this->selection->cancelForOrder($order, $request->user());
@@ -70,6 +77,13 @@ class DriverSelectionController extends Controller
         ]);
 
         $assignment = $this->selection->requestForParcel($parcel, $request->user(), $data['driver_profile_id']);
+
+        return Api::created(new DriverAssignmentRequestResource($assignment));
+    }
+
+    public function autoParcel(Request $request, Parcel $parcel): JsonResponse
+    {
+        $assignment = $this->selection->autoAssignForParcel($parcel, $request->user());
 
         return Api::created(new DriverAssignmentRequestResource($assignment));
     }
