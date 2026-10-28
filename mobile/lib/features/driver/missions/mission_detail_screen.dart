@@ -253,6 +253,86 @@ class _MissionDetailScreenState extends State<MissionDetailScreen> {
     }
   }
 
+  Future<void> _declineMission() async {
+    final mission = _mission;
+    if (mission == null) {
+      return;
+    }
+    final reason = await _askDeclineReason();
+    if (reason == null || !mounted) {
+      return;
+    }
+    setState(() => _actionLoading = true);
+    try {
+      final normalizedReason = reason.isEmpty ? null : reason;
+      if (mission.isParcel) {
+        await widget.marketplace.declineParcelOffer(
+          mission.id,
+          reason: normalizedReason,
+        );
+      } else {
+        await widget.marketplace.declineOffer(
+          mission.id,
+          reason: normalizedReason,
+        );
+      }
+      if (!mounted) {
+        return;
+      }
+      showToast(
+        context,
+        'Course déclinée. Le client choisira un autre livreur.',
+      );
+      Navigator.of(context).pop();
+    } on ApiException catch (e) {
+      if (mounted) {
+        setState(() => _actionLoading = false);
+        showToast(context, e.message, isError: true);
+      }
+    }
+  }
+
+  Future<String?> _askDeclineReason() async {
+    final controller = TextEditingController();
+    final reason = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+        ),
+        title: const Text('Décliner la course'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          maxLines: 3,
+          decoration: InputDecoration(
+            labelText: 'Motif (facultatif)',
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(AppDimens.radiusSm),
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Retour'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.orange,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () => Navigator.of(context).pop(controller.text.trim()),
+            child: const Text('Décliner'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+
+    return reason;
+  }
+
   Future<String?> _askIncidentMessage() {
     final controller = TextEditingController();
     return showDialog<String>(
@@ -445,6 +525,17 @@ class _MissionDetailScreenState extends State<MissionDetailScreen> {
             ),
           ),
         ),
+        if (mission.status == 'assigned') ...[
+          const SizedBox(height: 4),
+          TextButton.icon(
+            onPressed: _actionLoading ? null : _declineMission,
+            icon: const Icon(Icons.close, size: 18),
+            label: const Text('Décliner la course'),
+            style: TextButton.styleFrom(
+              foregroundColor: AppColors.textSecondary,
+            ),
+          ),
+        ],
         const SizedBox(height: 8),
         Text(
           switch (mission.status) {

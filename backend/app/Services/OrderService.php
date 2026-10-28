@@ -6,6 +6,7 @@ use App\Enums\DeliveryStatus;
 use App\Enums\DriverAssignmentRequestStatus;
 use App\Enums\OrderStatus;
 use App\Enums\PaymentMethod;
+use App\Enums\PaymentPurpose;
 use App\Enums\PaymentStatus;
 use App\Exceptions\DomainException;
 use App\Models\Address;
@@ -197,6 +198,14 @@ class OrderService
                 'approach_fee' => (int) $breakdown['approach_fee'],
                 'approach_distance_km' => $approach['distance_km'],
                 'approach_pricing_snapshot' => $approach['snapshot'],
+                'approach_payment_method' => $preferredDriver !== null ? $paymentMethod->value : null,
+                'approach_payment_status' => $preferredDriver === null
+                    ? null
+                    : ((int) $breakdown['approach_fee'] > 0
+                        ? ($paymentMethod->isCash() ? PaymentStatus::Pending->value : PaymentStatus::Initiated->value)
+                        : PaymentStatus::Confirmed->value),
+                'approach_driver_profile_id' => $preferredDriver?->id,
+                'approach_paid_at' => $preferredDriver !== null && (int) $breakdown['approach_fee'] === 0 ? now() : null,
                 'total' => $total,
                 'address_snapshot' => $this->snapshotAddress($address, $notes),
                 'delivery_rate_snapshot' => $delivery['rate_snapshot'],
@@ -243,6 +252,7 @@ class OrderService
             if (! $paymentMethod->isCash()) {
                 $order->payment()->create([
                     'reference' => 'PAY-'.Str::upper(Str::random(12)),
+                    'purpose' => PaymentPurpose::Order->value,
                     'gateway' => 'fedapay',
                     'amount' => $total,
                     'status' => PaymentStatus::Initiated->value,
@@ -376,6 +386,13 @@ class OrderService
             'status' => OrderStatus::Paid->value,
             'vendor_acceptance_deadline_at' => now()->addMinutes((int) config('beninfood.orders.vendor_acceptance_minutes', 5)),
         ]);
+
+        if ($order->hasApproachFee()) {
+            $order->update([
+                'approach_payment_status' => PaymentStatus::Confirmed->value,
+                'approach_paid_at' => now(),
+            ]);
+        }
 
         $this->logTransition($order, OrderStatus::AwaitingPayment, OrderStatus::Paid, 'system', null, 'Paiement confirmé');
 
@@ -514,6 +531,17 @@ class OrderService
             );
         }
 
+        if (! $order->payment_method?->isCash()
+            && $order->approach_payment_method?->isCash()
+            && ! $order->approachIsPaid()
+            && ($driver === null || ! $this->cash->hasFloat($driver, (int) $order->approach_fee))) {
+            throw new DomainException(
+                'approach.cash_insufficient_float',
+                'Flottant insuffisant pour encaisser les frais d\'approche en espèces ('.(int) $order->approach_fee.' F requis).',
+                409,
+            );
+        }
+
         $order->update(['status' => OrderStatus::Assigned->value]);
 
         if ($order->delivery->exists()) {
@@ -538,6 +566,30 @@ class OrderService
                 $this->finance->creditDriverForDelivery($order, $driver);
             }
         }
+
+        return $order->fresh(['statusHistory', 'delivery']);
+    }
+
+    /**
+     * Le livreur décline la course après l'avoir acceptée mais avant de
+     * démarrer vers la collecte : la commande redevient disponible.
+     */
+    public function releaseDriverBeforePickup(Order $order, ?string $actorId = null, ?string $reason = null): Order
+    {
+        $this->assertTransition($order, OrderStatus::Ready);
+
+        $from = $order->status;
+
+        $order->update(['status' => OrderStatus::Ready->value]);
+
+        $this->logTransition(
+            $order,
+            $from,
+            OrderStatus::Ready,
+            'driver',
+            $actorId,
+            $reason !== null && $reason !== '' ? 'Livreur décliné avant collecte : '.$reason : 'Livreur décliné avant collecte',
+        );
 
         return $order->fresh(['statusHistory', 'delivery']);
     }
@@ -629,6 +681,15 @@ class OrderService
                     'delivery_confirmed_at' => now(),
                     'auto_confirm_at' => null,
                 ]);
+
+                if ($order->approach_payment_method?->isCash()
+                    && ! $order->approachIsPaid()
+                    && $order->delivery?->driverProfile !== null) {
+                    app(\App\Services\ApproachFeeService::class)->settleCash(
+                        $order->fresh('financials'),
+                        $order->delivery->driverProfile,
+                    );
+                }
 
                 $this->finance->releaseOrderFunds($order->fresh(['financials', 'vendor', 'delivery.driverProfile']));
             }
@@ -1115,7 +1176,7 @@ class OrderService
             OrderStatus::Accepted->value => [OrderStatus::Preparing->value, OrderStatus::Cancelled->value],
             OrderStatus::Preparing->value => [OrderStatus::Ready->value, OrderStatus::Cancelled->value],
             OrderStatus::Ready->value => [OrderStatus::Assigned->value, OrderStatus::Cancelled->value],
-            OrderStatus::Assigned->value => [OrderStatus::PickedUp->value, OrderStatus::Cancelled->value],
+            OrderStatus::Assigned->value => [OrderStatus::Ready->value, OrderStatus::PickedUp->value, OrderStatus::Cancelled->value],
             OrderStatus::PickedUp->value => [OrderStatus::InDelivery->value, OrderStatus::Cancelled->value],
             OrderStatus::InDelivery->value => [OrderStatus::Delivered->value, OrderStatus::Cancelled->value],
             OrderStatus::Delivered->value => [OrderStatus::Refunded->value],

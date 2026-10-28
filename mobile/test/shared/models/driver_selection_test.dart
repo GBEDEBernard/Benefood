@@ -163,6 +163,111 @@ void main() {
       expect(order.canChooseDriver, isTrue);
     });
 
+    test('Order réautorise le choix après refus malgré l\'approche payée', () {
+      final order = Order.fromJson({
+        'id': 'ord-4',
+        'reference': 'REF-004',
+        'status': 'preparing',
+        'payment_status': 'confirmed',
+        'items': [],
+        'subtotal': 1000,
+        'delivery_fee': 500,
+        'approach_fee': 350,
+        'approach_payment_status': 'confirmed',
+        'approach_driver_id': 'drv-3',
+        'total': 1850,
+        'driver_request': {
+          'id': 'req-4',
+          'status': 'refused',
+          'refusal_reason': 'Trop loin',
+          'driver': {'id': 'drv-3', 'name': 'Boris'},
+        },
+      });
+
+      expect(order.approachIsPaid, isTrue);
+      expect(order.driverRequest?.isRefused, isTrue);
+      expect(order.canChooseDriver, isTrue);
+    });
+
+    test('Order parse les champs d\'approche et bloque un nouveau choix', () {
+      final order = Order.fromJson({
+        'id': 'ord-2',
+        'reference': 'REF-002',
+        'status': 'paid',
+        'payment_status': 'confirmed',
+        'items': [],
+        'subtotal': 1000,
+        'delivery_fee': 500,
+        'approach_fee': 350,
+        'approach_distance_km': 7,
+        'approach_payment_method': 'cash',
+        'approach_payment_status': 'pending',
+        'approach_driver_id': 'drv-3',
+        'total': 1850,
+        'approach_payment': {
+          'id': 'pay-2',
+          'reference': 'PAY-002',
+          'amount': 350,
+          'status': 'pending',
+        },
+      });
+
+      expect(order.approachFee, 350);
+      expect(order.approachDistanceKm, 7);
+      expect(order.approachPaymentMethod, 'cash');
+      expect(order.approachIsPaid, isFalse);
+      expect(order.hasApproachFee, isTrue);
+      expect(order.approachDriverId, 'drv-3');
+      expect(order.approachPayment?.amount, 350);
+      expect(order.deliveryTotal, 850);
+      expect(order.canChooseDriver, isFalse);
+    });
+
+    test(
+      'Order autorise le choix quand aucun livreur n\'est encore retenu',
+      () {
+        final order = Order.fromJson({
+          'id': 'ord-3',
+          'reference': 'REF-003',
+          'status': 'paid',
+          'payment_status': 'confirmed',
+          'items': [],
+          'subtotal': 1000,
+          'delivery_fee': 500,
+          'total': 1500,
+        });
+
+        expect(order.approachDriverId, isNull);
+        expect(order.canChooseDriver, isTrue);
+      },
+    );
+
+    test('OrderDelivery expose un incident livreur ouvert', () {
+      final order = Order.fromJson({
+        'id': 'ord-5',
+        'reference': 'REF-005',
+        'status': 'assigned',
+        'payment_status': 'confirmed',
+        'items': [],
+        'subtotal': 1000,
+        'delivery_fee': 500,
+        'total': 1500,
+        'delivery': {
+          'id': 'del-5',
+          'status': 'en_route_pickup',
+          'driver': {'id': 'drv-5', 'name': 'Cédric'},
+          'open_incident': {
+            'id': 'inc-5',
+            'type': 'other',
+            'message': 'Panne de moto',
+          },
+        },
+      });
+
+      expect(order.delivery?.hasOpenIncident, isTrue);
+      expect(order.delivery?.status, 'en_route_pickup');
+    });
+
     test('Parcel expose la demande et le choix après expiration', () {
       final parcel = Parcel.fromJson({
         'id': 'par-1',
@@ -179,6 +284,80 @@ void main() {
       expect(parcel.driverRequest?.isExpired, isTrue);
       expect(parcel.canChooseDriver, isTrue);
     });
+
+    test('Parcel expose les frais d\'approche et leur paiement', () {
+      final parcel = Parcel.fromJson({
+        'id': 'par-2',
+        'reference': 'COL-002',
+        'status': 'paid',
+        'delivery_fee': 1000,
+        'creation_fee': 200,
+        'approach_fee': 350,
+        'approach_distance_km': 7,
+        'approach_payment_method': 'cash',
+        'approach_payment_status': 'pending',
+        'approach_driver_id': 'drv-3',
+        'approach_payment': {
+          'id': 'pay-3',
+          'amount': 350,
+          'status': 'pending',
+          'purpose': 'parcel_approach',
+        },
+      });
+
+      expect(parcel.approachFee, 350);
+      expect(parcel.approachDistanceKm, 7);
+      expect(parcel.approachPaymentMethod, 'cash');
+      expect(parcel.approachIsPaid, isFalse);
+      expect(parcel.hasApproachFee, isTrue);
+      expect(parcel.approachDriverId, 'drv-3');
+      expect(parcel.approachPayment?.amount, 350);
+      expect(parcel.totalAmount, 1550);
+    });
+
+    test('Parcel expose un incident ouvert et le code de remise', () {
+      final parcel = Parcel.fromJson({
+        'id': 'par-3',
+        'reference': 'COL-003',
+        'status': 'in_delivery',
+        'driver': {'id': 'drv-3', 'name': 'Boris'},
+        'open_incident': {
+          'id': 'inc-3',
+          'type': 'breakdown',
+          'message': 'Pneu crevé',
+        },
+        'handover_required': true,
+        'handover_code': 'ABC123',
+        'reassignment_count': 1,
+      });
+
+      expect(parcel.hasOpenIncident, isTrue);
+      expect(parcel.openIncident?.message, 'Pneu crevé');
+      expect(parcel.handoverRequired, isTrue);
+      expect(parcel.handoverCode, 'ABC123');
+      expect(parcel.reassignmentCount, 1);
+      expect(parcel.canReassign, isFalse);
+    });
+
+    test(
+      'Parcel autorise le remplacement après incident sans remise en attente',
+      () {
+        final parcel = Parcel.fromJson({
+          'id': 'par-4',
+          'reference': 'COL-004',
+          'status': 'picked_up',
+          'driver': {'id': 'drv-4', 'name': 'Cédric'},
+          'open_incident': {
+            'id': 'inc-4',
+            'type': 'breakdown',
+            'message': 'Panne',
+          },
+          'handover_required': false,
+        });
+
+        expect(parcel.canReassign, isTrue);
+      },
+    );
 
     test('Parcel ne propose plus le choix après affectation', () {
       final parcel = Parcel.fromJson({

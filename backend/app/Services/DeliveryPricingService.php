@@ -152,9 +152,16 @@ class DeliveryPricingService
      */
     public function approachQuote(DriverProfile $driver, Vendor $vendor): array
     {
-        $pickupLatitude = $vendor->pickup_latitude ?? $vendor->latitude;
-        $pickupLongitude = $vendor->pickup_longitude ?? $vendor->longitude;
+        return $this->approachQuoteForPoint(
+            $driver,
+            $vendor->pickup_latitude ?? $vendor->latitude,
+            $vendor->pickup_longitude ?? $vendor->longitude,
+        );
+    }
 
+    /** Frais d'approche pour un point de collecte libre (colis). */
+    public function approachQuoteForPoint(DriverProfile $driver, ?float $pickupLatitude, ?float $pickupLongitude): array
+    {
         $distanceKm = $this->distanceKm(
             $driver->last_latitude,
             $driver->last_longitude,

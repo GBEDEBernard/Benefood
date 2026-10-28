@@ -70,6 +70,23 @@ class DriverSelectionController extends Controller
         ));
     }
 
+    public function replacementParcel(Request $request, Parcel $parcel): JsonResponse
+    {
+        $data = $request->validate([
+            'latitude' => ['required', 'numeric', 'between:-90,90'],
+            'longitude' => ['required', 'numeric', 'between:-180,180'],
+            'radius_km' => ['sometimes', 'numeric', 'min:0.5', 'max:100'],
+        ]);
+
+        return Api::ok($this->selection->nearbyForParcelReassignment(
+            $parcel,
+            $request->user(),
+            (float) $data['latitude'],
+            (float) $data['longitude'],
+            isset($data['radius_km']) ? (float) $data['radius_km'] : null,
+        ));
+    }
+
     public function requestParcel(Request $request, Parcel $parcel): JsonResponse
     {
         $data = $request->validate([

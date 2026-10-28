@@ -47,6 +47,10 @@ class OrderResource extends JsonResource
             'delivery_fee' => $this->delivery_fee,
             'approach_fee' => $this->approach_fee,
             'approach_distance_km' => $this->approach_distance_km,
+            'approach_payment_method' => $this->approach_payment_method?->value,
+            'approach_payment_status' => $this->approach_payment_status?->value,
+            'approach_driver_id' => $this->approach_driver_profile_id,
+            'approach_paid_at' => $this->approach_paid_at?->toIso8601String(),
             'delivery_total' => (int) $this->delivery_fee + (int) $this->approach_fee,
             'total' => $this->total,
             'delivery_address' => $this->address_snapshot,
@@ -67,6 +71,13 @@ class OrderResource extends JsonResource
                 'amount' => $this->payment->amount,
                 'status' => $this->payment->status?->value,
                 'currency' => $this->payment->currency,
+            ]),
+            'approach_payment' => $this->whenLoaded('approachPayment', fn () => $this->approachPayment === null ? null : [
+                'id' => $this->approachPayment->id,
+                'reference' => $this->approachPayment->reference,
+                'amount' => $this->approachPayment->amount,
+                'status' => $this->approachPayment->status?->value,
+                'currency' => $this->approachPayment->currency,
             ]),
             'financials' => $this->whenLoaded('financials', fn () => [
                 'commission_rate' => $this->financials->commission_rate,
@@ -223,6 +234,16 @@ class OrderResource extends JsonResource
                 'landmark' => $delivery->dropoff_landmark ?? $this->address_snapshot['landmark'] ?? null,
                 'phone' => $delivery->dropoff_phone ?? $this->address_snapshot['contact_phone'] ?? $this->user?->phone,
             ],
+            'open_incident' => $delivery->relationLoaded('incidents')
+                ? ($delivery->incidents->firstWhere('status', 'open') === null
+                    ? null
+                    : [
+                        'id' => $delivery->incidents->firstWhere('status', 'open')->id,
+                        'type' => $delivery->incidents->firstWhere('status', 'open')->type,
+                        'message' => $delivery->incidents->firstWhere('status', 'open')->message,
+                        'created_at' => $delivery->incidents->firstWhere('status', 'open')->created_at?->toIso8601String(),
+                    ])
+                : null,
             'position' => null,
         ];
 

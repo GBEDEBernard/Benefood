@@ -74,6 +74,17 @@ class _DriverParcelsScreenState extends State<DriverParcelsScreen> {
   }
 
   Future<void> _advance(Parcel parcel) async {
+    if (parcel.handoverRequired) {
+      final code = await _askHandoverCode();
+      if (!mounted || code == null || code.isEmpty) {
+        return;
+      }
+      await _runAction(parcel, (id) async {
+        await widget.marketplace.confirmParcelHandover(id, code);
+        return parcel;
+      });
+      return;
+    }
     switch (parcel.status) {
       case 'assigned':
       case 'en_route_pickup':
@@ -90,6 +101,86 @@ class _DriverParcelsScreenState extends State<DriverParcelsScreen> {
           (id) => widget.marketplace.deliverParcelDelivery(id, proofCode: code),
         );
     }
+  }
+
+  Future<void> _reportIncident(Parcel parcel) async {
+    final message = await _askIncidentMessage();
+    if (!mounted || message == null || message.isEmpty) {
+      return;
+    }
+    await _runAction(
+      parcel,
+      (id) => widget.marketplace.reportParcelIncident(id, message: message),
+    );
+  }
+
+  Future<String?> _askHandoverCode() async {
+    final controller = TextEditingController();
+    final code = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Confirmer la remise'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          textCapitalization: TextCapitalization.characters,
+          decoration: const InputDecoration(
+            labelText: 'Code fourni par l\'expéditeur',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Annuler'),
+          ),
+          FilledButton(
+            onPressed: () {
+              if (controller.text.trim().isNotEmpty) {
+                Navigator.of(context).pop(controller.text.trim());
+              }
+            },
+            child: const Text('Confirmer'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    return code;
+  }
+
+  Future<String?> _askIncidentMessage() async {
+    final controller = TextEditingController();
+    final message = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Signaler un incident'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          maxLines: 3,
+          decoration: const InputDecoration(
+            labelText: 'Que s\'est-il passé ? *',
+            hintText: 'Panne, adresse introuvable, colis endommagé…',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Annuler'),
+          ),
+          FilledButton(
+            onPressed: () {
+              if (controller.text.trim().length >= 3) {
+                Navigator.of(context).pop(controller.text.trim());
+              }
+            },
+            child: const Text('Envoyer'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    return message;
   }
 
   Future<void> _decline(Parcel parcel) async {
@@ -258,7 +349,12 @@ class _DriverParcelsScreenState extends State<DriverParcelsScreen> {
             )
           else
             for (final run in _runs) ...[
-              _RunCard(parcel: run, busy: _actionId, onAction: _advance),
+              _RunCard(
+                parcel: run,
+                busy: _actionId,
+                onAction: _advance,
+                onIncident: _reportIncident,
+              ),
               const SizedBox(height: AppDimens.sm),
             ],
           const SizedBox(height: AppDimens.xl),
@@ -367,23 +463,32 @@ class _RunCard extends StatelessWidget {
     required this.parcel,
     required this.busy,
     required this.onAction,
+    required this.onIncident,
   });
 
   final Parcel parcel;
   final String? busy;
   final ValueChanged<Parcel> onAction;
+  final ValueChanged<Parcel> onIncident;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final palette = BadgePalette.parcel(parcel.status);
-    final actionLabel = switch (parcel.status) {
-      'assigned' => 'J\'ai récupéré le colis',
-      'en_route_pickup' => 'J\'ai récupéré le colis',
-      'picked_up' => 'Commencer la livraison',
-      'in_delivery' => 'Marquer comme livré',
-      _ => '',
-    };
+    final actionLabel = parcel.handoverRequired
+        ? 'Confirmer la remise'
+        : switch (parcel.status) {
+            'assigned' => 'J\'ai récupéré le colis',
+            'en_route_pickup' => 'J\'ai récupéré le colis',
+            'picked_up' => 'Commencer la livraison',
+            'in_delivery' => 'Marquer comme livré',
+            _ => '',
+          };
+    final canReportIncident = const {
+      'en_route_pickup',
+      'picked_up',
+      'in_delivery',
+    }.contains(parcel.status);
 
     return Card(
       child: Padding(
@@ -480,6 +585,17 @@ class _RunCard extends StatelessWidget {
                   ),
               ],
             ),
+            if (canReportIncident) ...[
+              const SizedBox(height: 4),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  onPressed: busy == null ? () => onIncident(parcel) : null,
+                  icon: const Icon(Icons.report_problem_outlined, size: 18),
+                  label: const Text('Signaler un incident'),
+                ),
+              ),
+            ],
           ],
         ),
       ),

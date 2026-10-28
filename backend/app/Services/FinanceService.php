@@ -8,6 +8,7 @@ use App\Models\DeliveryAssignment;
 use App\Models\DriverProfile;
 use App\Models\Order;
 use App\Models\Parcel;
+use App\Models\ParcelAssignment;
 use App\Models\Wallet;
 use App\Models\WalletTransaction;
 use Illuminate\Database\Eloquent\Model;
@@ -352,6 +353,24 @@ class FinanceService
         ]);
     }
 
+    /** Journalise l'encaissement d'un supplément d'approche payé en ligne. */
+    public function recordApproachPayment(Order $order, int $amount): void
+    {
+        if ($amount <= 0) {
+            return;
+        }
+
+        $this->journal->record([
+            'entry_type' => JournalEntryType::Payment,
+            'reference_type' => 'order',
+            'reference_id' => $order->id,
+            'credit' => $amount,
+            'participant' => $order->user_id,
+            'balance_after' => $amount,
+            'actor' => 'system',
+        ]);
+    }
+
     /**
      * À l'assignation d'un livreur : crédite sa part en attente (le livreur
      * n'est connu qu'à ce moment-là, contrairement au vendeur).
@@ -505,6 +524,82 @@ class FinanceService
     }
 
     /**
+     * Crédite en attente la part d'un segment colis (au moment de la remise).
+     */
+    public function creditParcelAssignment(ParcelAssignment $assignment): void
+    {
+        $driver = $assignment->driverProfile;
+        $parcel = $assignment->parcel;
+
+        if ($driver === null || $parcel === null || (int) $assignment->gross_amount <= 0) {
+            return;
+        }
+
+        $this->creditPending(
+            $this->walletFor($driver),
+            (int) $assignment->gross_amount,
+            'parcel_assignment_credit',
+            $assignment->id,
+            'Prix de livraison colis (en attente) — '.$parcel->reference.' · segment '.$assignment->sequence,
+        );
+    }
+
+    /**
+     * Libère les parts de chaque segment colis (livreur initial + remplaçants).
+     */
+    public function releaseParcelAssignments(Parcel $parcel): void
+    {
+        $parcel->loadMissing('assignments.driverProfile');
+
+        foreach ($parcel->assignments as $assignment) {
+            $driver = $assignment->driverProfile;
+
+            if ($driver === null || (int) $assignment->gross_amount <= 0) {
+                continue;
+            }
+
+            $wallet = $this->walletFor($driver);
+
+            if ($parcel->isCash()) {
+                $this->creditDriverEarning(
+                    $wallet,
+                    (int) $assignment->gross_amount,
+                    (int) $assignment->commission_amount,
+                    'parcel_assignment_earning',
+                    $assignment->id,
+                    $parcel->reference.' · segment '.$assignment->sequence,
+                );
+            } else {
+                if (in_array($assignment->status, [
+                    ParcelAssignment::STATUS_ACTIVE,
+                    ParcelAssignment::STATUS_PENDING_HANDOVER,
+                ], true)) {
+                    $this->creditParcelAssignment($assignment);
+                }
+
+                $this->releaseDriverEarning(
+                    $wallet,
+                    (int) $assignment->gross_amount,
+                    (int) $assignment->commission_amount,
+                    'parcel_assignment_release',
+                    $assignment->id,
+                    $parcel->reference.' · segment '.$assignment->sequence,
+                );
+            }
+
+            $this->journal->record([
+                'entry_type' => JournalEntryType::Transfer,
+                'reference_type' => 'parcel',
+                'reference_id' => $parcel->id,
+                'credit' => (int) $assignment->partner_amount,
+                'participant' => $driver->user_id,
+                'balance_after' => (int) $wallet->fresh()->available_balance,
+                'actor' => 'system',
+            ]);
+        }
+    }
+
+    /**
      * Annulation d'une commande payée : contre-passe les séquestres non encore
      * libérés (vendeur et, le cas échéant, livreur).
      */
@@ -603,6 +698,24 @@ class FinanceService
                 'actor' => 'system',
             ]);
         }
+    }
+
+    /** Journalise l'encaissement en ligne des frais d'approche d'un colis. */
+    public function recordParcelApproachPayment(Parcel $parcel, int $amount): void
+    {
+        if ($amount <= 0) {
+            return;
+        }
+
+        $this->journal->record([
+            'entry_type' => JournalEntryType::Payment,
+            'reference_type' => 'parcel',
+            'reference_id' => $parcel->id,
+            'credit' => $amount,
+            'participant' => $parcel->user_id,
+            'balance_after' => $amount,
+            'actor' => 'system',
+        ]);
     }
 
     /**

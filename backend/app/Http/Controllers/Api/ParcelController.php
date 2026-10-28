@@ -6,7 +6,9 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\ParcelResource;
 use App\Models\DriverProfile;
 use App\Models\Parcel;
+use App\Services\DeliveryPricingService;
 use App\Services\DriverSelectionService;
+use App\Services\ParcelReassignmentService;
 use App\Services\ParcelService;
 use App\Support\Api;
 use Illuminate\Http\JsonResponse;
@@ -20,6 +22,8 @@ class ParcelController extends Controller
     public function __construct(
         private readonly ParcelService $parcels,
         private readonly DriverSelectionService $driverSelection,
+        private readonly DeliveryPricingService $pricing,
+        private readonly ParcelReassignmentService $reassignments,
     ) {}
 
     // ------------------------------------------------------------------- Client
@@ -29,6 +33,23 @@ class ParcelController extends Controller
         $data = $this->validateAddresses($request);
 
         return Api::ok($this->parcels->quote($data['pickup'], $data['dropoff']));
+    }
+
+    public function approachQuote(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'driver_profile_id' => ['required', 'uuid', 'exists:driver_profiles,id'],
+            'latitude' => ['required', 'numeric', 'between:-90,90'],
+            'longitude' => ['required', 'numeric', 'between:-180,180'],
+        ]);
+
+        $driver = DriverProfile::findOrFail($data['driver_profile_id']);
+
+        return Api::ok($this->pricing->approachQuoteForPoint(
+            $driver,
+            (float) $data['latitude'],
+            (float) $data['longitude'],
+        ));
     }
 
     public function store(Request $request): JsonResponse
@@ -49,7 +70,7 @@ class ParcelController extends Controller
             $data['payment_method'] ?? 'online',
         );
 
-        return Api::created(new ParcelResource($parcel->load('payment')));
+        return Api::created(new ParcelResource($parcel->load(['payment', 'approachPayment'])));
     }
 
     public function index(Request $request): JsonResponse
@@ -57,7 +78,7 @@ class ParcelController extends Controller
         $this->driverSelection->expireStale();
 
         $parcels = $request->user()->parcels()
-            ->with(['driverProfile.user', 'statusHistory', 'driverAssignmentRequest.driverProfile.user'])
+            ->with(['driverProfile.user', 'statusHistory', 'driverAssignmentRequest.driverProfile.user', 'approachPayment'])
             ->orderByDesc('created_at')
             ->paginate((int) $request->query('per_page', config('beninfood.pagination.per_page')));
 
@@ -82,9 +103,12 @@ class ParcelController extends Controller
         return Api::ok(new ParcelResource($parcel->load([
             'user',
             'payment',
+            'approachPayment',
             'driverProfile.user',
             'statusHistory',
             'driverAssignmentRequest.driverProfile.user',
+            'incidents',
+            'assignments',
         ])));
     }
 
@@ -119,7 +143,7 @@ class ParcelController extends Controller
         $driver = $this->driverProfile($request);
 
         return Api::ok(ParcelResource::collection(
-            $this->parcels->driverParcels($driver)->load(['user', 'driverProfile.user'])
+            $this->parcels->driverParcels($driver)->load(['user', 'driverProfile.user', 'assignments'])
         )->resolve());
     }
 
@@ -179,6 +203,88 @@ class ParcelController extends Controller
         return Api::ok(new ParcelResource(
             $this->parcels->markDelivered($parcel, $data['proof_code'], $driver->user_id),
         ));
+    }
+
+    public function incident(Request $request, Parcel $parcel): JsonResponse
+    {
+        $data = $request->validate([
+            'message' => ['required', 'string', 'max:1000'],
+            'type' => ['sometimes', 'string', 'max:40'],
+        ]);
+
+        $parcel = $this->reassignments->reportIncident(
+            $parcel,
+            $this->driverProfile($request),
+            $data['message'],
+            $data['type'] ?? 'other',
+        );
+
+        return Api::ok(new ParcelResource($parcel->load(['incidents', 'assignments'])));
+    }
+
+    public function confirmHandover(Request $request, Parcel $parcel): JsonResponse
+    {
+        $data = $request->validate([
+            'code' => ['required', 'string', 'max:12'],
+        ]);
+
+        $assignment = $this->reassignments->confirmHandover(
+            $parcel,
+            $this->driverProfile($request),
+            $data['code'],
+        );
+
+        return Api::ok([
+            'id' => $assignment->id,
+            'sequence' => $assignment->sequence,
+            'status' => $assignment->status,
+            'handover_confirmed_at' => $assignment->handover_confirmed_at?->toIso8601String(),
+        ]);
+    }
+
+    public function reassign(Request $request, Parcel $parcel): JsonResponse
+    {
+        if ($parcel->user_id !== $request->user()->id) {
+            return Api::error('Ressource introuvable.', 'not_found', 404);
+        }
+
+        $data = $request->validate([
+            'driver_profile_id' => ['required', 'uuid', 'exists:driver_profiles,id'],
+            'reason' => ['required', 'string', 'max:500'],
+            'latitude' => ['sometimes', 'numeric', 'between:-90,90'],
+            'longitude' => ['sometimes', 'numeric', 'between:-180,180'],
+        ]);
+
+        $driver = DriverProfile::findOrFail($data['driver_profile_id']);
+
+        $result = $this->reassignments->reassign(
+            $parcel,
+            $request->user(),
+            $driver,
+            $data['reason'],
+            isset($data['latitude']) ? (float) $data['latitude'] : null,
+            isset($data['longitude']) ? (float) $data['longitude'] : null,
+        );
+
+        return Api::ok([
+            'handover_code' => $result['handover_code'],
+            'assignment' => [
+                'id' => $result['assignment']->id,
+                'sequence' => $result['assignment']->sequence,
+                'status' => $result['assignment']->status,
+                'base_fee' => $result['assignment']->base_fee,
+                'approach_fee' => $result['assignment']->approach_fee,
+                'partner_amount' => $result['assignment']->partner_amount,
+            ],
+            'reassignment' => [
+                'id' => $result['reassignment']->id,
+                'status' => $result['reassignment']->status,
+                'old_driver_profile_id' => $result['reassignment']->old_driver_profile_id,
+                'new_driver_profile_id' => $result['reassignment']->new_driver_profile_id,
+                'reason' => $result['reassignment']->reason,
+                'handover_code' => $result['reassignment']->handover_code,
+            ],
+        ]);
     }
 
     // ------------------------------------------------------------------ Helpers

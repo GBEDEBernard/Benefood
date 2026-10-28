@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Enums\PaymentPurpose;
 use App\Enums\PaymentStatus;
 use App\Http\Controllers\Controller;
 use App\Models\DriverProfile;
@@ -80,6 +81,7 @@ class DriverFloatController extends Controller
 
         $payment = Payment::create([
             'reference' => 'FLOAT-'.Str::upper(Str::random(10)),
+            'purpose' => PaymentPurpose::FloatTopUp->value,
             'gateway' => 'fedapay',
             'amount' => $amount,
             'currency' => $currency,

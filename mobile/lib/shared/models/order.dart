@@ -284,12 +284,17 @@ class OrderDelivery {
     required this.status,
     this.driver,
     this.position,
+    this.hasOpenIncident = false,
   });
 
   final String id;
   final String status;
   final OrderDriver? driver;
   final OrderDeliveryPosition? position;
+
+  /// Incident livreur encore ouvert (panne, accident...) : le client peut
+  /// remplacer le livreur même avant le ramassage.
+  final bool hasOpenIncident;
 
   bool get hasActiveDriver => driver != null;
 
@@ -315,6 +320,7 @@ class OrderDelivery {
       position: rawPosition is Map<String, dynamic>
           ? OrderDeliveryPosition.fromJson(rawPosition)
           : null,
+      hasOpenIncident: json['open_incident'] != null,
     );
   }
 }
@@ -332,6 +338,11 @@ class Order {
     required this.total,
     this.approachFee = 0,
     this.approachDistanceKm,
+    this.approachPaymentMethod,
+    this.approachPaymentStatus,
+    this.approachDriverId,
+    this.preferredDriverId,
+    this.approachPayment,
     this.vendor,
     this.payment,
     this.financials,
@@ -374,6 +385,11 @@ class Order {
   /// Frais d'approche figés au checkout (trajet livreur → boutique).
   final int approachFee;
   final double? approachDistanceKm;
+  final String? approachPaymentMethod;
+  final String? approachPaymentStatus;
+  final String? approachDriverId;
+  final String? preferredDriverId;
+  final OrderPayment? approachPayment;
   final int total;
   final OrderVendor? vendor;
   final OrderPayment? payment;
@@ -439,12 +455,20 @@ class Order {
       'preparing',
       'ready',
     }.contains(status);
+    final hasSelectedDriver =
+        approachDriverId != null || preferredDriverId != null;
+    final hasActiveRequest = driverRequest != null && driverRequest!.isPending;
     return assignable &&
         delivery?.driver == null &&
-        !(driverRequest?.isPending ?? false);
+        !hasActiveRequest &&
+        !(hasSelectedDriver && driverRequest == null);
   }
 
   bool get isWaitingDriver => driverRequest?.isPending ?? false;
+
+  bool get approachIsPaid => approachPaymentStatus == 'confirmed';
+
+  bool get hasApproachFee => approachFee > 0;
 
   int get deliveryTotal => deliveryFee + approachFee;
 
@@ -475,6 +499,11 @@ class Order {
     deliveryFee: deliveryFee,
     approachFee: approachFee,
     approachDistanceKm: approachDistanceKm,
+    approachPaymentMethod: approachPaymentMethod,
+    approachPaymentStatus: approachPaymentStatus,
+    approachDriverId: approachDriverId,
+    preferredDriverId: preferredDriverId,
+    approachPayment: approachPayment,
     total: total,
     vendor: vendor,
     payment: payment,
@@ -525,6 +554,12 @@ class Order {
       payment = OrderPayment.fromJson(rawPayment);
     }
 
+    final rawApproachPayment = json['approach_payment'];
+    OrderPayment? approachPayment;
+    if (rawApproachPayment is Map<String, dynamic>) {
+      approachPayment = OrderPayment.fromJson(rawApproachPayment);
+    }
+
     final rawFinancials = json['financials'];
     OrderFinancials? financials;
     if (rawFinancials is Map<String, dynamic>) {
@@ -566,6 +601,11 @@ class Order {
       deliveryFee: _i(json['delivery_fee']),
       approachFee: _i(json['approach_fee']),
       approachDistanceKm: _dNull(json['approach_distance_km']),
+      approachPaymentMethod: _stringOrNull(json['approach_payment_method']),
+      approachPaymentStatus: _stringOrNull(json['approach_payment_status']),
+      approachDriverId: _stringOrNull(json['approach_driver_id']),
+      preferredDriverId: _stringOrNull(json['preferred_driver_id']),
+      approachPayment: approachPayment,
       total: _i(json['total']),
       vendor: vendor,
       payment: payment,

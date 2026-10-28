@@ -2,15 +2,19 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Enums\PaymentMethod;
 use App\Enums\PaymentStatus;
 use App\Http\Controllers\Controller;
+use App\Models\DriverProfile;
 use App\Models\Order;
 use App\Models\Parcel;
 use App\Models\Payment;
 use App\Models\PaymentEvent;
 use App\Models\Payout;
+use App\Services\ApproachFeeService;
 use App\Services\Payments\PaymentGateway;
 use App\Services\Payments\PaymentSettlementService;
+use App\Services\ParcelApproachFeeService;
 use App\Services\PayoutService;
 use App\Support\Api;
 use Illuminate\Http\JsonResponse;
@@ -23,6 +27,8 @@ class PaymentController extends Controller
     public function __construct(
         private readonly PaymentGateway $gateway,
         private readonly PaymentSettlementService $settlements,
+        private readonly ApproachFeeService $approachFees,
+        private readonly ParcelApproachFeeService $parcelApproachFees,
     ) {}
 
     public function create(Request $request): JsonResponse
@@ -87,6 +93,63 @@ class PaymentController extends Controller
         $this->rememberIntent($parcel->payment, $payload);
 
         return $this->checkoutResponse($payload);
+    }
+
+    public function createApproach(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'order_id' => ['required_without:parcel_id', 'uuid', 'exists:orders,id'],
+            'parcel_id' => ['required_without:order_id', 'uuid', 'exists:parcels,id'],
+            'driver_profile_id' => ['required', 'uuid', 'exists:driver_profiles,id'],
+            'payment_method' => ['sometimes', 'string', 'in:online,cash'],
+        ]);
+
+        $driver = DriverProfile::findOrFail($data['driver_profile_id']);
+        $method = PaymentMethod::from($data['payment_method'] ?? PaymentMethod::Online->value);
+
+        if (isset($data['order_id'])) {
+            $order = Order::findOrFail($data['order_id']);
+
+            if ($order->user_id !== $request->user()->id) {
+                return Api::error('Ressource introuvable.', 'not_found', 404);
+            }
+
+            $result = $this->approachFees->request($order, $request->user(), $driver, $method);
+
+            if (($result['status'] ?? null) === 'online') {
+                $payload = $result['payload'] ?? [];
+                $payload['payment_id'] = $result['payment_id'] ?? null;
+                $payload['approach_fee'] = $result['amount'] ?? 0;
+
+                return $this->checkoutResponse($payload);
+            }
+
+            return Api::ok($result + [
+                'approach_fee' => (int) $order->fresh()->approach_fee,
+                'payment_status' => $order->fresh()->approach_payment_status?->value,
+            ]);
+        }
+
+        $parcel = Parcel::findOrFail($data['parcel_id']);
+
+        if ($parcel->user_id !== $request->user()->id) {
+            return Api::error('Ressource introuvable.', 'not_found', 404);
+        }
+
+        $result = $this->parcelApproachFees->request($parcel, $request->user(), $driver, $method);
+
+        if (($result['status'] ?? null) === 'online') {
+            $payload = $result['payload'] ?? [];
+            $payload['payment_id'] = $result['payment_id'] ?? null;
+            $payload['approach_fee'] = $result['amount'] ?? 0;
+
+            return $this->checkoutResponse($payload);
+        }
+
+        return Api::ok($result + [
+            'approach_fee' => (int) $parcel->fresh()->approach_fee,
+            'payment_status' => $parcel->fresh()->approach_payment_status?->value,
+        ]);
     }
 
     public function retry(Request $request, Order $order): JsonResponse

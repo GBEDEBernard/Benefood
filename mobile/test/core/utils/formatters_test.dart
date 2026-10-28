@@ -32,4 +32,58 @@ void main() {
       expect(formatDistance(double.nan), '—');
     });
   });
+
+  group('horodatage des missions livreur', () {
+    test('formatTime rend l’heure locale HH:MM', () {
+      const iso = '2026-10-22T07:30:00Z';
+      final local = DateTime.parse(iso).toLocal();
+      final expected =
+          '${local.hour.toString().padLeft(2, '0')}:${local.minute.toString().padLeft(2, '0')}';
+
+      expect(formatTime(iso), expected);
+      expect(formatTime(null), '--:--');
+      expect(formatTime('pas une date'), '--:--');
+    });
+
+    test('formatAgo rend le temps écoulé en clair', () {
+      final now = DateTime.parse('2026-10-22T12:00:00Z').toLocal();
+
+      expect(formatAgo(now.toIso8601String(), now: now), 'à l’instant');
+      expect(
+        formatAgo(
+          now.subtract(const Duration(minutes: 12)).toIso8601String(),
+          now: now,
+        ),
+        'il y a 12 min',
+      );
+      expect(
+        formatAgo(
+          now.subtract(const Duration(hours: 2)).toIso8601String(),
+          now: now,
+        ),
+        'il y a 2 h',
+      );
+      expect(
+        formatAgo(
+          now.subtract(const Duration(days: 3)).toIso8601String(),
+          now: now,
+        ),
+        'il y a 3 j',
+      );
+      expect(formatAgo(null), '');
+    });
+
+    test('formatDayLabel nomme aujourd’hui puis le jour court', () {
+      final today = DateTime(2026, 10, 27, 9);
+
+      expect(
+        formatDayLabel(today, now: DateTime(2026, 10, 27, 15)),
+        'Aujourd’hui',
+      );
+      expect(
+        formatDayLabel(today, now: DateTime(2026, 10, 26, 15)),
+        'mar. 27 oct.',
+      );
+    });
+  });
 }

@@ -54,6 +54,64 @@ class DriverSelectionService
     }
 
     /**
+     * Livreurs proches du point de remise lors d'une réassignation de colis
+     * après ramassage. Le livreur actuel est exclu.
+     *
+     * @return array<string, mixed>
+     */
+    public function nearbyForParcelReassignment(
+        Parcel $parcel,
+        User $client,
+        float $latitude,
+        float $longitude,
+        ?float $radiusKm = null,
+    ): array {
+        $this->assertOwnedBy($parcel, $client);
+        $parcel->loadMissing('driverProfile');
+
+        if (! in_array($parcel->status, [ParcelStatus::PickedUp, ParcelStatus::InDelivery], true)) {
+            throw new DomainException(
+                'driver_selection.not_available',
+                'Le remplacement du livreur est possible uniquement après le ramassage et avant la livraison.',
+                409,
+            );
+        }
+
+        if ($parcel->driver_profile_id === null) {
+            throw new DomainException('driver_selection.no_driver', 'Aucun livreur à remplacer sur ce colis.', 409);
+        }
+
+        $context = $this->context($parcel);
+        $context['pickup'] = [
+            'name' => 'Point de remise',
+            'latitude' => $latitude,
+            'longitude' => $longitude,
+            'address' => null,
+            'landmark' => null,
+            'city' => $context['dropoff']['city'] ?? null,
+        ];
+
+        $this->assertCoordinates($context);
+        [$candidates, $radius] = $this->search(
+            $context['pickup'],
+            $this->requestedRadius($radiusKm),
+            $this->maxRadius(),
+        );
+
+        $candidates = $candidates
+            ->reject(fn (DriverProfile $driver) => $driver->id === $parcel->driver_profile_id)
+            ->values();
+
+        return [
+            'pickup' => $context['pickup'],
+            'dropoff' => $context['dropoff'],
+            'trip' => $this->trip($context),
+            'radius_km' => round($radius, 2),
+            'drivers' => $this->decorateDrivers($candidates, $context),
+        ];
+    }
+
+    /**
      * Livreurs proches du commerce avant la création de la commande (checkout) :
      * le client voit les frais d'approche avant de payer.
      *
@@ -168,6 +226,30 @@ class DriverSelectionService
             'radius_km' => round($radius, 2),
             'drivers' => $this->decorateDrivers($candidates, $context),
         ];
+    }
+
+    /**
+     * Vérifie qu'un livreur peut être choisi pour une commande déjà payée,
+     * sans créer la demande (utile avant d'encaisser les frais d'approche).
+     */
+    public function assertSelectableForOrder(Order $order, User $client, DriverProfile $driver): void
+    {
+        $this->assertSelectable($order, $client, $driver);
+    }
+
+    public function assertSelectableForParcel(Parcel $parcel, User $client, DriverProfile $driver): void
+    {
+        $this->assertSelectable($parcel, $client, $driver);
+    }
+
+    private function assertSelectable(Order|Parcel $assignable, User $client, DriverProfile $driver): void
+    {
+        $this->assertOwnedBy($assignable, $client);
+        $this->expireStale($assignable);
+        $this->assertEligible($assignable);
+        $context = $this->context($assignable);
+        $this->assertCoordinates($context);
+        $this->assertDriverSelectable($driver, $context['pickup']);
     }
 
     /**
@@ -295,7 +377,10 @@ class DriverSelectionService
             ->where('assignable_type', $assignable::class)
             ->where('assignable_id', $assignable->id)
             ->where('driver_profile_id', $driver->id)
-            ->where('status', DriverAssignmentRequestStatus::Pending->value)
+            ->whereIn('status', [
+                DriverAssignmentRequestStatus::Pending->value,
+                DriverAssignmentRequestStatus::Accepted->value,
+            ])
             ->lockForUpdate()
             ->first();
 

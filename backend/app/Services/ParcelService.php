@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Enums\ParcelStatus;
 use App\Enums\PaymentMethod;
+use App\Enums\PaymentPurpose;
 use App\Enums\PaymentStatus;
 use App\Exceptions\DomainException;
 use App\Models\DriverProfile;
@@ -32,6 +33,7 @@ class ParcelService
         private readonly ConfirmationCodeService $confirmationCodes,
         private readonly DriverAvailabilityService $availability,
         private readonly DriverSelectionService $driverSelection,
+        private readonly ParcelReassignmentService $reassignments,
     ) {}
 
     /**
@@ -76,9 +78,22 @@ class ParcelService
             ? $this->favoriteDrivers->acceptedDriverFor($client, $targetedDriverProfileId)
             : null;
 
+        $approachQuote = $targetedDriver !== null
+            ? $this->delivery->approachQuoteForPoint(
+                $targetedDriver,
+                isset($pickup['latitude']) ? (float) $pickup['latitude'] : null,
+                isset($pickup['longitude']) ? (float) $pickup['longitude'] : null,
+            )
+            : null;
+        $approachFee = (int) ($approachQuote['fee'] ?? 0);
+        $approachCommission = (int) round($approachFee * (int) $breakdown['commission_rate'] / 100);
+        $approachPartner = $approachFee - $approachCommission;
+        $totalAmount = (int) $breakdown['total_amount'] + $approachFee;
+        $approachPaid = $targetedDriver !== null && $approachFee === 0;
+
         $confirmationCode = null;
 
-        $parcel = DB::transaction(function () use ($client, $pickup, $dropoff, $description, $breakdown, $targetedDriver, $method, $isCash, &$confirmationCode): Parcel {
+        $parcel = DB::transaction(function () use ($client, $pickup, $dropoff, $description, $breakdown, $targetedDriver, $method, $isCash, $approachQuote, $approachFee, $approachCommission, $approachPartner, $totalAmount, $approachPaid, &$confirmationCode): Parcel {
             /** @var Parcel $parcel */
             $parcel = Parcel::create([
                 'reference' => $this->generateReference(),
@@ -97,16 +112,28 @@ class ParcelService
                 'pricing_snapshot' => $breakdown['pricing_snapshot'],
                 'commission_rate' => $breakdown['commission_rate'],
                 'commission_amount' => $breakdown['commission_amount'],
-                'partner_amount' => $breakdown['partner_amount'],
-                'platform_amount' => $breakdown['platform_amount'],
+                'partner_amount' => (int) $breakdown['partner_amount'] + $approachPartner,
+                'platform_amount' => (int) $breakdown['platform_amount'] + $approachCommission,
+                'approach_fee' => $approachFee,
+                'approach_distance_km' => $approachQuote['distance_km'] ?? null,
+                'approach_pricing_snapshot' => $approachQuote['snapshot'] ?? null,
+                'approach_commission_amount' => $approachCommission,
+                'approach_partner_amount' => $approachPartner,
+                'approach_payment_method' => $targetedDriver !== null ? $method->value : null,
+                'approach_payment_status' => $targetedDriver !== null
+                    ? ($approachPaid ? PaymentStatus::Confirmed->value : PaymentStatus::Pending->value)
+                    : null,
+                'approach_driver_profile_id' => $targetedDriver?->id,
+                'approach_paid_at' => $approachPaid ? now() : null,
                 'payment_deadline_at' => $isCash ? null : now()->addMinutes((int) config('beninfood.orders.payment_deadline_minutes', 15)),
             ]);
 
             if (! $isCash) {
                 $parcel->payment()->create([
                     'reference' => 'PAY-'.Str::upper(Str::random(12)),
+                    'purpose' => PaymentPurpose::Parcel->value,
                     'gateway' => 'fedapay',
-                    'amount' => $breakdown['total_amount'],
+                    'amount' => $totalAmount,
                     'status' => PaymentStatus::Initiated->value,
                     'expires_at' => $parcel->payment_deadline_at,
                 ]);
@@ -165,6 +192,13 @@ class ParcelService
             'paid_at' => now(),
         ]);
 
+        if ($parcel->approach_payment_method === PaymentMethod::Online && ! $parcel->approachIsPaid()) {
+            $parcel->update([
+                'approach_payment_status' => PaymentStatus::Confirmed->value,
+                'approach_paid_at' => now(),
+            ]);
+        }
+
         $this->logTransition($parcel, ParcelStatus::AwaitingPayment, ParcelStatus::Paid, 'system', null, 'Paiement confirmé');
 
         $this->finance->recordParcelPayment($parcel->fresh());
@@ -215,7 +249,7 @@ class ParcelService
         if (! $parcel->isCash()) {
             $this->finance->creditPending(
                 $this->finance->walletFor($driver),
-                (int) $parcel->delivery_fee,
+                (int) $parcel->delivery_fee + (int) $parcel->approach_fee,
                 'parcel_driver_credit',
                 $parcel->id,
                 'Prix de livraison colis (en attente) — '.$parcel->reference,
@@ -256,6 +290,52 @@ class ParcelService
             $locked = Parcel::query()->whereKey($parcel->id)->lockForUpdate()->firstOrFail();
             $lockedDriver = DriverProfile::query()->whereKey($driver->id)->lockForUpdate()->firstOrFail();
 
+            if ($locked->driver_profile_id !== null) {
+                if ($locked->driver_profile_id !== $lockedDriver->id) {
+                    throw new DomainException('parcel.not_owned', 'Ce colis ne vous appartient pas.', 404);
+                }
+
+                if ($locked->status !== ParcelStatus::Assigned) {
+                    throw new DomainException(
+                        'parcel.decline_not_allowed',
+                        'Vous ne pouvez plus décliner après avoir démarré vers la collecte. Signalez un incident.',
+                        409,
+                    );
+                }
+
+                $grossAmount = (int) $locked->delivery_fee + (int) $locked->approach_fee;
+
+                if (! $locked->isCash() && $grossAmount > 0) {
+                    $this->finance->debitPending(
+                        $this->finance->walletFor($lockedDriver),
+                        $grossAmount,
+                        'parcel_driver_release',
+                        $locked->id,
+                        'Colis libéré avant collecte — '.$locked->reference,
+                    );
+                }
+
+                $locked->update([
+                    'status' => ParcelStatus::Paid->value,
+                    'driver_profile_id' => null,
+                    'targeted_driver_profile_id' => null,
+                    'assigned_at' => null,
+                ]);
+
+                $this->driverSelection->markRefused($locked->fresh(), $lockedDriver, $reason);
+
+                $this->logTransition(
+                    $locked,
+                    ParcelStatus::Assigned,
+                    ParcelStatus::Paid,
+                    'driver',
+                    $lockedDriver->user_id,
+                    $reason !== null && $reason !== '' ? 'Colis décliné avant collecte : '.$reason : 'Colis décliné avant collecte',
+                );
+
+                return $locked->fresh(['driverProfile.user', 'statusHistory']);
+            }
+
             $this->assertOfferOpen($locked, $lockedDriver);
 
             $this->driverSelection->markRefused($locked, $lockedDriver, $reason);
@@ -286,6 +366,16 @@ class ParcelService
         if ($parcel->targeted_driver_profile_id !== null && $parcel->targeted_driver_profile_id !== $driver->id) {
             throw new DomainException('parcel.reserved', 'Ce colis est réservé à un autre livreur.', 409);
         }
+
+        if ($parcel->hasApproachFee()
+            && $parcel->approach_payment_method?->isOnline()
+            && ! $parcel->approachIsPaid()) {
+            throw new DomainException(
+                'parcel.approach_pending',
+                'Les frais d\'approche doivent être réglés avant de prendre ce colis.',
+                409,
+            );
+        }
     }
 
     public function markEnRoutePickup(Parcel $parcel, ?string $actorId = null): Parcel
@@ -303,6 +393,37 @@ class ParcelService
         return $this->transition($parcel, ParcelStatus::InDelivery, 'driver', $actorId);
     }
 
+    /** Encaisse l'approche cash d'un colis payé en ligne (débit flottant). */
+    private function settleCashApproach(Parcel $parcel, DriverProfile $driver): void
+    {
+        if (! $parcel->approach_payment_method?->isCash()
+            || $parcel->approachIsPaid()
+            || ! $parcel->hasApproachFee()) {
+            return;
+        }
+
+        if (! $this->cash->hasFloat($driver, (int) $parcel->approach_fee)) {
+            throw new DomainException(
+                'approach.cash_insufficient_float',
+                'Flottant insuffisant pour encaisser les frais d\'approche ('.(int) $parcel->approach_fee.' F requis).',
+                409,
+            );
+        }
+
+        $this->cash->debitFloat(
+            $driver,
+            (int) $parcel->approach_fee,
+            'parcel_approach_cash',
+            $parcel->id,
+            'Frais d\'approche cash colis — '.$parcel->reference,
+        );
+
+        $parcel->update([
+            'approach_payment_status' => PaymentStatus::Confirmed->value,
+            'approach_paid_at' => now(),
+        ]);
+    }
+
     /**
      * Livraison confirmée par le code du destinataire : la part livreur
      * devient retirable et la commission plateforme est encaissée.
@@ -317,7 +438,25 @@ class ParcelService
             $driver = $parcel->driverProfile;
 
             if ($driver !== null) {
-                if ($parcel->isCash()) {
+                if ($parcel->assignments()->exists()) {
+                    $this->reassignments->completeAssignments($parcel);
+
+                    if ($parcel->isCash()) {
+                        $this->cash->debitFloat(
+                            $driver,
+                            (int) $parcel->platform_amount + (int) $parcel->creation_fee,
+                            'parcel_cash_settle',
+                            $parcel->id,
+                            'Commission et frais de création colis espèces — '.$parcel->reference,
+                        );
+
+                        $parcel->update(['payment_status' => PaymentStatus::Confirmed->value]);
+                    } elseif ($parcel->approach_payment_method === PaymentMethod::Cash && ! $parcel->approachIsPaid()) {
+                        $this->settleCashApproach($parcel, $driver);
+                    }
+
+                    $this->finance->releaseParcelAssignments($parcel->fresh('assignments.driverProfile'));
+                } elseif ($parcel->isCash()) {
                     // Espèces : le livreur a encaissé les frais ; la commission
                     // plateforme est déduite de son flottant et son gain lui est
                     // crédité directement (aucun séquestre en amont).
@@ -331,8 +470,8 @@ class ParcelService
 
                     $this->finance->creditDriverEarning(
                         $this->finance->walletFor($driver),
-                        (int) $parcel->delivery_fee,
-                        (int) $parcel->commission_amount,
+                        (int) $parcel->delivery_fee + (int) $parcel->approach_fee,
+                        (int) $parcel->commission_amount + (int) $parcel->approach_commission_amount,
                         'parcel_driver_earning',
                         $parcel->id,
                         $parcel->reference,
@@ -340,14 +479,25 @@ class ParcelService
 
                     $parcel->update(['payment_status' => PaymentStatus::Confirmed->value]);
                 } else {
+                    if ($parcel->approach_payment_method === PaymentMethod::Cash && ! $parcel->approachIsPaid()) {
+                        $this->settleCashApproach($parcel, $driver);
+                    }
+
                     $this->finance->releaseDriverEarning(
                         $this->finance->walletFor($driver),
-                        (int) $parcel->delivery_fee,
-                        (int) $parcel->commission_amount,
+                        (int) $parcel->delivery_fee + (int) $parcel->approach_fee,
+                        (int) $parcel->commission_amount + (int) $parcel->approach_commission_amount,
                         'parcel_driver_release',
                         $parcel->id,
                         $parcel->reference,
                     );
+                }
+
+                if ($parcel->approach_payment_method === PaymentMethod::Cash && ! $parcel->approachIsPaid()) {
+                    $parcel->update([
+                        'approach_payment_status' => PaymentStatus::Confirmed->value,
+                        'approach_paid_at' => now(),
+                    ]);
                 }
 
                 $this->finance->recordParcelDelivery($parcel, $driver);
@@ -402,10 +552,12 @@ class ParcelService
         // Colis en ligne déjà payé : contre-passe les séquestres internes puis
         // déclenche le remboursement client via la passerelle.
         if (! $parcel->isCash() && $parcel->isPaid()) {
-            if ($driver !== null && $parcel->delivery_fee > 0) {
+            $grossAmount = (int) $parcel->delivery_fee + (int) $parcel->approach_fee;
+
+            if ($driver !== null && $grossAmount > 0) {
                 $this->finance->debitPending(
                     $this->finance->walletFor($driver),
-                    (int) $parcel->delivery_fee,
+                    $grossAmount,
                     'parcel_driver_reversal',
                     $parcel->id,
                     'Annulation colis — '.$parcel->reference,
@@ -429,6 +581,11 @@ class ParcelService
         return Parcel::query()
             ->whereNull('driver_profile_id')
             ->where('status', ParcelStatus::Paid->value)
+            ->where(function ($query): void {
+                $query->where('approach_fee', 0)
+                    ->orWhere('approach_payment_status', PaymentStatus::Confirmed->value)
+                    ->orWhere('approach_payment_method', PaymentMethod::Cash->value);
+            })
             ->when($driver !== null, fn ($query) => $query->where(function ($inner) use ($driver): void {
                 $inner->whereNull('targeted_driver_profile_id')
                     ->orWhere('targeted_driver_profile_id', $driver->id);

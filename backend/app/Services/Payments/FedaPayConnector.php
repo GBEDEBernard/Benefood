@@ -81,6 +81,24 @@ class FedaPayConnector implements PaymentGateway
         );
     }
 
+    /** @return array<string, mixed> */
+    public function createApproachPayment(Order|Parcel $assignable, Payment $payment): array
+    {
+        $assignable->loadMissing('user');
+        $isOrder = $assignable instanceof Order;
+
+        return $this->collect(
+            amount: (int) $payment->amount,
+            description: ($isOrder ? 'Approche commande ' : 'Approche colis ').$assignable->reference,
+            customer: $assignable->user,
+            metadata: array_filter([
+                'type' => $isOrder ? 'order_approach' : 'parcel_approach',
+                $isOrder ? 'order_id' : 'parcel_id' => $assignable->id,
+                'payment_id' => $payment->id,
+            ]),
+        );
+    }
+
     /**
      * Crée un encaissement FedaPay pour la recharge du flottant d'un livreur.
      *

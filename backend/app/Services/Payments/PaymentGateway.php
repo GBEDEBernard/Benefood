@@ -32,6 +32,14 @@ interface PaymentGateway
     public function createPaymentForParcel(Parcel $parcel): array;
 
     /**
+     * Crée une session/lien de paiement pour les frais d'approche d'une
+     * commande ou d'un colis.
+     *
+     * @return array<string, mixed>
+     */
+    public function createApproachPayment(Order|Parcel $assignable, Payment $payment): array;
+
+    /**
      * Crée une session/lien de paiement pour la recharge du flottant d'un
      * livreur (le montant et la référence proviennent du paiement interne).
      *

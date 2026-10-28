@@ -40,6 +40,69 @@ Future<bool?> showDriverSelectionPage(
   );
 }
 
+/// Ouvre la sélection d'un livreur **après paiement** : le livreur choisi est
+/// retourné au suivi de commande, qui déclenche ensuite le paiement des frais
+/// d'approche avant de le solliciter.
+Future<NearbyDriver?> showApproachDriverSelection(
+  BuildContext context,
+  MarketplaceApi marketplace, {
+  required String targetId,
+  required String reference,
+  bool isParcel = false,
+  String? initialDriverId,
+}) {
+  return Navigator.of(context).push<NearbyDriver>(
+    MaterialPageRoute<NearbyDriver>(
+      builder: (_) => DriverSelectionScreen(
+        marketplace: marketplace,
+        targetId: targetId,
+        reference: reference,
+        isParcel: isParcel,
+        selectOnly: true,
+        initialDriverId: initialDriverId,
+      ),
+    ),
+  );
+}
+
+/// Choix effectué au checkout : un livreur précis, ou aucun livreur.
+///
+/// Un retour `null` de [showCheckoutDriverSelection] signifie que le client
+/// a fermé la page sans confirmer son choix.
+class CheckoutDriverChoice {
+  const CheckoutDriverChoice.driver(this.driver);
+
+  const CheckoutDriverChoice.none() : driver = null;
+
+  final NearbyDriver? driver;
+
+  bool get hasDriver => driver != null;
+}
+
+/// Ouvre la même page de choix **avant** la création de la commande (checkout).
+///
+/// Retourne le choix du client, ou `null` s'il revient en arrière.
+Future<CheckoutDriverChoice?> showCheckoutDriverSelection(
+  BuildContext context,
+  MarketplaceApi marketplace, {
+  required String addressId,
+  required String addressLabel,
+  String? initialDriverId,
+}) {
+  return Navigator.of(context).push<CheckoutDriverChoice>(
+    MaterialPageRoute<CheckoutDriverChoice>(
+      builder: (_) => DriverSelectionScreen(
+        marketplace: marketplace,
+        targetId: addressId,
+        reference: addressLabel,
+        isParcel: false,
+        checkoutAddressId: addressId,
+        initialDriverId: initialDriverId,
+      ),
+    ),
+  );
+}
+
 class DriverSelectionScreen extends StatefulWidget {
   const DriverSelectionScreen({
     super.key,
@@ -48,6 +111,9 @@ class DriverSelectionScreen extends StatefulWidget {
     required this.reference,
     required this.isParcel,
     this.onChanged,
+    this.checkoutAddressId,
+    this.initialDriverId,
+    this.selectOnly = false,
   });
 
   final MarketplaceApi marketplace;
@@ -55,6 +121,18 @@ class DriverSelectionScreen extends StatefulWidget {
   final String reference;
   final bool isParcel;
   final VoidCallback? onChanged;
+
+  /// Renseigné au checkout : la recherche porte sur l'adresse de livraison
+  /// choisie et le livreur retenu est retourné à l'appelant au lieu d'être
+  /// sollicité tout de suite (la commande n'existe pas encore).
+  final String? checkoutAddressId;
+
+  /// Livreur déjà choisi à l'ouverture (surligné sur la carte).
+  final String? initialDriverId;
+
+  /// Sélection seule (après paiement) : retourne le livreur sans envoyer la
+  /// demande, le paiement d'approche étant géré par l'écran appelant.
+  final bool selectOnly;
 
   @override
   State<DriverSelectionScreen> createState() => _DriverSelectionScreenState();
@@ -80,10 +158,14 @@ class _DriverSelectionScreenState extends State<DriverSelectionScreen>
   bool _showRoute = false;
   List<LatLng>? _route;
 
+  /// `true` lorsque l'écran sert au choix du livreur avant paiement.
+  bool get _checkout => widget.checkoutAddressId != null;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _selectedDriverId = widget.initialDriverId;
     _load();
   }
 
@@ -103,6 +185,13 @@ class _DriverSelectionScreenState extends State<DriverSelectionScreen>
 
   Future<DriverSelectionPage> _fetch() {
     final radius = _radiusOverride;
+    final addressId = widget.checkoutAddressId;
+    if (addressId != null) {
+      return widget.marketplace.checkoutDriverSelection(
+        addressId,
+        radiusKm: radius,
+      );
+    }
     return widget.isParcel
         ? widget.marketplace.parcelNearbyDrivers(
             widget.targetId,
@@ -223,10 +312,7 @@ class _DriverSelectionScreenState extends State<DriverSelectionScreen>
           driver.id,
         );
       } else {
-        await widget.marketplace.requestOrderDriver(
-          widget.targetId,
-          driver.id,
-        );
+        await widget.marketplace.requestOrderDriver(widget.targetId, driver.id);
       }
       if (!mounted) {
         return;
@@ -260,7 +346,10 @@ class _DriverSelectionScreenState extends State<DriverSelectionScreen>
         return;
       }
       widget.onChanged?.call();
-      showToast(context, 'Nous sollicitons le livreur disponible le plus proche.');
+      showToast(
+        context,
+        'Nous sollicitons le livreur disponible le plus proche.',
+      );
       await _load(silent: true);
     } on ApiException catch (e) {
       if (mounted) {
@@ -364,26 +453,49 @@ class _DriverSelectionScreenState extends State<DriverSelectionScreen>
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
               ),
               const SizedBox(height: 12),
-              const _HelpRow(
-                icon: Icons.radar,
-                text:
-                    'Seuls les livreurs en ligne, disponibles et avec une position GPS récente sont affichés.',
-              ),
-              const _HelpRow(
-                icon: Icons.send_outlined,
-                text:
-                    'Vous envoyez une demande : le livreur peut accepter ou refuser. Sa réponse arrive en quelques secondes.',
-              ),
-              const _HelpRow(
-                icon: Icons.lock_outline,
-                text:
-                    'Le numéro du livreur et le suivi en direct sont activés après son acceptation.',
-              ),
-              const _HelpRow(
-                icon: Icons.auto_awesome_outlined,
-                text:
-                    'Sans préférence ? La plateforme sollicite automatiquement le livreur le plus proche.',
-              ),
+              if (_checkout) ...[
+                const _HelpRow(
+                  icon: Icons.radar,
+                  text:
+                      'Seuls les livreurs en ligne, disponibles et avec une position GPS récente sont affichés.',
+                ),
+                const _HelpRow(
+                  icon: Icons.touch_app_outlined,
+                  text:
+                      'Touchez une carte pour situer le livreur sur la carte, puis confirmez avec « Choisir ce livreur ».',
+                ),
+                const _HelpRow(
+                  icon: Icons.payments_outlined,
+                  text:
+                      'Les frais d’approche (distance entre le livreur et la boutique) sont ajoutés au total avant le paiement.',
+                ),
+                const _HelpRow(
+                  icon: Icons.priority_high_outlined,
+                  text:
+                      'Le livreur choisi est sollicité en priorité pour votre course ; il peut l’accepter ou la refuser.',
+                ),
+              ] else ...[
+                const _HelpRow(
+                  icon: Icons.radar,
+                  text:
+                      'Seuls les livreurs en ligne, disponibles et avec une position GPS récente sont affichés.',
+                ),
+                const _HelpRow(
+                  icon: Icons.send_outlined,
+                  text:
+                      'Vous envoyez une demande : le livreur peut accepter ou refuser. Sa réponse arrive en quelques secondes.',
+                ),
+                const _HelpRow(
+                  icon: Icons.lock_outline,
+                  text:
+                      'Le numéro du livreur et le suivi en direct sont activés après son acceptation.',
+                ),
+                const _HelpRow(
+                  icon: Icons.auto_awesome_outlined,
+                  text:
+                      'Sans préférence ? La plateforme sollicite automatiquement le livreur le plus proche.',
+                ),
+              ],
               const SizedBox(height: 12),
               SizedBox(
                 width: double.infinity,
@@ -476,10 +588,29 @@ class _DriverSelectionScreenState extends State<DriverSelectionScreen>
             _Header(
               reference: widget.reference,
               isParcel: widget.isParcel,
+              isCheckout: _checkout,
               onBack: () => Navigator.of(context).maybePop(),
               onHelp: _openHelp,
             ),
             Expanded(child: _buildBody()),
+            if (_checkout)
+              SafeArea(
+                top: false,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+                  child: OutlinedButton.icon(
+                    onPressed: () => Navigator.of(
+                      context,
+                    ).pop(const CheckoutDriverChoice.none()),
+                    icon: const Icon(Icons.delivery_dining_outlined),
+                    label: const Text('Continuer sans livreur'),
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: const Size.fromHeight(48),
+                      foregroundColor: AppColors.orangeDark,
+                    ),
+                  ),
+                ),
+              ),
           ],
         ),
       ),
@@ -526,14 +657,16 @@ class _DriverSelectionScreenState extends State<DriverSelectionScreen>
           ],
           _buildMap(page),
           const SizedBox(height: AppDimens.md),
-          if (pending)
+          if (!_checkout && pending)
             _PendingRequestCard(
               request: request!,
               cancelling: _cancelling,
               onCancel: _cancelRequest,
             )
           else ...[
-            if (request != null &&
+            if (!_checkout &&
+                !widget.selectOnly &&
+                request != null &&
                 (request.isRefused ||
                     request.isExpired ||
                     request.isCancelled)) ...[
@@ -547,6 +680,7 @@ class _DriverSelectionScreenState extends State<DriverSelectionScreen>
                 onWiden: _widenRadius,
                 onAutoAssign: _autoAssigning ? null : _autoAssign,
                 autoAssigning: _autoAssigning,
+                showAutoAssign: !_checkout && !widget.selectOnly,
               )
             else ...[
               _InfoBar(count: page.drivers.length),
@@ -557,19 +691,35 @@ class _DriverSelectionScreenState extends State<DriverSelectionScreen>
                   nearest: i == 0,
                   selected: _selectedDriverId == page.drivers[i].id,
                   busy: _actionDriverId,
+                  actionLabel: _checkout || widget.selectOnly
+                      ? 'Choisir ce livreur'
+                      : 'Demander ce livreur',
+                  actionIcon: _checkout || widget.selectOnly
+                      ? Icons.check_circle_outline
+                      : Icons.send_outlined,
                   onSelect: () => setState(
-                    () => _selectedDriverId = _selectedDriverId == page.drivers[i].id
+                    () => _selectedDriverId =
+                        _selectedDriverId == page.drivers[i].id
                         ? null
                         : page.drivers[i].id,
                   ),
-                  onRequest: () => _request(page.drivers[i]),
+                  onRequest: () => _checkout
+                      ? Navigator.of(
+                          context,
+                        ).pop(CheckoutDriverChoice.driver(page.drivers[i]))
+                      : widget.selectOnly
+                      ? Navigator.of(context).pop(page.drivers[i])
+                      : _request(page.drivers[i]),
                 ),
                 const SizedBox(height: AppDimens.sm),
               ],
-              _AutoAssignPanel(
-                loading: _autoAssigning,
-                onPressed: _autoAssigning ? null : _autoAssign,
-              ),
+              // Avant paiement il n'y a pas encore de commande à affecter :
+              // l'affectation automatique reste réservée au suivi de commande.
+              if (!_checkout && !widget.selectOnly)
+                _AutoAssignPanel(
+                  loading: _autoAssigning,
+                  onPressed: _autoAssigning ? null : _autoAssign,
+                ),
             ],
           ],
           const SizedBox(height: AppDimens.lg),
@@ -712,10 +862,12 @@ class _Header extends StatelessWidget {
     required this.isParcel,
     required this.onBack,
     required this.onHelp,
+    this.isCheckout = false,
   });
 
   final String reference;
   final bool isParcel;
+  final bool isCheckout;
   final VoidCallback onBack;
   final VoidCallback onHelp;
 
@@ -746,7 +898,9 @@ class _Header extends StatelessWidget {
                 ),
                 const SizedBox(height: 1),
                 Text(
-                  '${isParcel ? 'Colis' : 'Commande'} #$reference',
+                  isCheckout
+                      ? 'Livraison à $reference'
+                      : '${isParcel ? 'Colis' : 'Commande'} #$reference',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
@@ -1004,6 +1158,8 @@ class _DriverCard extends StatelessWidget {
     required this.busy,
     required this.onSelect,
     required this.onRequest,
+    this.actionLabel = 'Demander ce livreur',
+    this.actionIcon = Icons.send_outlined,
   });
 
   final NearbyDriver driver;
@@ -1012,6 +1168,11 @@ class _DriverCard extends StatelessWidget {
   final String? busy;
   final VoidCallback onSelect;
   final VoidCallback onRequest;
+
+  /// Libellé et icône du bouton principal : demande d'un livreur (après
+  /// paiement) ou choix du livreur (au checkout).
+  final String actionLabel;
+  final IconData actionIcon;
 
   @override
   Widget build(BuildContext context) {
@@ -1124,17 +1285,17 @@ class _DriverCard extends StatelessWidget {
                           crossAxisAlignment: WrapCrossAlignment.center,
                           spacing: 5,
                           children: [
-                            if (driver.rating != null && driver.rating! > 0) ...[
+                            if (driver.rating != null &&
+                                driver.rating! > 0) ...[
                               const Icon(
                                 Icons.star_rounded,
                                 size: 14,
                                 color: AppColors.orange,
                               ),
                               Text(
-                                driver.rating!.toStringAsFixed(1).replaceAll(
-                                  '.',
-                                  ',',
-                                ),
+                                driver.rating!
+                                    .toStringAsFixed(1)
+                                    .replaceAll('.', ','),
                                 style: const TextStyle(
                                   fontSize: 11.5,
                                   fontWeight: FontWeight.w700,
@@ -1220,8 +1381,7 @@ class _DriverCard extends StatelessWidget {
                       color: AppColors.green,
                       tint: AppColors.greenLight,
                       distanceLabel: formatDistance(
-                        driver.pickupToDropoffKm ??
-                            driver.distanceToDropoffKm,
+                        driver.pickupToDropoffKm ?? driver.distanceToDropoffKm,
                       ),
                       etaLabel: driver.etaToDropoffSeconds == null
                           ? '—'
@@ -1258,9 +1418,9 @@ class _DriverCard extends StatelessWidget {
                             color: Colors.white,
                           ),
                         )
-                      : const Icon(Icons.send_outlined, size: 17),
+                      : Icon(actionIcon, size: 17),
                   label: Text(
-                    loading ? 'Envoi…' : 'Demander ce livreur',
+                    loading ? 'Envoi…' : actionLabel,
                     style: const TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w700,
@@ -1540,9 +1700,7 @@ class _PendingRequestCard extends StatelessWidget {
             alignment: Alignment.centerRight,
             child: TextButton(
               onPressed: cancelling ? null : onCancel,
-              style: TextButton.styleFrom(
-                foregroundColor: AppColors.goldDark,
-              ),
+              style: TextButton.styleFrom(foregroundColor: AppColors.goldDark),
               child: Text(cancelling ? 'Annulation…' : 'Annuler la demande'),
             ),
           ),
@@ -1646,11 +1804,7 @@ class _LoadingView extends StatelessWidget {
                 color: AppColors.orangeLight,
                 shape: BoxShape.circle,
               ),
-              child: const Icon(
-                Icons.radar,
-                size: 40,
-                color: AppColors.orange,
-              ),
+              child: const Icon(Icons.radar, size: 40, color: AppColors.orange),
             ),
             const SizedBox(height: 20),
             const Text(
@@ -1761,9 +1915,7 @@ class _ErrorView extends StatelessWidget {
             const SizedBox(height: 20),
             FilledButton.icon(
               onPressed: onRetry,
-              style: FilledButton.styleFrom(
-                backgroundColor: AppColors.orange,
-              ),
+              style: FilledButton.styleFrom(backgroundColor: AppColors.orange),
               icon: const Icon(Icons.refresh, size: 18),
               label: const Text('Réessayer'),
             ),
@@ -1781,6 +1933,7 @@ class _EmptyDriversView extends StatelessWidget {
     required this.onWiden,
     required this.onAutoAssign,
     required this.autoAssigning,
+    this.showAutoAssign = true,
   });
 
   final DriverSelectionPage page;
@@ -1788,6 +1941,10 @@ class _EmptyDriversView extends StatelessWidget {
   final VoidCallback onWiden;
   final VoidCallback? onAutoAssign;
   final bool autoAssigning;
+
+  /// L'affectation automatique n'est proposée qu'après la création de la
+  /// commande (pas au checkout, où aucune commande n'existe encore).
+  final bool showAutoAssign;
 
   @override
   Widget build(BuildContext context) {
@@ -1821,9 +1978,7 @@ class _EmptyDriversView extends StatelessWidget {
               shape: BoxShape.circle,
             ),
             child: Icon(
-              positionIssue
-                  ? Icons.gps_off
-                  : Icons.delivery_dining_outlined,
+              positionIssue ? Icons.gps_off : Icons.delivery_dining_outlined,
               size: 32,
               color: positionIssue ? AppColors.goldDark : AppColors.orange,
             ),
@@ -1893,9 +2048,7 @@ class _EmptyDriversView extends StatelessWidget {
                       ),
                       padding: const EdgeInsets.symmetric(vertical: 11),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(
-                          AppDimens.radiusMd,
-                        ),
+                        borderRadius: BorderRadius.circular(AppDimens.radiusMd),
                       ),
                     ),
                     child: const Text(
@@ -1907,39 +2060,41 @@ class _EmptyDriversView extends StatelessWidget {
               ],
             ],
           ),
-          const SizedBox(height: 8),
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton.icon(
-              onPressed: onAutoAssign,
-              style: FilledButton.styleFrom(
-                backgroundColor: AppColors.orange,
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+          if (showAutoAssign) ...[
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: onAutoAssign,
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.orange,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+                  ),
                 ),
-              ),
-              icon: autoAssigning
-                  ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
-                      ),
-                    )
-                  : const Icon(Icons.auto_awesome_outlined, size: 17),
-              label: Text(
-                autoAssigning
-                    ? 'Recherche en cours…'
-                    : 'Assigner automatiquement',
-                style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
+                icon: autoAssigning
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Icon(Icons.auto_awesome_outlined, size: 17),
+                label: Text(
+                  autoAssigning
+                      ? 'Recherche en cours…'
+                      : 'Assigner automatiquement',
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ),
             ),
-          ),
+          ],
         ],
       ),
     );
@@ -2013,11 +2168,7 @@ class _PrivacyFooter extends StatelessWidget {
       children: [
         Padding(
           padding: EdgeInsets.only(top: 1),
-          child: Icon(
-            Icons.shield_outlined,
-            size: 14,
-            color: AppColors.green,
-          ),
+          child: Icon(Icons.shield_outlined, size: 14, color: AppColors.green),
         ),
         SizedBox(width: 6),
         Flexible(
@@ -2174,4 +2325,3 @@ Color _freshnessColor(int? ageSeconds) {
   }
   return AppColors.red;
 }
-

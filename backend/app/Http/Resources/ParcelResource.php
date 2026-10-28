@@ -12,6 +12,13 @@ class ParcelResource extends JsonResource
 {
     public function toArray(Request $request): array
     {
+        $pendingAssignment = $this->relationLoaded('assignments')
+            ? $this->assignments->firstWhere('status', 'pending_handover')
+            : null;
+        $openIncident = $this->relationLoaded('incidents')
+            ? $this->incidents->firstWhere('status', 'open')
+            : null;
+
         return [
             'id' => $this->id,
             'reference' => $this->reference,
@@ -31,6 +38,11 @@ class ParcelResource extends JsonResource
             'distance_km' => $this->distance_km !== null ? (float) $this->distance_km : null,
             'delivery_fee' => (int) $this->delivery_fee,
             'creation_fee' => (int) $this->creation_fee,
+            'approach_fee' => (int) $this->approach_fee,
+            'approach_distance_km' => $this->approach_distance_km !== null ? (float) $this->approach_distance_km : null,
+            'approach_payment_method' => $this->approach_payment_method?->value,
+            'approach_payment_status' => $this->approach_payment_status?->value,
+            'approach_driver_id' => $this->approach_driver_profile_id,
             'total_amount' => $this->totalAmount(),
             'pricing_snapshot' => $this->pricing_snapshot,
             'commission_rate' => (int) $this->commission_rate,
@@ -46,6 +58,17 @@ class ParcelResource extends JsonResource
                 $this->confirmation_code_expires_at?->toIso8601String(),
             ),
             'targeted_driver_id' => $this->targeted_driver_profile_id,
+            'reassignment_count' => (int) $this->reassignment_count,
+            'handover_required' => $pendingAssignment !== null,
+            'handover_code' => $request->user()?->id === $this->user_id
+                ? $pendingAssignment?->handover_code
+                : null,
+            'open_incident' => $openIncident === null ? null : [
+                'id' => $openIncident->id,
+                'type' => $openIncident->type,
+                'message' => $openIncident->message,
+                'created_at' => $openIncident->created_at?->toIso8601String(),
+            ],
             'targeted_driver' => $this->whenLoaded('targetedDriverProfile', fn () => $this->targetedDriverProfile === null ? null : [
                 'id' => $this->targetedDriverProfile->id,
                 'name' => $this->targetedDriverProfile->user?->name,
@@ -67,6 +90,12 @@ class ParcelResource extends JsonResource
                 'reference' => $this->payment->reference,
                 'status' => $this->payment->status?->value,
                 'amount' => (int) $this->payment->amount,
+            ]),
+            'approach_payment' => $this->whenLoaded('approachPayment', fn () => $this->approachPayment === null ? null : [
+                'id' => $this->approachPayment->id,
+                'reference' => $this->approachPayment->reference,
+                'status' => $this->approachPayment->status?->value,
+                'amount' => (int) $this->approachPayment->amount,
             ]),
             'status_history' => $this->whenLoaded('statusHistory', fn () => $this->statusHistory->map(fn ($history) => [
                 'from_status' => $history->from_status,

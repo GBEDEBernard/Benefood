@@ -9,6 +9,7 @@ import '../../../core/services/location_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_dimens.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/formatters.dart';
 import '../../../shared/models/parcel.dart';
 import '../../../shared/widgets/amount_widgets.dart';
 import '../../../shared/widgets/app_text_field.dart';
@@ -78,6 +79,7 @@ class _ParcelCreateScreenState extends State<ParcelCreateScreen> {
   bool _dropoffLocating = false;
 
   Map<String, dynamic>? _quote;
+  Map<String, dynamic>? _approachQuote;
   bool _quoting = false;
   String? _quoteError;
 
@@ -325,15 +327,26 @@ class _ParcelCreateScreenState extends State<ParcelCreateScreen> {
     setState(() {
       _quoting = true;
       _quoteError = null;
+      _approachQuote = null;
     });
     try {
       final quote = await widget.marketplace.parcelQuote(
         pickup: _pickup,
         dropoff: _dropoff,
       );
+      Map<String, dynamic>? approach;
+      final driverId = _favoriteDriverId;
+      if (driverId != null) {
+        approach = await widget.marketplace.parcelApproachQuote(
+          driverProfileId: driverId,
+          latitude: _pickupLatitude!,
+          longitude: _pickupLongitude!,
+        );
+      }
       if (mounted) {
         setState(() {
           _quote = quote;
+          _approachQuote = approach;
           _quoting = false;
         });
       }
@@ -349,10 +362,23 @@ class _ParcelCreateScreenState extends State<ParcelCreateScreen> {
 
   Future<void> _create() async {
     final quote = _quote;
-    final fee =
-        (quote?['total_amount'] as num?)?.toInt() ??
-        ((quote?['delivery_fee'] as num?)?.toInt() ?? 0) +
-            ((quote?['creation_fee'] as num?)?.toInt() ?? 0);
+    if (quote == null) {
+      return;
+    }
+    if (_favoriteDriverId != null && _approachQuote == null) {
+      showToast(
+        context,
+        'Estimation des frais d\'approche indisponible. Réessayez.',
+        isError: true,
+      );
+      return;
+    }
+    final baseFee =
+        (quote['total_amount'] as num?)?.toInt() ??
+        ((quote['delivery_fee'] as num?)?.toInt() ?? 0) +
+            ((quote['creation_fee'] as num?)?.toInt() ?? 0);
+    final approachFee = (_approachQuote?['fee'] as num?)?.toInt() ?? 0;
+    final fee = baseFee + approachFee;
     final method = await Navigator.of(context).push<String>(
       MaterialPageRoute<String>(
         builder: (_) => ParcelPaymentMethodScreen(
@@ -907,7 +933,7 @@ class _ParcelCreateScreenState extends State<ParcelCreateScreen> {
           loading: _quoting,
         )
       else if (_quote != null)
-        _QuoteCard(quote: _quote!)
+        _QuoteCard(quote: _quote!, approachQuote: _approachQuote)
       else
         const _QuoteLoadingCard(),
     ];
@@ -1497,15 +1523,18 @@ class _QuoteLine extends StatelessWidget {
 }
 
 class _QuoteCard extends StatelessWidget {
-  const _QuoteCard({required this.quote});
+  const _QuoteCard({required this.quote, this.approachQuote});
 
   final Map<String, dynamic> quote;
+  final Map<String, dynamic>? approachQuote;
 
   @override
   Widget build(BuildContext context) {
     final distance = quote['distance_km'];
     final fee = (quote['delivery_fee'] as num?)?.toInt() ?? 0;
     final creationFee = (quote['creation_fee'] as num?)?.toInt() ?? 0;
+    final approachFee = (approachQuote?['fee'] as num?)?.toInt() ?? 0;
+    final approachDistance = approachQuote?['distance_km'];
     final total = (quote['total_amount'] as num?)?.toInt() ?? fee + creationFee;
 
     return _SectionCard(
@@ -1534,6 +1563,15 @@ class _QuoteCard extends StatelessWidget {
             const SizedBox(height: 8),
             _QuoteLine(label: 'Frais de création', amount: creationFee),
           ],
+          if (approachFee > 0) ...[
+            const SizedBox(height: 8),
+            _QuoteLine(
+              label: approachDistance is num
+                  ? 'Approche livreur (${formatDistance((approachDistance as num?)?.toDouble())})'
+                  : 'Approche livreur',
+              amount: approachFee,
+            ),
+          ],
           const SizedBox(height: AppDimens.md),
           Container(
             padding: const EdgeInsets.all(AppDimens.md),
@@ -1550,7 +1588,7 @@ class _QuoteCard extends StatelessWidget {
                   ),
                 ),
                 AmountText(
-                  total,
+                  total + approachFee,
                   style: const TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.w900,

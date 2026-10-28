@@ -128,6 +128,12 @@ class NotificationTemplatesSeeder extends Seeder
                 'subject' => 'Colis proposé',
                 'body' => 'Un colis #{reference} vous est réservé.',
             ],
+            [
+                'event' => 'parcel.reassigned',
+                'channel' => NotificationTemplateChannel::Push->value,
+                'subject' => 'Nouveau colis à reprendre',
+                'body' => 'Le colis #{reference} vous a été réassigné. Confirmez la remise avec le code fourni par le client.',
+            ],
         ];
 
         foreach ($templates as $template) {

@@ -155,6 +155,63 @@ class DeliveryReassignmentTest extends TestCase
         $this->assertSame(230, (int) $finance->platformWallet()->fresh()->available_balance);
     }
 
+    public function test_driver_can_be_replaced_before_pickup_without_handover_code(): void
+    {
+        [$client, $oldDriver, $newDriver, $order, $delivery] = $this->pickedUpOrderWithDriver();
+        $order->update(['status' => OrderStatus::Assigned->value]);
+        $delivery->update(['status' => 'en_route_pickup']);
+
+        $finance = app(FinanceService::class);
+        $this->assertGreaterThan(0, (int) $finance->walletFor($oldDriver)->fresh()->pending_balance);
+
+        $result = app(DeliveryService::class)->reassignOrder(
+            $order->fresh(),
+            $client,
+            $newDriver,
+            'Panne avant collecte',
+        );
+
+        $delivery->refresh();
+        $this->assertSame('', $result['handover_code']);
+        $this->assertSame($newDriver->id, $delivery->driver_profile_id);
+        $this->assertSame('assigned', $delivery->status->value);
+        $this->assertSame(1, (int) $delivery->reassignment_count);
+        $this->assertSame(0, (int) $finance->walletFor($oldDriver)->fresh()->pending_balance);
+        $this->assertGreaterThan(0, (int) $finance->walletFor($newDriver)->fresh()->pending_balance);
+        $this->assertDatabaseHas('delivery_assignments', [
+            'delivery_id' => $delivery->id,
+            'driver_profile_id' => $oldDriver->id,
+            'status' => 'cancelled',
+        ]);
+        $this->assertDatabaseHas('delivery_assignments', [
+            'delivery_id' => $delivery->id,
+            'driver_profile_id' => $newDriver->id,
+            'status' => 'active',
+        ]);
+        $this->assertDatabaseHas('delivery_reassignment_requests', [
+            'delivery_id' => $delivery->id,
+            'old_driver_profile_id' => $oldDriver->id,
+            'new_driver_profile_id' => $newDriver->id,
+            'status' => 'accepted',
+        ]);
+    }
+
+    public function test_open_driver_incident_is_exposed_to_the_client_before_pickup(): void
+    {
+        [$client, $oldDriver, , $order, $delivery] = $this->pickedUpOrderWithDriver();
+        $order->update(['status' => OrderStatus::Assigned->value]);
+        $delivery->update(['status' => 'en_route_pickup']);
+
+        app(DeliveryService::class)->reportIncident($delivery->fresh(), $oldDriver, 'Panne de moto');
+
+        Sanctum::actingAs($client);
+
+        $this->getJson("/api/v1/orders/{$order->id}")
+            ->assertOk()
+            ->assertJsonPath('data.delivery.open_incident.type', 'other')
+            ->assertJsonPath('data.delivery.open_incident.message', 'Panne de moto');
+    }
+
     public function test_third_reassignment_is_rejected(): void
     {
         [$client, , $secondDriver, $order, $delivery] = $this->pickedUpOrderWithDriver();

@@ -272,8 +272,10 @@ class MarketplaceApi {
     return OrderSummary.fromJson(_dataObject(response) ?? {});
   }
 
-  /// Livreurs proches du commerce, avant la création de la commande.
-  Future<List<NearbyDriver>> checkoutDrivers(
+  /// Livreurs proches du commerce, avant la création de la commande :
+  /// trajet collecte → livraison, rayon de recherche et distances de chaque
+  /// livreur (les frais d'approche sont visibles avant le paiement).
+  Future<DriverSelectionPage> checkoutDriverSelection(
     String addressId, {
     double? radiusKm,
   }) async {
@@ -284,7 +286,7 @@ class MarketplaceApi {
         if (radiusKm != null) 'radius_km': radiusKm,
       },
     );
-    return _driversFromPayload(response);
+    return DriverSelectionPage.fromJson(_dataObject(response) ?? {});
   }
 
   /// Livreurs disponibles autour du point de remise pour remplacer le livreur.
@@ -363,6 +365,27 @@ class MarketplaceApi {
     final response = await _api.post(
       '/payments/create',
       body: {'order_id': orderId},
+    );
+    return _dataObject(response) ?? {};
+  }
+
+  /// Prépare le paiement des frais d'approche d'un livreur choisi après
+  /// paiement. `payment_method` vaut `online` (FedaPay) ou `cash`.
+  Future<Map<String, dynamic>> createApproachPayment({
+    String? orderId,
+    String? parcelId,
+    required String driverProfileId,
+    required String paymentMethod,
+  }) async {
+    assert(orderId != null || parcelId != null);
+    final response = await _api.post(
+      '/payments/approach',
+      body: {
+        if (orderId != null) 'order_id': orderId,
+        if (parcelId != null) 'parcel_id': parcelId,
+        'driver_profile_id': driverProfileId,
+        'payment_method': paymentMethod,
+      },
     );
     return _dataObject(response) ?? {};
   }
@@ -1318,6 +1341,22 @@ class MarketplaceApi {
     return _dataObject(response) ?? {};
   }
 
+  Future<Map<String, dynamic>> parcelApproachQuote({
+    required String driverProfileId,
+    required double latitude,
+    required double longitude,
+  }) async {
+    final response = await _api.post(
+      '/parcels/approach-quote',
+      body: {
+        'driver_profile_id': driverProfileId,
+        'latitude': latitude,
+        'longitude': longitude,
+      },
+    );
+    return _dataObject(response) ?? {};
+  }
+
   /// Crée un colis (en attente de paiement en ligne, ou payable en espèces).
   Future<Parcel> createParcel({
     required Map<String, dynamic> pickup,
@@ -1459,6 +1498,58 @@ class MarketplaceApi {
       },
     );
     return Parcel.fromJson(_dataObject(response) ?? {});
+  }
+
+  Future<Parcel> reportParcelIncident(
+    String id, {
+    required String message,
+    String type = 'other',
+  }) async {
+    final response = await _api.post(
+      '/driver/me/parcels/$id/incident',
+      body: {'message': message, 'type': type},
+    );
+    return Parcel.fromJson(_dataObject(response) ?? {});
+  }
+
+  Future<void> confirmParcelHandover(String id, String code) async {
+    await _api.post('/driver/me/parcels/$id/handover', body: {'code': code});
+  }
+
+  Future<List<NearbyDriver>> parcelReplacementDrivers(
+    String parcelId, {
+    required double latitude,
+    required double longitude,
+    double? radiusKm,
+  }) async {
+    final response = await _api.post(
+      '/parcels/$parcelId/replacement-drivers',
+      body: {
+        'latitude': latitude,
+        'longitude': longitude,
+        if (radiusKm != null) 'radius_km': radiusKm,
+      },
+    );
+    return _driversFromPayload(response);
+  }
+
+  Future<Map<String, dynamic>> reassignParcel(
+    String parcelId, {
+    required String driverProfileId,
+    required String reason,
+    double? latitude,
+    double? longitude,
+  }) async {
+    final response = await _api.post(
+      '/parcels/$parcelId/reassign',
+      body: {
+        'driver_profile_id': driverProfileId,
+        'reason': reason,
+        if (latitude != null) 'latitude': latitude,
+        if (longitude != null) 'longitude': longitude,
+      },
+    );
+    return _dataObject(response) ?? {};
   }
 
   // ------------------------------------------------------------------

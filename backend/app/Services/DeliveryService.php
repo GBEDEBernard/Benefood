@@ -254,6 +254,34 @@ class DeliveryService
 
             $lockedDriver = DriverProfile::query()->whereKey($driver->id)->lockForUpdate()->firstOrFail();
 
+            if ($lockedDelivery->driver_profile_id !== null) {
+                if ($lockedDelivery->driver_profile_id !== $lockedDriver->id) {
+                    throw new DomainException('delivery.not_owned', 'Cette course ne vous appartient pas.', 404);
+                }
+
+                if ($lockedDelivery->status !== DeliveryStatus::Assigned) {
+                    throw new DomainException(
+                        'delivery.decline_not_allowed',
+                        'Vous ne pouvez plus décliner après avoir démarré vers la collecte. Signalez un incident.',
+                        409,
+                    );
+                }
+
+                $this->assignments->cancelBeforePickup($lockedDelivery, $lockedDriver, $reason ?? 'Livreur décliné avant collecte');
+                $this->orders->releaseDriverBeforePickup($lockedDelivery->order, $lockedDriver->user_id, $reason);
+                $this->driverSelection->markRefused($lockedDelivery->order->fresh(), $lockedDriver, $reason);
+
+                $lockedDelivery->statusHistory()->create([
+                    'from_status' => DeliveryStatus::Assigned->value,
+                    'to_status' => DeliveryStatus::Assigned->value,
+                    'actor' => 'driver',
+                    'reason' => $reason !== null && $reason !== '' ? 'Course déclinée avant collecte : '.$reason : 'Course déclinée avant collecte',
+                    'created_at' => now(),
+                ]);
+
+                return $lockedDelivery->fresh(['order.vendor', 'order.user', 'order.financials', 'vendor', 'driverProfile.user']);
+            }
+
             $this->assertOfferOpen($lockedDelivery, $lockedDriver);
 
             $this->driverSelection->markRefused($lockedDelivery->order, $lockedDriver, $reason);
@@ -492,10 +520,12 @@ class DeliveryService
             throw new DomainException('delivery.not_found', 'Commande introuvable.', 404);
         }
 
-        if (! in_array($order->status, [OrderStatus::PickedUp, OrderStatus::InDelivery], true)) {
+        $beforePickup = $order->status === OrderStatus::Assigned;
+
+        if (! $beforePickup && ! in_array($order->status, [OrderStatus::PickedUp, OrderStatus::InDelivery], true)) {
             throw new DomainException(
                 'delivery.reassignment_not_allowed',
-                'Le remplacement du livreur est possible uniquement après le ramassage et avant la livraison.',
+                'Le remplacement du livreur est possible avant le ramassage ou après le ramassage et avant la livraison.',
                 409,
             );
         }
@@ -504,6 +534,43 @@ class DeliveryService
 
         if ($delivery === null || $delivery->driverProfile === null) {
             throw new DomainException('delivery.no_driver', 'Aucun livreur à remplacer sur cette course.', 409);
+        }
+
+        if ($beforePickup) {
+            if (! in_array($delivery->status, [DeliveryStatus::Assigned, DeliveryStatus::EnRoutePickup], true)) {
+                throw new DomainException(
+                    'delivery.reassignment_not_allowed',
+                    'Le livreur ne peut plus être remplacé à cette étape.',
+                    409,
+                );
+            }
+
+            $incident = DeliveryIncident::create([
+                'delivery_id' => $delivery->id,
+                'order_id' => $order->id,
+                'reported_by_user_id' => $client->id,
+                'driver_profile_id' => $delivery->driver_profile_id,
+                'type' => 'reassignment',
+                'message' => $reason,
+                'status' => 'open',
+                'metadata' => ['phase' => 'before_pickup'],
+            ]);
+
+            $assignment = $this->assignments->reassignBeforePickup($delivery, $newDriver, $reason, $incident);
+
+            $this->notifications->notifyEvent('order.driver_reassigned', [$client], [
+                'reference' => $order->reference,
+                'order_id' => $order->id,
+                'handover_code' => '',
+            ]);
+
+            $reassignment = $delivery->reassignments()->latest()->firstOrFail();
+
+            return [
+                'assignment' => $assignment,
+                'reassignment' => $reassignment,
+                'handover_code' => '',
+            ];
         }
 
         $handoverLatitude = $latitude ?? $delivery->driverProfile->last_latitude;

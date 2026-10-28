@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Enums\PaymentPurpose;
 use App\Enums\PaymentStatus;
 use App\Models\Order;
 use App\Models\Payment;
@@ -18,6 +19,7 @@ class PaymentFactory extends Factory
     {
         return [
             'order_id' => Order::factory(),
+            'purpose' => PaymentPurpose::Order,
             'reference' => 'PAY-'.strtoupper(fake()->bothLetters(12)),
             'gateway' => 'fedapay',
             'gateway_txn_id' => null,

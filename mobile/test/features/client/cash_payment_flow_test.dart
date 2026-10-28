@@ -191,7 +191,7 @@ Future<void> _pumpCheckout(
 }
 
 Future<void> _selectDriver(WidgetTester tester) async {
-  final choose = find.text('Choisir un livreur');
+  final choose = find.text('Aucun livreur choisi');
   await tester.scrollUntilVisible(
     choose,
     200,
@@ -199,7 +199,19 @@ Future<void> _selectDriver(WidgetTester tester) async {
   );
   await tester.tap(choose);
   await tester.pumpAndSettle();
-  await tester.tap(find.text('Awa Diallo'));
+
+  // Le bouton du checkout ouvre la page « Choisir mon livreur » : carte,
+  // distances au point de collecte, puis bouton de choix par livreur.
+  expect(find.text('Choisir mon livreur'), findsOneWidget);
+  expect(find.text('du point de collecte'), findsOneWidget);
+
+  final pick = find.text('Choisir ce livreur');
+  await tester.scrollUntilVisible(
+    pick,
+    150,
+    scrollable: find.byType(Scrollable).last,
+  );
+  await tester.tap(pick);
   await tester.pumpAndSettle();
 }
 
@@ -280,10 +292,45 @@ void main() {
       await _tapCommander(tester);
 
       expect(backend.orderBodies.single['payment_method'], 'online');
+      expect(
+        backend.orderBodies.single['driver_profile_id'],
+        'd1',
+        reason: 'le livreur choisi sur la carte est transmis à la commande',
+      );
       expect(backend.paymentCreateCalls, 1);
       expect(tester.takeException(), isNull);
     },
   );
+
+  testWidgets('checkout : la commande reste possible sans choisir de livreur', (
+    tester,
+  ) async {
+    final backend = _CheckoutBackend();
+    await _pumpCheckout(tester, backend);
+
+    final noDriver = find.text('Aucun livreur choisi');
+    await tester.scrollUntilVisible(
+      noDriver,
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(noDriver, findsOneWidget);
+    expect(
+      find.text('La course sera proposée à tous les livreurs disponibles.'),
+      findsOneWidget,
+    );
+
+    await _tapCommander(tester);
+
+    expect(backend.orderBodies, hasLength(1));
+    expect(
+      backend.orderBodies.single.containsKey('driver_profile_id'),
+      isFalse,
+      reason: 'sans livreur, la commande ne cible personne',
+    );
+    expect(backend.paymentCreateCalls, 1);
+    expect(tester.takeException(), isNull);
+  });
 
   testWidgets(
     'checkout : « Ajouter une nouvelle adresse » ouvre le formulaire et '

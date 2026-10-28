@@ -91,6 +91,80 @@ String formatDate(String? iso, {String fallback = ''}) {
   }
 }
 
+const _weekdayLabels = ['lun.', 'mar.', 'mer.', 'jeu.', 'ven.', 'sam.', 'dim.'];
+
+const _monthLabels = [
+  'janv.',
+  'févr.',
+  'mars',
+  'avr.',
+  'mai',
+  'juin',
+  'juil.',
+  'août',
+  'sept.',
+  'oct.',
+  'nov.',
+  'déc.',
+];
+
+/// Jour court et lisible : "Aujourd'hui" ou "lun. 27 oct.".
+String formatDayLabel(DateTime date, {DateTime? now}) {
+  final local = date.toLocal();
+  final reference = (now ?? DateTime.now()).toLocal();
+  final isToday =
+      local.year == reference.year &&
+      local.month == reference.month &&
+      local.day == reference.day;
+
+  if (isToday) {
+    return 'Aujourd’hui';
+  }
+
+  return '${_weekdayLabels[local.weekday - 1]} ${local.day} ${_monthLabels[local.month - 1]}';
+}
+
+/// Heure seule (HH:MM) d'un instant ISO : "14:35".
+String formatTime(String? iso, {String fallback = '--:--'}) {
+  if (iso == null || iso.isEmpty) {
+    return fallback;
+  }
+  try {
+    final date = DateTime.parse(iso).toLocal();
+    return '${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+  } catch (_) {
+    return fallback;
+  }
+}
+
+/// Écart relatif à maintenant, en clair : "à l'instant", "il y a 12 min",
+/// "il y a 2 h", "il y a 3 j".
+String formatAgo(String? iso, {DateTime? now}) {
+  if (iso == null || iso.isEmpty) {
+    return '';
+  }
+  DateTime parsed;
+  try {
+    parsed = DateTime.parse(iso).toLocal();
+  } catch (_) {
+    return '';
+  }
+  final reference = now ?? DateTime.now();
+  final seconds = reference.difference(parsed).inSeconds;
+
+  // Une horloge serveur légèrement en avance ne doit pas afficher de futur.
+  if (seconds < 60) {
+    return 'à l’instant';
+  }
+  if (seconds < 3600) {
+    return 'il y a ${seconds ~/ 60} min';
+  }
+  if (seconds < 86400) {
+    return 'il y a ${seconds ~/ 3600} h';
+  }
+  return 'il y a ${seconds ~/ 86400} j';
+}
+
 String formatDateTime(String? iso, {String fallback = ''}) {
   if (iso == null || iso.isEmpty) {
     return fallback;

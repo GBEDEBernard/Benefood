@@ -164,11 +164,13 @@ class OrderController extends Controller
             'vendor',
             'items.product.images',
             'payment',
+            'approachPayment',
             'financials',
             'statusHistory',
             'refunds',
             'review',
             'delivery.driverProfile.user',
+            'delivery.incidents',
             'driverAssignmentRequest.driverProfile.user',
         ]);
 

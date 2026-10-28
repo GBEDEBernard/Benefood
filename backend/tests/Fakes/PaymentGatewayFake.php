@@ -67,6 +67,13 @@ final class PaymentGatewayFake implements PaymentGateway
     }
 
     /** @return array<string, mixed> */
+    public function createApproachPayment(Order|Parcel $assignable, Payment $payment): array
+    {
+        return $this->collectResult ?? $this->collectPayload((int) $payment->amount) + [
+            'meta' => ['payment_id' => $payment->id],
+        ];
+    }
+
     public function createFloatTopUp(DriverProfile $driver, Payment $payment): array
     {
         return $this->floatTopUp ?? $this->collectPayload((int) $payment->amount);

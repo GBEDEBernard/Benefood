@@ -19,6 +19,12 @@ class Parcel {
     this.distanceKm,
     this.deliveryFee = 0,
     this.creationFee = 0,
+    this.approachFee = 0,
+    this.approachDistanceKm,
+    this.approachPaymentMethod,
+    this.approachPaymentStatus,
+    this.approachDriverId,
+    this.approachPayment,
     this.totalAmount = 0,
     this.commissionRate = 20,
     this.commissionAmount = 0,
@@ -30,6 +36,10 @@ class Parcel {
     this.driver,
     this.driverRequest,
     this.position,
+    this.openIncident,
+    this.handoverRequired = false,
+    this.handoverCode,
+    this.reassignmentCount = 0,
     this.payment,
     this.statusHistory = const [],
     this.paymentDeadlineAt,
@@ -56,7 +66,15 @@ class Parcel {
   /// Frais fixes payés par le créateur du colis, en plus de la livraison.
   final int creationFee;
 
-  /// Total payé par le créateur (livraison + création).
+  /// Frais d'approche du livreur choisi (au-delà de 3 km).
+  final int approachFee;
+  final double? approachDistanceKm;
+  final String? approachPaymentMethod;
+  final String? approachPaymentStatus;
+  final String? approachDriverId;
+  final ParcelPayment? approachPayment;
+
+  /// Total payé par le créateur (livraison + création + approche).
   final int totalAmount;
   final int commissionRate;
   final int commissionAmount;
@@ -76,6 +94,12 @@ class Parcel {
 
   /// Dernière position partagée par le livreur pendant la course.
   final ParcelPosition? position;
+  final ParcelIncident? openIncident;
+
+  /// Une remise de colis au remplaçant attend le code de l'expéditeur.
+  final bool handoverRequired;
+  final String? handoverCode;
+  final int reassignmentCount;
   final ParcelPayment? payment;
   final List<ParcelStatusStep> statusHistory;
   final String? paymentDeadlineAt;
@@ -108,6 +132,11 @@ class Parcel {
   /// Le colis a été payé et attend encore un livreur (offre disponible).
   bool get isAvailable => status == 'paid';
 
+  bool get approachIsPaid =>
+      approachPaymentStatus == 'confirmed' || approachPaymentStatus == 'paid';
+
+  bool get hasApproachFee => approachFee > 0;
+
   /// Un livreur proche peut encore être choisi après le paiement.
   bool get canChooseDriver =>
       status == 'paid' &&
@@ -122,6 +151,15 @@ class Parcel {
   bool get canPickup => status == 'assigned' || status == 'en_route_pickup';
   bool get canStart => status == 'picked_up';
   bool get canDeliver => status == 'in_delivery';
+
+  bool get hasOpenIncident => openIncident != null;
+
+  /// Remplacement possible après ramassage, sur incident ouvert.
+  bool get canReassign =>
+      (status == 'picked_up' || status == 'in_delivery') &&
+      driver != null &&
+      hasOpenIncident &&
+      !handoverRequired;
 
   /// Spécifique à Devis colis (avant création) : aucun id assigné.
   bool get isQuote => id.isEmpty;
@@ -138,6 +176,7 @@ class Parcel {
     final rawSender = json['sender'];
     final rawDriver = json['driver'];
     final rawPosition = json['position'];
+    final rawIncident = json['open_incident'];
     final rawPayment = json['payment'];
     final rawHistory = json['status_history'];
 
@@ -160,9 +199,27 @@ class Parcel {
       distanceKm: _d(json['distance_km']),
       deliveryFee: _i(json['delivery_fee']),
       creationFee: _i(json['creation_fee']),
+      approachFee: _i(json['approach_fee']),
+      approachDistanceKm: _d(json['approach_distance_km']),
+      approachPaymentMethod: json['approach_payment_method'] is String
+          ? json['approach_payment_method'] as String
+          : null,
+      approachPaymentStatus: json['approach_payment_status'] is String
+          ? json['approach_payment_status'] as String
+          : null,
+      approachDriverId: json['approach_driver_id'] is String
+          ? json['approach_driver_id'] as String
+          : null,
+      approachPayment: json['approach_payment'] is Map<String, dynamic>
+          ? ParcelPayment.fromJson(
+              json['approach_payment'] as Map<String, dynamic>,
+            )
+          : null,
       totalAmount: json['total_amount'] != null
           ? _i(json['total_amount'])
-          : _i(json['delivery_fee']) + _i(json['creation_fee']),
+          : _i(json['delivery_fee']) +
+                _i(json['creation_fee']) +
+                _i(json['approach_fee']),
       commissionRate: _i(json['commission_rate'], 20),
       commissionAmount: _i(json['commission_amount']),
       partnerAmount: _i(json['partner_amount']),
@@ -187,6 +244,14 @@ class Parcel {
       position: rawPosition is Map<String, dynamic>
           ? ParcelPosition.fromJson(rawPosition)
           : null,
+      openIncident: rawIncident is Map<String, dynamic>
+          ? ParcelIncident.fromJson(rawIncident)
+          : null,
+      handoverRequired: json['handover_required'] == true,
+      handoverCode: json['handover_code'] is String
+          ? json['handover_code'] as String
+          : null,
+      reassignmentCount: _i(json['reassignment_count']),
       payment: rawPayment is Map<String, dynamic>
           ? ParcelPayment.fromJson(rawPayment)
           : null,
@@ -334,6 +399,30 @@ class ParcelDriver {
         : null,
     vehicle: json['vehicle'] is String ? json['vehicle'] as String : null,
     rating: _d(json['rating']),
+  );
+}
+
+/// Incident signalé pendant un colis (livreur ou client).
+class ParcelIncident {
+  const ParcelIncident({
+    required this.id,
+    required this.message,
+    this.type,
+    this.createdAt,
+  });
+
+  final String id;
+  final String message;
+  final String? type;
+  final String? createdAt;
+
+  factory ParcelIncident.fromJson(Map<String, dynamic> json) => ParcelIncident(
+    id: _s(json['id']),
+    message: _s(json['message']),
+    type: json['type'] is String ? json['type'] as String : null,
+    createdAt: json['created_at'] is String
+        ? json['created_at'] as String
+        : null,
   );
 }
 

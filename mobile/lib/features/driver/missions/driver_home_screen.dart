@@ -53,6 +53,11 @@ class DriverHomeScreenState extends State<DriverHomeScreen>
   String? _error;
   late final AnimationController _pulseController;
 
+  /// Horloge de la page : l'heure courante et le temps écoulé depuis chaque
+  /// commande restent justes sans que le livreur ait à rafraîchir.
+  DateTime _now = DateTime.now();
+  Timer? _clockTimer;
+
   @override
   void initState() {
     super.initState();
@@ -60,6 +65,11 @@ class DriverHomeScreenState extends State<DriverHomeScreen>
       duration: const Duration(seconds: 2),
       vsync: this,
     );
+    _clockTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+      if (mounted) {
+        setState(() => _now = DateTime.now());
+      }
+    });
     WidgetsBinding.instance.addObserver(this);
     _load();
   }
@@ -108,6 +118,7 @@ class DriverHomeScreenState extends State<DriverHomeScreen>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _clockTimer?.cancel();
     DriverPresenceService.pauseHeartbeat();
     _pulseController.dispose();
     super.dispose();
@@ -335,6 +346,12 @@ class DriverHomeScreenState extends State<DriverHomeScreen>
                   ],
                 ),
               ),
+              const SizedBox(width: 10),
+              _ClockPill(
+                time: formatTime(_now.toIso8601String()),
+                dateLabel: formatDayLabel(_now),
+              ),
+              const SizedBox(width: 10),
               Container(
                 width: 46,
                 height: 46,
@@ -423,6 +440,7 @@ class DriverHomeScreenState extends State<DriverHomeScreen>
               ),
               child: _MissionCard(
                 mission: mission,
+                now: _now,
                 delay: Duration(milliseconds: 80 * index),
                 onTap: () => _openMission(mission),
               ),
@@ -610,6 +628,61 @@ class _StatusPill extends StatelessWidget {
   }
 }
 
+/// Heure courante du téléphone, affichée en haut de la page missions.
+class _ClockPill extends StatelessWidget {
+  const _ClockPill({required this.time, required this.dateLabel});
+
+  final String time;
+  final String dateLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
+      decoration: BoxDecoration(
+        color: AppColors.orangeLight,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.orange.withValues(alpha: 0.25)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                Icons.access_time_rounded,
+                size: 14,
+                color: AppColors.orange,
+              ),
+              const SizedBox(width: 5),
+              Text(
+                time,
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.text,
+                  letterSpacing: -0.2,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 1),
+          Text(
+            dateLabel,
+            style: const TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textSecondary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _PendingBalanceStrip extends StatelessWidget {
   const _PendingBalanceStrip({required this.amount});
 
@@ -725,11 +798,15 @@ class _MissionCard extends StatefulWidget {
   const _MissionCard({
     required this.mission,
     required this.onTap,
+    this.now,
     this.delay = Duration.zero,
   });
 
   final DriverMission mission;
   final VoidCallback onTap;
+
+  /// Horloge de la page : sert au temps écoulé depuis la commande.
+  final DateTime? now;
   final Duration delay;
 
   @override
@@ -922,6 +999,18 @@ class _MissionCardState extends State<_MissionCard> {
                       _MetaChip(
                         icon: Icons.shopping_bag_outlined,
                         label: '${mission.itemCount} art.',
+                      ),
+                    if (mission.placedAt != null)
+                      _MetaChip(
+                        icon: Icons.history_toggle_off,
+                        label: mission.isParcel
+                            ? 'Créé à ${formatTime(mission.placedAt)}'
+                            : 'Commandé à ${formatTime(mission.placedAt)}',
+                      ),
+                    if (mission.placedAt != null)
+                      _MetaChip(
+                        icon: Icons.hourglass_bottom_outlined,
+                        label: formatAgo(mission.placedAt, now: widget.now),
                       ),
                   ],
                 ),

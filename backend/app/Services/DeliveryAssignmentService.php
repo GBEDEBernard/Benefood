@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\DeliveryStatus;
 use App\Exceptions\DomainException;
 use App\Models\Delivery;
 use App\Models\DeliveryAssignment;
@@ -86,6 +87,163 @@ class DeliveryAssignmentService
             ]);
 
             $this->finance->creditDriverForDelivery($order, $driver);
+
+            return $assignment->fresh();
+        });
+    }
+
+    /**
+     * Libère une course acceptée avant tout ramassage : le segment est annulé
+     * et le séquestre du livreur est contre-passé. Aucun frais n'est dû.
+     */
+    public function cancelBeforePickup(Delivery $delivery, DriverProfile $driver, string $reason): void
+    {
+        $delivery->loadMissing('order', 'assignments');
+
+        $assignment = $delivery->assignments->first(
+            fn (DeliveryAssignment $item) => $item->driver_profile_id === $driver->id
+                && $item->status === DeliveryAssignment::STATUS_ACTIVE,
+        );
+
+        DB::transaction(function () use ($delivery, $driver, $reason, $assignment): void {
+            if ($assignment !== null) {
+                $assignment->update([
+                    'status' => DeliveryAssignment::STATUS_CANCELLED,
+                    'completed_at' => now(),
+                    'notes' => $reason,
+                ]);
+
+                if (! $delivery->order?->payment_method?->isCash()) {
+                    $this->finance->debitPending(
+                        $this->finance->walletFor($driver),
+                        (int) $assignment->gross_amount,
+                        'order_driver_release',
+                        $assignment->id,
+                        'Course libérée avant collecte — '.$delivery->order?->reference,
+                    );
+                }
+            }
+
+            $delivery->update([
+                'driver_profile_id' => null,
+                'targeted_driver_profile_id' => null,
+                'status' => DeliveryStatus::Assigned->value,
+                'assigned_at' => null,
+            ]);
+        });
+    }
+
+    /**
+     * Remplace un livreur avant tout ramassage (incident sur le trajet vers la
+     * boutique). Le nouveau segment repart du point de collecte, sans code de
+     * remise : le colis n'a pas encore changé de mains.
+     */
+    public function reassignBeforePickup(
+        Delivery $delivery,
+        DriverProfile $newDriver,
+        string $reason,
+        ?DeliveryIncident $incident = null,
+    ): DeliveryAssignment {
+        $delivery->loadMissing('order.financials', 'assignments', 'driverProfile');
+
+        if ($delivery->reassignment_count >= 2) {
+            throw new DomainException(
+                'delivery.reassignment_limit',
+                'Cette course a déjà été réassignée deux fois. La porteuse doit intervenir.',
+                409,
+            );
+        }
+
+        $oldDriver = $delivery->driverProfile;
+
+        if ($oldDriver === null) {
+            throw new DomainException('delivery.no_driver', 'Aucun livreur à remplacer sur cette course.', 409);
+        }
+
+        if ($oldDriver->id === $newDriver->id) {
+            throw new DomainException('delivery.same_driver', 'Choisissez un autre livreur.', 422);
+        }
+
+        $order = $delivery->order;
+
+        if ($order?->payment_method?->isCash() && ! $this->cash->hasCoverage($newDriver, $order)) {
+            throw new DomainException(
+                'cash.insufficient_float',
+                'Flottant insuffisant pour reprendre cette commande payée en espèces ('.(int) $order->total.' F requis).',
+                409,
+            );
+        }
+
+        $pickupLatitude = $delivery->pickup_latitude;
+        $pickupLongitude = $delivery->pickup_longitude;
+
+        if ($pickupLatitude === null || $pickupLongitude === null) {
+            throw new DomainException(
+                'delivery.pickup_location_required',
+                'La position du point de collecte est indisponible.',
+                422,
+            );
+        }
+
+        $this->selection->assertSelectableAt($newDriver, (float) $pickupLatitude, (float) $pickupLongitude);
+
+        return DB::transaction(function () use ($delivery, $newDriver, $reason, $incident, $oldDriver, $pickupLatitude, $pickupLongitude): DeliveryAssignment {
+            $current = $delivery->assignments
+                ->first(fn (DeliveryAssignment $item) => $item->driver_profile_id === $oldDriver->id
+                    && $item->status === DeliveryAssignment::STATUS_ACTIVE);
+
+            if ($current !== null) {
+                $current->update([
+                    'status' => DeliveryAssignment::STATUS_CANCELLED,
+                    'completed_at' => now(),
+                    'notes' => $reason,
+                ]);
+
+                if (! $delivery->order?->payment_method?->isCash()) {
+                    $this->finance->debitPending(
+                        $this->finance->walletFor($oldDriver),
+                        (int) $current->gross_amount,
+                        'order_driver_release',
+                        $current->id,
+                        'Course réassignée avant collecte — '.$delivery->order?->reference,
+                    );
+                }
+            }
+
+            $delivery->unsetRelation('assignments');
+            $delivery->update([
+                'driver_profile_id' => $newDriver->id,
+                'targeted_driver_profile_id' => null,
+                'status' => DeliveryStatus::Assigned->value,
+                'assigned_at' => now(),
+                'reassignment_count' => (int) $delivery->reassignment_count + 1,
+            ]);
+
+            $assignment = $this->start($delivery->fresh('assignments'), $newDriver, $reason);
+
+            DeliveryReassignmentRequest::create([
+                'delivery_id' => $delivery->id,
+                'order_id' => $delivery->order_id,
+                'incident_id' => $incident?->id,
+                'client_id' => $delivery->order?->user_id,
+                'old_driver_profile_id' => $oldDriver->id,
+                'new_driver_profile_id' => $newDriver->id,
+                'status' => 'accepted',
+                'reason' => $reason,
+                'handover_latitude' => $pickupLatitude,
+                'handover_longitude' => $pickupLongitude,
+                'responded_at' => now(),
+            ]);
+
+            $newDriver->loadMissing('user');
+
+            if ($newDriver->user !== null) {
+                $this->notifications->notifyEvent('delivery.reassigned', [$newDriver->user], [
+                    'reference' => $delivery->order?->reference,
+                    'order_id' => $delivery->order_id,
+                    'delivery_id' => $delivery->id,
+                ]);
+            }
 
             return $assignment->fresh();
         });

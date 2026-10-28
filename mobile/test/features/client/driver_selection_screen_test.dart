@@ -8,6 +8,7 @@ import 'package:http/testing.dart';
 import 'package:beninfood/core/data/marketplace_api.dart';
 import 'package:beninfood/core/http/api_client.dart';
 import 'package:beninfood/features/client/drivers/driver_selection_screen.dart';
+import 'package:beninfood/shared/models/driver_selection.dart';
 
 class _NoopTokenStore implements TokenStore {
   @override
@@ -189,6 +190,231 @@ void main() {
     await tester.pumpWidget(const MaterialApp(home: SizedBox()));
   });
 
+  testWidgets(
+    'mode checkout : carte et distances avant paiement, retourne le livreur choisi',
+    (tester) async {
+      final api = _api(
+        MockClient((request) async {
+          if (request.url.path.endsWith('/orders/checkout-drivers')) {
+            return http.Response(
+              jsonEncode({
+                'data': _page(
+                  drivers: [
+                    _driver(
+                      id: 'd1',
+                      name: 'Bernard A.',
+                      distanceKm: 1.5,
+                      etaToPickupSeconds: 360,
+                      toClientKm: 2.8,
+                      toClientSeconds: 660,
+                    ),
+                  ],
+                ),
+              }),
+              200,
+              headers: {'content-type': 'application/json'},
+            );
+          }
+          return http.Response('{}', 404);
+        }),
+      );
+
+      tester.view.physicalSize = const Size(420, 2600);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      CheckoutDriverChoice? chosen;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Builder(
+            builder: (context) => Scaffold(
+              body: Center(
+                child: TextButton(
+                  onPressed: () async {
+                    chosen = await showCheckoutDriverSelection(
+                      context,
+                      api,
+                      addressId: 'a1',
+                      addressLabel: 'Maison',
+                    );
+                  },
+                  child: const Text('ouvrir'),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.tap(find.text('ouvrir'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Choisir mon livreur'), findsOneWidget);
+      expect(find.text('Livraison à Maison'), findsOneWidget);
+      expect(find.text('Bernard A.'), findsOneWidget);
+      expect(find.text('du point de collecte'), findsOneWidget);
+      expect(find.text('Choisir ce livreur'), findsOneWidget);
+      expect(
+        find.text('Demander ce livreur'),
+        findsNothing,
+        reason: 'la demande au livreur reste réservée à l’après-paiement',
+      );
+      expect(find.text('Assigner automatiquement'), findsNothing);
+
+      await tester.tap(find.text('Choisir ce livreur'));
+      await tester.pumpAndSettle();
+
+      expect(chosen?.driver?.id, 'd1');
+      expect(find.text('Choisir mon livreur'), findsNothing);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('après paiement : retourne le livreur sans envoyer la demande', (
+    tester,
+  ) async {
+    final api = _api(
+      MockClient((request) async {
+        if (request.url.path.endsWith('/orders/ord-1/nearby-drivers')) {
+          return http.Response(
+            jsonEncode({
+              'data': _page(
+                drivers: [
+                  _driver(
+                    id: 'd1',
+                    name: 'Bernard A.',
+                    distanceKm: 1.5,
+                    etaToPickupSeconds: 360,
+                    toClientKm: 2.8,
+                    toClientSeconds: 660,
+                  ),
+                ],
+              ),
+            }),
+            200,
+            headers: {'content-type': 'application/json'},
+          );
+        }
+        return http.Response('{}', 404);
+      }),
+    );
+
+    tester.view.physicalSize = const Size(420, 2600);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    NearbyDriver? chosen;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Builder(
+          builder: (context) => Scaffold(
+            body: Center(
+              child: TextButton(
+                onPressed: () async {
+                  chosen = await showApproachDriverSelection(
+                    context,
+                    api,
+                    targetId: 'ord-1',
+                    reference: 'BEN-261023-VIQABP',
+                  );
+                },
+                child: const Text('ouvrir'),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('ouvrir'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Choisir ce livreur'), findsOneWidget);
+    expect(find.text('Demander ce livreur'), findsNothing);
+    expect(find.text('Assigner automatiquement'), findsNothing);
+    expect(find.text('Continuer sans livreur'), findsNothing);
+
+    await tester.tap(find.text('Choisir ce livreur'));
+    await tester.pumpAndSettle();
+
+    expect(chosen?.id, 'd1');
+    expect(find.text('Choisir mon livreur'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('mode checkout : permet de continuer sans livreur', (
+    tester,
+  ) async {
+    final api = _api(
+      MockClient((request) async {
+        if (request.url.path.endsWith('/orders/checkout-drivers')) {
+          return http.Response(
+            jsonEncode({
+              'data': _page(
+                drivers: [
+                  _driver(
+                    id: 'd1',
+                    name: 'Bernard A.',
+                    distanceKm: 1.5,
+                    etaToPickupSeconds: 360,
+                    toClientKm: 2.8,
+                    toClientSeconds: 660,
+                  ),
+                ],
+              ),
+            }),
+            200,
+            headers: {'content-type': 'application/json'},
+          );
+        }
+        return http.Response('{}', 404);
+      }),
+    );
+
+    tester.view.physicalSize = const Size(420, 2600);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    CheckoutDriverChoice? chosen;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Builder(
+          builder: (context) => Scaffold(
+            body: Center(
+              child: TextButton(
+                onPressed: () async {
+                  chosen = await showCheckoutDriverSelection(
+                    context,
+                    api,
+                    addressId: 'a1',
+                    addressLabel: 'Maison',
+                  );
+                },
+                child: const Text('ouvrir'),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('ouvrir'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Continuer sans livreur'), findsOneWidget);
+    await tester.tap(find.text('Continuer sans livreur'));
+    await tester.pumpAndSettle();
+
+    expect(chosen, isNotNull);
+    expect(chosen!.hasDriver, isFalse);
+    expect(chosen!.driver, isNull);
+    expect(find.text('Choisir mon livreur'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('explique un manque de positions GPS au lieu d’un écran vide', (
     tester,
   ) async {
@@ -219,10 +445,16 @@ void main() {
     expect(tester.takeException(), isNull);
 
     expect(find.text('Positions GPS en cours de mise à jour'), findsOneWidget);
-    expect(find.textContaining('position GPS n’est plus à jour'), findsOneWidget);
+    expect(
+      find.textContaining('position GPS n’est plus à jour'),
+      findsOneWidget,
+    );
     expect(find.text('Réessayer'), findsOneWidget);
     expect(find.text('Assigner automatiquement'), findsOneWidget);
-    expect(find.text('2 en ligne · 2 position(s) à rafraîchir'), findsOneWidget);
+    expect(
+      find.text('2 en ligne · 2 position(s) à rafraîchir'),
+      findsOneWidget,
+    );
 
     await tester.pumpWidget(const MaterialApp(home: SizedBox()));
   });

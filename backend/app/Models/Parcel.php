@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\ParcelStatus;
 use App\Enums\PaymentMethod;
+use App\Enums\PaymentPurpose;
 use App\Enums\PaymentStatus;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
@@ -35,6 +36,14 @@ class Parcel extends Model
             'distance_km' => 'decimal:2',
             'delivery_fee' => 'integer',
             'creation_fee' => 'integer',
+            'approach_fee' => 'integer',
+            'approach_distance_km' => 'decimal:3',
+            'approach_pricing_snapshot' => 'array',
+            'approach_commission_amount' => 'integer',
+            'approach_partner_amount' => 'integer',
+            'approach_payment_method' => PaymentMethod::class,
+            'approach_payment_status' => PaymentStatus::class,
+            'approach_paid_at' => 'datetime',
             'commission_rate' => 'integer',
             'commission_amount' => 'integer',
             'partner_amount' => 'integer',
@@ -46,6 +55,7 @@ class Parcel extends Model
             'payment_deadline_at' => 'datetime',
             'assigned_at' => 'datetime',
             'picked_up_at' => 'datetime',
+            'reassignment_count' => 'integer',
             'delivered_at' => 'datetime',
             'cancelled_at' => 'datetime',
         ];
@@ -68,12 +78,33 @@ class Parcel extends Model
 
     public function payment(): HasOne
     {
-        return $this->hasOne(Payment::class);
+        return $this->hasOne(Payment::class)
+            ->where(fn ($query) => $query->where('purpose', PaymentPurpose::Parcel->value)->orWhereNull('purpose'));
+    }
+
+    public function approachPayment(): HasOne
+    {
+        return $this->hasOne(Payment::class)->where('purpose', PaymentPurpose::ParcelApproach->value);
     }
 
     public function statusHistory(): HasMany
     {
         return $this->hasMany(ParcelStatusHistory::class);
+    }
+
+    public function assignments(): HasMany
+    {
+        return $this->hasMany(ParcelAssignment::class);
+    }
+
+    public function incidents(): HasMany
+    {
+        return $this->hasMany(ParcelIncident::class)->latest();
+    }
+
+    public function reassignments(): HasMany
+    {
+        return $this->hasMany(ParcelReassignmentRequest::class)->latest();
     }
 
     /** Dernière demande explicite adressée à un livreur proche. */
@@ -82,15 +113,41 @@ class Parcel extends Model
         return $this->morphOne(DriverAssignmentRequest::class, 'assignable')->latestOfMany('created_at');
     }
 
-    /** Montant total payé par l'expéditeur (livraison + création). */
+    /** Montant total payé par l'expéditeur (livraison + création + approche). */
     public function totalAmount(): int
     {
-        return (int) $this->delivery_fee + (int) $this->creation_fee;
+        return (int) $this->delivery_fee + (int) $this->creation_fee + (int) $this->approach_fee;
+    }
+
+    public function hasApproachFee(): bool
+    {
+        return (int) $this->approach_fee > 0;
+    }
+
+    public function approachIsPaid(): bool
+    {
+        return $this->approach_payment_status === PaymentStatus::Confirmed;
+    }
+
+    /** Montant cash à encaisser par le livreur à la livraison. */
+    public function cashAmountDue(): int
+    {
+        return $this->totalAmount();
     }
 
     public function isPaid(): bool
     {
         return $this->payment_status === PaymentStatus::Confirmed;
+    }
+
+    public function isCancelled(): bool
+    {
+        return $this->status === ParcelStatus::Cancelled;
+    }
+
+    public function isDelivered(): bool
+    {
+        return $this->status === ParcelStatus::Delivered;
     }
 
     public function isCash(): bool

@@ -156,6 +156,13 @@ class CashService
                 'auto_confirm_at' => null,
             ]);
 
+            if ($order->hasApproachFee()) {
+                $order->update([
+                    'approach_payment_status' => PaymentStatus::Confirmed->value,
+                    'approach_paid_at' => now(),
+                ]);
+            }
+
             $order->statusHistory()->create([
                 'from_status' => OrderStatus::Delivered->value,
                 'to_status' => OrderStatus::Delivered->value,

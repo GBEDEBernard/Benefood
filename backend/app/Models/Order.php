@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\OrderStatus;
 use App\Enums\PaymentMethod;
+use App\Enums\PaymentPurpose;
 use App\Enums\PaymentStatus;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -39,6 +40,9 @@ class Order extends Model
             'address_snapshot' => 'array',
             'delivery_rate_snapshot' => 'array',
             'approach_pricing_snapshot' => 'array',
+            'approach_payment_method' => PaymentMethod::class,
+            'approach_payment_status' => PaymentStatus::class,
+            'approach_paid_at' => 'datetime',
             'payment_deadline_at' => 'datetime',
             'vendor_acceptance_deadline_at' => 'datetime',
             'accepted_at' => 'datetime',
@@ -91,7 +95,18 @@ class Order extends Model
 
     public function payment(): HasOne
     {
-        return $this->hasOne(Payment::class);
+        return $this->hasOne(Payment::class)
+            ->where(fn ($query) => $query->where('purpose', PaymentPurpose::Order->value)->orWhereNull('purpose'));
+    }
+
+    public function approachPayment(): HasOne
+    {
+        return $this->hasOne(Payment::class)->where('purpose', PaymentPurpose::OrderApproach->value);
+    }
+
+    public function approachDriverProfile(): BelongsTo
+    {
+        return $this->belongsTo(DriverProfile::class, 'approach_driver_profile_id');
     }
 
     public function financials(): HasOne
@@ -144,5 +159,21 @@ class Order extends Model
     public function isPaid(): bool
     {
         return $this->payment_status === PaymentStatus::Confirmed;
+    }
+
+    public function hasApproachFee(): bool
+    {
+        return (int) $this->approach_fee > 0;
+    }
+
+    public function approachIsPaid(): bool
+    {
+        return $this->approach_payment_status === PaymentStatus::Confirmed;
+    }
+
+    /** Montant total que le livreur doit encaisser en espèces. */
+    public function cashAmountDue(): int
+    {
+        return (int) $this->total;
     }
 }

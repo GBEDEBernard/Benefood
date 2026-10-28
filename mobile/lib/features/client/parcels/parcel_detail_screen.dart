@@ -21,6 +21,7 @@ import '../../../shared/widgets/app_button.dart';
 import '../../../shared/widgets/app_map.dart';
 import '../../../shared/widgets/app_network_image.dart';
 import '../../../shared/widgets/call_button.dart';
+import '../../../shared/widgets/driver_picker_sheet.dart';
 import '../drivers/driver_selection_screen.dart';
 import '../../../shared/widgets/beninfood_header.dart';
 import '../../../shared/widgets/feedback_widgets.dart';
@@ -193,24 +194,305 @@ class _ParcelDetailScreenState extends State<ParcelDetailScreen> {
     if (parcel == null) {
       return;
     }
-    final accepted = await showDriverSelectionPage(
+    final driver = await showApproachDriverSelection(
       context,
       widget.marketplace,
       targetId: parcel.id,
       reference: parcel.reference,
       isParcel: true,
-      onChanged: _refreshSilently,
+      initialDriverId: parcel.approachDriverId,
     );
-    if (!mounted) {
+    if (driver == null || !mounted) {
       return;
     }
-    await _refreshSilently();
-    if (!mounted) {
+
+    final fee = driver.approachFee ?? 0;
+    final hasExistingApproach =
+        parcel.approachDriverId != null &&
+        parcel.approachPaymentStatus != null &&
+        parcel.approachPaymentStatus != 'failed';
+    final method = hasExistingApproach
+        ? (parcel.approachPaymentMethod ?? 'online')
+        : await _askApproachPaymentMethod(driver, fee);
+    if (method == null || !mounted) {
       return;
     }
-    if (accepted == true) {
-      showToast(context, 'Votre livreur est en route.');
+
+    setState(() => _actionId = 'approach');
+    try {
+      final payload = await widget.marketplace.createApproachPayment(
+        parcelId: parcel.id,
+        driverProfileId: driver.id,
+        paymentMethod: method,
+      );
+      if (!mounted) {
+        return;
+      }
+
+      final checkoutUrl = payload['checkout_url'];
+      if (method == 'online' &&
+          checkoutUrl is String &&
+          checkoutUrl.isNotEmpty) {
+        final paid = await Navigator.of(context).push<bool>(
+          MaterialPageRoute<bool>(
+            builder: (_) => FedaPayCheckoutScreen(
+              marketplace: widget.marketplace,
+              checkoutUrl: checkoutUrl,
+              transactionId: payload['transaction_id']?.toString(),
+            ),
+          ),
+        );
+        if (!mounted) {
+          return;
+        }
+        await _refreshSilently();
+        if (!mounted) {
+          return;
+        }
+        showToast(
+          context,
+          paid == true
+              ? 'Frais d\'approche réglés. Votre livreur est sollicité.'
+              : 'Paiement non confirmé. Vous pouvez réessayer.',
+          isError: paid != true,
+        );
+        return;
+      }
+
+      await _refreshSilently();
+      if (!mounted) {
+        return;
+      }
+      showToast(
+        context,
+        method == 'cash'
+            ? 'Frais d\'approche à régler en espèces à la livraison.'
+            : 'Livreur choisi. Votre demande lui a été envoyée.',
+      );
+    } on ApiException catch (e) {
+      if (mounted) {
+        showToast(context, e.message, isError: true);
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _actionId = null);
+      }
     }
+  }
+
+  Future<void> _reassignParcel() async {
+    final parcel = _parcel;
+    if (parcel == null) {
+      return;
+    }
+    final point = parcel.position?.point ?? parcel.dropoffPoint;
+    if (point == null) {
+      showToast(
+        context,
+        'Position de remise indisponible. Réessayez lorsque le suivi GPS est actif.',
+        isError: true,
+      );
+      return;
+    }
+
+    final reason = await _askReassignReason();
+    if (reason == null || !mounted) {
+      return;
+    }
+
+    setState(() => _actionId = 'reassign');
+    try {
+      final drivers = await widget.marketplace.parcelReplacementDrivers(
+        parcel.id,
+        latitude: point.latitude,
+        longitude: point.longitude,
+      );
+      if (!mounted) {
+        return;
+      }
+      if (drivers.isEmpty) {
+        showToast(
+          context,
+          'Aucun livreur disponible autour du point de remise.',
+          isError: true,
+        );
+        return;
+      }
+
+      setState(() => _actionId = null);
+      final choice = await showDriverPickerSheet(
+        context,
+        drivers: drivers,
+        title: 'Choisir le nouveau livreur',
+        subtitle:
+            'Le trajet déjà effectué est partagé au prorata. Aucun frais supplémentaire ne vous sera facturé.',
+      );
+      if (choice == null || !mounted) {
+        return;
+      }
+
+      setState(() => _actionId = 'reassign');
+      final result = await widget.marketplace.reassignParcel(
+        parcel.id,
+        driverProfileId: choice.id,
+        reason: reason,
+        latitude: parcel.position?.latitude,
+        longitude: parcel.position?.longitude,
+      );
+      if (!mounted) {
+        return;
+      }
+      await _refreshSilently();
+      if (!mounted) {
+        return;
+      }
+      final code = result['handover_code']?.toString();
+      if (code != null && code.isNotEmpty) {
+        await showDialog<void>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Nouveau livreur affecté'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Code de remise à communiquer au nouveau livreur :'),
+                const SizedBox(height: 12),
+                SelectableText(
+                  code,
+                  style: const TextStyle(
+                    fontSize: 26,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 4,
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              FilledButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Compris'),
+              ),
+            ],
+          ),
+        );
+      }
+      if (mounted) {
+        showToast(context, '${choice.displayName} reprend la livraison.');
+      }
+    } on ApiException catch (e) {
+      if (mounted) {
+        showToast(context, e.message, isError: true);
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _actionId = null);
+      }
+    }
+  }
+
+  Future<String?> _askReassignReason() async {
+    final controller = TextEditingController();
+    final reason = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Changer de livreur'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          maxLines: 3,
+          decoration: const InputDecoration(
+            labelText: 'Que s\'est-il passé ? *',
+            hintText: 'Livreur injoignable, colis endommagé…',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Retour'),
+          ),
+          FilledButton(
+            onPressed: () {
+              if (controller.text.trim().length >= 3) {
+                Navigator.of(context).pop(controller.text.trim());
+              }
+            },
+            child: const Text('Continuer'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    return reason;
+  }
+
+  Future<String?> _askApproachPaymentMethod(NearbyDriver driver, int fee) {
+    if (fee <= 0) {
+      return Future.value('online');
+    }
+    return showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Frais d\'approche',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                '${driver.displayName} est à ${formatDistance(driver.approachDistanceKm)} du point de ramassage.',
+                style: const TextStyle(color: AppColors.textSecondary),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  const Expanded(
+                    child: Text(
+                      'Supplément à régler',
+                      style: TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                  Text(
+                    formatAmount(fee),
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.orangeDark,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.credit_card, color: AppColors.orange),
+                title: const Text('Payer en ligne'),
+                subtitle: const Text('Mobile Money via FedaPay'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => Navigator.of(sheetContext).pop('online'),
+              ),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(
+                  Icons.payments_outlined,
+                  color: AppColors.orange,
+                ),
+                title: const Text('Payer à la livraison'),
+                subtitle: const Text('En espèces, en plus de la course'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => Navigator.of(sheetContext).pop('cash'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   Future<void> _cancelDriverRequest() async {
@@ -517,9 +799,47 @@ class _ParcelDetailScreenState extends State<ParcelDetailScreen> {
             _ConfirmationCodeCard(code: parcel.confirmationCode!),
             const SizedBox(height: AppDimens.md),
           ],
+          if (!parcel.isCancelled &&
+              (parcel.handoverCode?.isNotEmpty ?? false)) ...[
+            const SizedBox(height: AppDimens.md),
+            _HandoverCodeCard(code: parcel.handoverCode!),
+          ],
           if (parcel.driver != null) ...[
             const SizedBox(height: AppDimens.md),
             _DriverCard(parcel: parcel),
+          ],
+          if (parcel.hasOpenIncident) ...[
+            const SizedBox(height: AppDimens.md),
+            Card(
+              child: ListTile(
+                leading: const Icon(
+                  Icons.warning_amber_rounded,
+                  color: AppColors.orangeDark,
+                ),
+                title: const Text('Incident signalé'),
+                subtitle: Text(parcel.openIncident!.message),
+              ),
+            ),
+          ],
+          if (parcel.canReassign) ...[
+            const SizedBox(height: AppDimens.md),
+            Card(
+              child: ListTile(
+                leading: const Icon(Icons.swap_horiz, color: AppColors.orange),
+                title: const Text('Changer de livreur'),
+                subtitle: const Text(
+                  'Le nouveau livreur reprend le colis au point de remise.',
+                ),
+                trailing: _actionId == 'reassign'
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.chevron_right),
+                onTap: _actionId == null ? _reassignParcel : null,
+              ),
+            ),
           ],
           if (_driverSelectionCard(parcel) != null) ...[
             const SizedBox(height: AppDimens.md),
@@ -640,6 +960,31 @@ class _RouteCard extends StatelessWidget {
                   ),
                   AmountText(
                     parcel.creationFee,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+            if (parcel.hasApproachFee) ...[
+              const SizedBox(height: 6),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      parcel.approachIsPaid
+                          ? 'Frais d\'approche'
+                          : 'Frais d\'approche (à la livraison)',
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  AmountText(
+                    parcel.approachFee,
                     style: const TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w700,
@@ -1132,6 +1477,63 @@ class _TimelineStep extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _HandoverCodeCard extends StatelessWidget {
+  const _HandoverCodeCard({required this.code});
+
+  final String code;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      color: AppColors.orangeLight,
+      child: Padding(
+        padding: const EdgeInsets.all(AppDimens.lg),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Row(
+              children: [
+                Icon(Icons.swap_horiz, color: AppColors.orangeDark),
+                SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Code de remise au nouveau livreur',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.orangeDark,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Center(
+              child: SelectableText(
+                code,
+                style: const TextStyle(
+                  fontSize: 30,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 8,
+                  color: AppColors.orangeDark,
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+            const Text(
+              'Communiquez ce code au nouveau livreur pour qu\'il confirme la remise du colis.',
+              style: TextStyle(
+                fontSize: 12,
+                height: 1.4,
+                color: AppColors.orangeDark,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

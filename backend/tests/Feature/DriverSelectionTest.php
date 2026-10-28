@@ -13,6 +13,7 @@ use App\Models\Product;
 use App\Models\Role;
 use App\Models\User;
 use App\Models\Vendor;
+use App\Services\FinanceService;
 use App\Services\ParcelService;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -367,6 +368,112 @@ class DriverSelectionTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.driver_request.status', 'refused')
             ->assertJsonPath('data.delivery.driver.id', $second->id);
+    }
+
+    public function test_driver_can_decline_after_accepting_before_pickup(): void
+    {
+        [$client, $vendorUser, , $order] = $this->paidOrderSetup();
+        $first = $this->driver('Premier Livreur', 6.366, 2.391);
+        $second = $this->driver('Second Livreur', 6.367, 2.392);
+
+        $this->actAs($client);
+        $this->postJson("/api/v1/orders/{$order->id}/driver-request", [
+            'driver_profile_id' => $first->id,
+        ])->assertCreated();
+
+        $this->readyOrder($order, $vendorUser);
+
+        $this->actAs($first->user);
+        $deliveryId = $this->getJson('/api/v1/driver/me/deliveries/offers')
+            ->assertOk()
+            ->json('data.0.id');
+
+        $this->postJson("/api/v1/driver/me/deliveries/{$deliveryId}/accept")
+            ->assertOk()
+            ->assertJsonPath('data.order.status', 'assigned');
+
+        $wallet = app(FinanceService::class)->walletFor($first);
+        $this->assertGreaterThan(0, (int) $wallet->fresh()->pending_balance);
+
+        $this->postJson("/api/v1/driver/me/deliveries/{$deliveryId}/decline", [
+            'reason' => 'Panne de moto',
+        ])->assertOk();
+
+        $this->assertDatabaseHas('orders', [
+            'id' => $order->id,
+            'status' => 'ready',
+            'preferred_driver_profile_id' => null,
+        ]);
+        $this->assertDatabaseHas('deliveries', [
+            'id' => $deliveryId,
+            'driver_profile_id' => null,
+            'targeted_driver_profile_id' => null,
+        ]);
+        $this->assertDatabaseHas('driver_assignment_requests', [
+            'assignable_id' => $order->id,
+            'driver_profile_id' => $first->id,
+            'status' => 'refused',
+            'refusal_reason' => 'Panne de moto',
+        ]);
+        $this->assertSame(0, (int) $wallet->fresh()->pending_balance);
+
+        $this->actAs($second->user);
+        $offers = $this->getJson('/api/v1/driver/me/deliveries/offers')->assertOk()->json('data');
+        $offer = collect($offers)->firstWhere('order.id', $order->id);
+        $this->assertNotNull($offer);
+
+        $this->postJson("/api/v1/driver/me/deliveries/{$offer['id']}/accept")->assertOk();
+
+        $this->actAs($client);
+        $this->getJson("/api/v1/orders/{$order->id}")
+            ->assertOk()
+            ->assertJsonPath('data.status', 'assigned')
+            ->assertJsonPath('data.delivery.driver.id', $second->id);
+    }
+
+    public function test_parcel_driver_can_decline_after_accepting_before_pickup(): void
+    {
+        $client = $this->actingUser('client');
+        $first = $this->driver('Livreur Colis', 6.366, 2.391);
+
+        $services = app(ParcelService::class);
+        $parcel = $services->create(
+            $client,
+            ['label' => 'Carrefour Jericho', 'city' => 'Cotonou', 'landmark' => 'Face pharmacie', 'latitude' => 6.365, 'longitude' => 2.390],
+            ['label' => 'Ganhi', 'city' => 'Cotonou', 'landmark' => 'Derrière le marché', 'latitude' => 6.370, 'longitude' => 2.392],
+        );
+        $services->confirmPayment($parcel->fresh(), (int) $parcel->delivery_fee);
+
+        $this->actAs($client);
+        $this->postJson("/api/v1/parcels/{$parcel->id}/driver-request", [
+            'driver_profile_id' => $first->id,
+        ])->assertCreated();
+
+        $this->actAs($first->user);
+        $this->postJson("/api/v1/driver/me/parcels/{$parcel->id}/accept")
+            ->assertOk()
+            ->assertJsonPath('data.status', 'assigned');
+
+        $wallet = app(FinanceService::class)->walletFor($first);
+        $this->assertGreaterThan(0, (int) $wallet->fresh()->pending_balance);
+
+        $this->postJson("/api/v1/driver/me/parcels/{$parcel->id}/decline", [
+            'reason' => 'Colis trop lourd',
+        ])->assertOk();
+
+        $this->assertDatabaseHas('parcels', [
+            'id' => $parcel->id,
+            'status' => 'paid',
+            'driver_profile_id' => null,
+            'targeted_driver_profile_id' => null,
+        ]);
+        $this->assertDatabaseHas('driver_assignment_requests', [
+            'assignable_id' => $parcel->id,
+            'driver_profile_id' => $first->id,
+            'status' => 'refused',
+            'refusal_reason' => 'Colis trop lourd',
+        ]);
+        $this->assertSame(0, (int) $wallet->fresh()->pending_balance);
     }
 
     public function test_expired_driver_request_releases_target_and_allows_another_driver(): void

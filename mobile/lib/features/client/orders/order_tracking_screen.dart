@@ -24,6 +24,7 @@ import '../../../shared/widgets/amount_widgets.dart';
 import '../../../shared/widgets/beninfood_header.dart';
 import '../../../shared/widgets/call_button.dart';
 import '../../../shared/widgets/driver_picker_sheet.dart';
+import '../../../shared/widgets/fedapay_checkout_screen.dart';
 import '../drivers/driver_selection_screen.dart';
 import '../../../shared/widgets/feedback_widgets.dart';
 import '../../../shared/widgets/package_item_tile.dart';
@@ -184,24 +185,159 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
     if (order == null) {
       return;
     }
-    final accepted = await showDriverSelectionPage(
+    final driver = await showApproachDriverSelection(
       context,
       widget.marketplace,
       targetId: order.id,
       reference: order.reference,
-      isParcel: false,
-      onChanged: _refreshSilently,
     );
-    if (!mounted) {
+    if (driver == null || !mounted) {
       return;
     }
-    await _refreshSilently();
-    if (!mounted) {
+
+    final fee = driver.approachFee ?? 0;
+    final hasExistingApproach =
+        order.approachDriverId != null &&
+        order.approachPaymentStatus != null &&
+        order.approachPaymentStatus != 'failed';
+    final method = hasExistingApproach
+        ? (order.approachPaymentMethod ?? 'online')
+        : await _askApproachPaymentMethod(driver, fee);
+    if (method == null || !mounted) {
       return;
     }
-    if (accepted == true) {
-      showToast(context, 'Votre livreur est en route.');
+
+    setState(() => _actionLoading = true);
+    try {
+      final payload = await widget.marketplace.createApproachPayment(
+        orderId: order.id,
+        driverProfileId: driver.id,
+        paymentMethod: method,
+      );
+      if (!mounted) {
+        return;
+      }
+      setState(() => _actionLoading = false);
+
+      final checkoutUrl = payload['checkout_url'];
+      if (method == 'online' &&
+          checkoutUrl is String &&
+          checkoutUrl.isNotEmpty) {
+        final paid = await Navigator.of(context).push<bool>(
+          MaterialPageRoute<bool>(
+            builder: (_) => FedaPayCheckoutScreen(
+              marketplace: widget.marketplace,
+              checkoutUrl: checkoutUrl,
+              transactionId: payload['transaction_id']?.toString(),
+            ),
+          ),
+        );
+        if (!mounted) {
+          return;
+        }
+        await _refreshSilently();
+        if (!mounted) {
+          return;
+        }
+        showToast(
+          context,
+          paid == true
+              ? 'Frais d\'approche réglés. Votre livreur est sollicité.'
+              : 'Paiement non confirmé. Vous pouvez réessayer.',
+          isError: paid != true,
+        );
+        return;
+      }
+
+      await _refreshSilently();
+      if (!mounted) {
+        return;
+      }
+      showToast(
+        context,
+        method == 'cash'
+            ? 'Frais d\'approche à régler en espèces à la livraison.'
+            : 'Livreur choisi. Votre demande lui a été envoyée.',
+      );
+    } on ApiException catch (e) {
+      if (mounted) {
+        setState(() => _actionLoading = false);
+        showToast(context, e.message, isError: true);
+      }
+    } finally {
+      if (mounted && _actionLoading) {
+        setState(() => _actionLoading = false);
+      }
     }
+  }
+
+  Future<String?> _askApproachPaymentMethod(NearbyDriver driver, int fee) {
+    if (fee <= 0) {
+      return Future.value('online');
+    }
+    return showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Frais d\'approche',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                '${driver.displayName} est à ${formatDistance(driver.approachDistanceKm)} de la boutique.',
+                style: const TextStyle(color: AppColors.textSecondary),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  const Expanded(
+                    child: Text(
+                      'Supplément à régler',
+                      style: TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                  Text(
+                    formatAmount(fee),
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.orangeDark,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.credit_card, color: AppColors.orange),
+                title: const Text('Payer en ligne'),
+                subtitle: const Text('Mobile Money via FedaPay'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => Navigator.of(sheetContext).pop('online'),
+              ),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(
+                  Icons.payments_outlined,
+                  color: AppColors.orange,
+                ),
+                title: const Text('Payer à la livraison'),
+                subtitle: const Text('En espèces, en plus de la course'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => Navigator.of(sheetContext).pop('cash'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   Future<void> _cancelDriverRequest() async {
@@ -279,8 +415,13 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
   }
 
   bool _canReassign(Order order) {
-    final active = order.status == 'picked_up' || order.status == 'in_delivery';
-    return active && order.delivery?.driver != null;
+    final afterPickup =
+        order.status == 'picked_up' || order.status == 'in_delivery';
+    final beforePickupWithIncident =
+        order.status == 'assigned' &&
+        (order.delivery?.hasOpenIncident ?? false);
+    return (afterPickup || beforePickupWithIncident) &&
+        order.delivery?.driver != null;
   }
 
   Future<void> _changeDriver() async {
@@ -288,8 +429,11 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
     if (order == null) {
       return;
     }
+    final beforePickup = order.status == 'assigned';
     final driverPoint = order.delivery?.position?.point;
-    final searchPoint = driverPoint ?? order.dropoffPoint;
+    final searchPoint = beforePickup
+        ? (order.vendor?.point ?? driverPoint ?? order.dropoffPoint)
+        : (driverPoint ?? order.dropoffPoint);
     if (searchPoint == null) {
       showToast(
         context,
@@ -328,8 +472,9 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
         context,
         drivers: drivers,
         title: 'Choisir le nouveau livreur',
-        subtitle:
-            'La course sera partagée au prorata du trajet déjà effectué. Aucun frais supplémentaire ne vous sera facturé.',
+        subtitle: beforePickup
+            ? 'Le nouveau livreur se rendra au point de collecte. Aucun frais supplémentaire ne vous sera facturé.'
+            : 'La course sera partagée au prorata du trajet déjà effectué. Aucun frais supplémentaire ne vous sera facturé.',
       );
       if (choice == null || !mounted) {
         return;
@@ -382,7 +527,12 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
         );
       }
       if (mounted) {
-        showToast(context, '${choice.displayName} reprend la livraison.');
+        showToast(
+          context,
+          beforePickup
+              ? '${choice.displayName} reprend la course.'
+              : '${choice.displayName} reprend la livraison.',
+        );
       }
     } on ApiException catch (e) {
       if (mounted) {

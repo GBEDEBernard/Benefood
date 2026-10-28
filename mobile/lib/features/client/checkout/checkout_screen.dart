@@ -11,11 +11,11 @@ import '../../../shared/models/order.dart';
 import '../../../shared/widgets/app_button.dart';
 import '../../../shared/widgets/amount_widgets.dart';
 import '../../../shared/widgets/beninfood_header.dart';
-import '../../../shared/widgets/driver_picker_sheet.dart';
 import '../../../shared/widgets/fedapay_checkout_screen.dart';
 import '../../../shared/widgets/feedback_widgets.dart';
 import '../../../shared/widgets/state_widgets.dart';
 import '../account/addresses_screen.dart';
+import '../drivers/driver_selection_screen.dart';
 import '../orders/order_tracking_screen.dart';
 
 /// Checkout client (J151) : adresse → récapitulatif serveur → commande → paiement.
@@ -46,9 +46,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   String _paymentMethod = 'online';
 
   /// Livreur choisi au checkout : son approche est intégrée au total avant
-  /// le paiement et il sera affecté en priorité à la commande.
+  /// le paiement et il sera sollicité en priorité pour la course.
   NearbyDriver? _selectedDriver;
-  bool _driversLoading = false;
 
   @override
   void initState() {
@@ -163,14 +162,6 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     if (address == null) {
       return;
     }
-    if (_selectedDriver == null) {
-      showToast(
-        context,
-        'Choisissez un livreur avant de commander.',
-        isError: true,
-      );
-      return;
-    }
     setState(() => _creating = true);
     try {
       final order = await widget.marketplace.createOrder(
@@ -200,6 +191,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     }
   }
 
+  /// Ouvre la page « Choisir mon livreur » : carte du trajet, livreurs en ligne
+  /// autour de la boutique et leur distance au point de collecte.
   Future<void> _pickDriver() async {
     final address = _selectedAddress;
     if (address == null) {
@@ -214,40 +207,19 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       return;
     }
 
-    setState(() => _driversLoading = true);
-    try {
-      final drivers = await widget.marketplace.checkoutDrivers(address.id);
-      if (!mounted) {
-        return;
-      }
-      if (drivers.isEmpty) {
-        showToast(
-          context,
-          'Aucun livreur disponible autour de cette boutique.',
-          isError: true,
-        );
-        return;
-      }
-      setState(() => _driversLoading = false);
-      final choice = await showDriverPickerSheet(
-        context,
-        drivers: drivers,
-        selectedId: _selectedDriver?.id,
-      );
-      if (choice == null || !mounted) {
-        return;
-      }
-      setState(() => _selectedDriver = choice);
-      await _loadSummary();
-    } on ApiException catch (e) {
-      if (mounted) {
-        showToast(context, e.message, isError: true);
-      }
-    } finally {
-      if (mounted && _driversLoading) {
-        setState(() => _driversLoading = false);
-      }
+    final label = address.label ?? address.fullAddress ?? address.city;
+    final choice = await showCheckoutDriverSelection(
+      context,
+      widget.marketplace,
+      addressId: address.id,
+      addressLabel: label ?? 'votre adresse',
+      initialDriverId: _selectedDriver?.id,
+    );
+    if (choice == null || !mounted) {
+      return;
     }
+    setState(() => _selectedDriver = choice.driver);
+    await _loadSummary();
   }
 
   Future<void> _startPayment(Order order) async {
@@ -641,29 +613,30 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 Card(
                   margin: EdgeInsets.zero,
                   child: ListTile(
-                    onTap: _driversLoading ? null : _pickDriver,
+                    onTap: _pickDriver,
                     leading: const Icon(
                       Icons.delivery_dining_outlined,
                       color: AppColors.orange,
                     ),
                     title: Text(
-                      _selectedDriver?.displayName ?? 'Choisir un livreur',
+                      _selectedDriver?.displayName ?? 'Aucun livreur choisi',
                     ),
                     subtitle: Text(
-                      _driversLoading
-                          ? 'Recherche des livreurs disponibles…'
-                          : _selectedDriver == null
-                          ? 'Le livreur et son approche sont choisis avant le paiement'
+                      _selectedDriver == null
+                          ? 'La course sera proposée à tous les livreurs disponibles.'
                           : 'Approche ${formatDistance(_selectedDriver!.distanceToPickupKm)}'
                                 '${_selectedDriver!.approachFee != null ? ' · ${formatAmount(_selectedDriver!.approachFee!)}' : ''}',
                     ),
-                    trailing: _driversLoading
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Icon(Icons.chevron_right),
+                    trailing: _selectedDriver == null
+                        ? const Icon(Icons.chevron_right)
+                        : IconButton(
+                            tooltip: 'Retirer le livreur',
+                            onPressed: () {
+                              setState(() => _selectedDriver = null);
+                              _loadSummary();
+                            },
+                            icon: const Icon(Icons.close),
+                          ),
                   ),
                 ),
                 const SizedBox(height: 20),
@@ -672,9 +645,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                       ? 'Commander et payer à la livraison'
                       : 'Commander',
                   icon: Icons.shopping_bag_outlined,
-                  onPressed: _creating || _selectedDriver == null
-                      ? null
-                      : _createOrder,
+                  onPressed: _creating ? null : _createOrder,
                   loading: _creating,
                 ),
               ],

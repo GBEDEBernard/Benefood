@@ -7,6 +7,7 @@ import 'package:http/testing.dart';
 
 import 'package:beninfood/core/data/marketplace_api.dart';
 import 'package:beninfood/core/http/api_client.dart';
+import 'package:beninfood/core/utils/formatters.dart';
 import 'package:beninfood/features/driver/missions/driver_home_screen.dart';
 
 class _NoopTokenStore implements TokenStore {
@@ -53,6 +54,7 @@ MockClient _backend() {
       'order': {
         'id': 'o-1',
         'reference': 'CMD-100',
+        'created_at': '2026-10-22T07:30:00Z',
         'address': {
           'full_address': 'Fidjrossè',
           'city': 'Cotonou',
@@ -161,6 +163,21 @@ void main() {
     expect(find.text('Démarrer la récupération'), findsOneWidget);
     expect(find.text('Démarrer la livraison'), findsOneWidget);
     expect(find.text('3 200'), findsOneWidget);
+
+    // Heure actuelle du téléphone, en haut de la page missions.
+    expect(find.byIcon(Icons.access_time_rounded), findsOneWidget);
+    expect(find.text(formatDayLabel(DateTime.now())), findsOneWidget);
+
+    // Heure à laquelle chaque mission a été passée + temps écoulé.
+    expect(
+      find.text('Commandé à ${formatTime('2026-10-22T07:30:00Z')}'),
+      findsOneWidget,
+    );
+    expect(
+      find.text('Créé à ${formatTime('2026-10-22T10:00:00Z')}'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('il y a'), findsWidgets);
 
     await tester.ensureVisible(find.text('Démarrer la récupération'));
     await tester.pump();

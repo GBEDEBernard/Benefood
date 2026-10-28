@@ -9,8 +9,10 @@ use App\Models\Order;
 use App\Models\Parcel;
 use App\Models\Payment;
 use App\Models\PaymentEvent;
+use App\Services\ApproachFeeService;
 use App\Services\CashService;
 use App\Services\OrderService;
+use App\Services\ParcelApproachFeeService;
 use App\Services\ParcelService;
 use Illuminate\Support\Facades\DB;
 
@@ -28,6 +30,8 @@ class PaymentSettlementService
     public function __construct(
         private readonly OrderService $orders,
         private readonly ParcelService $parcels,
+        private readonly ApproachFeeService $approachFees,
+        private readonly ParcelApproachFeeService $parcelApproachFees,
     ) {}
 
     /**
@@ -60,11 +64,15 @@ class PaymentSettlementService
             $parcel = ($event['parcel_id'] ?? null) ? Parcel::find($event['parcel_id']) : $payment?->parcel;
 
             $payment = $payment
+                ?? (($event['payment_id'] ?? null) ? Payment::find($event['payment_id']) : null)
+                ?? (($event['type'] ?? null) === 'order_approach' ? $order?->approachPayment : null)
+                ?? (($event['type'] ?? null) === 'parcel_approach' ? $parcel?->approachPayment : null)
                 ?? $order?->payment
-                ?? $parcel?->payment
-                ?? (($event['payment_id'] ?? null) ? Payment::find($event['payment_id']) : null);
+                ?? $parcel?->payment;
 
             $alreadySettled = $payment?->paid_at !== null;
+            $isApproach = ($payment?->purpose?->isApproach() ?? false)
+                || in_array($event['type'] ?? null, ['order_approach', 'parcel_approach'], true);
 
             PaymentEvent::create([
                 'payment_id' => $payment?->id,
@@ -84,6 +92,16 @@ class PaymentSettlementService
                     'status' => PaymentStatus::Confirmed,
                     'paid_at' => now(),
                 ]);
+
+                if ($isApproach) {
+                    if ($order !== null && $payment !== null) {
+                        $this->approachFees->settleOnline($order, $payment);
+                    } elseif ($parcel !== null && $payment !== null) {
+                        $this->parcelApproachFees->settleOnline($parcel, $payment);
+                    }
+
+                    return true;
+                }
 
                 if (($event['type'] ?? null) === 'float_topup') {
                     $driver = ($event['driver_id'] ?? null) ? DriverProfile::find($event['driver_id']) : null;
@@ -131,6 +149,13 @@ class PaymentSettlementService
                 $failureStatus = $status === 'cancelled' ? PaymentStatus::Cancelled : PaymentStatus::Failed;
 
                 $payment?->update(['status' => $failureStatus]);
+
+                if ($isApproach) {
+                    $order?->update(['approach_payment_status' => $failureStatus->value]);
+                    $parcel?->update(['approach_payment_status' => $failureStatus->value]);
+
+                    return true;
+                }
 
                 $order?->update(['payment_status' => $failureStatus->value]);
                 $parcel?->update(['payment_status' => $failureStatus->value]);

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\PaymentPurpose;
 use App\Enums\PaymentStatus;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -21,6 +22,7 @@ class Payment extends Model
     protected $casts = [
         'amount' => 'integer',
         'status' => PaymentStatus::class,
+        'purpose' => PaymentPurpose::class,
         'payload' => 'array',
         'paid_at' => 'datetime',
         'expires_at' => 'datetime',
@@ -39,6 +41,11 @@ class Payment extends Model
     public function events()
     {
         return $this->hasMany(PaymentEvent::class);
+    }
+
+    public function isApproach(): bool
+    {
+        return $this->purpose?->isApproach() ?? false;
     }
 
     public function scopeForGateway(string $gateway)

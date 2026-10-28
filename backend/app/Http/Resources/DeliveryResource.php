@@ -45,6 +45,8 @@ class DeliveryResource extends JsonResource
                 'id' => $order->id,
                 'reference' => $order->reference,
                 'status' => $order->status?->value,
+                // Heure à laquelle la commande a été passée (le livreur la voit).
+                'created_at' => $order->created_at?->toIso8601String(),
                 'total' => $order->total,
                 'subtotal' => $order->subtotal,
                 'delivery_fee' => $order->delivery_fee,
@@ -85,6 +87,17 @@ class DeliveryResource extends JsonResource
                 'pickup_longitude' => $this->vendor->pickup_longitude,
                 'pickup_landmark' => $this->vendor->pickup_landmark,
             ]),
+            'open_incident' => $this->whenLoaded('incidents', function () {
+                $incident = $this->incidents
+                    ->first(fn ($item) => $item->status === 'open');
+
+                return $incident === null ? null : [
+                    'id' => $incident->id,
+                    'type' => $incident->type,
+                    'message' => $incident->message,
+                    'created_at' => $incident->created_at?->toIso8601String(),
+                ];
+            }),
             'pending_handover' => $this->whenLoaded('assignments', function () {
                 $assignment = $this->assignments
                     ->first(fn ($item) => $item->status === DeliveryAssignment::STATUS_PENDING_HANDOVER);

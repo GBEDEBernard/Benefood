@@ -177,6 +177,8 @@ Route::middleware('auth:sanctum')->group(function (): void {
             Route::post('/{parcel}/pickup', [ParcelController::class, 'pickup'])->name('api.v1.driver.me.parcels.pickup');
             Route::post('/{parcel}/start', [ParcelController::class, 'start'])->name('api.v1.driver.me.parcels.start');
             Route::post('/{parcel}/deliver', [ParcelController::class, 'deliver'])->name('api.v1.driver.me.parcels.deliver');
+            Route::post('/{parcel}/incident', [ParcelController::class, 'incident'])->name('api.v1.driver.me.parcels.incident');
+            Route::post('/{parcel}/handover', [ParcelController::class, 'confirmHandover'])->name('api.v1.driver.me.parcels.handover');
         });
 
         Route::prefix('favorite-clients')->middleware('permission:driver.deliveries.manage')->group(function (): void {
@@ -229,9 +231,12 @@ Route::middleware('auth:sanctum')->group(function (): void {
     // connecté — client ou boutique vendeuse (permis par rôle).
     Route::prefix('parcels')->group(function (): void {
         Route::post('/quote', [ParcelController::class, 'quote'])->name('api.v1.parcels.quote')->middleware('permission:client.parcels.manage|vendor.parcels.manage');
+        Route::post('/approach-quote', [ParcelController::class, 'approachQuote'])->name('api.v1.parcels.approach-quote')->middleware('permission:client.parcels.manage|vendor.parcels.manage');
         Route::post('/', [ParcelController::class, 'store'])->name('api.v1.parcels.store')->middleware('permission:client.parcels.manage|vendor.parcels.manage');
         Route::get('/', [ParcelController::class, 'index'])->name('api.v1.parcels.index')->middleware('permission:client.parcels.manage|vendor.parcels.manage');
         Route::get('/{parcel}/nearby-drivers', [DriverSelectionController::class, 'nearbyParcel'])->name('api.v1.parcels.nearby-drivers')->middleware('permission:client.parcels.manage|vendor.parcels.manage');
+        Route::post('/{parcel}/replacement-drivers', [DriverSelectionController::class, 'replacementParcel'])->name('api.v1.parcels.replacement-drivers')->middleware('permission:client.parcels.manage|vendor.parcels.manage');
+        Route::post('/{parcel}/reassign', [ParcelController::class, 'reassign'])->name('api.v1.parcels.reassign')->middleware('permission:client.parcels.manage|vendor.parcels.manage');
         Route::post('/{parcel}/driver-request', [DriverSelectionController::class, 'requestParcel'])->name('api.v1.parcels.driver-request.store')->middleware('permission:client.parcels.manage|vendor.parcels.manage');
         Route::post('/{parcel}/driver-request/auto', [DriverSelectionController::class, 'autoParcel'])->name('api.v1.parcels.driver-request.auto')->middleware('permission:client.parcels.manage|vendor.parcels.manage');
         Route::delete('/{parcel}/driver-request', [DriverSelectionController::class, 'cancelParcel'])->name('api.v1.parcels.driver-request.destroy')->middleware('permission:client.parcels.manage|vendor.parcels.manage');
@@ -281,6 +286,7 @@ Route::middleware('auth:sanctum')->group(function (): void {
     // Payments (client)
     Route::prefix('payments')->group(function (): void {
         Route::post('/create', [PaymentController::class, 'create'])->name('api.v1.payments.create')->middleware('permission:client.orders.manage|vendor.parcels.manage');
+        Route::post('/approach', [PaymentController::class, 'createApproach'])->name('api.v1.payments.approach')->middleware('permission:client.orders.manage');
         Route::post('/verify', [PaymentController::class, 'verify'])->name('api.v1.payments.verify')->middleware('permission:client.orders.manage|vendor.parcels.manage');
         Route::post('/orders/{order}/retry', [PaymentController::class, 'retry'])->name('api.v1.payments.retry')->middleware('permission:client.orders.manage');
     });

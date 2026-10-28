@@ -11,6 +11,7 @@ class DeliveryOrder {
     this.address,
     this.addressSnapshot,
     this.client,
+    this.createdAt,
     this.items = const [],
   });
 
@@ -26,6 +27,9 @@ class DeliveryOrder {
   final AddressSnapshot? addressSnapshot;
 
   final DeliveryClient? client;
+
+  /// Heure à laquelle la commande a été passée.
+  final String? createdAt;
 
   /// Contenu du colis (lignes de commande + photos) pour le livreur.
   final List<DeliveryOrderItem> items;
@@ -60,6 +64,7 @@ class DeliveryOrder {
       client: rawClient is Map<String, dynamic>
           ? DeliveryClient.fromJson(rawClient)
           : null,
+      createdAt: _nullable(json['created_at']),
       items: rawItems is List
           ? rawItems
                 .whereType<Map<String, dynamic>>()
