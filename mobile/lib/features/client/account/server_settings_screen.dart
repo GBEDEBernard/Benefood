@@ -47,7 +47,10 @@ class _ServerSettingsScreenState extends State<ServerSettingsScreen> {
 
     try {
       final response = await http
-          .get(Uri.parse('$url/api/v1/health'))
+          .get(
+            Uri.parse('$url/api/v1/health'),
+            headers: AppConfig.tunnelHeaders,
+          )
           .timeout(const Duration(seconds: 6));
       if (mounted) {
         setState(() {

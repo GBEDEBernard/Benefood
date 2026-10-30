@@ -1,32 +1,70 @@
 import 'package:flutter/foundation.dart'
-    show TargetPlatform, defaultTargetPlatform, kIsWeb;
+    show TargetPlatform, defaultTargetPlatform, kIsWeb, kReleaseMode;
 
 class AppConfig {
   const AppConfig._();
 
   static const String appName = 'Béninfood';
 
+  /// Domaine public fixe du serveur Laravel (ngrok gratuit).
+  ///
+  /// À renseigner sans `/api` ni slash final : [apiUrl] ajoute `/api/v1`.
+  /// Le domaine reste identique d'un build à l'autre tant que le tunnel est
+  /// lancé avec `ngrok http --url=<domaine> 8000`.
+  static const String productionApiBaseUrl =
+      'https://squatter-demotion-distrust.ngrok-free.dev';
+
+  /// En-tête exigé par les tunnels ngrok gratuits pour éviter la page
+  /// d'avertissement HTML renvoyée aux navigateurs.
+  static const Map<String, String> tunnelHeaders = {
+    'ngrok-skip-browser-warning': 'true',
+  };
+
   /// URL de base de l'API Laravel.
   ///
   /// Priorité : 1) surcharge persistée dans l'app (écran « Serveur »),
   /// 2) `--dart-define=API_BASE_URL=...` au build,
   /// 3) défaut selon la plateforme :
-  /// - Appareil physique : régler via l'écran « Serveur » (ex. `192.168.1.110`).
+  /// - Build release (APK des testeurs) : [productionApiBaseUrl].
+  /// - Appareil physique en debug : régler via l'écran « Serveur ».
   /// - Émulateur Android : `10.0.2.2` (= loopback de la machine hôte).
   /// - Desktop & iOS Simulator : `127.0.0.1`.
   static String? apiBaseUrlOverride;
 
-  static String get apiBaseUrl {
-    final override = apiBaseUrlOverride;
-    if (override != null && override.isNotEmpty) {
-      return override;
+  static String get apiBaseUrl => resolveBaseUrl(apiBaseUrlOverride);
+
+  /// Résout l'URL de base à partir d'une surcharge éventuelle.
+  ///
+  /// Les adresses de tunnels temporaires (Cloudflare `trycloudflare.com`,
+  /// anciens sous-domaines ngrok) sont ignorées : une mise à jour de l'app ne
+  /// doit pas rester bloquée sur une URL enregistrée par une version
+  /// précédente.
+  static String resolveBaseUrl(String? override) {
+    final value = override?.trim();
+    if (value != null && value.isNotEmpty && !_isStaleTunnelUrl(value)) {
+      return value;
     }
     return defaultApiBaseUrl;
+  }
+
+  static bool _isStaleTunnelUrl(String url) {
+    if (url.contains('trycloudflare.com')) {
+      return true;
+    }
+    final host = Uri.tryParse(url)?.host ?? '';
+    if (host.endsWith('.ngrok-free.app') || host.endsWith('.ngrok-free.dev')) {
+      return host != Uri.parse(productionApiBaseUrl).host;
+    }
+    return false;
   }
 
   static String get defaultApiBaseUrl {
     const fromEnv = String.fromEnvironment('API_BASE_URL');
     if (fromEnv.isNotEmpty) return fromEnv;
+
+    // APK release : toujours le domaine fixe, quel que soit l'appareil.
+    if (kReleaseMode) return productionApiBaseUrl;
+
     // Émulateur Android : 10.0.2.2 pointe vers la machine hôte.
     if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
       return 'http://10.0.2.2:8000';

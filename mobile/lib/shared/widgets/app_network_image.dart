@@ -90,6 +90,7 @@ class AppNetworkImage extends StatelessWidget {
       child: SizedBox.expand(
         child: Image.network(
           resolved,
+          headers: AppConfig.tunnelHeaders,
           fit: fit,
           errorBuilder: (_, _, _) => fallback ?? _fallback(context),
           loadingBuilder: (context, child, progress) {

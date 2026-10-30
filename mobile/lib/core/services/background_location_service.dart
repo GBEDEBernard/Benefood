@@ -1,12 +1,13 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io' show Platform;
 
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+
+import '../config/app_config.dart';
 
 /// Suivi de la position du livreur en arrière-plan.
 ///
@@ -120,6 +121,7 @@ class BackgroundLocationService {
           .patch(
             uri,
             headers: {
+              ...AppConfig.tunnelHeaders,
               'Authorization': 'Bearer $token',
               'Accept': 'application/json',
               'Accept-Language': 'fr',
@@ -148,10 +150,7 @@ class BackgroundLocationService {
 
   static Future<String> _apiUrl() async {
     final prefs = await SharedPreferences.getInstance();
-    final override = prefs.getString(_overrideKey)?.trim();
-    final base = (override != null && override.isNotEmpty)
-        ? override
-        : (Platform.isAndroid ? 'http://10.0.2.2:8000' : 'http://127.0.0.1:8000');
+    final base = AppConfig.resolveBaseUrl(prefs.getString(_overrideKey));
     return '$base/api/v1';
   }
 }

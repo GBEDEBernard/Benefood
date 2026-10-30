@@ -85,6 +85,7 @@ class ApiClient {
     try {
       Future<http.Response> sendRequest() async {
         final request = http.MultipartRequest(method, uri);
+        request.headers.addAll(AppConfig.tunnelHeaders);
         request.headers['Accept'] = 'application/json';
         request.headers['Accept-Language'] = 'fr';
         if (auth) {
@@ -136,6 +137,7 @@ class ApiClient {
     final uri = _uri(path, query: query);
 
     final request = http.Request(method, uri);
+    request.headers.addAll(AppConfig.tunnelHeaders);
     if (auth) {
       final token = await _tokenStore.readToken().timeout(
             const Duration(seconds: 5),
@@ -229,6 +231,7 @@ class ApiClient {
           .post(
             _uri('/auth/refresh'),
             headers: {
+              ...AppConfig.tunnelHeaders,
               'Accept': 'application/json',
               'Authorization': 'Bearer $token',
             },
