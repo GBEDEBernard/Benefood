@@ -12,6 +12,38 @@
     var labelledLinks = sidebar ? Array.prototype.slice.call(sidebar.querySelectorAll('[data-bf-label]')) : [];
     var collapsed = false;
 
+    // Les modales sont rendues dans .app-main / .container-fluid, deux
+    // conteneurs qui créent un contexte d'empilement. Le backdrop Bootstrap
+    // (attaché au body) passait alors au-dessus de la modale, la rendant grise
+    // et non interactive. On les replace au niveau du body avant affichage.
+    function relocateModals() {
+        var modals = document.querySelectorAll('.modal');
+
+        Array.prototype.forEach.call(modals, function (modal) {
+            if (modal.parentNode !== body) {
+                body.appendChild(modal);
+            }
+        });
+    }
+
+    relocateModals();
+
+    function relocateModal(modal) {
+        if (modal && modal.classList && modal.classList.contains('modal') && modal.parentNode !== body) {
+            body.appendChild(modal);
+        }
+    }
+
+    document.addEventListener('show.bs.modal', function (event) {
+        relocateModal(event.target);
+    });
+
+    if (window.jQuery) {
+        window.jQuery(document).on('show.bs.modal', function (event) {
+            relocateModal(event.target);
+        });
+    }
+
     try {
         collapsed = window.localStorage.getItem(storageKey) === '1';
     } catch (error) {

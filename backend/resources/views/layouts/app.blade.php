@@ -20,7 +20,7 @@
     <link rel="stylesheet" type="text/css" href="{{ asset('assets/css/vendors.css') }}" />
     <link rel="stylesheet" type="text/css" href="{{ asset('assets/css/style.css') }}" />
     <link rel="stylesheet" type="text/css" href="{{ asset('assets/css/beninfood.css') }}" />
-    <link rel="stylesheet" type="text/css" href="{{ asset('assets/css/admin-premium.css') }}" />
+    <link rel="stylesheet" type="text/css" href="{{ asset('assets/css/admin-premium.css') }}?v={{ filemtime(public_path('assets/css/admin-premium.css')) }}" />
     @stack('styles')
 </head>
 
@@ -50,7 +50,7 @@
 
     <script src="{{ asset('assets/js/vendors.js') }}"></script>
     <script src="{{ asset('assets/js/app.js') }}"></script>
-    <script src="{{ asset('assets/js/admin-shell.js') }}"></script>
+    <script src="{{ asset('assets/js/admin-shell.js') }}?v={{ filemtime(public_path('assets/js/admin-shell.js')) }}"></script>
     @stack('scripts')
 </body>
 
