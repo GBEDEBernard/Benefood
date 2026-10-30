@@ -138,7 +138,7 @@ class OrderController extends Controller
     public function index(Request $request): JsonResponse
     {
         $orders = $request->user()->orders()
-            ->with(['vendor', 'items.product.images'])
+            ->with(['vendor', 'items.product.images', 'payment'])
             ->orderByDesc('created_at')
             ->paginate((int) $request->query('per_page', config('beninfood.pagination.per_page')));
 
@@ -186,7 +186,7 @@ class OrderController extends Controller
         }
 
         $orders = $vendor->orders()
-            ->with(['user', 'items.product.images'])
+            ->with(['user', 'items.product.images', 'payment'])
             ->orderByDesc('created_at')
             ->paginate((int) $request->query('per_page', config('beninfood.pagination.per_page')));
 

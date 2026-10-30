@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Enums\CartStatus;
+use App\Enums\PaymentStatus;
 use App\Models\Address;
 use App\Models\Category;
 use App\Models\DeliveryRate;
@@ -443,6 +444,30 @@ class OrderFlowTest extends TestCase
             ->assertJsonCount(1, 'data')
             ->assertJsonPath('data.0.status', 'awaiting_payment')
             ->assertJsonPath('data.0.items.0.image_url', fn (string $url) => str_ends_with($url, '/storage/products/piment-frais-01.webp'));
+    }
+
+    public function test_orders_index_exposes_creation_and_payment_times(): void
+    {
+        $client = $this->actingUser('client');
+        $vendor = $this->activeVendor($client);
+        $product = $this->vendorProduct($vendor);
+        $this->deliverySetup($vendor);
+        $address = $this->clientAddress($client);
+
+        $this->addToCart($client, $product);
+        $reference = $this->placeOrder($client, $address);
+
+        $order = Order::where('reference', $reference)->firstOrFail();
+        $order->payment->update([
+            'status' => PaymentStatus::Confirmed,
+            'paid_at' => now(),
+        ]);
+
+        $this->actAs($client);
+        $this->getJson('/api/v1/orders')
+            ->assertOk()
+            ->assertJsonPath('data.0.created_at', fn ($value) => $value !== null)
+            ->assertJsonPath('data.0.payment.paid_at', fn ($value) => $value !== null);
     }
 
     public function test_order_items_fall_back_to_the_product_gallery_image(): void

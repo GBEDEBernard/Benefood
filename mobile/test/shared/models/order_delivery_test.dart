@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:beninfood/shared/models/delivery.dart';
 import 'package:beninfood/shared/models/order.dart';
 import 'package:beninfood/shared/models/parcel.dart';
 
@@ -50,10 +51,7 @@ void main() {
       expect(order.delivery?.driver?.name, 'Achille');
       expect(order.delivery?.driver?.vehicle, 'Moto');
       expect(order.delivery?.driver?.rating, 4.5);
-      expect(
-        order.delivery?.driver?.avatarUrl,
-        'https://cdn.test/achille.jpg',
-      );
+      expect(order.delivery?.driver?.avatarUrl, 'https://cdn.test/achille.jpg');
       expect(order.customerAvatarUrl, 'https://cdn.test/aline.jpg');
       expect(order.delivery?.position?.latitude, 6.371);
       expect(order.delivery?.position?.distanceKm, 0.16);
@@ -94,6 +92,57 @@ void main() {
     });
   });
 
+  group('Horodatages de paiement', () {
+    test('Order.fromJson expose paid_at du paiement', () {
+      final order = Order.fromJson({
+        ..._orderWith(null),
+        'payment': {
+          'id': 'pay-1',
+          'reference': 'PAY-001',
+          'amount': 2500,
+          'status': 'confirmed',
+          'paid_at': '2026-10-20T09:01:00Z',
+        },
+      });
+
+      expect(order.payment?.paidAt, '2026-10-20T09:01:00Z');
+    });
+
+    test('Parcel.fromJson expose paid_at du paiement', () {
+      final parcel = Parcel.fromJson({
+        'id': 'par-1',
+        'reference': 'COL-001',
+        'status': 'paid',
+        'payment': {
+          'id': 'pay-2',
+          'reference': 'PAY-002',
+          'status': 'confirmed',
+          'amount': 1150,
+          'paid_at': '2026-10-20T09:02:00Z',
+        },
+      });
+
+      expect(parcel.payment?.paidAt, '2026-10-20T09:02:00Z');
+    });
+
+    test('Delivery.fromJson expose paid_at de la commande', () {
+      final delivery = Delivery.fromJson({
+        'id': 'del-1',
+        'status': 'assigned',
+        'fee': 700,
+        'order': {
+          'id': 'ord-1',
+          'reference': 'CMD-001',
+          'created_at': '2026-10-20T09:00:00Z',
+          'paid_at': '2026-10-20T09:03:00Z',
+        },
+      });
+
+      expect(delivery.order?.createdAt, '2026-10-20T09:00:00Z');
+      expect(delivery.order?.paidAt, '2026-10-20T09:03:00Z');
+    });
+  });
+
   group('Code de confirmation', _confirmationCodeTests);
 
   group('Parcel — suivi temps réel', () {
@@ -102,16 +151,8 @@ void main() {
         'id': 'par-1',
         'reference': 'COL-001',
         'status': 'in_delivery',
-        'pickup': {
-          'label': 'Boutique',
-          'latitude': 6.37,
-          'longitude': 2.42,
-        },
-        'dropoff': {
-          'label': 'Client',
-          'latitude': 6.35,
-          'longitude': 2.44,
-        },
+        'pickup': {'label': 'Boutique', 'latitude': 6.37, 'longitude': 2.42},
+        'dropoff': {'label': 'Client', 'latitude': 6.35, 'longitude': 2.44},
         'position': {
           'latitude': 6.36,
           'longitude': 2.43,

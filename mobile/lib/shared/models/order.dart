@@ -44,6 +44,7 @@ class OrderPayment {
     required this.amount,
     required this.status,
     this.currency = 'XOF',
+    this.paidAt,
   });
 
   final String id;
@@ -52,6 +53,7 @@ class OrderPayment {
   final int amount;
   final String status;
   final String currency;
+  final String? paidAt;
 
   bool get isPaid => status == 'confirmed' || status == 'paid';
 
@@ -62,6 +64,7 @@ class OrderPayment {
     amount: _i(json['amount']),
     status: _s(json['status']),
     currency: _s(json['currency'], 'XOF'),
+    paidAt: json['paid_at'] is String ? json['paid_at'] as String : null,
   );
 }
 

@@ -78,7 +78,7 @@ class ParcelController extends Controller
         $this->driverSelection->expireStale();
 
         $parcels = $request->user()->parcels()
-            ->with(['driverProfile.user', 'statusHistory', 'driverAssignmentRequest.driverProfile.user', 'approachPayment'])
+            ->with(['driverProfile.user', 'statusHistory', 'driverAssignmentRequest.driverProfile.user', 'approachPayment', 'payment'])
             ->orderByDesc('created_at')
             ->paginate((int) $request->query('per_page', config('beninfood.pagination.per_page')));
 
@@ -134,7 +134,7 @@ class ParcelController extends Controller
         $driver = $this->driverProfile($request);
 
         return Api::ok(ParcelResource::collection(
-            $this->parcels->availableOffers($driver)->load('user')
+            $this->parcels->availableOffers($driver)->load(['user', 'payment'])
         )->resolve());
     }
 
@@ -143,7 +143,7 @@ class ParcelController extends Controller
         $driver = $this->driverProfile($request);
 
         return Api::ok(ParcelResource::collection(
-            $this->parcels->driverParcels($driver)->load(['user', 'driverProfile.user', 'assignments'])
+            $this->parcels->driverParcels($driver)->load(['user', 'driverProfile.user', 'assignments', 'payment'])
         )->resolve());
     }
 

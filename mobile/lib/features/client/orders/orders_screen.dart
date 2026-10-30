@@ -13,6 +13,7 @@ import '../../../shared/widgets/beninfood_header.dart';
 import '../../../shared/widgets/call_button.dart';
 import '../../../shared/widgets/feedback_widgets.dart';
 import '../../../shared/widgets/state_widgets.dart';
+import '../../../shared/widgets/timestamp_line.dart';
 import 'order_tracking_screen.dart';
 
 /// Mes commandes (J152) — suivi et historique : en-tête brandé, onglets de
@@ -221,10 +222,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
       backgroundColor: AppColors.background,
       body: Column(
         children: [
-          BeninfoodAppBar(
-            onMenu: widget.onOpenMenu,
-            api: widget.marketplace,
-          ),
+          BeninfoodAppBar(onMenu: widget.onOpenMenu, api: widget.marketplace),
           _buildTitle(),
           _buildTabs(),
           Expanded(child: _buildList(visible)),
@@ -508,27 +506,19 @@ class _OrderCard extends StatelessWidget {
                           ),
                         ],
                         const SizedBox(height: 4),
-                        Row(
-                          children: [
-                            const Icon(
-                              Icons.calendar_today_outlined,
-                              size: 12,
-                              color: AppColors.textSecondary,
-                            ),
-                            const SizedBox(width: 5),
-                            Flexible(
-                              child: Text(
-                                '${_frFullDate(order.createdAt)} • ${_frTime(order.createdAt)}',
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  color: AppColors.textSecondary,
-                                ),
-                              ),
-                            ),
-                          ],
+                        TimestampLine(
+                          icon: Icons.event_outlined,
+                          label: 'Créée le',
+                          iso: order.createdAt,
                         ),
+                        if (order.payment?.paidAt != null) ...[
+                          const SizedBox(height: 3),
+                          TimestampLine(
+                            icon: Icons.payments_outlined,
+                            label: 'Payée le',
+                            iso: order.payment?.paidAt,
+                          ),
+                        ],
                         const SizedBox(height: 5),
                         Row(
                           children: [
@@ -714,7 +704,11 @@ class _OrderCard extends StatelessWidget {
       case 'awaiting_payment':
         // Commande en espèces : rien à régler en ligne (cahier v1.0).
         if (order.isCash) {
-          return ('À la livraison', AppColors.goldDark, 'Paiement en espèces à la livraison');
+          return (
+            'À la livraison',
+            AppColors.goldDark,
+            'Paiement en espèces à la livraison',
+          );
         }
         return ('À payer', AppColors.goldDark, 'Paiement en attente');
       case 'paid':
@@ -956,16 +950,6 @@ DateTime? _parse(String? iso) {
     return null;
   }
   return DateTime.tryParse(iso)?.toLocal();
-}
-
-/// « 04 Mai 2025 »
-String _frFullDate(String? iso) {
-  final date = _parse(iso);
-  if (date == null) {
-    return '—';
-  }
-  final day = date.day.toString().padLeft(2, '0');
-  return '$day ${_months[date.month - 1]} ${date.year}';
 }
 
 /// « 02 Mai »

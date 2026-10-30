@@ -64,6 +64,7 @@ class DriverMission {
     this.distanceKm,
     this.hasPendingHandover = false,
     this.placedAt,
+    this.paidAt,
     this.createdAt,
     this.deliveredAt,
   });
@@ -88,6 +89,9 @@ class DriverMission {
 
   /// Heure à laquelle la commande (ou le colis) a été passé par le client.
   final String? placedAt;
+
+  /// Heure à laquelle le client a réglé la commande (si paiement en ligne).
+  final String? paidAt;
   final String? createdAt;
   final String? deliveredAt;
 
@@ -195,6 +199,7 @@ class DriverMission {
     distanceKm: distanceKm,
     hasPendingHandover: hasPendingHandover,
     placedAt: placedAt,
+    paidAt: paidAt,
     createdAt: createdAt,
     deliveredAt: deliveredAt,
   );
@@ -252,6 +257,7 @@ class DriverMission {
       merchantLogoUrl: vendor?.logoUrl ?? vendor?.coverUrl,
       hasPendingHandover: delivery.hasPendingHandover,
       placedAt: order?.createdAt ?? delivery.createdAt,
+      paidAt: order?.paidAt,
       createdAt: delivery.createdAt,
       deliveredAt: delivery.deliveredAt,
     );
@@ -300,6 +306,7 @@ class DriverMission {
       merchantName: sender?.name,
       distanceKm: parcel.distanceKm,
       placedAt: parcel.createdAt,
+      paidAt: parcel.payment?.paidAt,
       createdAt: parcel.createdAt,
       deliveredAt: parcel.deliveredAt,
     );

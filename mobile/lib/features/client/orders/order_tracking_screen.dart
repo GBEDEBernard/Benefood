@@ -1469,7 +1469,7 @@ class _StatusHero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final date = formatDate(order.createdAt, fallback: '');
+    final date = formatDateTime(order.createdAt, fallback: '');
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
@@ -1535,6 +1535,16 @@ class _StatusHero extends StatelessWidget {
                         fontSize: 12.5,
                       ),
                     ),
+                    if (order.payment?.paidAt != null) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        'Payée le ${formatDateTime(order.payment?.paidAt, fallback: '')}',
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),

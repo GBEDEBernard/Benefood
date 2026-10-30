@@ -47,6 +47,9 @@ class DeliveryResource extends JsonResource
                 'status' => $order->status?->value,
                 // Heure à laquelle la commande a été passée (le livreur la voit).
                 'created_at' => $order->created_at?->toIso8601String(),
+                'paid_at' => $order->relationLoaded('payment')
+                    ? $order->payment?->paid_at?->toIso8601String()
+                    : null,
                 'total' => $order->total,
                 'subtotal' => $order->subtotal,
                 'delivery_fee' => $order->delivery_fee,

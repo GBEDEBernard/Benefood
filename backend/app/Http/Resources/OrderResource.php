@@ -71,6 +71,7 @@ class OrderResource extends JsonResource
                 'amount' => $this->payment->amount,
                 'status' => $this->payment->status?->value,
                 'currency' => $this->payment->currency,
+                'paid_at' => $this->payment->paid_at?->toIso8601String(),
             ]),
             'approach_payment' => $this->whenLoaded('approachPayment', fn () => $this->approachPayment === null ? null : [
                 'id' => $this->approachPayment->id,

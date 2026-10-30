@@ -47,6 +47,13 @@ Map<String, dynamic> _order({
     'created_at': '2025-05-04T12:30:00Z',
     'updated_at': updatedAt,
     'cancellation_reason': cancellationReason,
+    'payment': {
+      'id': 'pay-$id',
+      'reference': 'PAY-$id',
+      'amount': total,
+      'status': 'confirmed',
+      'paid_at': '2025-05-04T12:31:00Z',
+    },
     'vendor': {'id': 'v1', 'business_name': vendor},
     'items': [
       {
@@ -74,11 +81,7 @@ MockClient _mockBackend() {
       delivery: {
         'id': 'd1',
         'status': 'in_delivery',
-        'driver': {
-          'id': 'dr1',
-          'name': 'Kofi',
-          'phone': '+22997000001',
-        },
+        'driver': {'id': 'dr1', 'name': 'Kofi', 'phone': '+22997000001'},
       },
     ),
     _order(
@@ -111,7 +114,11 @@ MockClient _mockBackend() {
     if (request.url.path.endsWith('/orders')) {
       return http.Response(jsonEncode({'data': orders}), 200, headers: json);
     }
-    return http.Response(jsonEncode({'message': 'Not found'}), 404, headers: json);
+    return http.Response(
+      jsonEncode({'message': 'Not found'}),
+      404,
+      headers: json,
+    );
   });
 }
 
@@ -137,49 +144,58 @@ int _networkImageCount(WidgetTester tester) => find
     .length;
 
 void main() {
-  testWidgets('commandes : en-tête, onglets et carte en cours avec progression',
-      (tester) async {
-    await _pumpOrders(tester);
-    final exception = tester.takeException();
-    expect(exception, isNull, reason: 'exception pendant le build: $exception');
+  testWidgets(
+    'commandes : en-tête, onglets et carte en cours avec progression',
+    (tester) async {
+      await _pumpOrders(tester);
+      final exception = tester.takeException();
+      expect(
+        exception,
+        isNull,
+        reason: 'exception pendant le build: $exception',
+      );
 
-    expect(find.text('Mes commandes'), findsOneWidget);
-    expect(find.text('Toutes'), findsOneWidget);
-    // Le libellé « En cours » sert aussi d'étiquette de statut sur la carte
-    // in_delivery (l'autre carte active est « À payer »).
-    expect(find.text('En cours'), findsNWidgets(2));
-    expect(find.text('Terminées'), findsOneWidget);
-    expect(find.text('Annulées'), findsOneWidget);
+      expect(find.text('Mes commandes'), findsOneWidget);
+      expect(find.text('Toutes'), findsOneWidget);
+      // Le libellé « En cours » sert aussi d'étiquette de statut sur la carte
+      // in_delivery (l'autre carte active est « À payer »).
+      expect(find.text('En cours'), findsNWidgets(2));
+      expect(find.text('Terminées'), findsOneWidget);
+      expect(find.text('Annulées'), findsOneWidget);
 
-    expect(find.text('Chez Awalou'), findsOneWidget);
-    expect(find.text('#SAE3ZC'), findsOneWidget);
-    expect(find.text('5 500 FCFA'), findsOneWidget);
-    expect(find.text('Livraison en cours'), findsOneWidget);
+      expect(find.text('Chez Awalou'), findsOneWidget);
+      expect(find.text('#SAE3ZC'), findsOneWidget);
+      expect(find.text('5 500 FCFA'), findsOneWidget);
+      expect(find.text('Livraison en cours'), findsOneWidget);
+      expect(find.textContaining('Créée le'), findsWidgets);
+      expect(find.textContaining('Payée le'), findsWidgets);
 
-    // Seule la première carte active est visible dans le viewport : elle
-    // affiche la progression et les actions.
-    expect(find.text('Confirmée'), findsOneWidget);
-    expect(find.text('En livraison'), findsOneWidget);
-    expect(find.text('Livrée'), findsOneWidget);
-    expect(find.text('Voir détails'), findsOneWidget);
-    expect(find.text('Contacter le livreur'), findsOneWidget);
+      // Seule la première carte active est visible dans le viewport : elle
+      // affiche la progression et les actions.
+      expect(find.text('Confirmée'), findsOneWidget);
+      expect(find.text('En livraison'), findsOneWidget);
+      expect(find.text('Livrée'), findsOneWidget);
+      expect(find.text('Voir détails'), findsOneWidget);
+      expect(find.text('Contacter le livreur'), findsOneWidget);
 
-    // La carte en cours a une image de plat (image_url du backend).
-    expect(_networkImageCount(tester), 1);
+      // La carte en cours a une image de plat (image_url du backend).
+      expect(_networkImageCount(tester), 1);
 
-    await tester.scrollUntilVisible(
-      find.text('Le Grill Royal'),
-      400,
-      scrollable: find.byType(Scrollable).first,
-    );
-    expect(find.text('Le Grill Royal'), findsOneWidget);
-    expect(find.text('À payer'), findsOneWidget);
-    expect(find.text('Paiement en attente'), findsOneWidget);
-    expect(tester.takeException(), isNull);
-  });
+      await tester.scrollUntilVisible(
+        find.text('Le Grill Royal'),
+        400,
+        scrollable: find.byType(Scrollable).first,
+      );
+      expect(find.text('Le Grill Royal'), findsOneWidget);
+      expect(find.text('À payer'), findsOneWidget);
+      expect(find.text('Paiement en attente'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
 
-  testWidgets('commandes : onglets Terminées et Annulées filtrent les cartes',
-      (tester) async {
+  testWidgets('commandes : onglets Terminées et Annulées filtrent les cartes', (
+    tester,
+  ) async {
     await _pumpOrders(tester);
 
     await tester.tap(find.text('Terminées'));

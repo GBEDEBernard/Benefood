@@ -465,18 +465,21 @@ class ParcelPayment {
     this.reference,
     this.status,
     this.amount = 0,
+    this.paidAt,
   });
 
   final String id;
   final String? reference;
   final String? status;
   final int amount;
+  final String? paidAt;
 
   factory ParcelPayment.fromJson(Map<String, dynamic> json) => ParcelPayment(
     id: _s(json['id']),
     reference: json['reference'] is String ? json['reference'] as String : null,
     status: json['status'] is String ? json['status'] as String : null,
     amount: _i(json['amount']),
+    paidAt: json['paid_at'] is String ? json['paid_at'] as String : null,
   );
 }
 

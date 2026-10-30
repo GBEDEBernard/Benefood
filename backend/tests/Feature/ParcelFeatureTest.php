@@ -183,6 +183,12 @@ class ParcelFeatureTest extends TestCase
         $parcel = Parcel::firstOrFail();
         app(ParcelService::class)->confirmPayment($parcel, (int) $parcel->delivery_fee);
 
+        Sanctum::actingAs($client);
+        $this->getJson('/api/v1/parcels')
+            ->assertOk()
+            ->assertJsonPath('data.0.created_at', fn ($value) => $value !== null)
+            ->assertJsonPath('data.0.payment.paid_at', fn ($value) => $value !== null);
+
         $driver = $this->driver();
         Sanctum::actingAs($driver->user);
 
@@ -192,6 +198,8 @@ class ParcelFeatureTest extends TestCase
         $this->assertSame($client->id, $offer['sender']['id']);
         $this->assertSame($client->name, $offer['sender']['name']);
         $this->assertSame($client->phone, $offer['sender']['phone']);
+        $this->assertNotNull($offer['created_at']);
+        $this->assertNotNull($offer['payment']['paid_at']);
     }
 
     public function test_driver_starts_pickup_with_parcel_status_history(): void

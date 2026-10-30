@@ -134,9 +134,9 @@ class DriverHomeScreenState extends State<DriverHomeScreen>
     try {
       final statusFuture = widget.marketplace.driverStatus();
       final missionsFuture = widget.marketplace.driverMissions();
-      final walletFuture = widget.marketplace
-          .driverWallet()
-          .catchError((Object _) => <String, dynamic>{});
+      final walletFuture = widget.marketplace.driverWallet().catchError(
+        (Object _) => <String, dynamic>{},
+      );
 
       final results = await Future.wait<dynamic>([
         statusFuture,
@@ -176,7 +176,9 @@ class DriverHomeScreenState extends State<DriverHomeScreen>
     });
     try {
       if (value) {
-        final failure = await DriverPresenceService.goOnline(widget.marketplace);
+        final failure = await DriverPresenceService.goOnline(
+          widget.marketplace,
+        );
         if (failure != null) {
           if (mounted) {
             setState(() {
@@ -213,14 +215,15 @@ class DriverHomeScreenState extends State<DriverHomeScreen>
     }
   }
 
-  static String _locationFailureMessage(LocationFailure failure) => switch (failure) {
-    LocationFailure.serviceDisabled =>
-      'Activez le GPS de votre téléphone pour passer en ligne.',
-    LocationFailure.permissionDenied =>
-      'Autorisez la localisation pour recevoir des courses à proximité.',
-    LocationFailure.unavailable =>
-      'Position GPS introuvable. Réessayez dans un endroit dégagé.',
-  };
+  static String _locationFailureMessage(LocationFailure failure) =>
+      switch (failure) {
+        LocationFailure.serviceDisabled =>
+          'Activez le GPS de votre téléphone pour passer en ligne.',
+        LocationFailure.permissionDenied =>
+          'Autorisez la localisation pour recevoir des courses à proximité.',
+        LocationFailure.unavailable =>
+          'Position GPS introuvable. Réessayez dans un endroit dégagé.',
+      };
 
   Future<void> _openMission(DriverMission mission) async {
     await Navigator.of(context).push(
@@ -296,7 +299,9 @@ class DriverHomeScreenState extends State<DriverHomeScreen>
     }
 
     final active = _missions.where((mission) => mission.isActive).toList();
-    final deliveredCount = _missions.where((mission) => mission.isDelivered).length;
+    final deliveredCount = _missions
+        .where((mission) => mission.isDelivered)
+        .length;
     final availableBalance = _walletAmount('available_balance');
     final pendingBalance = _walletAmount('pending_balance');
 
@@ -370,7 +375,9 @@ class DriverHomeScreenState extends State<DriverHomeScreen>
         ),
         const SizedBox(height: AppDimens.lg),
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: AppDimens.pagePadding),
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppDimens.pagePadding,
+          ),
           child: Column(
             children: [
               _AvailabilityCard(
@@ -448,7 +455,9 @@ class DriverHomeScreenState extends State<DriverHomeScreen>
           }),
         const SizedBox(height: AppDimens.md),
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: AppDimens.pagePadding),
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppDimens.pagePadding,
+          ),
           child: Text(
             _available
                 ? 'Nouvelles offres : commandes et colis arrivent dans vos onglets.'
@@ -496,8 +505,9 @@ class _AvailabilityCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(AppDimens.radiusXl),
         boxShadow: [
           BoxShadow(
-            color: (available ? AppColors.green : AppColors.text)
-                .withValues(alpha: 0.22),
+            color: (available ? AppColors.green : AppColors.text).withValues(
+              alpha: 0.22,
+            ),
             blurRadius: 20,
             offset: const Offset(0, 8),
           ),
@@ -822,7 +832,8 @@ class _MissionCardState extends State<_MissionCard> {
     final palette = mission.isParcel
         ? BadgePalette.parcel(mission.status)
         : BadgePalette.delivery(mission.status);
-    final routeDistance = mission.distanceKm ??
+    final routeDistance =
+        mission.distanceKm ??
         _directDistance(mission.pickup.point, mission.dropoff.point);
     final eta = routeDistance == null ? null : estimateMinutes(routeDistance);
 
@@ -991,10 +1002,7 @@ class _MissionCardState extends State<_MissionCard> {
                         label: formatDistance(routeDistance),
                       ),
                     if (eta != null)
-                      _MetaChip(
-                        icon: Icons.schedule,
-                        label: formatEta(eta),
-                      ),
+                      _MetaChip(icon: Icons.schedule, label: formatEta(eta)),
                     if (mission.isOrder && mission.itemCount > 0)
                       _MetaChip(
                         icon: Icons.shopping_bag_outlined,
@@ -1006,6 +1014,11 @@ class _MissionCardState extends State<_MissionCard> {
                         label: mission.isParcel
                             ? 'Créé à ${formatTime(mission.placedAt)}'
                             : 'Commandé à ${formatTime(mission.placedAt)}',
+                      ),
+                    if (mission.paidAt != null)
+                      _MetaChip(
+                        icon: Icons.payments_outlined,
+                        label: 'Payé à ${formatTime(mission.paidAt)}',
                       ),
                     if (mission.placedAt != null)
                       _MetaChip(
@@ -1026,9 +1039,7 @@ class _MissionCardState extends State<_MissionCard> {
                       foregroundColor: Colors.white,
                       minimumSize: const Size(0, 46),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(
-                          AppDimens.radiusMd,
-                        ),
+                        borderRadius: BorderRadius.circular(AppDimens.radiusMd),
                       ),
                     ),
                     icon: Icon(_actionIcon(mission.status), size: 18),
@@ -1085,11 +1096,7 @@ class _RouteSummary extends StatelessWidget {
           padding: const EdgeInsets.only(left: 7),
           child: Row(
             children: [
-              Container(
-                width: 2,
-                height: 10,
-                color: AppColors.borderStrong,
-              ),
+              Container(width: 2, height: 10, color: AppColors.borderStrong),
             ],
           ),
         ),

@@ -20,6 +20,7 @@ import '../../../shared/widgets/beninfood_header.dart';
 import '../../../shared/widgets/feedback_widgets.dart';
 import '../../../shared/widgets/status_badge.dart';
 import '../../../shared/widgets/state_widgets.dart';
+import '../../../shared/widgets/timestamp_line.dart';
 
 /// Offres de livraison disponibles (J161).
 class OffersScreen extends StatefulWidget {
@@ -91,14 +92,16 @@ class _OffersScreenState extends State<OffersScreen> {
       return;
     }
 
-    final entries = await Future.wait(_offers.map((offer) async {
-      final pickup = offer.pickupPoint;
-      if (pickup == null) {
-        return null;
-      }
-      final plan = await _routePlanner.plan([position, pickup]);
-      return plan == null ? null : MapEntry(offer.id, plan);
-    }));
+    final entries = await Future.wait(
+      _offers.map((offer) async {
+        final pickup = offer.pickupPoint;
+        if (pickup == null) {
+          return null;
+        }
+        final plan = await _routePlanner.plan([position, pickup]);
+        return plan == null ? null : MapEntry(offer.id, plan);
+      }),
+    );
 
     if (!mounted) {
       return;
@@ -243,11 +246,19 @@ class _OffersScreenState extends State<OffersScreen> {
             Card(
               color: AppColors.orangeLight,
               child: ListTile(
-                leading: const Icon(Icons.info_outline, color: AppColors.orange),
-                title: const Text('Vous êtes indisponible', style: TextStyle(color: AppColors.orangeDark)),
+                leading: const Icon(
+                  Icons.info_outline,
+                  color: AppColors.orange,
+                ),
+                title: const Text(
+                  'Vous êtes indisponible',
+                  style: TextStyle(color: AppColors.orangeDark),
+                ),
                 subtitle: Text(
                   'Activez votre disponibilité pour accepter des offres.',
-                  style: TextStyle(color: AppColors.orangeDark.withValues(alpha: 0.8)),
+                  style: TextStyle(
+                    color: AppColors.orangeDark.withValues(alpha: 0.8),
+                  ),
                 ),
               ),
             ),
@@ -267,25 +278,28 @@ class _OffersScreenState extends State<OffersScreen> {
                         color: AppColors.goldLight,
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(Icons.local_offer_outlined, size: 44, color: AppColors.gold),
+                      child: const Icon(
+                        Icons.local_offer_outlined,
+                        size: 44,
+                        color: AppColors.gold,
+                      ),
                     ),
                     const SizedBox(height: 20),
                     Text(
                       'Aucune offre pour le moment',
                       textAlign: TextAlign.center,
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            color: AppColors.text,
-                            fontWeight: FontWeight.w700,
-                          ),
+                        color: AppColors.text,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                     const SizedBox(height: 8),
                     Text(
                       'Les nouvelles offres apparaîtront ici.',
                       textAlign: TextAlign.center,
-                      style: Theme.of(context)
-                          .textTheme
-                          .bodySmall
-                          ?.copyWith(color: AppColors.textSecondary),
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
                     ),
                   ],
                 ),
@@ -418,12 +432,30 @@ class _OfferCardState extends State<_OfferCard> {
                   ),
                   StatusBadge(
                     label: 'Disponible',
-                    color: widget.busy ? AppColors.textSecondary : AppColors.gold,
+                    color: widget.busy
+                        ? AppColors.textSecondary
+                        : AppColors.gold,
                     small: true,
-                    icon: widget.busy ? Icons.hourglass_empty : Icons.local_offer,
+                    icon: widget.busy
+                        ? Icons.hourglass_empty
+                        : Icons.local_offer,
                   ),
                 ],
               ),
+              const SizedBox(height: 6),
+              TimestampLine(
+                icon: Icons.event_outlined,
+                label: 'Créée le',
+                iso: widget.offer.order?.createdAt,
+              ),
+              if (widget.offer.order?.paidAt != null) ...[
+                const SizedBox(height: 3),
+                TimestampLine(
+                  icon: Icons.payments_outlined,
+                  label: 'Payée le',
+                  iso: widget.offer.order?.paidAt,
+                ),
+              ],
               const SizedBox(height: AppDimens.sm),
               Row(
                 children: [
@@ -434,7 +466,11 @@ class _OfferCardState extends State<_OfferCard> {
                       color: AppColors.goldLight,
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: const Icon(Icons.storefront_outlined, size: 20, color: AppColors.gold),
+                    child: const Icon(
+                      Icons.storefront_outlined,
+                      size: 20,
+                      color: AppColors.gold,
+                    ),
                   ),
                   const SizedBox(width: 8),
                   Expanded(
@@ -442,7 +478,10 @@ class _OfferCardState extends State<_OfferCard> {
                       vendorName,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontWeight: FontWeight.w600, color: AppColors.text),
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.text,
+                      ),
                     ),
                   ),
                 ],
@@ -451,14 +490,20 @@ class _OfferCardState extends State<_OfferCard> {
                 const SizedBox(height: AppDimens.xs),
                 Row(
                   children: [
-                    const Icon(Icons.place_outlined, size: 16, color: AppColors.gold),
+                    const Icon(
+                      Icons.place_outlined,
+                      size: 16,
+                      color: AppColors.gold,
+                    ),
                     const SizedBox(width: 6),
                     Expanded(
                       child: Text(
                         vendorAddress,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: AppColors.textSecondary,
+                        ),
                       ),
                     ),
                   ],
@@ -467,7 +512,8 @@ class _OfferCardState extends State<_OfferCard> {
               // Aperçu cartographique de l'offre : le livreur se situe (moto) par
               // rapport à la boutique (collecte) et à l'adresse du client, avec
               // l'itinéraire et la distance avant d'accepter la course.
-              if (widget.offer.pickupPoint != null || widget.offer.dropoffPoint != null) ...[
+              if (widget.offer.pickupPoint != null ||
+                  widget.offer.dropoffPoint != null) ...[
                 const SizedBox(height: AppDimens.sm),
                 AppMap(
                   origin: widget.origin,
@@ -489,11 +535,16 @@ class _OfferCardState extends State<_OfferCard> {
                   followOrigin: true,
                   showRoute: widget.route == null,
                 ),
-                if (widget.origin != null && widget.offer.pickupPoint != null) ...[
+                if (widget.origin != null &&
+                    widget.offer.pickupPoint != null) ...[
                   const SizedBox(height: AppDimens.xs),
                   Row(
                     children: [
-                      const Icon(Icons.near_me_outlined, size: 15, color: AppColors.orange),
+                      const Icon(
+                        Icons.near_me_outlined,
+                        size: 15,
+                        color: AppColors.orange,
+                      ),
                       const SizedBox(width: 6),
                       Expanded(
                         child: Text(
@@ -509,18 +560,25 @@ class _OfferCardState extends State<_OfferCard> {
                   ),
                 ],
               ],
-              if (widget.offer.order?.address != null && widget.offer.order!.address!.isNotEmpty) ...[
+              if (widget.offer.order?.address != null &&
+                  widget.offer.order!.address!.isNotEmpty) ...[
                 const SizedBox(height: AppDimens.xs),
                 Row(
                   children: [
-                    const Icon(Icons.location_on_outlined, size: 16, color: AppColors.orange),
+                    const Icon(
+                      Icons.location_on_outlined,
+                      size: 16,
+                      color: AppColors.orange,
+                    ),
                     const SizedBox(width: 6),
                     Expanded(
                       child: Text(
                         widget.offer.order!.address!,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: AppColors.textSecondary,
+                        ),
                       ),
                     ),
                   ],
@@ -536,14 +594,26 @@ class _OfferCardState extends State<_OfferCard> {
                       color: AppColors.orangeLight,
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: const Icon(Icons.payments_outlined, size: 20, color: AppColors.orange),
+                    child: const Icon(
+                      Icons.payments_outlined,
+                      size: 20,
+                      color: AppColors.orange,
+                    ),
                   ),
                   const SizedBox(width: 8),
-                  AmountText(widget.offer.netEarnings, style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.text)),
+                  AmountText(
+                    widget.offer.netEarnings,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.text,
+                    ),
+                  ),
                   const SizedBox(width: 8),
                   Text(
                     'Votre gain',
-                    style: theme.textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
                   ),
                 ],
               ),
@@ -556,7 +626,11 @@ class _OfferCardState extends State<_OfferCard> {
                       style: OutlinedButton.styleFrom(
                         foregroundColor: AppColors.textSecondary,
                         side: const BorderSide(color: AppColors.border),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppDimens.radiusMd)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(
+                            AppDimens.radiusMd,
+                          ),
+                        ),
                       ),
                       child: widget.busy
                           ? const SizedBox(
@@ -574,14 +648,23 @@ class _OfferCardState extends State<_OfferCard> {
                       style: FilledButton.styleFrom(
                         backgroundColor: AppColors.orange,
                         foregroundColor: Colors.white,
-                        disabledBackgroundColor: AppColors.orange.withValues(alpha: 0.4),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppDimens.radiusMd)),
+                        disabledBackgroundColor: AppColors.orange.withValues(
+                          alpha: 0.4,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(
+                            AppDimens.radiusMd,
+                          ),
+                        ),
                       ),
                       child: widget.busy
                           ? const SizedBox(
                               width: 18,
                               height: 18,
-                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
                             )
                           : const Text('Accepter'),
                     ),

@@ -25,6 +25,8 @@ Delivery _delivery({String status = 'en_route_pickup'}) {
     'order': {
       'id': 'o-1',
       'reference': 'CMD-9001',
+      'created_at': '2026-10-20T09:00:00Z',
+      'paid_at': '2026-10-20T09:02:00Z',
       'address': {
         'full_address': 'Fidjrossè',
         'city': 'Cotonou',
@@ -64,6 +66,13 @@ Parcel _parcel({
     'delivery_fee': 900,
     'partner_amount': 700,
     'created_at': '2026-10-21T09:00:00Z',
+    'payment': {
+      'id': 'pay-p1',
+      'reference': 'PAY-P1',
+      'status': 'confirmed',
+      'amount': 900,
+      'paid_at': '2026-10-21T09:01:00Z',
+    },
     'pickup':
         pickup ??
         {
@@ -116,6 +125,8 @@ void main() {
     expect(mission.itemCount, 2);
     expect(mission.earnings, 550);
     expect(mission.clientFee, 700);
+    expect(mission.placedAt, '2026-10-20T09:00:00Z');
+    expect(mission.paidAt, '2026-10-20T09:02:00Z');
 
     final assigned = mission.copyWithStatus('assigned');
     expect(assigned.currentStep, 0);
@@ -158,6 +169,8 @@ void main() {
     expect(mission.distanceKm, 4.2);
     expect(mission.earnings, 700);
     expect(mission.clientFee, 900);
+    expect(mission.placedAt, '2026-10-21T09:00:00Z');
+    expect(mission.paidAt, '2026-10-21T09:01:00Z');
   });
 
   test('mission colis : repli sur l’expéditeur quand le contact manque', () {

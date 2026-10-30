@@ -66,7 +66,7 @@ class DeliveryController extends Controller
 
         return Api::ok(DeliveryResource::collection(
             $this->deliveryService->availableOffers($driver)
-                ->map(fn (Delivery $delivery) => $delivery->load(['order.vendor', 'order.user', 'order.items.product', 'order.financials', 'vendor', 'zone']))
+                ->map(fn (Delivery $delivery) => $delivery->load(['order.vendor', 'order.user', 'order.items.product', 'order.financials', 'order.payment', 'vendor', 'zone']))
         )->resolve());
     }
 
@@ -76,7 +76,7 @@ class DeliveryController extends Controller
 
         return Api::ok(DeliveryResource::collection(
             $this->deliveryService->driverDeliveries($driver)
-                ->map(fn (Delivery $delivery) => $delivery->load(['order.vendor', 'order.user', 'order.items.product', 'order.financials', 'vendor', 'statusHistory', 'driverProfile.user', 'assignments']))
+                ->map(fn (Delivery $delivery) => $delivery->load(['order.vendor', 'order.user', 'order.items.product', 'order.financials', 'order.payment', 'vendor', 'statusHistory', 'driverProfile.user', 'assignments']))
         )->resolve());
     }
 

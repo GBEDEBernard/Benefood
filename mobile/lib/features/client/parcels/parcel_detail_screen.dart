@@ -28,6 +28,7 @@ import '../../../shared/widgets/feedback_widgets.dart';
 import '../../../shared/widgets/fedapay_checkout_screen.dart';
 import '../../../shared/widgets/status_badge.dart';
 import '../../../shared/widgets/state_widgets.dart';
+import '../../../shared/widgets/timestamp_line.dart';
 
 /// Suivi détaillé d'un colis (client ou boutique vendeuse) :
 /// carte, livreur, paiement et journal.
@@ -707,20 +708,19 @@ class _ParcelDetailScreenState extends State<ParcelDetailScreen> {
                     ),
                   ],
                   const SizedBox(height: AppDimens.md),
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.event_outlined,
-                        size: 16,
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        formatDateTime(parcel.createdAt, fallback: '—'),
-                        style: theme.textTheme.bodySmall,
-                      ),
-                    ],
+                  TimestampLine(
+                    icon: Icons.event_outlined,
+                    label: 'Créé le',
+                    iso: parcel.createdAt,
                   ),
+                  if (parcel.payment?.paidAt != null) ...[
+                    const SizedBox(height: 3),
+                    TimestampLine(
+                      icon: Icons.payments_outlined,
+                      label: 'Payé le',
+                      iso: parcel.payment?.paidAt,
+                    ),
+                  ],
                 ],
               ),
             ),

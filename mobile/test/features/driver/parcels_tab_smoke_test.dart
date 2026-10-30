@@ -34,6 +34,14 @@ MockClient _mockBackend() {
       'payment_method': 'mobile_money',
       'delivery_fee': 500,
       'partner_amount': 400,
+      'created_at': '2026-10-20T09:00:00Z',
+      'payment': {
+        'id': 'pay-r1',
+        'reference': 'PAY-R1',
+        'status': 'confirmed',
+        'amount': 500,
+        'paid_at': '2026-10-20T09:01:00Z',
+      },
       'pickup': {'label': 'Depot', 'latitude': 6.36, 'longitude': 2.42},
       'dropoff': {'label': 'Client', 'latitude': 6.37, 'longitude': 2.43},
     },
@@ -47,6 +55,14 @@ MockClient _mockBackend() {
       'description': 'Un colis à livrer',
       'delivery_fee': 600,
       'partner_amount': 500,
+      'created_at': '2026-10-20T09:05:00Z',
+      'payment': {
+        'id': 'pay-p1',
+        'reference': 'PAY-P1',
+        'status': 'confirmed',
+        'amount': 600,
+        'paid_at': '2026-10-20T09:06:00Z',
+      },
       'pickup': {'label': 'Depot', 'latitude': 6.36, 'longitude': 2.42},
       'dropoff': {'label': 'Client', 'latitude': 6.37, 'longitude': 2.43},
     },
@@ -98,6 +114,8 @@ void main() {
     expect(find.text('Offres de colis'), findsOneWidget);
     expect(find.text('COL-001'), findsOneWidget);
     expect(find.text('COL-002'), findsOneWidget);
+    expect(find.textContaining('Créé le'), findsNWidgets(2));
+    expect(find.textContaining('Payé le'), findsNWidgets(2));
     // Le bouton pleine largeur du pied de carte ne force plus de largeur
     // infinie dans la `Row`.
     expect(find.text('Accepter'), findsOneWidget);

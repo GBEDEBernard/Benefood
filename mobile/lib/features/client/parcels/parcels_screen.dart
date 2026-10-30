@@ -6,13 +6,13 @@ import '../../../core/errors/api_exception.dart';
 import '../../../core/navigation/notification_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_dimens.dart';
-import '../../../core/utils/formatters.dart';
 import '../../../shared/models/parcel.dart';
 import '../../../shared/widgets/amount_widgets.dart';
 import '../../../shared/widgets/beninfood_header.dart';
 import '../../../shared/widgets/profile_widgets.dart';
 import '../../../shared/widgets/status_badge.dart';
 import '../../../shared/widgets/state_widgets.dart';
+import '../../../shared/widgets/timestamp_line.dart';
 
 /// Mes colis — expéditions de l'espace courant (cahier v1.0, phase 3).
 ///
@@ -165,7 +165,6 @@ class _ParcelCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final palette = BadgePalette.parcel(parcel.status);
 
     return Card(
@@ -212,21 +211,29 @@ class _ParcelCard extends StatelessWidget {
               ),
               const SizedBox(height: AppDimens.md),
               Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(
-                    Icons.event_outlined,
-                    size: 16,
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                  const SizedBox(width: 6),
                   Expanded(
-                    child: Text(
-                      formatDateTime(parcel.createdAt, fallback: '—'),
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: AppColors.textSecondary,
-                      ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        TimestampLine(
+                          icon: Icons.event_outlined,
+                          label: 'Créé le',
+                          iso: parcel.createdAt,
+                        ),
+                        if (parcel.payment?.paidAt != null) ...[
+                          const SizedBox(height: 3),
+                          TimestampLine(
+                            icon: Icons.payments_outlined,
+                            label: 'Payé le',
+                            iso: parcel.payment?.paidAt,
+                          ),
+                        ],
+                      ],
                     ),
                   ),
+                  const SizedBox(width: 8),
                   AmountText(
                     parcel.totalAmount,
                     style: const TextStyle(fontWeight: FontWeight.w800),

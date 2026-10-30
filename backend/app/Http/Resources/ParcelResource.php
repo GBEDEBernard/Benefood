@@ -90,6 +90,7 @@ class ParcelResource extends JsonResource
                 'reference' => $this->payment->reference,
                 'status' => $this->payment->status?->value,
                 'amount' => (int) $this->payment->amount,
+                'paid_at' => $this->payment->paid_at?->toIso8601String(),
             ]),
             'approach_payment' => $this->whenLoaded('approachPayment', fn () => $this->approachPayment === null ? null : [
                 'id' => $this->approachPayment->id,

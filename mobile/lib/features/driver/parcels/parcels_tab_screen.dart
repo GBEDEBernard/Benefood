@@ -14,6 +14,7 @@ import '../../../shared/widgets/beninfood_header.dart';
 import '../../../shared/widgets/feedback_widgets.dart';
 import '../../../shared/widgets/status_badge.dart';
 import '../../../shared/widgets/state_widgets.dart';
+import '../../../shared/widgets/timestamp_line.dart';
 
 /// Service colis côté livreur (cahier v1.0, phase 3) :
 /// offres de colis disponibles + courses assignées (accept → pickup → start → deliver).
@@ -541,6 +542,20 @@ class _RunCard extends StatelessWidget {
                 showRoute: false,
               ),
             ],
+            const SizedBox(height: AppDimens.sm),
+            TimestampLine(
+              icon: Icons.event_outlined,
+              label: 'Créé le',
+              iso: parcel.createdAt,
+            ),
+            if (parcel.payment?.paidAt != null) ...[
+              const SizedBox(height: 3),
+              TimestampLine(
+                icon: Icons.payments_outlined,
+                label: 'Payé le',
+                iso: parcel.payment?.paidAt,
+              ),
+            ],
             const Divider(height: AppDimens.xl),
             Row(
               children: [
@@ -681,6 +696,20 @@ class _OfferCard extends StatelessWidget {
                 initialZoom: 12,
                 followOrigin: false,
                 showRoute: false,
+              ),
+            ],
+            const SizedBox(height: AppDimens.sm),
+            TimestampLine(
+              icon: Icons.event_outlined,
+              label: 'Créé le',
+              iso: parcel.createdAt,
+            ),
+            if (parcel.payment?.paidAt != null) ...[
+              const SizedBox(height: 3),
+              TimestampLine(
+                icon: Icons.payments_outlined,
+                label: 'Payé le',
+                iso: parcel.payment?.paidAt,
               ),
             ],
             const Divider(height: AppDimens.xl),

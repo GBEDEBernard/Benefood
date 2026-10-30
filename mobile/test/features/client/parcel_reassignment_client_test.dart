@@ -29,6 +29,14 @@ const _parcel = {
   'status': 'in_delivery',
   'payment_method': 'mobile_money',
   'payment_status': 'confirmed',
+  'created_at': '2026-10-20T09:00:00Z',
+  'payment': {
+    'id': 'pay-p1',
+    'reference': 'PAY-P1',
+    'status': 'confirmed',
+    'amount': 650,
+    'paid_at': '2026-10-20T09:01:00Z',
+  },
   'delivery_fee': 500,
   'creation_fee': 150,
   'total_amount': 650,
@@ -142,6 +150,8 @@ void main() {
 
     expect(find.text('Incident signalé'), findsOneWidget);
     expect(find.text('Pneu crevé'), findsOneWidget);
+    expect(find.textContaining('Créé le'), findsOneWidget);
+    expect(find.textContaining('Payé le'), findsOneWidget);
 
     await tester.ensureVisible(find.text('Changer de livreur'));
     await tester.tap(find.text('Changer de livreur'));
