@@ -22,72 +22,75 @@ class DriverBottomBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bar = NavigationBar(
-      selectedIndex: activeIndex ?? 0,
-      onDestinationSelected: onSelect,
-      destinations: const [
-        NavigationDestination(
-          icon: Icon(Icons.delivery_dining_outlined),
-          selectedIcon: Icon(Icons.delivery_dining),
-          label: 'Missions',
-        ),
-        NavigationDestination(
-          icon: Icon(Icons.local_offer_outlined),
-          selectedIcon: Icon(Icons.local_offer),
-          label: 'Offres',
-        ),
-        NavigationDestination(
-          icon: Icon(Icons.inventory_2_outlined),
-          selectedIcon: Icon(Icons.inventory_2),
-          label: 'Colis',
-        ),
-        NavigationDestination(
-          icon: Icon(Icons.history_outlined),
-          selectedIcon: Icon(Icons.history),
-          label: 'Historique',
-        ),
-        NavigationDestination(
-          icon: Icon(Icons.person_outline),
-          selectedIcon: Icon(Icons.person),
-          label: 'Compte',
-        ),
-      ],
-    );
-
-    if (activeIndex != null) {
-      return bar;
-    }
-
-    // Aucun onglet actif : on neutralise l'indicateur et les couleurs de
-    // l'état « sélectionné » pour que la barre reste neutre.
+    final hasSelection = activeIndex != null;
     final theme = Theme.of(context);
     final navTheme = theme.navigationBarTheme;
 
     return Theme(
       data: theme.copyWith(
         navigationBarTheme: NavigationBarThemeData(
-          backgroundColor: navTheme.backgroundColor,
-          surfaceTintColor: navTheme.surfaceTintColor,
+          backgroundColor: AppColors.surface,
+          surfaceTintColor: Colors.transparent,
           elevation: navTheme.elevation,
           shadowColor: navTheme.shadowColor,
           height: navTheme.height,
-          indicatorColor: Colors.transparent,
+          indicatorColor:
+              hasSelection ? AppColors.orangeMist : Colors.transparent,
           labelTextStyle: WidgetStateProperty.resolveWith(
-            (states) => const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-              color: AppColors.textSecondary,
+            (states) => TextStyle(
+              fontSize: 11.5,
+              fontWeight: states.contains(WidgetState.selected) && hasSelection
+                  ? FontWeight.w800
+                  : FontWeight.w500,
+              color: states.contains(WidgetState.selected) && hasSelection
+                  ? AppColors.orangeVivid
+                  : AppColors.neutralTextSecondary,
             ),
           ),
           iconTheme: WidgetStateProperty.resolveWith(
-            (states) => const IconThemeData(
-              size: 24,
-              color: AppColors.textSecondary,
+            (states) => IconThemeData(
+              size: states.contains(WidgetState.selected) && hasSelection
+                  ? 25
+                  : 23,
+              color: states.contains(WidgetState.selected) && hasSelection
+                  ? AppColors.orangeVivid
+                  : AppColors.neutralTextSecondary,
             ),
           ),
         ),
       ),
-      child: bar,
+      child: NavigationBar(
+        selectedIndex: activeIndex ?? 0,
+        onDestinationSelected: onSelect,
+        animationDuration: const Duration(milliseconds: 280),
+        destinations: const [
+          NavigationDestination(
+            icon: Icon(Icons.delivery_dining_outlined),
+            selectedIcon: Icon(Icons.delivery_dining_rounded),
+            label: 'Missions',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.local_offer_outlined),
+            selectedIcon: Icon(Icons.local_offer_rounded),
+            label: 'Offres',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.inventory_2_outlined),
+            selectedIcon: Icon(Icons.inventory_2_rounded),
+            label: 'Colis',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.history_outlined),
+            selectedIcon: Icon(Icons.history_rounded),
+            label: 'Historique',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.person_outline_rounded),
+            selectedIcon: Icon(Icons.person_rounded),
+            label: 'Compte',
+          ),
+        ],
+      ),
     );
   }
 }

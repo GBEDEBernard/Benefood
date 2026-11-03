@@ -18,6 +18,7 @@ import '../../../shared/widgets/amount_widgets.dart';
 import '../../../shared/widgets/app_network_image.dart';
 import '../../../shared/widgets/beninfood_header.dart';
 import '../../../shared/widgets/feedback_widgets.dart';
+import '../../../shared/widgets/food_decor.dart';
 import '../../../shared/widgets/home_header.dart';
 import '../../../shared/widgets/section_header.dart';
 import '../../../shared/widgets/status_badge.dart';
@@ -271,10 +272,15 @@ class DriverHomeScreenState extends State<DriverHomeScreen>
         : 'Bonjour, $firstName';
 
     return Scaffold(
-      body: RefreshIndicator(
-        color: AppColors.orange,
-        onRefresh: _load,
-        child: _buildBody(greeting),
+      body: Stack(
+        children: [
+          const Positioned.fill(child: FoodDecorPageBackground()),
+          RefreshIndicator(
+            color: AppColors.orange,
+            onRefresh: _load,
+            child: _buildBody(greeting),
+          ),
+        ],
       ),
     );
   }

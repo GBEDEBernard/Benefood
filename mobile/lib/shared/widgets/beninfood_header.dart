@@ -153,6 +153,7 @@ class BeninfoodAppBar extends StatelessWidget {
     this.tooltip = 'Ouvrir le menu',
     this.backgroundColor = Colors.white,
     this.height = 56,
+    this.notificationBadgeColor = AppColors.red,
   });
 
   /// Ouvre le tiroir latéral. Si null, un espace (44px) le remplace
@@ -180,6 +181,8 @@ class BeninfoodAppBar extends StatelessWidget {
   final Color backgroundColor;
   final double height;
 
+  final Color notificationBadgeColor;
+
   @override
   Widget build(BuildContext context) {
     final leading = onMenu != null
@@ -195,7 +198,11 @@ class BeninfoodAppBar extends StatelessWidget {
           children: [
             ...actions,
             if (api != null)
-              NotificationBell(api: api!, audience: audience)
+              NotificationBell(
+                api: api!,
+                audience: audience,
+                badgeColor: notificationBadgeColor,
+              )
             else
               const SizedBox(width: 44),
           ],

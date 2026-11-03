@@ -9,6 +9,7 @@ import '../../../shared/models/favorite_driver.dart';
 import '../../../shared/widgets/beninfood_header.dart';
 import '../../../shared/widgets/call_button.dart';
 import '../../../shared/widgets/feedback_widgets.dart';
+import '../../../shared/widgets/food_decor.dart';
 import '../../../shared/widgets/state_widgets.dart';
 
 /// « Mes clients » : demandes de favori reçues par un livreur.
@@ -86,7 +87,12 @@ class _FavoriteClientsScreenState extends State<FavoriteClientsScreen> {
       title: 'Mes clients',
       api: widget.marketplace,
       audience: NotificationAudience.driver,
-      body: _buildBody(),
+      body: Stack(
+        children: [
+          const Positioned.fill(child: FoodDecorPageBackground()),
+          _buildBody(),
+        ],
+      ),
     );
   }
 

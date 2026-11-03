@@ -19,10 +19,13 @@ class ProfileEditScreen extends StatefulWidget {
     super.key,
     required this.marketplace,
     required this.session,
+    this.addressLine,
   });
 
   final MarketplaceApi marketplace;
   final SessionProvider session;
+
+  final String? addressLine;
 
   @override
   State<ProfileEditScreen> createState() => _ProfileEditScreenState();
@@ -216,6 +219,43 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
               prefixIcon: Icon(Icons.mail_outline),
             ),
           ),
+          if (widget.addressLine != null &&
+              widget.addressLine!.trim().isNotEmpty) ...[
+            const SizedBox(height: AppDimens.lg),
+            DecoratedBox(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(AppDimens.radiusLg),
+                boxShadow: AppTheme.softShadow(),
+              ),
+              child: Material(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(AppDimens.radiusLg),
+                child: ListTile(
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(AppDimens.radiusLg),
+                  ),
+                  leading: Container(
+                    width: 40,
+                    height: 40,
+                    decoration: const BoxDecoration(
+                      color: AppColors.greenLight,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.location_on_outlined,
+                      size: 20,
+                      color: AppColors.green,
+                    ),
+                  ),
+                  title: const Text('Adresse'),
+                  subtitle: Text(
+                    widget.addressLine!.trim(),
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                ),
+              ),
+            ),
+          ],
           const SizedBox(height: AppDimens.lg),
           DecoratedBox(
             decoration: BoxDecoration(

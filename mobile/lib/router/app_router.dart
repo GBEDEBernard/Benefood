@@ -35,6 +35,7 @@ import '../features/vendor/account/vendor_settings_screen.dart';
 import '../features/vendor/presentation/vendor_shell.dart';
 import '../features/vendor/restaurant/screens/vendor_statistics_screen.dart';
 import '../features/driver/presentation/driver_shell.dart';
+import '../features/driver/account/driver_verification_screen.dart';
 import '../features/driver/account/favorite_clients_screen.dart';
 import '../features/driver/stats/driver_statistics_screen.dart';
 import '../features/driver/wallet/driver_wallet_screen.dart';
@@ -356,8 +357,18 @@ GoRouter buildAppRouter(SessionProvider session, MarketplaceApi marketplace) {
       ),
       GoRoute(
         path: '/driver/profile/edit',
-        builder: (context, state) =>
-            ProfileEditScreen(marketplace: marketplace, session: session),
+        builder: (context, state) => ProfileEditScreen(
+          marketplace: marketplace,
+          session: session,
+          addressLine: state.uri.queryParameters['address'],
+        ),
+      ),
+      GoRoute(
+        path: '/driver/verification',
+        builder: (context, state) => DriverVerificationScreen(
+          marketplace: marketplace,
+          initialFocus: state.uri.queryParameters['focus'],
+        ),
       ),
       GoRoute(
         path: '/driver/notifications',

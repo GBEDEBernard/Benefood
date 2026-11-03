@@ -54,4 +54,15 @@ class AppColors {
   static const Color success = green;
   static const Color warning = goldDark;
   static const Color info = Color(0xFF2B6CB0);
+
+  static const Color orangeVivid = Color(0xFFFF8C00);
+  static const Color orangeMist = Color(0xFFFFF2E8);
+  static const Color greenDeep = Color(0xFF087B46);
+  static const Color greenFresh = Color(0xFF159653);
+  static const Color greenMist = Color(0xFFEAF7EF);
+  static const Color neutralBackground = Color(0xFFFAFAFA);
+  static const Color neutralText = Color(0xFF202A33);
+  static const Color neutralTextSecondary = Color(0xFF747B80);
+  static const Color neutralBorder = Color(0xFFE5E7EB);
+  static const Color neutralSurfaceMuted = Color(0xFFF4F5F6);
 }

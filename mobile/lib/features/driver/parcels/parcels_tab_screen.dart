@@ -12,6 +12,7 @@ import '../../../shared/widgets/app_button.dart';
 import '../../../shared/widgets/app_map.dart';
 import '../../../shared/widgets/beninfood_header.dart';
 import '../../../shared/widgets/feedback_widgets.dart';
+import '../../../shared/widgets/food_decor.dart';
 import '../../../shared/widgets/status_badge.dart';
 import '../../../shared/widgets/state_widgets.dart';
 import '../../../shared/widgets/timestamp_line.dart';
@@ -309,14 +310,19 @@ class _DriverParcelsScreenState extends State<DriverParcelsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Column(
+      body: Stack(
         children: [
-          BeninfoodAppBar(
-            onMenu: widget.onOpenMenu,
-            api: widget.marketplace,
-            audience: NotificationAudience.driver,
+          const Positioned.fill(child: FoodDecorPageBackground()),
+          Column(
+            children: [
+              BeninfoodAppBar(
+                onMenu: widget.onOpenMenu,
+                api: widget.marketplace,
+                audience: NotificationAudience.driver,
+              ),
+              Expanded(child: _buildBody()),
+            ],
           ),
-          Expanded(child: _buildBody()),
         ],
       ),
     );

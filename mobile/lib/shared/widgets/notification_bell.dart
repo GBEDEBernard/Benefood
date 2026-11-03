@@ -44,10 +44,13 @@ class NotificationBell extends StatefulWidget {
     super.key,
     required this.api,
     this.audience = NotificationAudience.client,
+    this.badgeColor = AppColors.red,
   });
 
   final MarketplaceApi api;
   final NotificationAudience audience;
+
+  final Color badgeColor;
 
   @override
   State<NotificationBell> createState() => _NotificationBellState();
@@ -239,8 +242,8 @@ class _NotificationBellState extends State<NotificationBell>
                 width: 18,
                 height: 18,
                 alignment: Alignment.center,
-                decoration: const BoxDecoration(
-                  color: AppColors.red,
+                decoration: BoxDecoration(
+                  color: widget.badgeColor,
                   shape: BoxShape.circle,
                 ),
                 child: Text(

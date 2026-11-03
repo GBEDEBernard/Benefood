@@ -27,6 +27,7 @@ class ProfileHeader extends StatelessWidget {
     this.uploadingAvatar = false,
     this.onMenu,
     this.audience = NotificationAudience.client,
+    this.notificationBadgeColor = AppColors.red,
   });
 
   final MarketplaceApi marketplace;
@@ -34,6 +35,8 @@ class ProfileHeader extends StatelessWidget {
 
   /// Espace courant, pour router les notifications vers le bon détail.
   final NotificationAudience audience;
+
+  final Color notificationBadgeColor;
 
   /// Ouvre le tiroir latéral (menu hamburger).
   final VoidCallback? onMenu;
@@ -44,6 +47,7 @@ class ProfileHeader extends StatelessWidget {
       onMenu: onMenu,
       api: marketplace,
       audience: audience,
+      notificationBadgeColor: notificationBadgeColor,
       trailing: uploadingAvatar
           ? const SizedBox(
               width: 44,

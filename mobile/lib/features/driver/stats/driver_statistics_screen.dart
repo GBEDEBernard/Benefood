@@ -10,6 +10,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_dimens.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../shared/widgets/beninfood_header.dart';
+import '../../../shared/widgets/food_decor.dart';
 import '../../../shared/widgets/stat_charts.dart';
 import '../../../shared/widgets/state_widgets.dart';
 import '../widgets/driver_bottom_bar.dart';
@@ -154,75 +155,80 @@ class _DriverStatisticsScreenState extends State<DriverStatisticsScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: Column(
+      body: Stack(
         children: [
-          BeninfoodAppBar(
-            onMenu:
-                widget.onOpenDrawer ??
-                () {
-                  if (context.canPop()) {
-                    context.pop();
-                  } else {
-                    context.go('/driver');
-                  }
-                },
-            api: widget.marketplace,
-            audience: NotificationAudience.driver,
+          const Positioned.fill(child: FoodDecorPageBackground()),
+          Column(
+            children: [
+              BeninfoodAppBar(
+                onMenu:
+                    widget.onOpenDrawer ??
+                    () {
+                      if (context.canPop()) {
+                        context.pop();
+                      } else {
+                        context.go('/driver');
+                      }
+                    },
+                api: widget.marketplace,
+                audience: NotificationAudience.driver,
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppDimens.pagePadding,
+                  AppDimens.lg,
+                  AppDimens.pagePadding,
+                  AppDimens.sm,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Statistiques',
+                      style: TextStyle(
+                        color: _ink,
+                        fontSize: 24,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.4,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    const Text(
+                      'Vos gains et vos livraisons en un coup d\'œil',
+                      style: TextStyle(color: _muted, fontSize: 13),
+                    ),
+                    const SizedBox(height: 6),
+                    StatLiveStatus(
+                      updatedAt: _lastUpdated,
+                      refreshing: _refreshing,
+                      onRefresh: () => _load(silent: true),
+                    ),
+                    const SizedBox(height: AppDimens.sm),
+                    StatPeriodSelector(period: _period, onChanged: _onPeriod),
+                    const SizedBox(height: 6),
+                    SizedBox(
+                      height: 2,
+                      child: _refreshing
+                          ? ClipRRect(
+                              borderRadius: BorderRadius.circular(
+                                AppDimens.radiusPill,
+                              ),
+                              child: LinearProgressIndicator(
+                                minHeight: 2,
+                                backgroundColor: AppColors.orangeLight,
+                                valueColor: const AlwaysStoppedAnimation<Color>(
+                                  AppColors.orange,
+                                ),
+                              ),
+                            )
+                          : null,
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(child: _buildBody()),
+            ],
           ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(
-              AppDimens.pagePadding,
-              AppDimens.lg,
-              AppDimens.pagePadding,
-              AppDimens.sm,
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Statistiques',
-                  style: TextStyle(
-                    color: _ink,
-                    fontSize: 24,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: -0.4,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                const Text(
-                  'Vos gains et vos livraisons en un coup d\'œil',
-                  style: TextStyle(color: _muted, fontSize: 13),
-                ),
-                const SizedBox(height: 6),
-                StatLiveStatus(
-                  updatedAt: _lastUpdated,
-                  refreshing: _refreshing,
-                  onRefresh: () => _load(silent: true),
-                ),
-                const SizedBox(height: AppDimens.sm),
-                StatPeriodSelector(period: _period, onChanged: _onPeriod),
-                const SizedBox(height: 6),
-                SizedBox(
-                  height: 2,
-                  child: _refreshing
-                      ? ClipRRect(
-                          borderRadius: BorderRadius.circular(
-                            AppDimens.radiusPill,
-                          ),
-                          child: LinearProgressIndicator(
-                            minHeight: 2,
-                            backgroundColor: AppColors.orangeLight,
-                            valueColor: const AlwaysStoppedAnimation<Color>(
-                              AppColors.orange,
-                            ),
-                          ),
-                        )
-                      : null,
-                ),
-              ],
-            ),
-          ),
-          Expanded(child: _buildBody()),
         ],
       ),
       // Footer livreur : barre d'actions rapides vers les sections du shell.

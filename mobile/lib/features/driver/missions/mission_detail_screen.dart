@@ -15,6 +15,7 @@ import '../../../shared/widgets/app_network_image.dart';
 import '../../../shared/widgets/beninfood_header.dart';
 import '../../../shared/widgets/call_button.dart';
 import '../../../shared/widgets/feedback_widgets.dart';
+import '../../../shared/widgets/food_decor.dart';
 import '../../../shared/widgets/package_item_tile.dart';
 import '../../../shared/widgets/status_badge.dart';
 import '../../../shared/widgets/state_widgets.dart';
@@ -378,21 +379,26 @@ class _MissionDetailScreenState extends State<MissionDetailScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Column(
+      body: Stack(
         children: [
-          BeninfoodAppBar(
-            onMenu: () {
-              final navigator = Navigator.of(context);
-              if (navigator.canPop()) {
-                navigator.pop();
-              } else {
-                context.go('/driver');
-              }
-            },
-            api: widget.marketplace,
-            audience: NotificationAudience.driver,
+          const Positioned.fill(child: FoodDecorPageBackground()),
+          Column(
+            children: [
+              BeninfoodAppBar(
+                onMenu: () {
+                  final navigator = Navigator.of(context);
+                  if (navigator.canPop()) {
+                    navigator.pop();
+                  } else {
+                    context.go('/driver');
+                  }
+                },
+                api: widget.marketplace,
+                audience: NotificationAudience.driver,
+              ),
+              Expanded(child: _buildBody()),
+            ],
           ),
-          Expanded(child: _buildBody()),
         ],
       ),
     );
