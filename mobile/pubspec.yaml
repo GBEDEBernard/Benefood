@@ -68,6 +68,7 @@ dependencies:
 
   # Suivi de position du livreur en arrière-plan (service Android, tâche iOS)
   flutter_background_service: ^5.1.0
+  mobile_scanner: ^7.5.0
 
 dev_dependencies:
   flutter_test:

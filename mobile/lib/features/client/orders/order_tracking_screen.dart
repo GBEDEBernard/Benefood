@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 
 import '../../../core/config/app_config.dart';
 import '../../../core/data/marketplace_api.dart';
@@ -29,6 +30,7 @@ import '../drivers/driver_selection_screen.dart';
 import '../../../shared/widgets/feedback_widgets.dart';
 import '../../../shared/widgets/package_item_tile.dart';
 import '../../../shared/widgets/state_widgets.dart';
+import '../../../shared/utils/delivery_confirmation_qr.dart';
 
 /// Écran de suivi / détail d'une commande (J152, J177).
 class OrderTrackingScreen extends StatefulWidget {
@@ -1103,8 +1105,12 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
             const SizedBox(height: 12),
           ],
           if (!order.isCancelled &&
+              !order.isDelivered &&
               (order.confirmationCode?.isNotEmpty ?? false)) ...[
-            _ConfirmationCodeCard(code: order.confirmationCode!),
+            _ConfirmationCodeCard(
+              reference: order.reference,
+              code: order.confirmationCode!,
+            ),
             const SizedBox(height: 12),
           ],
           if (order.statusHistory.isNotEmpty)
@@ -2247,8 +2253,9 @@ class _StarsInput extends StatelessWidget {
 }
 
 class _ConfirmationCodeCard extends StatelessWidget {
-  const _ConfirmationCodeCard({required this.code});
+  const _ConfirmationCodeCard({required this.reference, required this.code});
 
+  final String reference;
   final String code;
 
   @override
@@ -2288,8 +2295,28 @@ class _ConfirmationCodeCard extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 10),
+            Center(
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: QrImageView(
+                  data: buildDeliveryConfirmationQr(
+                    reference: reference,
+                    code: code,
+                  ),
+                  version: QrVersions.auto,
+                  size: 184,
+                  backgroundColor: Colors.white,
+                  semanticsLabel: 'QR unique de confirmation de la commande',
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
             const Text(
-              'Communiquez ce code au livreur uniquement au moment de la réception. Sans ce code, la livraison ne peut pas être confirmée.',
+              'À la réception, présentez ce QR au livreur pour le scan ou communiquez-lui le PIN à 6 chiffres. Le QR est propre à cette commande.',
               style: TextStyle(
                 fontSize: 12,
                 height: 1.4,

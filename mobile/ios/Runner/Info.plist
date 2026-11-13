@@ -53,6 +53,8 @@
 	<string>Votre position est utilisée pour pré-remplir votre adresse de livraison et calculer les frais de livraison.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 	<string>Pendant une livraison, votre position continue d'être partagée avec le client en arrière-plan pour le suivi en temps réel.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>La caméra sert à scanner le QR de confirmation présenté par le client à la livraison.</string>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>location</string>

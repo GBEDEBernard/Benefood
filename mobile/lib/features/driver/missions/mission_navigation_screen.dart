@@ -20,11 +20,13 @@ import '../../../core/utils/geo.dart';
 import '../../../shared/models/driver_mission.dart';
 import '../../../shared/models/geo_point.dart';
 import '../../../shared/models/route_plan.dart';
+import '../../../shared/utils/delivery_confirmation_qr.dart';
 import '../../../shared/widgets/app_map.dart';
 import '../../../shared/widgets/amount_widgets.dart';
 import '../../../shared/widgets/call_button.dart';
 import '../../../shared/widgets/feedback_widgets.dart';
 import '../../../shared/widgets/package_item_tile.dart';
+import 'delivery_qr_scanner_screen.dart';
 
 /// Navigation plein écran d'une mission active.
 ///
@@ -152,18 +154,19 @@ class _MissionNavigationScreenState extends State<MissionNavigationScreen> {
   void _subscribeToPosition() {
     _positionSubscription?.cancel();
     try {
-      _positionSubscription = LocationService.watch(
-        distanceFilter: AppConfig.locationDistanceFilterMeters,
-      ).listen(
-        _onPosition,
-        onError: (_) {
-          if (!mounted) {
-            return;
-          }
-          setState(() => _locationFailure = LocationFailure.unavailable);
-          _showLocationFailure(LocationFailure.unavailable);
-        },
-      );
+      _positionSubscription =
+          LocationService.watch(
+            distanceFilter: AppConfig.locationDistanceFilterMeters,
+          ).listen(
+            _onPosition,
+            onError: (_) {
+              if (!mounted) {
+                return;
+              }
+              setState(() => _locationFailure = LocationFailure.unavailable);
+              _showLocationFailure(LocationFailure.unavailable);
+            },
+          );
     } catch (_) {
       if (mounted) {
         setState(() => _locationFailure = LocationFailure.unavailable);
@@ -541,11 +544,22 @@ class _MissionNavigationScreenState extends State<MissionNavigationScreen> {
     final delivered = await showDialog<bool>(
       context: context,
       barrierDismissible: false,
-      builder: (_) => _ProofCodeDialog(onSubmit: _submitProofCode),
+      builder: (_) => _ProofCodeDialog(
+        reference: _mission.reference,
+        allowQr: _mission.isOrder,
+        onSubmit: _submitProofCode,
+        onScanQr: _scanDeliveryQr,
+      ),
     );
     if (delivered == true && mounted) {
       showToast(context, 'Livraison confirmée.');
     }
+  }
+
+  Future<String?> _scanDeliveryQr() {
+    return Navigator.of(context).push<String>(
+      MaterialPageRoute(builder: (_) => const DeliveryQrScannerScreen()),
+    );
   }
 
   Future<String?> _submitProofCode(String code) async {
@@ -1560,9 +1574,17 @@ class _PickupConfirmationDialog extends StatelessWidget {
 }
 
 class _ProofCodeDialog extends StatefulWidget {
-  const _ProofCodeDialog({required this.onSubmit});
+  const _ProofCodeDialog({
+    required this.reference,
+    required this.allowQr,
+    required this.onSubmit,
+    required this.onScanQr,
+  });
 
+  final String reference;
+  final bool allowQr;
   final Future<String?> Function(String code) onSubmit;
+  final Future<String?> Function() onScanQr;
 
   @override
   State<_ProofCodeDialog> createState() => _ProofCodeDialogState();
@@ -1572,6 +1594,29 @@ class _ProofCodeDialogState extends State<_ProofCodeDialog> {
   final _controller = TextEditingController();
   bool _loading = false;
   String? _error;
+
+  Future<void> _scanAndSubmit() async {
+    if (_loading) {
+      return;
+    }
+    final value = await widget.onScanQr();
+    if (!mounted || value == null) {
+      return;
+    }
+    final code = parseDeliveryConfirmationQr(
+      value,
+      expectedReference: widget.reference,
+    );
+    if (code == null) {
+      setState(() {
+        _error =
+            'Ce QR ne correspond pas à cette commande. Demandez le bon QR ou saisissez le PIN.';
+      });
+      return;
+    }
+    _controller.text = code;
+    await _submit();
+  }
 
   @override
   void dispose() {
@@ -1656,6 +1701,17 @@ class _ProofCodeDialogState extends State<_ProofCodeDialog> {
             },
             onSubmitted: (_) => _submit(),
           ),
+          if (widget.allowQr) ...[
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: _loading ? null : _scanAndSubmit,
+                icon: const Icon(Icons.qr_code_scanner_rounded),
+                label: const Text('Scanner le QR de la commande'),
+              ),
+            ),
+          ],
         ],
       ),
       actions: [
