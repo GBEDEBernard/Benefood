@@ -432,6 +432,10 @@ class _MissionDetailScreenState extends State<MissionDetailScreen> {
         children: [
           _MissionHero(mission: mission),
           const SizedBox(height: AppDimens.md),
+          if (mission.isActive) ...[
+            _MissionProgress(mission: mission),
+            const SizedBox(height: AppDimens.md),
+          ],
           if (mission.isActive && mission.hasPendingHandover) ...[
             _HandoverCard(loading: _actionLoading, onConfirm: _confirmHandover),
             const SizedBox(height: AppDimens.md),
@@ -442,8 +446,20 @@ class _MissionDetailScreenState extends State<MissionDetailScreen> {
             const _CompletedBanner(),
           ],
           const SizedBox(height: AppDimens.md),
+          const _SectionHeading(
+            title: 'Itinéraire',
+            subtitle: 'Aperçu des points de la mission',
+            icon: Icons.route_outlined,
+          ),
+          const SizedBox(height: AppDimens.sm),
           _MapPreview(mission: mission),
           const SizedBox(height: AppDimens.md),
+          const _SectionHeading(
+            title: 'Adresses',
+            subtitle: 'Collecte et destination',
+            icon: Icons.location_on_outlined,
+          ),
+          const SizedBox(height: AppDimens.sm),
           _StopsCard(mission: mission),
           if (mission.items.isNotEmpty) ...[
             const SizedBox(height: AppDimens.md),
@@ -506,9 +522,13 @@ class _MissionDetailScreenState extends State<MissionDetailScreen> {
                   ? AppColors.green
                   : AppColors.orange,
               foregroundColor: Colors.white,
-              minimumSize: const Size(0, 54),
+              minimumSize: const Size(0, 58),
+              elevation: 3,
+              shadowColor:
+                  (mission.isParcel ? AppColors.green : AppColors.orange)
+                      .withValues(alpha: 0.28),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(AppDimens.radiusLg),
+                borderRadius: BorderRadius.circular(18),
               ),
             ),
             icon: _actionLoading
@@ -543,20 +563,7 @@ class _MissionDetailScreenState extends State<MissionDetailScreen> {
           ),
         ],
         const SizedBox(height: 8),
-        Text(
-          switch (mission.status) {
-            'assigned' => 'Confirmez votre départ vers le point de collecte.',
-            'en_route_pickup' =>
-              'La confirmation de collecte se fait dans la navigation.',
-            'picked_up' =>
-              'La livraison sera activée après confirmation du départ.',
-            'in_delivery' =>
-              'Saisissez le code client pour finaliser la livraison.',
-            _ => '',
-          },
-          textAlign: TextAlign.center,
-          style: const TextStyle(fontSize: 11.5, color: AppColors.textFaint),
-        ),
+        _ActionHint(status: mission.status),
       ],
     );
   }
@@ -592,16 +599,16 @@ class _MissionHero extends StatelessWidget {
           );
 
     return Container(
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(19),
       decoration: BoxDecoration(
         gradient: gradient,
-        borderRadius: BorderRadius.circular(AppDimens.radiusXl),
+        borderRadius: BorderRadius.circular(26),
         boxShadow: [
           BoxShadow(
             color: (mission.isParcel ? AppColors.green : AppColors.orange)
-                .withValues(alpha: 0.25),
-            blurRadius: 22,
-            offset: const Offset(0, 9),
+                .withValues(alpha: 0.22),
+            blurRadius: 26,
+            offset: const Offset(0, 12),
           ),
         ],
       ),
@@ -615,6 +622,9 @@ class _MissionHero extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: Colors.white.withValues(alpha: 0.18),
                   borderRadius: BorderRadius.circular(AppDimens.radiusPill),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.14),
+                  ),
                 ),
                 child: Text(
                   mission.kindLabel.toUpperCase(),
@@ -630,8 +640,8 @@ class _MissionHero extends StatelessWidget {
               if (palette != null)
                 Container(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 9,
-                    vertical: 4,
+                    horizontal: 10,
+                    vertical: 5,
                   ),
                   decoration: BoxDecoration(
                     color: Colors.white.withValues(alpha: 0.92),
@@ -652,11 +662,15 @@ class _MissionHero extends StatelessWidget {
           Row(
             children: [
               Container(
-                width: 58,
-                height: 58,
+                width: 62,
+                height: 62,
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(17),
+                  borderRadius: BorderRadius.circular(19),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.7),
+                    width: 2,
+                  ),
                 ),
                 clipBehavior: Clip.antiAlias,
                 child: AppNetworkImage(
@@ -676,10 +690,10 @@ class _MissionHero extends StatelessWidget {
                   children: [
                     Text(
                       mission.title,
-                      maxLines: 1,
+                      maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
-                        fontSize: 20,
+                        fontSize: 19,
                         fontWeight: FontWeight.w800,
                         letterSpacing: -0.4,
                         color: Colors.white,
@@ -691,7 +705,8 @@ class _MissionHero extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        fontSize: 12,
+                        fontSize: 11.5,
+                        letterSpacing: 0.35,
                         color: Colors.white.withValues(alpha: 0.75),
                       ),
                     ),
@@ -702,10 +717,10 @@ class _MissionHero extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
             decoration: BoxDecoration(
               color: Colors.white.withValues(alpha: 0.13),
-              borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+              borderRadius: BorderRadius.circular(16),
               border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
             ),
             child: Row(
@@ -738,6 +753,199 @@ class _MissionHero extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _MissionProgress extends StatelessWidget {
+  const _MissionProgress({required this.mission});
+
+  final DriverMission mission;
+
+  @override
+  Widget build(BuildContext context) {
+    final stage = switch (mission.status) {
+      'assigned' || 'en_route_pickup' => 0,
+      'picked_up' || 'in_delivery' => 1,
+      _ => 2,
+    };
+    final progress = stage == 0
+        ? 0.22
+        : stage == 1
+        ? 0.68
+        : 1.0;
+    final currentLabel = switch (stage) {
+      0 => 'En route vers la collecte',
+      1 => 'Commande récupérée',
+      _ => 'Livraison terminée',
+    };
+    final accent = mission.isParcel ? AppColors.green : AppColors.orange;
+    const labels = ['Collecte', 'Livraison', 'Terminée'];
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 15, 16, 14),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.border),
+        boxShadow: AppTheme.softShadow(),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.track_changes_rounded, size: 18, color: accent),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  currentLabel,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.text,
+                  ),
+                ),
+              ),
+              Text(
+                'Étape ${stage + 1}/3',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: accent,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(6),
+            child: LinearProgressIndicator(
+              value: progress,
+              minHeight: 6,
+              backgroundColor: AppColors.border,
+              valueColor: AlwaysStoppedAnimation<Color>(accent),
+            ),
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              for (var index = 0; index < labels.length; index++) ...[
+                if (index > 0) const Spacer(),
+                Text(
+                  labels[index],
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: index == stage
+                        ? FontWeight.w800
+                        : FontWeight.w500,
+                    color: index <= stage
+                        ? AppColors.text
+                        : AppColors.textFaint,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ActionHint extends StatelessWidget {
+  const _ActionHint({required this.status});
+
+  final String status;
+
+  @override
+  Widget build(BuildContext context) {
+    final message = switch (status) {
+      'assigned' => 'Confirmez votre départ vers le point de collecte.',
+      'en_route_pickup' =>
+        'La confirmation de collecte se fait dans la navigation.',
+      'picked_up' => 'Démarrez la livraison après la collecte.',
+      'in_delivery' => 'Le client vous donnera son code pour confirmer.',
+      _ => '',
+    };
+    if (message.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        const Icon(
+          Icons.info_outline_rounded,
+          size: 14,
+          color: AppColors.textFaint,
+        ),
+        const SizedBox(width: 6),
+        Flexible(
+          child: Text(
+            message,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 11.5,
+              height: 1.35,
+              color: AppColors.textSecondary,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _SectionHeading extends StatelessWidget {
+  const _SectionHeading({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+  });
+
+  final String title;
+  final String subtitle;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Container(
+          width: 38,
+          height: 38,
+          decoration: BoxDecoration(
+            color: AppColors.orangeMist,
+            borderRadius: BorderRadius.circular(13),
+          ),
+          child: Icon(icon, size: 19, color: AppColors.orangeDark),
+        ),
+        const SizedBox(width: 11),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.text,
+                ),
+              ),
+              const SizedBox(height: 1),
+              Text(
+                subtitle,
+                style: const TextStyle(
+                  fontSize: 11,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }
