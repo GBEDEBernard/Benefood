@@ -72,7 +72,7 @@ class VendorsController extends Controller
 
         $vendor->load([
             'user',
-            'documents',
+            'documents' => fn ($query) => $query->with('reviewer')->orderByDesc('created_at'),
             'contacts',
             'hours',
             'settings',
@@ -172,7 +172,7 @@ class VendorsController extends Controller
 
         $data = $request->validate([
             'status' => ['required', 'string', 'in:'.implode(',', array_column(VendorDocumentStatus::cases(), 'value'))],
-            'reason' => ['nullable', 'string', 'max:500'],
+            'reason' => ['required_if:status,'.VendorDocumentStatus::Invalid->value, 'nullable', 'string', 'min:3', 'max:500'],
         ]);
 
         $document->update([
@@ -182,7 +182,9 @@ class VendorsController extends Controller
             'reviewed_at' => now(),
         ]);
 
-        return back()->with('success', 'Le document a été mis à jour.');
+        return redirect()
+            ->to(route('admin.vendors.show', $vendor).'#documents')
+            ->with('success', 'Le document a été mis à jour.');
     }
 
     public function downloadDocument(Vendor $vendor, VendorDocument $document)
@@ -199,6 +201,6 @@ class VendorsController extends Controller
             abort(404, 'Fichier introuvable.');
         }
 
-        return $disk->download($document->file_path);
+        return $disk->response($document->file_path);
     }
 }

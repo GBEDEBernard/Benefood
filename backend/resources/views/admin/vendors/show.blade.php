@@ -49,6 +49,16 @@
         <button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button>
     </div>
 @endif
+@if ($errors->any())
+    <div class="alert alert-danger" role="alert">
+        <strong>La décision n’a pas été enregistrée.</strong>
+        <ul class="mb-0 mt-1">
+            @foreach ($errors->all() as $error)
+                <li>{{ $error }}</li>
+            @endforeach
+        </ul>
+    </div>
+@endif
 
 <!-- Tabs -->
 <ul class="nav nav-tabs mb-4" role="tablist" style="border-bottom-color: var(--border-color);">
@@ -158,57 +168,89 @@
     <!-- ========== DOCUMENTS ========== -->
     <div class="tab-pane fade" id="documents" role="tabpanel">
         <div class="card" style="border: none; box-shadow: 0 2px 10px rgba(0,0,0,0.05); border-radius: 12px;">
-            <div class="card-body p-0">
-                <div class="table-responsive">
-                    <table class="table table-hover mb-0">
-                        <thead style="background-color: #F9FAFB;">
-                            <tr>
-                                <th class="border-0 py-3" style="color: var(--text-muted); font-size: 12px; text-transform: uppercase;">Type</th>
-                                <th class="border-0 py-3" style="color: var(--text-muted); font-size: 12px; text-transform: uppercase;">Statut</th>
-                                <th class="border-0 py-3" style="color: var(--text-muted); font-size: 12px; text-transform: uppercase;">Raison</th>
-                                <th class="border-0 py-3" style="color: var(--text-muted); font-size: 12px; text-transform: uppercase;">Document</th>
-                                <th class="border-0 py-3" style="color: var(--text-muted); font-size: 12px; text-transform: uppercase;">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @forelse ($vendor->documents as $document)
-                                <tr>
-                                    <td class="py-3" style="color: var(--text-dark); font-weight: 600;">{{ \App\Support\AdminLabels::documentTypeLabel($document->type) }}</td>
-                                    <td class="py-3">{!! \App\Support\AdminLabels::documentStatusBadge($document->status) !!}</td>
-                                    <td class="py-3" style="color: var(--text-muted); max-width: 200px;">{{ $document->reason ?? '—' }}</td>
-                                    <td class="py-3">
-                                        <a href="{{ route('admin.vendors.documents.download', [$vendor, $document]) }}" target="_blank" class="btn btn-sm" style="background: #FFFFFF; border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-dark);">
-                                            <i class="ti ti-download"></i> Voir
-                                        </a>
-                                    </td>
-                                    <td class="py-3">
-                                        @if ($document->status === 'submitted')
-                                        <div class="d-flex" style="gap: 6px;">
-                                            <form method="POST" action="{{ route('admin.vendors.documents.review', [$vendor, $document]) }}" onsubmit="return confirm('Valider ce document ?');">
-                                                @csrf
-                                                <input type="hidden" name="status" value="valid">
-                                                <button type="submit" class="btn btn-sm" style="background-color: var(--benin-green); color: #fff; border-radius: 8px; padding: 4px 10px;">
-                                                    <i class="ti ti-check"></i>
-                                                </button>
-                                            </form>
-                                            <form method="POST" action="{{ route('admin.vendors.documents.review', [$vendor, $document]) }}">
-                                                @csrf
-                                                <input type="hidden" name="status" value="invalid">
-                                                <input type="hidden" name="reason" value="Non conforme">
-                                                <button type="submit" class="btn btn-sm" style="background-color: var(--benin-red); color: #fff; border-radius: 8px; padding: 4px 10px;" onclick="event.preventDefault(); var r=prompt('Raison du rejet :','Non conforme'); if(r && r.trim().length>0){this.closest('form').querySelector('input[name=reason]').value=r.trim(); this.closest('form').submit();}">
-                                                    <i class="ti ti-x"></i>
-                                                </button>
-                                            </form>
-                                        </div>
-                                        @endif
-                                    </td>
-                                </tr>
-                            @empty
-                                <tr><td colspan="5" class="text-center py-5" style="color: var(--text-muted);">Aucun document soumis.</td></tr>
-                            @endforelse
-                        </tbody>
-                    </table>
+            <div class="card-header d-flex justify-content-between align-items-center" style="background-color: #FFFFFF; border-bottom: 1px solid var(--border-color); border-radius: 12px 12px 0 0;">
+                <div>
+                    <h6 class="font-weight-bold mb-1" style="color: var(--text-dark);">Documents du vendeur</h6>
+                    <small style="color: var(--text-muted);">Consultez chaque pièce avant de la valider. Les fichiers restent privés.</small>
                 </div>
+                <span class="badge badge-light">{{ $vendor->documents->count() }} document(s)</span>
+            </div>
+            <div class="card-body">
+                @forelse ($vendor->documents as $document)
+                    @php
+                        $extension = strtolower(pathinfo($document->file_path, PATHINFO_EXTENSION));
+                        $documentUrl = route('admin.vendors.documents.download', [$vendor, $document]);
+                    @endphp
+                    <article class="mb-4 p-3" style="border: 1px solid var(--border-color); border-radius: 12px; background: #FFFFFF;">
+                        <div class="d-flex flex-wrap justify-content-between align-items-start mb-3" style="gap: 12px;">
+                            <div>
+                                <h6 class="mb-1" style="font-weight: 700; color: var(--text-dark);">
+                                    {{ \App\Support\AdminLabels::documentTypeLabel($document->type) }}
+                                </h6>
+                                <small style="color: var(--text-muted);">
+                                    Envoyé le {{ $document->created_at?->format('d/m/Y à H:i') ?? '—' }}
+                                    @if ($document->reviewed_at)
+                                        · Vérifié le {{ $document->reviewed_at->format('d/m/Y à H:i') }}
+                                        @if ($document->reviewer)
+                                            par {{ $document->reviewer->name }}
+                                        @endif
+                                    @endif
+                                </small>
+                                <div class="mt-1" style="color: var(--text-muted); font-size: 12px;">
+                                    Fichier : {{ basename($document->file_path) }}
+                                </div>
+                            </div>
+                            {!! \App\Support\AdminLabels::documentStatusBadge($document->status) !!}
+                        </div>
+
+                        @if (in_array($extension, ['jpg', 'jpeg', 'png', 'webp'], true))
+                            <a href="{{ $documentUrl }}" target="_blank" rel="noopener" aria-label="Ouvrir le document en grand">
+                                <img src="{{ $documentUrl }}" alt="{{ \App\Support\AdminLabels::documentTypeLabel($document->type) }}" loading="lazy"
+                                     style="display: block; width: 100%; max-height: 460px; object-fit: contain; background: #F6F8F7; border-radius: 8px;">
+                            </a>
+                        @elseif ($extension === 'pdf')
+                            <iframe src="{{ $documentUrl }}" title="{{ \App\Support\AdminLabels::documentTypeLabel($document->type) }}"
+                                    loading="lazy" style="width: 100%; height: 480px; border: 1px solid var(--border-color); border-radius: 8px;"></iframe>
+                        @else
+                            <a href="{{ $documentUrl }}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-secondary mb-3">
+                                <i class="ti ti-external-link mr-1"></i> Ouvrir le fichier
+                            </a>
+                        @endif
+                        @if (in_array($extension, ['jpg', 'jpeg', 'png', 'webp', 'pdf'], true))
+                            <a href="{{ $documentUrl }}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-secondary mt-2">
+                                <i class="ti ti-external-link mr-1"></i> Ouvrir dans un nouvel onglet
+                            </a>
+                        @endif
+
+                        @if ($document->status === \App\Enums\VendorDocumentStatus::Invalid->value && $document->reason)
+                            <div class="alert alert-danger mt-3 mb-0 py-2">
+                                <strong>Motif du rejet :</strong> {{ $document->reason }}
+                            </div>
+                        @endif
+
+                        <form method="POST" action="{{ route('admin.vendors.documents.review', [$vendor, $document]) }}"
+                              class="mt-3 d-flex flex-wrap align-items-center" style="gap: 8px;">
+                            @csrf
+                            <label for="vendor-document-status-{{ $document->id }}" class="mb-0 font-weight-bold">Décision</label>
+                            <select id="vendor-document-status-{{ $document->id }}" name="status" class="form-control form-control-sm"
+                                    style="width: auto;" onchange="this.form.querySelector('[name=reason]').required = this.value === 'invalid';">
+                                <option value="submitted" @selected($document->status === 'submitted')>En attente</option>
+                                <option value="valid" @selected($document->status === 'valid')>Valider</option>
+                                <option value="invalid" @selected($document->status === 'invalid')>Rejeter</option>
+                            </select>
+                            <input type="text" name="reason" class="form-control form-control-sm"
+                                   value="{{ $document->reason }}" placeholder="Motif obligatoire en cas de rejet"
+                                   aria-label="Motif du rejet" minlength="3" maxlength="500"
+                                   @required($document->status === \App\Enums\VendorDocumentStatus::Invalid->value)
+                                   style="flex: 1 1 220px; max-width: 360px;">
+                            <button type="submit" class="btn btn-sm" style="background-color: var(--benin-green); color: #FFFFFF; border-radius: 8px;">
+                                <i class="ti ti-check mr-1"></i> Enregistrer la décision
+                            </button>
+                        </form>
+                    </article>
+                @empty
+                    <div class="text-center py-4" style="color: var(--text-muted);">Aucun document soumis.</div>
+                @endforelse
             </div>
         </div>
     </div>
@@ -472,4 +514,9 @@
     </div>
 </div>
 @endif
+<script>
+    if (window.location.hash === '#documents' || {{ $errors->any() ? 'true' : 'false' }}) {
+        document.getElementById('documents-tab')?.click();
+    }
+</script>
 @endsection

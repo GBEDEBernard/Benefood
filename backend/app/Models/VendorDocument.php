@@ -23,4 +23,9 @@ class VendorDocument extends Model
     {
         return $this->belongsTo(Vendor::class);
     }
+
+    public function reviewer(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'reviewed_by');
+    }
 }

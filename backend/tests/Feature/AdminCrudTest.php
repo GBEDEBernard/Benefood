@@ -149,13 +149,84 @@ class AdminCrudTest extends TestCase
         $this->actingAs($this->admin())
             ->from(route('admin.vendors.show', $vendor))
             ->post(route('admin.vendors.documents.review', [$vendor, $document]), ['status' => 'valid'])
-            ->assertRedirect(route('admin.vendors.show', $vendor));
+            ->assertRedirect(route('admin.vendors.show', $vendor).'#documents');
 
         $this->assertDatabaseHas('vendor_documents', [
             'id' => $document->id,
             'status' => 'valid',
             'reviewed_by' => User::where('email', 'admin@local')->first()->id,
         ]);
+        $this->assertNotNull($document->fresh()->reviewed_at);
+    }
+
+    public function test_admin_must_provide_a_reason_when_rejecting_vendor_document(): void
+    {
+        $vendor = $this->vendor();
+        $document = VendorDocument::create([
+            'vendor_id' => $vendor->id,
+            'type' => 'ifu',
+            'file_path' => 'vendor-documents/'.$vendor->id.'/ifu.pdf',
+            'status' => 'submitted',
+            'submitted_by' => $vendor->user_id,
+        ]);
+        $admin = $this->admin();
+
+        $this->actingAs($admin)
+            ->from(route('admin.vendors.show', $vendor))
+            ->post(route('admin.vendors.documents.review', [$vendor, $document]), [
+                'status' => 'invalid',
+                'reason' => '',
+            ])
+            ->assertSessionHasErrors('reason');
+
+        $this->assertSame('submitted', $document->fresh()->status);
+
+        $this->post(route('admin.vendors.documents.review', [$vendor, $document]), [
+            'status' => 'invalid',
+            'reason' => 'Document illisible',
+        ])->assertRedirect(route('admin.vendors.show', $vendor).'#documents');
+
+        $this->assertSame('invalid', $document->fresh()->status);
+        $this->assertSame('Document illisible', $document->fresh()->reason);
+    }
+
+    public function test_admin_vendor_page_shows_document_image_and_pdf_previews(): void
+    {
+        $vendor = $this->vendor();
+        $imagePath = 'vendor-documents/'.$vendor->id.'/ifu.png';
+        $pdfPath = 'vendor-documents/'.$vendor->id.'/id-card.pdf';
+        Storage::disk('private')->put($imagePath, 'fake-image');
+        Storage::disk('private')->put($pdfPath, '%PDF-1.4 test document');
+        VendorDocument::create([
+            'vendor_id' => $vendor->id,
+            'type' => 'ifu',
+            'file_path' => $imagePath,
+            'status' => 'submitted',
+            'submitted_by' => $vendor->user_id,
+        ]);
+        $pdfDocument = VendorDocument::create([
+            'vendor_id' => $vendor->id,
+            'type' => 'id_card',
+            'file_path' => $pdfPath,
+            'status' => 'valid',
+            'submitted_by' => $vendor->user_id,
+            'reviewed_by' => $this->admin()->id,
+            'reviewed_at' => now(),
+        ]);
+
+        $this->actingAs(User::where('email', 'admin@local')->first())
+            ->get(route('admin.vendors.show', $vendor))
+            ->assertOk()
+            ->assertSee('Documents du vendeur')
+            ->assertSee('ifu.png')
+            ->assertSee('<img src="', false)
+            ->assertSee('<iframe', false)
+            ->assertSee('Vérifié le');
+
+        $this->get(route('admin.vendors.documents.download', [$vendor, $pdfDocument]))
+            ->assertOk()
+            ->assertHeader('content-type', 'application/pdf')
+            ->assertHeader('content-disposition', 'inline; filename=id-card.pdf');
     }
 
     public function test_admin_can_download_vendor_document(): void
@@ -174,7 +245,8 @@ class AdminCrudTest extends TestCase
 
         $this->actingAs($this->admin())
             ->get(route('admin.vendors.documents.download', [$vendor, $document]))
-            ->assertOk();
+            ->assertOk()
+            ->assertHeader('content-disposition', 'inline; filename=ifu.pdf');
     }
 
     public function test_admin_can_update_user_status(): void
