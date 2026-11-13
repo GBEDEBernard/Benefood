@@ -24,13 +24,13 @@ class _NoopTokenStore implements TokenStore {
   Future<void> clear() async {}
 }
 
-MockClient _mockBackend() {
-  const status = {
+MockClient _mockBackend({String vehicle = 'Moto TVN-4521'}) {
+  final status = {
     'profile': {
       'id': 'dp1',
       'status': 'active',
       'available': false,
-      'vehicle': 'Moto TVN-4521',
+      'vehicle': vehicle,
       'city': 'Cotonou',
       'area': 'Fidjrossè',
       'rating': 4.7,
@@ -41,18 +41,21 @@ MockClient _mockBackend() {
         'type': 'vehicle_registration',
         'status': 'valid',
         'created_at': '2026-09-01T10:00:00Z',
+        'url': 'https://api.test/documents/vehicle-registration',
       },
       {
         'id': 'doc2',
         'type': 'id_card',
         'status': 'submitted',
         'created_at': '2026-09-02T10:00:00Z',
+        'url': 'https://api.test/documents/id-card',
       },
       {
         'id': 'doc3',
         'type': 'insurance',
         'status': 'invalid',
         'created_at': '2026-09-03T10:00:00Z',
+        'url': 'https://api.test/documents/insurance',
       },
     ],
   };
@@ -83,10 +86,11 @@ Future<void> _pumpVerification(
   WidgetTester tester, {
   MockClient? client,
   String? initialFocus,
+  String vehicle = 'Moto TVN-4521',
 }) async {
   final api = ApiClient(
     tokenStore: _NoopTokenStore(),
-    httpClient: client ?? _mockBackend(),
+    httpClient: client ?? _mockBackend(vehicle: vehicle),
     baseUrl: 'http://api.test',
   );
   await tester.pumpWidget(
@@ -125,6 +129,7 @@ void main() {
     expect(find.text('Mon véhicule'), findsOneWidget);
     expect(find.byType(FoodDecorPageBackground), findsOneWidget);
     expect(find.text('Moto TVN-4521'), findsOneWidget);
+    expect(find.text('MOTO · BÉNIN'), findsOneWidget);
     expect(find.text('Cotonou · Fidjrossè'), findsOneWidget);
     expect(find.text('Documents et vérification'), findsOneWidget);
     expect(find.text('3 documents dans votre dossier.'), findsOneWidget);
@@ -134,6 +139,7 @@ void main() {
     expect(find.text('Rejeté'), findsOneWidget);
     expect(find.text('Document non transmis'), findsNWidgets(2));
     expect(find.text('Remplacer'), findsNWidgets(3));
+    expect(find.text('Consulter'), findsNWidgets(3));
     expect(find.text('Ajouter'), findsNWidgets(2));
     expect(tester.takeException(), isNull);
   });
@@ -146,6 +152,19 @@ void main() {
 
     expect(find.text('Prendre une photo'), findsOneWidget);
     expect(find.text('Choisir dans la galerie'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('identifie une voiture et non une moto', (tester) async {
+    tester.view.physicalSize = const Size(1000, 2400);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await _pumpVerification(tester, vehicle: 'Voiture Toyota');
+
+    expect(find.text('VOITURE · BÉNIN'), findsOneWidget);
+    expect(find.byIcon(Icons.directions_car_rounded), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }

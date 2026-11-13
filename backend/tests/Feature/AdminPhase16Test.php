@@ -9,6 +9,7 @@ use App\Models\Category;
 use App\Models\CommissionRate;
 use App\Models\Complaint;
 use App\Models\Delivery;
+use App\Models\DriverDocument;
 use App\Models\DriverProfile;
 use App\Models\Order;
 use App\Models\OrderFinancial;
@@ -209,6 +210,144 @@ class AdminPhase16Test extends TestCase
             ->assertRedirect(route('admin.drivers.show', $driver));
 
         $this->assertSame('active', $driver->fresh()->status);
+    }
+
+    public function test_admin_driver_page_shows_document_previews_and_handles_delivery_status_enum(): void
+    {
+        Storage::fake('private');
+        $driver = DriverProfile::factory()->create(['vehicle' => 'Moto Bajaj 150 · TVN-4521']);
+        $imagePath = "driver-documents/{$driver->id}/carte-grise.png";
+        $pdfPath = "driver-documents/{$driver->id}/permis.pdf";
+        Storage::disk('private')->put($imagePath, 'fake-image');
+        Storage::disk('private')->put($pdfPath, '%PDF-1.4 test document');
+        DriverDocument::create([
+            'driver_profile_id' => $driver->id,
+            'type' => 'vehicle_registration',
+            'file_path' => $imagePath,
+            'status' => 'submitted',
+        ]);
+        $pdfDocument = DriverDocument::create([
+            'driver_profile_id' => $driver->id,
+            'type' => 'driver_license',
+            'file_path' => $pdfPath,
+            'status' => 'submitted',
+        ]);
+        $vendor = $this->activeVendor();
+        $product = $this->product($vendor);
+        $order = $this->paidOrder($this->client(), $vendor, $product);
+        Delivery::create([
+            'order_id' => $order->id,
+            'driver_profile_id' => $driver->id,
+            'vendor_id' => $vendor->id,
+            'status' => 'in_delivery',
+            'fee' => 1000,
+            'assigned_at' => now(),
+        ]);
+
+        $this->actingAs($this->admin())
+            ->get(route('admin.drivers.show', $driver))
+            ->assertOk()
+            ->assertSee('Documents du livreur')
+            ->assertSee('Moto Bajaj 150 · TVN-4521')
+            ->assertSee('<img src="', false)
+            ->assertSee('<iframe', false)
+            ->assertSee('In delivery');
+
+        $this->get(route('admin.drivers.documents.download', [$driver, $pdfDocument]))
+            ->assertOk()
+            ->assertHeader('content-type', 'application/pdf')
+            ->assertHeader('content-disposition', 'inline; filename=permis.pdf');
+    }
+
+    public function test_admin_cannot_activate_a_pending_driver_until_required_documents_are_valid(): void
+    {
+        $driver = DriverProfile::factory()->create(['status' => 'pending_validation']);
+
+        $this->actingAs($this->admin())
+            ->from(route('admin.drivers.show', $driver))
+            ->post(route('admin.drivers.activate', $driver))
+            ->assertRedirect(route('admin.drivers.show', $driver))
+            ->assertSessionHas('error');
+
+        $this->assertSame('pending_validation', $driver->fresh()->status);
+    }
+
+    public function test_admin_can_activate_a_pending_driver_after_validating_required_documents(): void
+    {
+        $driver = DriverProfile::factory()->create(['status' => 'pending_validation']);
+        foreach (['id_card', 'driver_license', 'vehicle_registration', 'insurance'] as $type) {
+            DriverDocument::create([
+                'driver_profile_id' => $driver->id,
+                'type' => $type,
+                'file_path' => "driver-documents/{$driver->id}/{$type}.pdf",
+                'status' => 'valid',
+            ]);
+        }
+
+        $this->actingAs($this->admin())
+            ->from(route('admin.drivers.show', $driver))
+            ->post(route('admin.drivers.activate', $driver))
+            ->assertRedirect(route('admin.drivers.show', $driver));
+
+        $this->assertSame('active', $driver->fresh()->status);
+    }
+
+    public function test_admin_must_review_the_latest_version_of_each_required_document(): void
+    {
+        $driver = DriverProfile::factory()->create(['status' => 'pending_validation']);
+        foreach (['id_card', 'driver_license', 'vehicle_registration', 'insurance'] as $type) {
+            DriverDocument::create([
+                'driver_profile_id' => $driver->id,
+                'type' => $type,
+                'file_path' => "driver-documents/{$driver->id}/{$type}.pdf",
+                'status' => 'valid',
+                'created_at' => now()->subMinute(),
+            ]);
+        }
+        DriverDocument::create([
+            'driver_profile_id' => $driver->id,
+            'type' => 'vehicle_registration',
+            'file_path' => "driver-documents/{$driver->id}/new-registration.pdf",
+            'status' => 'submitted',
+        ]);
+
+        $this->actingAs($this->admin())
+            ->from(route('admin.drivers.show', $driver))
+            ->post(route('admin.drivers.activate', $driver))
+            ->assertRedirect(route('admin.drivers.show', $driver))
+            ->assertSessionHas('error');
+
+        $this->assertSame('pending_validation', $driver->fresh()->status);
+    }
+
+    public function test_admin_must_provide_a_reason_when_rejecting_a_driver_document(): void
+    {
+        $driver = DriverProfile::factory()->create(['status' => 'pending_validation']);
+        $document = DriverDocument::create([
+            'driver_profile_id' => $driver->id,
+            'type' => 'vehicle_registration',
+            'file_path' => "driver-documents/{$driver->id}/registration.pdf",
+            'status' => 'submitted',
+        ]);
+        $admin = $this->admin();
+
+        $this->actingAs($admin)
+            ->from(route('admin.drivers.show', $driver))
+            ->post(route('admin.drivers.documents.review', [$driver, $document]), [
+                'status' => 'invalid',
+                'reason' => '',
+            ])
+            ->assertSessionHasErrors('reason');
+
+        $this->assertSame('submitted', $document->fresh()->status);
+
+        $this->post(route('admin.drivers.documents.review', [$driver, $document]), [
+            'status' => 'invalid',
+            'reason' => 'Photo illisible',
+        ])->assertRedirect(route('admin.drivers.show', $driver));
+
+        $this->assertSame('invalid', $document->fresh()->status);
+        $this->assertSame('Photo illisible', $document->fresh()->reason);
     }
 
     // -----------------------------------------------------------------

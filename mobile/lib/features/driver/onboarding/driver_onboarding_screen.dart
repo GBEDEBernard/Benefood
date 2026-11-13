@@ -416,10 +416,18 @@ class _DocumentsPage extends StatelessWidget {
           const SizedBox(height: 12),
           AppTextField(
             controller: vehicle,
-            label: 'Véhicule',
-            hint: 'Ex : Moto, voiture…',
+            label: 'Véhicule et immatriculation',
+            hint: 'Moto Bajaj 150 · immatriculation sur la carte grise',
             icon: Icons.two_wheeler_outlined,
             enabled: !hasProfile,
+          ),
+          const Padding(
+            padding: EdgeInsets.only(top: 6),
+            child: Text(
+              'Indiquez le type, la marque, le modèle et l’immatriculation '
+              'exactement comme sur la carte grise béninoise.',
+              style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+            ),
           ),
           const SizedBox(height: 12),
           CityAreaPickerField(

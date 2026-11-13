@@ -119,6 +119,25 @@ class DriverOnboardingTest extends TestCase
             ->assertJsonCount(1, 'data.documents');
     }
 
+    public function test_status_provides_a_temporary_signed_url_to_view_driver_documents(): void
+    {
+        $this->actingAsClient();
+
+        $this->postJson('/api/v1/driver/me/onboarding', ['vehicle' => 'Moto'])->assertCreated();
+        $this->postJson('/api/v1/driver/me/documents', [
+            'type' => 'vehicle_registration',
+            'document' => UploadedFile::fake()->create('carte-grise.pdf', 100),
+        ])->assertCreated();
+
+        $response = $this->getJson('/api/v1/driver/me/status')->assertOk();
+        $url = $response->json('data.documents.0.url');
+
+        $this->assertIsString($url);
+        $this->get($url)->assertOk();
+        $this->get('/api/v1/driver/me/documents/'.DriverDocument::first()->id.'/download')
+            ->assertForbidden();
+    }
+
     public function test_internal_driver_creation_by_privileged_role(): void
     {
         $admin = User::factory()->create(['phone' => '+22997000030']);

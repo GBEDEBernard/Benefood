@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/data/marketplace_api.dart';
 import '../../../core/errors/api_exception.dart';
@@ -65,6 +66,26 @@ class _DriverVerificationScreenState extends State<DriverVerificationScreen> {
     }
     return value.trim();
   }
+
+  String? get _vehicleKind {
+    final value = _vehicle?.toLowerCase();
+    if (value == null) {
+      return null;
+    }
+    if (['moto', 'motocyclette', 'scooter', 'tricycle'].any(value.contains)) {
+      return 'Moto';
+    }
+    if (['voiture', 'auto', 'berline', 'camionnette'].any(value.contains)) {
+      return 'Voiture';
+    }
+    return null;
+  }
+
+  IconData get _vehicleIcon => switch (_vehicleKind) {
+    'Moto' => Icons.two_wheeler_rounded,
+    'Voiture' => Icons.directions_car_rounded,
+    _ => Icons.delivery_dining_rounded,
+  };
 
   String? get _location {
     final city = _profile?['city'];
@@ -214,6 +235,21 @@ class _DriverVerificationScreenState extends State<DriverVerificationScreen> {
     }
   }
 
+  Future<void> _openDocument(Map<String, dynamic> document) async {
+    final rawUrl = document['url'];
+    final uri = rawUrl is String ? Uri.tryParse(rawUrl) : null;
+    if (uri == null ||
+        !await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+      if (mounted) {
+        showToast(
+          context,
+          'Impossible d’ouvrir ce document. Actualisez la page puis réessayez.',
+          isError: true,
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return BeninfoodPageScaffold(
@@ -281,8 +317,8 @@ class _DriverVerificationScreenState extends State<DriverVerificationScreen> {
                       color: AppColors.greenMist,
                       borderRadius: BorderRadius.circular(18),
                     ),
-                    child: const Icon(
-                      Icons.two_wheeler_rounded,
+                    child: Icon(
+                      _vehicleIcon,
                       size: 29,
                       color: AppColors.greenDeep,
                     ),
@@ -310,6 +346,18 @@ class _DriverVerificationScreenState extends State<DriverVerificationScreen> {
                             fontSize: 12,
                           ),
                         ),
+                        if (_vehicleKind != null) ...[
+                          const SizedBox(height: 3),
+                          Text(
+                            '${_vehicleKind!.toUpperCase()} · BÉNIN',
+                            style: const TextStyle(
+                              color: AppColors.greenDeep,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 0.4,
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                   ),
@@ -329,10 +377,11 @@ class _DriverVerificationScreenState extends State<DriverVerificationScreen> {
                   color: AppColors.neutralSurfaceMuted,
                   borderRadius: BorderRadius.circular(AppDimens.radiusMd),
                 ),
-                child: const Text(
-                  'La modification du véhicule est vérifiée par l’administration '
-                  'Béninfood. Transmettez une carte grise à jour pour mettre à '
-                  'jour votre dossier.',
+                child: Text(
+                  'Vérifiez que la marque, le modèle et l’immatriculation indiqués '
+                  'correspondent à votre ${_vehicleKind?.toLowerCase() ?? 'véhicule'} '
+                  'et à sa carte grise béninoise. Toute modification est vérifiée '
+                  'par l’administration Béninfood.',
                   style: TextStyle(
                     color: AppColors.neutralTextSecondary,
                     fontSize: 12,
@@ -359,6 +408,7 @@ class _DriverVerificationScreenState extends State<DriverVerificationScreen> {
                   document: _latestDocumentFor(entry.$1),
                   uploading: _uploadingType == entry.$1,
                   onUpload: () => _pickDocument(entry.$1, entry.$2),
+                  onView: _openDocument,
                 ),
             ],
           ),
@@ -527,6 +577,7 @@ class _DocumentRow extends StatelessWidget {
     required this.document,
     required this.uploading,
     required this.onUpload,
+    required this.onView,
   });
 
   final String label;
@@ -534,6 +585,7 @@ class _DocumentRow extends StatelessWidget {
   final Map<String, dynamic>? document;
   final bool uploading;
   final VoidCallback onUpload;
+  final ValueChanged<Map<String, dynamic>> onView;
 
   @override
   Widget build(BuildContext context) {
@@ -548,71 +600,110 @@ class _DocumentRow extends StatelessWidget {
           color: AppColors.neutralSurfaceMuted,
           borderRadius: BorderRadius.circular(AppDimens.radiusLg),
         ),
-        child: Row(
+        child: Column(
           children: [
-            Container(
-              width: 38,
-              height: 38,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(icon, size: 20, color: AppColors.greenDeep),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: AppColors.neutralText,
-                      fontSize: 13.5,
-                      fontWeight: FontWeight.w700,
-                    ),
+            Row(
+              children: [
+                Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    document == null ? 'Document non transmis' : status!.label,
-                    style: TextStyle(
-                      color: status?.color ?? AppColors.neutralTextSecondary,
-                      fontSize: 11.5,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            if (uploading)
-              const Padding(
-                padding: EdgeInsets.all(8),
-                child: SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: AppColors.orangeVivid,
+                  child: Icon(icon, size: 20, color: AppColors.greenDeep),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: AppColors.neutralText,
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        document == null
+                            ? 'Document non transmis'
+                            : status!.label,
+                        style: TextStyle(
+                          color:
+                              status?.color ?? AppColors.neutralTextSecondary,
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      if (document?['reason'] case final String reason
+                          when reason.trim().isNotEmpty) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          reason,
+                          style: const TextStyle(
+                            color: AppColors.red,
+                            fontSize: 11,
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                 ),
-              )
-            else
-              TextButton(
-                onPressed: onUpload,
-                style: TextButton.styleFrom(
-                  foregroundColor: AppColors.orangeVivid,
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                  minimumSize: const Size(0, 36),
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                ),
-                child: Text(
-                  document == null ? 'Ajouter' : 'Remplacer',
-                  style: const TextStyle(
-                    fontSize: 11.5,
-                    fontWeight: FontWeight.w800,
+                if (uploading)
+                  const Padding(
+                    padding: EdgeInsets.all(8),
+                    child: SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: AppColors.orangeVivid,
+                      ),
+                    ),
                   ),
+              ],
+            ),
+            if (!uploading)
+              Align(
+                alignment: Alignment.centerRight,
+                child: Wrap(
+                  spacing: 4,
+                  children: [
+                    if (document?['url'] is String &&
+                        (document!['url'] as String).isNotEmpty)
+                      TextButton.icon(
+                        onPressed: () => onView(document!),
+                        icon: const Icon(Icons.visibility_outlined, size: 16),
+                        label: const Text('Consulter'),
+                        style: TextButton.styleFrom(
+                          foregroundColor: AppColors.greenDeep,
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                          minimumSize: const Size(0, 34),
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                      ),
+                    TextButton(
+                      onPressed: onUpload,
+                      style: TextButton.styleFrom(
+                        foregroundColor: AppColors.orangeVivid,
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        minimumSize: const Size(0, 34),
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      child: Text(
+                        document == null ? 'Ajouter' : 'Remplacer',
+                        style: const TextStyle(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
           ],

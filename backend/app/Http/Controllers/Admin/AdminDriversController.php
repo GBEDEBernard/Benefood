@@ -74,7 +74,7 @@ class AdminDriversController extends Controller
 
         $driver->load([
             'user',
-            'documents',
+            'documents' => fn ($query) => $query->orderByDesc('created_at'),
             'statusHistory',
             'availabilityLogs',
             'deliveries.order' => fn ($q) => $q->with('vendor'),
@@ -120,6 +120,36 @@ class AdminDriversController extends Controller
 
         if ($driver->status === DriverStatus::Active->value || $driver->status === DriverStatus::Closed->value) {
             return back()->with('error', 'Ce livreur ne peut pas être activé depuis son statut actuel.');
+        }
+
+        if (in_array($driver->status, [
+            DriverStatus::Candidate->value,
+            DriverStatus::PendingValidation->value,
+        ], true)) {
+            $requiredDocuments = [
+                'id_card' => 'pièce d’identité',
+                'driver_license' => 'permis de conduire',
+                'vehicle_registration' => 'carte grise',
+                'insurance' => 'assurance',
+            ];
+            $validTypes = $driver->documents()
+                ->orderByDesc('created_at')
+                ->get()
+                ->unique('type')
+                ->where('status', DriverDocumentStatus::Valid->value)
+                ->pluck('type')
+                ->all();
+            $missingDocuments = array_diff_key(
+                $requiredDocuments,
+                array_fill_keys($validTypes, true),
+            );
+
+            if ($missingDocuments !== []) {
+                return back()->with(
+                    'error',
+                    'Dossier incomplet : validez '.implode(', ', $missingDocuments).' avant l’activation.',
+                );
+            }
         }
 
         $from = DriverStatus::tryFrom($driver->status);
@@ -180,7 +210,7 @@ class AdminDriversController extends Controller
 
         $data = $request->validate([
             'status' => ['required', 'string', 'in:'.implode(',', array_column(DriverDocumentStatus::cases(), 'value'))],
-            'reason' => ['nullable', 'string', 'max:500'],
+            'reason' => ['required_if:status,'.DriverDocumentStatus::Invalid->value, 'nullable', 'string', 'min:3', 'max:500'],
         ]);
 
         $document->update([
@@ -207,6 +237,6 @@ class AdminDriversController extends Controller
             abort(404, 'Fichier introuvable.');
         }
 
-        return $disk->download($document->file_path);
+        return $disk->response($document->file_path);
     }
 }

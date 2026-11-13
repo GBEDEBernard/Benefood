@@ -297,6 +297,11 @@ Route::get('/vendors/me/documents/{document}/download', [VendorController::class
     ->middleware('signed')
     ->name('api.v1.vendors.me.documents.download');
 
+// Document livreur : consultation via URL temporaire signée (disque privé).
+Route::get('/driver/me/documents/{document}/download', [DriverController::class, 'downloadDocument'])
+    ->middleware('signed')
+    ->name('api.v1.driver.me.documents.download');
+
 Route::get('/categories', [CatalogController::class, 'categories'])->name('api.v1.categories.index');
 Route::get('/locations', [LocationController::class, 'index'])->name('api.v1.locations.index');
 Route::get('/products', [CatalogController::class, 'index'])->name('api.v1.products.index');

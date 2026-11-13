@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Enums\DriverDocumentType;
 use App\Http\Controllers\Controller;
+use App\Models\DriverDocument;
 use App\Models\DriverProfile;
 use App\Models\User;
 use App\Services\DriverOnboardingService;
@@ -11,6 +12,7 @@ use App\Support\Api;
 use App\Support\Phone;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 
 class DriverController extends Controller
 {
@@ -75,6 +77,15 @@ class DriverController extends Controller
         $this->authorize('view', $profile);
 
         return Api::ok($this->driverService->getStatus($profile));
+    }
+
+    public function downloadDocument(DriverDocument $document)
+    {
+        if (! Storage::disk('private')->exists($document->file_path)) {
+            return Api::error('Document introuvable.', 'not_found', 404);
+        }
+
+        return Storage::disk('private')->response($document->file_path);
     }
 
     /**

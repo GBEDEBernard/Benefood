@@ -18,6 +18,16 @@
         <button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button>
     </div>
 @endif
+@if ($errors->any())
+    <div class="alert alert-danger" role="alert">
+        <strong>La décision n’a pas été enregistrée.</strong>
+        <ul class="mb-0 mt-1">
+            @foreach ($errors->all() as $error)
+                <li>{{ $error }}</li>
+            @endforeach
+        </ul>
+    </div>
+@endif
 
 <div class="row">
     <div class="col-md-4">
@@ -81,54 +91,84 @@
     </div>
 
     <div class="col-md-8">
-        <!-- Documents -->
         <div class="card mb-4" style="border: none; box-shadow: 0 2px 10px rgba(0,0,0,0.05); border-radius: 12px;">
-            <div class="card-body p-0">
-                <div class="card-header" style="background-color: #FFFFFF; border-bottom: 1px solid var(--border-color); border-radius: 12px 12px 0 0;">
-                    <h6 class="font-weight-bold mb-0" style="color: var(--text-dark);">Documents</h6>
+            <div class="card-header d-flex justify-content-between align-items-center" style="background-color: #FFFFFF; border-bottom: 1px solid var(--border-color); border-radius: 12px 12px 0 0;">
+                <div>
+                    <h6 class="font-weight-bold mb-1" style="color: var(--text-dark);">Documents du livreur</h6>
+                    <small style="color: var(--text-muted);">Consultez chaque pièce avant de la valider. Les fichiers restent privés.</small>
                 </div>
-                <div class="table-responsive">
-                    <table class="table mb-0" style="font-size: 14px;">
-                        <thead style="background-color: #F9FAFB;">
-                            <tr>
-                                <th class="border-0" style="color: var(--text-muted); font-weight: 600; font-size: 12px; text-transform: uppercase;">Document</th>
-                                <th class="border-0" style="color: var(--text-muted); font-weight: 600; font-size: 12px; text-transform: uppercase;">Statut</th>
-                                <th class="border-0" style="color: var(--text-muted); font-weight: 600; font-size: 12px; text-transform: uppercase;">Soumis le</th>
-                                <th class="border-0" style="color: var(--text-muted); font-weight: 600; font-size: 12px; text-transform: uppercase;">Action</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @forelse ($driver->documents as $document)
-                                <tr>
-                                    <td style="font-weight: 600;">{{ \App\Support\AdminLabels::driverDocumentTypeLabel($document->type) }}</td>
-                                    <td>{!! \App\Support\AdminLabels::documentStatusBadge($document->status) !!}</td>
-                                    <td style="color: var(--text-muted);">{{ $document->created_at?->format('d/m/Y') ?? '—' }}</td>
-                                    <td>
-                                        <a href="{{ route('admin.drivers.documents.download', [$driver, $document]) }}" class="btn btn-sm" style="background: #FFFFFF; border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-dark);">
-                                            <i class="ti ti-download"></i>
-                                        </a>
-                                        <form method="POST" action="{{ route('admin.drivers.documents.review', [$driver, $document]) }}" class="d-inline-flex align-items-center" style="gap: 6px;">
-                                            @csrf
-                                            <select name="status" class="form-control form-control-sm" style="width: auto;">
-                                                @foreach (\App\Enums\DriverDocumentStatus::cases() as $docStatus)
-                                                    <option value="{{ $docStatus->value }}" @selected($document->status === $docStatus->value)>{{ ucfirst($docStatus->value) }}</option>
-                                                @endforeach
-                                            </select>
-                                            <input type="text" name="reason" class="form-control form-control-sm" placeholder="Motif (rejet)" style="width: 140px;">
-                                            <button type="submit" class="btn btn-sm" style="background-color: var(--benin-green); color: #FFFFFF; border-radius: 8px;">
-                                                <i class="ti ti-check"></i>
-                                            </button>
-                                        </form>
-                                    </td>
-                                </tr>
-                            @empty
-                                <tr>
-                                    <td colspan="4" class="text-center py-4" style="color: var(--text-muted);">Aucun document soumis.</td>
-                                </tr>
-                            @endforelse
-                        </tbody>
-                    </table>
-                </div>
+                <span class="badge badge-light">{{ $driver->documents->count() }} document(s)</span>
+            </div>
+            <div class="card-body">
+                @forelse ($driver->documents as $document)
+                    @php
+                        $extension = strtolower(pathinfo($document->file_path, PATHINFO_EXTENSION));
+                        $documentUrl = route('admin.drivers.documents.download', [$driver, $document]);
+                    @endphp
+                    <article class="mb-4 p-3" style="border: 1px solid var(--border-color); border-radius: 12px; background: #FFFFFF;">
+                        <div class="d-flex flex-wrap justify-content-between align-items-start mb-3" style="gap: 12px;">
+                            <div>
+                                <h6 class="mb-1" style="font-weight: 700; color: var(--text-dark);">
+                                    {{ \App\Support\AdminLabels::driverDocumentTypeLabel($document->type) }}
+                                </h6>
+                                <small style="color: var(--text-muted);">
+                                    Envoyé le {{ $document->created_at?->format('d/m/Y à H:i') ?? '—' }}
+                                    @if ($document->reviewed_at)
+                                        · Vérifié le {{ $document->reviewed_at->format('d/m/Y à H:i') }}
+                                        @if ($document->reviewer)
+                                            par {{ $document->reviewer->name }}
+                                        @endif
+                                    @endif
+                                </small>
+                            </div>
+                            {!! \App\Support\AdminLabels::documentStatusBadge($document->status) !!}
+                        </div>
+
+                        @if (in_array($extension, ['jpg', 'jpeg', 'png', 'webp'], true))
+                            <a href="{{ $documentUrl }}" target="_blank" rel="noopener" aria-label="Ouvrir le document en grand">
+                                <img src="{{ $documentUrl }}" alt="{{ \App\Support\AdminLabels::driverDocumentTypeLabel($document->type) }}" loading="lazy"
+                                     style="display: block; width: 100%; max-height: 460px; object-fit: contain; background: #F6F8F7; border-radius: 8px;">
+                            </a>
+                        @elseif ($extension === 'pdf')
+                            <iframe src="{{ $documentUrl }}" title="{{ \App\Support\AdminLabels::driverDocumentTypeLabel($document->type) }}"
+                                    loading="lazy" style="width: 100%; height: 480px; border: 1px solid var(--border-color); border-radius: 8px;"></iframe>
+                        @else
+                            <a href="{{ $documentUrl }}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-secondary mb-3">
+                                <i class="ti ti-external-link mr-1"></i> Ouvrir le fichier
+                            </a>
+                        @endif
+
+                        @if ($document->status === \App\Enums\DriverDocumentStatus::Invalid->value && $document->reason)
+                            <div class="alert alert-danger mt-3 mb-0 py-2">
+                                <strong>Motif du rejet :</strong> {{ $document->reason }}
+                            </div>
+                        @endif
+
+                        <form method="POST" action="{{ route('admin.drivers.documents.review', [$driver, $document]) }}"
+                              class="mt-3 d-flex flex-wrap align-items-center" style="gap: 8px;">
+                            @csrf
+                            <label for="document-status-{{ $document->id }}" class="mb-0 font-weight-bold">Décision</label>
+                            <select id="document-status-{{ $document->id }}" name="status" class="form-control form-control-sm"
+                                    style="width: auto;" onchange="this.form.querySelector('[name=reason]').required = this.value === 'invalid';">
+                                <option value="submitted" @selected($document->status === 'submitted')>En attente</option>
+                                <option value="valid" @selected($document->status === 'valid')>Valider</option>
+                                <option value="invalid" @selected($document->status === 'invalid')>Rejeter</option>
+                            </select>
+                            <input type="text" name="reason" class="form-control form-control-sm"
+                                   value="{{ $document->reason }}" placeholder="Motif obligatoire en cas de rejet"
+                                   aria-label="Motif du rejet" minlength="3" maxlength="500"
+                                   @required($document->status === \App\Enums\DriverDocumentStatus::Invalid->value)
+                                   style="flex: 1 1 220px; max-width: 360px;">
+                            <button type="submit" class="btn btn-sm" style="background-color: var(--benin-green); color: #FFFFFF; border-radius: 8px;">
+                                <i class="ti ti-check mr-1"></i> Enregistrer la décision
+                            </button>
+                        </form>
+                    </article>
+                @empty
+                    <div class="text-center py-4" style="color: var(--text-muted);">
+                        Aucun document soumis par ce livreur.
+                    </div>
+                @endforelse
             </div>
         </div>
 
@@ -173,7 +213,7 @@
                                         <td><a href="{{ route('admin.orders.show', $delivery->order) }}" style="color: var(--benin-green); font-family: monospace;">{{ $delivery->order?->reference }}</a></td>
                                         <td style="color: var(--text-muted);">{{ $delivery->order?->vendor?->business_name ?? '—' }}</td>
                                         <td>{{ \App\Support\AdminLabels::priceLabel($delivery->fee) }}</td>
-                                        <td style="color: var(--text-muted);">{{ ucfirst(str_replace('_', ' ', $delivery->status)) }}</td>
+                                        <td style="color: var(--text-muted);">{{ ucfirst(str_replace('_', ' ', $delivery->status->value)) }}</td>
                                     </tr>
                                 @endforeach
                             </tbody>

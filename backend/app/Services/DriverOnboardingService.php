@@ -13,6 +13,7 @@ use App\Models\DriverProfile;
 use App\Models\User;
 use App\Support\Phone;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Str;
 
 /**
@@ -126,13 +127,33 @@ class DriverOnboardingService
                 'rating' => $profile->rating,
                 'created_at' => $profile->created_at?->toIso8601String(),
             ],
-            'documents' => $profile->documents->map(fn (DriverDocument $document) => [
-                'id' => $document->id,
-                'type' => $document->type,
-                'status' => $document->status,
-                'reason' => $document->reason,
-                'created_at' => $document->created_at?->toIso8601String(),
-            ])->values(),
+            'documents' => $profile->documents
+                ->sortBy('created_at')
+                ->map(fn (DriverDocument $document) => $this->documentPayload($document))
+                ->values(),
+        ];
+    }
+
+    /**
+     * Métadonnées de vérification et lien temporaire pour consulter le fichier privé.
+     *
+     * @return array<string, mixed>
+     */
+    public function documentPayload(DriverDocument $document): array
+    {
+        return [
+            'id' => $document->id,
+            'type' => $document->type,
+            'status' => $document->status,
+            'reason' => $document->reason,
+            'file_name' => basename($document->file_path),
+            'created_at' => $document->created_at?->toIso8601String(),
+            'reviewed_at' => $document->reviewed_at?->toIso8601String(),
+            'url' => URL::temporarySignedRoute(
+                'api.v1.driver.me.documents.download',
+                now()->addMinutes(30),
+                ['document' => $document->id],
+            ),
         ];
     }
 
