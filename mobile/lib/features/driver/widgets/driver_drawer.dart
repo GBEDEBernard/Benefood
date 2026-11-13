@@ -10,15 +10,18 @@ import '../../../shared/models/user.dart';
 import '../../../shared/widgets/drawer_kit.dart';
 import '../../../shared/widgets/feedback_widgets.dart';
 
-/// Remplace toute teinte verte (ex. statut « Actif » du back) par l'orange.
-Color _noGreen(Color color) {
-  final hue = HSLColor.fromColor(color).hue;
-  return (hue >= 70 && hue <= 170) ? AppColors.orange : color;
+class _DriverDrawerPalette {
+  const _DriverDrawerPalette._();
+
+  static const green = Color(0xFF17652F);
+  static const greenDeep = Color(0xFF0B2A19);
+  static const greenLight = Color(0xFFEAF5EC);
+  static const greenBorder = Color(0xFFE6ECE7);
 }
 
 /// Tiroir latéral de l'espace livreur Béninfood.
 ///
-/// Dominante orange sur fond crème : carte d'identité animée (dégradé qui
+/// Dominante verte sur fond crème : carte d'identité animée (dégradé qui
 /// tourne, bulles, reflet), navigation en cascade, accès rapides et
 /// déconnexion. Responsive (largeur plafonnée, mode compact sur écrans courts).
 class DriverDrawer extends StatelessWidget {
@@ -97,7 +100,10 @@ class DriverDrawer extends StatelessWidget {
     return MediaQuery(
       // Polices système plafonnées pour que le tiroir ne déborde jamais.
       data: media.copyWith(
-        textScaler: media.textScaler.clamp(minScaleFactor: 0.9, maxScaleFactor: 1.12),
+        textScaler: media.textScaler.clamp(
+          minScaleFactor: 0.9,
+          maxScaleFactor: 1.12,
+        ),
       ),
       child: Drawer(
         width: width,
@@ -117,6 +123,52 @@ class DriverDrawer extends StatelessWidget {
             children: [
               DrawerStagger(
                 index: 0,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 6, 14, 0),
+                  child: SizedBox(
+                    height: 48,
+                    child: Row(
+                      children: [
+                        const Spacer(),
+                        RichText(
+                          text: const TextSpan(
+                            style: TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: -1,
+                            ),
+                            children: [
+                              TextSpan(
+                                text: 'Bénin',
+                                style: TextStyle(
+                                  color: _DriverDrawerPalette.greenDeep,
+                                ),
+                              ),
+                              TextSpan(
+                                text: 'Food',
+                                style: TextStyle(color: AppColors.orange),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const Spacer(),
+                        IconButton(
+                          tooltip: 'Fermer le menu',
+                          onPressed: () => Navigator.of(context).pop(),
+                          style: IconButton.styleFrom(
+                            backgroundColor: AppColors.surface,
+                            foregroundColor: AppColors.text,
+                            side: const BorderSide(color: DrawerPalette.line),
+                          ),
+                          icon: const Icon(Icons.close_rounded),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              DrawerStagger(
+                index: 1,
                 child: DrawerIdentityCard(
                   badgeIcon: Icons.delivery_dining_rounded,
                   badgeLabel: 'ESPACE LIVREUR',
@@ -126,8 +178,8 @@ class DriverDrawer extends StatelessWidget {
                   pillBuilder: (t) => DrawerStatusPill(
                     label: available ? 'EN LIGNE' : 'HORS LIGNE',
                     active: available,
-                    dotColor: AppColors.orange,
-                    textColor: AppColors.orangeDark,
+                    dotColor: _DriverDrawerPalette.green,
+                    textColor: _DriverDrawerPalette.greenDeep,
                     t: t,
                   ),
                   footerIcon: vehicle != null && vehicle!.isNotEmpty
@@ -136,22 +188,39 @@ class DriverDrawer extends StatelessWidget {
                   footerText: vehicle != null && vehicle!.isNotEmpty
                       ? vehicle!
                       : 'Livreur vérifié Béninfood',
+                  gradientColors: const [
+                    Color(0xFF092417),
+                    Color(0xFF124B2A),
+                    Color(0xFF1E6935),
+                  ],
+                  glowColor: _DriverDrawerPalette.green,
+                  avatarRingColors: const [
+                    Colors.white,
+                    Color(0xFFB7E2BD),
+                    Color(0xFFE9F7EA),
+                    Colors.white,
+                  ],
+                  avatarFallbackBackground: _DriverDrawerPalette.greenLight,
+                  avatarFallbackForeground: _DriverDrawerPalette.greenDeep,
                   trailing: statusLabel == null
                       ? null
                       : DrawerStatusChip(
                           label: statusLabel!,
-                          dotColor: _noGreen(statusColor ?? AppColors.orange),
+                          dotColor: statusColor ?? _DriverDrawerPalette.green,
+                          textColor: _DriverDrawerPalette.greenDeep,
                         ),
                 ),
               ),
               SizedBox(height: compact ? 8 : 14),
               DrawerStagger(
-                index: 1,
+                index: 2,
                 child: const Padding(
                   padding: EdgeInsets.fromLTRB(22, 0, 22, 10),
                   child: DrawerSectionHeader(
                     label: 'NAVIGATION',
-                    trailing: DrawerAccentBar(),
+                    trailing: DrawerAccentBar(
+                      color: _DriverDrawerPalette.green,
+                    ),
                   ),
                 ),
               ),
@@ -160,29 +229,51 @@ class DriverDrawer extends StatelessWidget {
                   padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
                   physics: const BouncingScrollPhysics(),
                   children: [
-                    for (var i = 0; i < _items.length; i++)
-                      DrawerStagger(
-                        index: i + 2,
-                        child: Padding(
-                          padding: const EdgeInsets.only(bottom: 5),
-                          child: DrawerNavTile(
-                            label: _items[i].label,
-                            subtitle: _items[i].subtitle,
-                            outline: _items[i].outline,
-                            filled: _items[i].filled,
-                            active: i == currentIndex,
-                            compact: compact,
-                            onTap: () {
-                              HapticFeedback.selectionClick();
-                              Navigator.of(context).pop();
-                              onSelectTab(i);
-                            },
-                          ),
+                    Container(
+                      decoration: BoxDecoration(
+                        color: AppColors.surface,
+                        borderRadius: BorderRadius.circular(22),
+                        border: Border.all(
+                          color: _DriverDrawerPalette.greenBorder,
                         ),
                       ),
+                      child: Column(
+                        children: [
+                          for (var i = 0; i < _items.length; i++) ...[
+                            DrawerStagger(
+                              index: i + 3,
+                              child: DrawerNavTile(
+                                label: _items[i].label,
+                                subtitle: _items[i].subtitle,
+                                outline: _items[i].outline,
+                                filled: _items[i].filled,
+                                active: i == currentIndex,
+                                compact: compact,
+                                accentColor: _DriverDrawerPalette.green,
+                                activeBackground:
+                                    _DriverDrawerPalette.greenLight,
+                                onTap: () {
+                                  HapticFeedback.selectionClick();
+                                  Navigator.of(context).pop();
+                                  onSelectTab(i);
+                                },
+                              ),
+                            ),
+                            if (i < _items.length - 1)
+                              const Padding(
+                                padding: EdgeInsets.symmetric(horizontal: 14),
+                                child: Divider(
+                                  height: 1,
+                                  color: _DriverDrawerPalette.greenBorder,
+                                ),
+                              ),
+                          ],
+                        ],
+                      ),
+                    ),
                     const SizedBox(height: 12),
                     DrawerStagger(
-                      index: _items.length + 2,
+                      index: _items.length + 3,
                       child: const Padding(
                         padding: EdgeInsets.fromLTRB(10, 0, 10, 10),
                         child: DrawerSectionHeader(label: 'ACCÈS RAPIDES'),
@@ -195,7 +286,7 @@ class DriverDrawer extends StatelessWidget {
                             index: 0,
                             icon: Icons.insights_rounded,
                             label: 'Statistiques',
-                            color: AppColors.orange,
+                            color: _DriverDrawerPalette.green,
                             onTap: () => _open(context, '/driver/stats'),
                           ),
                         ),
@@ -205,7 +296,7 @@ class DriverDrawer extends StatelessWidget {
                             index: 1,
                             icon: Icons.account_balance_wallet_rounded,
                             label: 'Portefeuille',
-                            color: AppColors.orangeDark,
+                            color: _DriverDrawerPalette.green,
                             onTap: () => _open(context, '/driver/wallet'),
                           ),
                         ),
@@ -215,8 +306,9 @@ class DriverDrawer extends StatelessWidget {
                             index: 2,
                             icon: Icons.people_alt_rounded,
                             label: 'Mes clients',
-                            color: AppColors.goldDark,
-                            onTap: () => _open(context, '/driver/favorite-clients'),
+                            color: _DriverDrawerPalette.green,
+                            onTap: () =>
+                                _open(context, '/driver/favorite-clients'),
                           ),
                         ),
                       ],
@@ -225,7 +317,7 @@ class DriverDrawer extends StatelessWidget {
                 ),
               ),
               DrawerStagger(
-                index: _items.length + 3,
+                index: _items.length + 4,
                 child: _buildLogout(context),
               ),
               const SizedBox(height: 8),

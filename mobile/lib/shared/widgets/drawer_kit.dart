@@ -68,11 +68,7 @@ class DrawerStagger extends StatelessWidget {
 /// Pastille translucide en haut de la carte d'identité (« ESPACE LIVREUR »,
 /// « ESPACE CLIENT »…).
 class DrawerBadge extends StatelessWidget {
-  const DrawerBadge({
-    super.key,
-    required this.icon,
-    required this.label,
-  });
+  const DrawerBadge({super.key, required this.icon, required this.label});
 
   final IconData icon;
   final String label;
@@ -111,11 +107,7 @@ class DrawerBadge extends StatelessWidget {
 /// dégradé pour apporter une touche « food photography » sans jamais nuire
 /// à la lisibilité du texte.
 class DrawerFoodDecor extends StatelessWidget {
-  const DrawerFoodDecor({
-    super.key,
-    this.intensity = 1,
-    this.compact = false,
-  });
+  const DrawerFoodDecor({super.key, this.intensity = 1, this.compact = false});
 
   /// 0 → décor invisible, 1 → opacité nominale.
   final double intensity;
@@ -235,18 +227,30 @@ class DrawerAvatar extends StatelessWidget {
     required this.name,
     required this.t,
     required this.size,
+    this.ringColors = const [
+      Colors.white,
+      Color(0xFFFFD9A8),
+      Color(0xFFFFF4E6),
+      Colors.white,
+    ],
+    this.fallbackBackground = AppColors.orangeLight,
+    this.fallbackForeground = AppColors.orangeDark,
   });
 
   final String? url;
   final String name;
   final double t;
   final double size;
+  final List<Color> ringColors;
+  final Color fallbackBackground;
+  final Color fallbackForeground;
 
   @override
   Widget build(BuildContext context) {
     final raw = url;
-    final resolved =
-        (raw == null || raw.trim().isEmpty) ? null : resolveMediaUrl(raw);
+    final resolved = (raw == null || raw.trim().isEmpty)
+        ? null
+        : resolveMediaUrl(raw);
 
     return Container(
       width: size,
@@ -256,12 +260,7 @@ class DrawerAvatar extends StatelessWidget {
         shape: BoxShape.circle,
         gradient: SweepGradient(
           transform: GradientRotation(t * 2 * math.pi),
-          colors: const [
-            Colors.white,
-            Color(0xFFFFD9A8),
-            Color(0xFFFFF4E6),
-            Colors.white,
-          ],
+          colors: ringColors,
         ),
       ),
       child: Container(
@@ -285,12 +284,12 @@ class DrawerAvatar extends StatelessWidget {
 
   Widget _fallback() {
     return ColoredBox(
-      color: AppColors.orangeLight,
+      color: fallbackBackground,
       child: Center(
         child: Text(
           initials(name),
           style: TextStyle(
-            color: AppColors.orangeDark,
+            color: fallbackForeground,
             fontSize: size * 0.31,
             fontWeight: FontWeight.w900,
           ),
@@ -301,8 +300,11 @@ class DrawerAvatar extends StatelessWidget {
 
   /// Initiales du nom (« Jean Koffi » → « JK »).
   static String initials(String name) {
-    final parts =
-        name.trim().split(RegExp(r'\s+')).where((p) => p.isNotEmpty).toList();
+    final parts = name
+        .trim()
+        .split(RegExp(r'\s+'))
+        .where((p) => p.isNotEmpty)
+        .toList();
     if (parts.isEmpty) {
       return '?';
     }
@@ -422,10 +424,7 @@ class DrawerStatusChip extends StatelessWidget {
           Container(
             width: 6,
             height: 6,
-            decoration: BoxDecoration(
-              color: dotColor,
-              shape: BoxShape.circle,
-            ),
+            decoration: BoxDecoration(color: dotColor, shape: BoxShape.circle),
           ),
           const SizedBox(width: 5),
           Text(
@@ -456,6 +455,20 @@ class DrawerIdentityCard extends StatefulWidget {
     required this.footerText,
     this.trailing,
     this.compact = false,
+    this.gradientColors = const [
+      AppColors.orange,
+      AppColors.orangeDark,
+      Color(0xFFFF9A3D),
+    ],
+    this.glowColor = AppColors.orange,
+    this.avatarRingColors = const [
+      Colors.white,
+      Color(0xFFFFD9A8),
+      Color(0xFFFFF4E6),
+      Colors.white,
+    ],
+    this.avatarFallbackBackground = AppColors.orangeLight,
+    this.avatarFallbackForeground = AppColors.orangeDark,
   });
 
   final IconData badgeIcon;
@@ -476,6 +489,11 @@ class DrawerIdentityCard extends StatefulWidget {
 
   /// Mode compact (écrans bas) : hauteur réduite, sous-titres masqués.
   final bool compact;
+  final List<Color> gradientColors;
+  final Color glowColor;
+  final List<Color> avatarRingColors;
+  final Color avatarFallbackBackground;
+  final Color avatarFallbackForeground;
 
   @override
   State<DrawerIdentityCard> createState() => _DrawerIdentityCardState();
@@ -516,16 +534,12 @@ class _DrawerIdentityCardState extends State<DrawerIdentityCard>
             gradient: LinearGradient(
               begin: Alignment(math.cos(angle), math.sin(angle)),
               end: Alignment(-math.cos(angle), -math.sin(angle)),
-              colors: const [
-                AppColors.orange,
-                AppColors.orangeDark,
-                Color(0xFFFF9A3D),
-              ],
+              colors: widget.gradientColors,
               stops: const [0.0, 0.55, 1.0],
             ),
             boxShadow: [
               BoxShadow(
-                color: AppColors.orange.withValues(alpha: 0.38),
+                color: widget.glowColor.withValues(alpha: 0.38),
                 blurRadius: 22,
                 offset: const Offset(0, 10),
               ),
@@ -582,6 +596,9 @@ class _DrawerIdentityCardState extends State<DrawerIdentityCard>
                           name: widget.name,
                           t: t,
                           size: compact ? 54 : 64,
+                          ringColors: widget.avatarRingColors,
+                          fallbackBackground: widget.avatarFallbackBackground,
+                          fallbackForeground: widget.avatarFallbackForeground,
                         ),
                         const SizedBox(width: 12),
                         Expanded(
@@ -615,11 +632,7 @@ class _DrawerIdentityCardState extends State<DrawerIdentityCard>
                     SizedBox(height: compact ? 9 : 12),
                     Row(
                       children: [
-                        Icon(
-                          widget.footerIcon,
-                          size: 16,
-                          color: Colors.white,
-                        ),
+                        Icon(widget.footerIcon, size: 16, color: Colors.white),
                         const SizedBox(width: 6),
                         Expanded(
                           child: Text(
@@ -652,11 +665,7 @@ class _DrawerIdentityCardState extends State<DrawerIdentityCard>
 
 /// Titre de section du tiroir : libellé majusculé + barre d'accentuation.
 class DrawerSectionHeader extends StatelessWidget {
-  const DrawerSectionHeader({
-    super.key,
-    required this.label,
-    this.trailing,
-  });
+  const DrawerSectionHeader({super.key, required this.label, this.trailing});
 
   final String label;
 
@@ -685,7 +694,9 @@ class DrawerSectionHeader extends StatelessWidget {
 
 /// Barre d'accentuation animée du titre de section.
 class DrawerAccentBar extends StatelessWidget {
-  const DrawerAccentBar({super.key});
+  const DrawerAccentBar({super.key, this.color = AppColors.orange});
+
+  final Color color;
 
   @override
   Widget build(BuildContext context) {
@@ -697,7 +708,7 @@ class DrawerAccentBar extends StatelessWidget {
         width: 26 * v,
         height: 3,
         decoration: BoxDecoration(
-          color: AppColors.orange,
+          color: color,
           borderRadius: BorderRadius.circular(10),
         ),
       ),
@@ -718,6 +729,8 @@ class DrawerNavTile extends StatefulWidget {
     required this.compact,
     required this.onTap,
     this.badge = 0,
+    this.accentColor = AppColors.orange,
+    this.activeBackground = DrawerPalette.wash,
   });
 
   final String label;
@@ -735,6 +748,8 @@ class DrawerNavTile extends StatefulWidget {
 
   /// Compteur affiché en badge sur l'icône (0 = aucun).
   final int badge;
+  final Color accentColor;
+  final Color activeBackground;
 
   @override
   State<DrawerNavTile> createState() => _DrawerNavTileState();
@@ -756,11 +771,11 @@ class _DrawerNavTileState extends State<DrawerNavTile> {
         duration: duration,
         curve: Curves.easeOutCubic,
         decoration: BoxDecoration(
-          color: active ? DrawerPalette.wash : Colors.transparent,
+          color: active ? widget.activeBackground : Colors.transparent,
           borderRadius: BorderRadius.circular(17),
           border: Border.all(
             color: active
-                ? AppColors.orange.withValues(alpha: 0.4)
+                ? widget.accentColor.withValues(alpha: 0.4)
                 : Colors.transparent,
           ),
         ),
@@ -768,7 +783,7 @@ class _DrawerNavTileState extends State<DrawerNavTile> {
           color: Colors.transparent,
           child: InkWell(
             borderRadius: BorderRadius.circular(17),
-            splashColor: AppColors.orange.withValues(alpha: 0.14),
+            splashColor: widget.accentColor.withValues(alpha: 0.14),
             highlightColor: Colors.transparent,
             onHighlightChanged: (v) => setState(() => _down = v),
             onTap: widget.onTap,
@@ -788,15 +803,19 @@ class _DrawerNavTileState extends State<DrawerNavTile> {
                         width: 43,
                         height: 43,
                         decoration: BoxDecoration(
-                          color: active ? AppColors.orange : Colors.white,
+                          color: active ? widget.accentColor : Colors.white,
                           borderRadius: BorderRadius.circular(14),
                           border: Border.all(
-                            color: active ? AppColors.orange : DrawerPalette.line,
+                            color: active
+                                ? widget.accentColor
+                                : DrawerPalette.line,
                           ),
                           boxShadow: active
                               ? [
                                   BoxShadow(
-                                    color: AppColors.orange.withValues(alpha: 0.4),
+                                    color: widget.accentColor.withValues(
+                                      alpha: 0.4,
+                                    ),
                                     blurRadius: 12,
                                     offset: const Offset(0, 5),
                                   ),
@@ -812,7 +831,7 @@ class _DrawerNavTileState extends State<DrawerNavTile> {
                           child: Icon(
                             active ? widget.filled : widget.outline,
                             key: ValueKey(active),
-                            color: active ? Colors.white : AppColors.orangeDark,
+                            color: active ? Colors.white : widget.accentColor,
                             size: 22,
                           ),
                         ),
@@ -854,9 +873,13 @@ class _DrawerNavTileState extends State<DrawerNavTile> {
                         AnimatedDefaultTextStyle(
                           duration: duration,
                           style: TextStyle(
-                            color: active ? AppColors.orangeDark : DrawerPalette.ink,
+                            color: active
+                                ? widget.accentColor
+                                : DrawerPalette.ink,
                             fontSize: 13.5,
-                            fontWeight: active ? FontWeight.w800 : FontWeight.w700,
+                            fontWeight: active
+                                ? FontWeight.w800
+                                : FontWeight.w700,
                           ),
                           child: Text(
                             widget.label,
@@ -885,13 +908,16 @@ class _DrawerNavTileState extends State<DrawerNavTile> {
                     curve: Curves.easeOutBack,
                     width: active ? 26 : 0,
                     height: active ? 26 : 0,
-                    decoration: const BoxDecoration(
-                      color: AppColors.orange,
+                    decoration: BoxDecoration(
+                      color: widget.accentColor,
                       shape: BoxShape.circle,
                     ),
                     child: active
-                        ? const Icon(Icons.chevron_right_rounded,
-                            color: Colors.white, size: 19)
+                        ? const Icon(
+                            Icons.chevron_right_rounded,
+                            color: Colors.white,
+                            size: 19,
+                          )
                         : null,
                   ),
                 ],

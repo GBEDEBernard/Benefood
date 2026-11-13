@@ -85,9 +85,9 @@ class _ServerSettingsScreenState extends State<ServerSettingsScreen> {
     setState(() => _saving = false);
 
     if (url == null) {
-      showToast(context, 'Réglage par défaut rétabli. Redémarrez l’app.');
+      showToast(context, 'Réglage par défaut rétabli. Réessayez la connexion.');
     } else {
-      showToast(context, 'URL enregistrée. Redémarrez l’app pour appliquer.');
+      showToast(context, 'URL enregistrée. Réessayez la connexion.');
     }
     _controller.text = AppConfig.apiBaseUrl;
   }
@@ -112,8 +112,9 @@ class _ServerSettingsScreenState extends State<ServerSettingsScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              'Sur un téléphone physique, renseignez l’IP de votre poste sur le même '
-              'réseau Wi-Fi, ex. http://192.168.1.102:8000',
+              'Sur Linux/PC, utilisez le réglage par défaut '
+              '(http://127.0.0.1:8000). Sur un téléphone, renseignez l’IP du poste '
+              'sur le même Wi-Fi, ex. http://192.168.1.102:8000.',
               style: theme.textTheme.bodySmall,
               textAlign: TextAlign.center,
             ),
@@ -147,16 +148,16 @@ class _ServerSettingsScreenState extends State<ServerSettingsScreen> {
                   ),
                 ),
                 const SizedBox(width: 12),
-                IconButton(
-                  tooltip: 'Retour au réglage par défaut',
+                TextButton.icon(
                   onPressed: _saveWith(null),
                   icon: const Icon(Icons.restart_alt),
+                  label: const Text('Par défaut'),
                 ),
               ],
             ),
             const SizedBox(height: 16),
             Text(
-              'Le changement s’applique au prochain démarrage de l’application.',
+              'Le changement est appliqué immédiatement.',
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.outline,
               ),

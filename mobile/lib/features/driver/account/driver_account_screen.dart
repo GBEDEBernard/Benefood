@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -19,6 +20,7 @@ import '../../../shared/models/delivery.dart';
 import '../../../shared/models/parcel.dart';
 import '../../../shared/models/user.dart';
 import '../../../shared/widgets/app_network_image.dart';
+import '../../../shared/widgets/drawer_kit.dart';
 import '../../../shared/widgets/feedback_widgets.dart';
 import '../../../shared/widgets/food_decor.dart';
 import '../../../shared/widgets/profile_widgets.dart';
@@ -614,7 +616,7 @@ class _DriverAccountScreenState extends State<DriverAccountScreen>
   Widget build(BuildContext context) {
     final media = MediaQuery.of(context);
     return Scaffold(
-      backgroundColor: AppColors.neutralBackground,
+      backgroundColor: AppColors.background,
       body: MediaQuery(
         data: media.copyWith(
           textScaler: media.textScaler.clamp(
@@ -717,16 +719,17 @@ class _DriverAccountScreenState extends State<DriverAccountScreen>
     final vehicleInfo = _vehicleVerification;
     final hasSpaces = (user?.contexts.length ?? 1) > 1;
 
+    final hero = _reveal(0, _buildProfileHero());
     final identity = _reveal(
-      0,
+      1,
       _buildIdentity(user, statusInfo, vehicleInfo, wide: wide),
     );
-    final availability = _reveal(1, _buildAvailability());
-    final revenue = _reveal(2, _buildRevenue());
-    final stats = _reveal(3, _buildStats(width));
-    final activity = _reveal(4, _buildActivityCard());
+    final availability = _reveal(2, _buildAvailability());
+    final revenue = _reveal(3, _buildRevenue());
+    final stats = _reveal(4, _buildStats(width));
+    final activity = _reveal(5, _buildActivityCard());
     final account = _reveal(
-      5,
+      6,
       _MenuCard(
         title: 'Mon compte',
         entries: [
@@ -777,7 +780,7 @@ class _DriverAccountScreenState extends State<DriverAccountScreen>
       ),
     );
     final support = _reveal(
-      6,
+      7,
       _MenuCard(
         title: 'Support',
         entries: [
@@ -804,6 +807,8 @@ class _DriverAccountScreenState extends State<DriverAccountScreen>
           ),
         if (_statusError != null && !_statusLoaded)
           const SizedBox(height: AppDimens.md),
+        Padding(padding: horizontal, child: hero),
+        const SizedBox(height: AppDimens.md),
         Padding(padding: horizontal, child: identity),
         const SizedBox(height: AppDimens.md),
         if (wide)
@@ -885,6 +890,10 @@ class _DriverAccountScreenState extends State<DriverAccountScreen>
         ),
       ],
     );
+  }
+
+  Widget _buildProfileHero() {
+    return const _DriverProfileHero();
   }
 
   Widget _buildIdentity(
@@ -1464,6 +1473,167 @@ class _DriverAccountScreenState extends State<DriverAccountScreen>
   }
 }
 
+class _DriverProfileHero extends StatefulWidget {
+  const _DriverProfileHero();
+
+  @override
+  State<_DriverProfileHero> createState() => _DriverProfileHeroState();
+}
+
+class _DriverProfileHeroState extends State<_DriverProfileHero>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 8),
+    );
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final reduceMotion =
+        MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+    if (reduceMotion) {
+      _controller
+        ..stop()
+        ..value = 0;
+    } else if (!_controller.isAnimating) {
+      _controller.repeat();
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, _) {
+        final t = _controller.value;
+        final angle = math.pi / 4 + 0.6 * math.sin(t * 2 * math.pi);
+        return Container(
+          clipBehavior: Clip.antiAlias,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(25),
+            gradient: LinearGradient(
+              begin: Alignment(math.cos(angle), math.sin(angle)),
+              end: Alignment(-math.cos(angle), -math.sin(angle)),
+              colors: const [
+                Color(0xFF092417),
+                Color(0xFF124B2A),
+                Color(0xFF1E6935),
+              ],
+              stops: const [0, 0.55, 1],
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF17652F).withValues(alpha: 0.25),
+                blurRadius: 22,
+                offset: const Offset(0, 9),
+              ),
+            ],
+          ),
+          child: Stack(
+            children: [
+              DrawerBubble(
+                t: t,
+                size: 126,
+                alpha: 0.1,
+                phase: 0,
+                right: -34,
+                top: -46,
+              ),
+              DrawerBubble(
+                t: t,
+                size: 72,
+                alpha: 0.08,
+                phase: 0.4,
+                left: -28,
+                bottom: -38,
+              ),
+              const DrawerFoodDecor(intensity: 0.95, compact: true),
+              DrawerSheen(t: t),
+              Padding(
+                padding: const EdgeInsets.all(18),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.17),
+                        borderRadius: BorderRadius.circular(15),
+                        border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.3),
+                        ),
+                      ),
+                      child: const Icon(
+                        Icons.badge_rounded,
+                        color: Colors.white,
+                        size: 25,
+                      ),
+                    ),
+                    const SizedBox(width: 13),
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            'ESPACE PROFESSIONNEL',
+                            style: TextStyle(
+                              color: Color(0xFFD8EBDD),
+                              fontSize: 9,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: 1.15,
+                            ),
+                          ),
+                          SizedBox(height: 4),
+                          Text(
+                            'Mon profil livreur',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 18,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: -0.35,
+                            ),
+                          ),
+                          SizedBox(height: 3),
+                          Text(
+                            'Activité, revenus et informations',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: Color(0xFFE1F0E4),
+                              fontSize: 11,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
 class _FetchResult<T> {
   const _FetchResult({this.data, this.error});
 
@@ -1485,10 +1655,10 @@ class _CardShell extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: AppColors.neutralBorder),
+        border: Border.all(color: AppColors.border),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x0D202A33),
+            color: Color(0x0D6B3E1C),
             blurRadius: 20,
             offset: Offset(0, 7),
           ),

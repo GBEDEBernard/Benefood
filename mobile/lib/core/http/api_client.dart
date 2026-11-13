@@ -18,11 +18,11 @@ class ApiClient {
     String? baseUrl,
     this.timeout = const Duration(seconds: 15),
   })  : _http = httpClient ?? http.Client(),
-        _baseUrl = baseUrl ?? AppConfig.apiUrl,
+        _baseUrlOverride = baseUrl,
         _tokenStore = tokenStore;
 
   final http.Client _http;
-  final String _baseUrl;
+  final String? _baseUrlOverride;
   final TokenStore _tokenStore;
 
   /// Délai maximal d'une requête réseau avant de lever [ApiException.timeout].
@@ -32,6 +32,8 @@ class ApiClient {
 
   bool _refreshing = false;
   final List<Completer<void>> _refreshQueue = [];
+
+  String get _baseUrl => _baseUrlOverride ?? AppConfig.apiUrl;
 
   String? get baseUrl => _baseUrl;
 

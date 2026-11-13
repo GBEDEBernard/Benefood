@@ -18,7 +18,7 @@ use Illuminate\Http\Request;
 $corsHeaders = [
     'Access-Control-Allow-Origin' => '*',
     'Access-Control-Allow-Methods' => 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
-    'Access-Control-Allow-Headers' => 'Content-Type, Accept, Authorization, X-Requested-With, X-XSRF-TOKEN',
+    'Access-Control-Allow-Headers' => 'Content-Type, Accept, Accept-Language, Authorization, X-Requested-With, X-XSRF-TOKEN, ngrok-skip-browser-warning',
     'Access-Control-Max-Age' => '86400',
 ];
 

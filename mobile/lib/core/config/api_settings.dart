@@ -1,6 +1,8 @@
 
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'app_config.dart';
+
 /// Réglages de connexion à l'API, persistés sur l'appareil.
 ///
 /// L'URL de base par défaut dépend de la plateforme (émulateur / desktop).
@@ -27,8 +29,10 @@ class ApiSettings {
     final value = url?.trim();
     if (value == null || value.isEmpty) {
       await prefs.remove(_overrideKey);
+      AppConfig.apiBaseUrlOverride = null;
     } else {
       await prefs.setString(_overrideKey, value);
+      AppConfig.apiBaseUrlOverride = value;
     }
   }
 

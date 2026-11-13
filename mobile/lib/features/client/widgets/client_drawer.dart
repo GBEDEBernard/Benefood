@@ -10,11 +10,18 @@ import '../../../shared/models/user.dart';
 import '../../../shared/widgets/drawer_kit.dart';
 import '../../../shared/widgets/feedback_widgets.dart';
 
+class _ClientDrawerPalette {
+  const _ClientDrawerPalette._();
+
+  static const green = Color(0xFF17652F);
+  static const greenDeep = Color(0xFF0B2A19);
+  static const greenLight = Color(0xFFEAF5EC);
+  static const greenBorder = Color(0xFFE6ECE7);
+}
+
 /// Tiroir latéral de l'espace client Béninfood.
 ///
-/// Même langage visuel que l'espace livreur : carte d'identité orange
-/// animée (dégradé tournant, bulles, reflet), navigation en cascade avec
-/// sous-titres, accès rapides en tuiles et déconnexion.
+/// Carte d'identité verte animée, navigation en cascade et accès rapides.
 class ClientDrawer extends StatelessWidget {
   const ClientDrawer({
     super.key,
@@ -46,10 +53,10 @@ class ClientDrawer extends StatelessWidget {
 
   /// Palette du statut du dossier client.
   static (String, Color) statusPalette(String? status) => switch (status) {
-        'active' => ('Vérifié', AppColors.orange),
-        'suspended' => ('Suspendu', AppColors.red),
-        _ => ('En vérification', AppColors.goldDark),
-      };
+    'active' => ('Vérifié', _ClientDrawerPalette.green),
+    'suspended' => ('Suspendu', AppColors.red),
+    _ => ('En vérification', AppColors.goldDark),
+  };
 
   static const List<_ClientDrawerItem> _items = [
     _ClientDrawerItem(
@@ -95,7 +102,10 @@ class ClientDrawer extends StatelessWidget {
     return MediaQuery(
       // Polices système plafonnées pour que le tiroir ne déborde jamais.
       data: media.copyWith(
-        textScaler: media.textScaler.clamp(minScaleFactor: 0.9, maxScaleFactor: 1.12),
+        textScaler: media.textScaler.clamp(
+          minScaleFactor: 0.9,
+          maxScaleFactor: 1.12,
+        ),
       ),
       child: Drawer(
         width: width,
@@ -115,6 +125,55 @@ class ClientDrawer extends StatelessWidget {
             children: [
               DrawerStagger(
                 index: 0,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 6, 14, 0),
+                  child: SizedBox(
+                    height: 48,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Spacer(),
+                        RichText(
+                          text: const TextSpan(
+                            style: TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: -1,
+                            ),
+                            children: [
+                              TextSpan(
+                                text: 'Bénin',
+                                style: TextStyle(
+                                  color: _ClientDrawerPalette.greenDeep,
+                                ),
+                              ),
+                              TextSpan(
+                                text: 'Food',
+                                style: TextStyle(color: AppColors.orange),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const Spacer(),
+                        IconButton(
+                          tooltip: 'Fermer le menu',
+                          onPressed: () => Navigator.of(context).pop(),
+                          style: IconButton.styleFrom(
+                            backgroundColor: AppColors.surface,
+                            foregroundColor: AppColors.text,
+                            side: const BorderSide(
+                              color: _ClientDrawerPalette.greenBorder,
+                            ),
+                          ),
+                          icon: const Icon(Icons.close_rounded),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              DrawerStagger(
+                index: 1,
                 child: DrawerIdentityCard(
                   badgeIcon: Icons.shopping_bag_rounded,
                   badgeLabel: 'ESPACE CLIENT',
@@ -124,8 +183,8 @@ class ClientDrawer extends StatelessWidget {
                   pillBuilder: (t) => DrawerStatusPill(
                     label: verified ? 'CLIENT VÉRIFIÉ' : 'DOSSIER EN COURS',
                     active: verified,
-                    dotColor: AppColors.orange,
-                    textColor: AppColors.orangeDark,
+                    dotColor: _ClientDrawerPalette.green,
+                    textColor: _ClientDrawerPalette.greenDeep,
                     t: t,
                   ),
                   footerIcon: Icons.phone_rounded,
@@ -134,19 +193,36 @@ class ClientDrawer extends StatelessWidget {
                       ? null
                       : DrawerStatusChip(
                           label: statusLabel!,
-                          dotColor: statusColor ?? AppColors.orange,
-                          textColor: statusColor ?? AppColors.orangeDark,
+                          dotColor: statusColor ?? _ClientDrawerPalette.green,
+                          textColor:
+                              statusColor ?? _ClientDrawerPalette.greenDeep,
                         ),
+                  gradientColors: const [
+                    Color(0xFF092417),
+                    Color(0xFF124B2A),
+                    Color(0xFF1E6935),
+                  ],
+                  glowColor: _ClientDrawerPalette.green,
+                  avatarRingColors: const [
+                    Colors.white,
+                    Color(0xFFB7E2BD),
+                    Color(0xFFE9F7EA),
+                    Colors.white,
+                  ],
+                  avatarFallbackBackground: _ClientDrawerPalette.greenLight,
+                  avatarFallbackForeground: _ClientDrawerPalette.greenDeep,
                 ),
               ),
               SizedBox(height: compact ? 8 : 14),
               DrawerStagger(
-                index: 1,
+                index: 2,
                 child: const Padding(
                   padding: EdgeInsets.fromLTRB(22, 0, 22, 10),
                   child: DrawerSectionHeader(
                     label: 'NAVIGATION',
-                    trailing: DrawerAccentBar(),
+                    trailing: DrawerAccentBar(
+                      color: _ClientDrawerPalette.green,
+                    ),
                   ),
                 ),
               ),
@@ -155,30 +231,52 @@ class ClientDrawer extends StatelessWidget {
                   padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
                   physics: const BouncingScrollPhysics(),
                   children: [
-                    for (var i = 0; i < _items.length; i++)
-                      DrawerStagger(
-                        index: i + 2,
-                        child: Padding(
-                          padding: const EdgeInsets.only(bottom: 5),
-                          child: DrawerNavTile(
-                            label: _items[i].label,
-                            subtitle: _items[i].subtitle,
-                            outline: _items[i].outline,
-                            filled: _items[i].filled,
-                            active: i == currentIndex,
-                            compact: compact,
-                            badge: i == 2 ? cartCount : 0,
-                            onTap: () {
-                              HapticFeedback.selectionClick();
-                              Navigator.of(context).pop();
-                              onSelectTab(i);
-                            },
-                          ),
+                    Container(
+                      decoration: BoxDecoration(
+                        color: AppColors.surface,
+                        borderRadius: BorderRadius.circular(22),
+                        border: Border.all(
+                          color: _ClientDrawerPalette.greenBorder,
                         ),
                       ),
+                      child: Column(
+                        children: [
+                          for (var i = 0; i < _items.length; i++) ...[
+                            DrawerStagger(
+                              index: i + 3,
+                              child: DrawerNavTile(
+                                label: _items[i].label,
+                                subtitle: _items[i].subtitle,
+                                outline: _items[i].outline,
+                                filled: _items[i].filled,
+                                active: i == currentIndex,
+                                compact: compact,
+                                badge: i == 2 ? cartCount : 0,
+                                accentColor: _ClientDrawerPalette.green,
+                                activeBackground:
+                                    _ClientDrawerPalette.greenLight,
+                                onTap: () {
+                                  HapticFeedback.selectionClick();
+                                  Navigator.of(context).pop();
+                                  onSelectTab(i);
+                                },
+                              ),
+                            ),
+                            if (i < _items.length - 1)
+                              const Padding(
+                                padding: EdgeInsets.symmetric(horizontal: 14),
+                                child: Divider(
+                                  height: 1,
+                                  color: _ClientDrawerPalette.greenBorder,
+                                ),
+                              ),
+                          ],
+                        ],
+                      ),
+                    ),
                     const SizedBox(height: 12),
                     DrawerStagger(
-                      index: _items.length + 2,
+                      index: _items.length + 3,
                       child: const Padding(
                         padding: EdgeInsets.fromLTRB(10, 0, 10, 10),
                         child: DrawerSectionHeader(label: 'ACCÈS RAPIDES'),
@@ -189,54 +287,53 @@ class ClientDrawer extends StatelessWidget {
                         Expanded(
                           child: DrawerQuickAction(
                             index: 0,
-                            icon: Icons.inventory_2_outlined,
-                            label: 'Mes colis',
-                            color: AppColors.orange,
-                            onTap: () => _open(context, '/client/parcels'),
+                            icon: Icons.support_agent_rounded,
+                            label: 'Aide & Support',
+                            color: _ClientDrawerPalette.green,
+                            onTap: () => _open(context, '/client/complaints'),
                           ),
                         ),
-                        const SizedBox(width: 8),
+                        const SizedBox(width: 7),
                         Expanded(
                           child: DrawerQuickAction(
                             index: 1,
                             icon: Icons.location_on_outlined,
-                            label: 'Mes adresses',
-                            color: AppColors.orangeDark,
+                            label: 'Adresses',
+                            color: _ClientDrawerPalette.green,
                             onTap: () => _open(context, '/client/addresses'),
                           ),
                         ),
-                        const SizedBox(width: 8),
+                        const SizedBox(width: 7),
                         Expanded(
                           child: DrawerQuickAction(
                             index: 2,
-                            icon: Icons.favorite_border_rounded,
-                            label: 'Mes favoris',
-                            color: AppColors.goldDark,
+                            icon: Icons.confirmation_number_outlined,
+                            label: 'Codes promo',
+                            color: _ClientDrawerPalette.green,
+                            onTap: () => _open(context, '/client/coupons'),
+                          ),
+                        ),
+                        const SizedBox(width: 7),
+                        Expanded(
+                          child: DrawerQuickAction(
+                            index: 3,
+                            icon: Icons.star_outline_rounded,
+                            label: 'Favoris',
+                            color: _ClientDrawerPalette.green,
                             onTap: () => _open(context, '/client/favorites'),
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 8),
                     Row(
                       children: [
                         Expanded(
                           child: DrawerQuickAction(
-                            index: 3,
-                            icon: Icons.support_agent_rounded,
-                            label: 'Réclamations',
-                            color: AppColors.orange,
-                            onTap: () => _open(context, '/client/complaints'),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: DrawerQuickAction(
                             index: 4,
-                            icon: Icons.confirmation_number_outlined,
-                            label: 'Mes coupons',
-                            color: AppColors.goldDark,
-                            onTap: () => _open(context, '/client/coupons'),
+                            icon: Icons.inventory_2_outlined,
+                            label: 'Mes colis',
+                            color: _ClientDrawerPalette.green,
+                            onTap: () => _open(context, '/client/parcels'),
                           ),
                         ),
                         const SizedBox(width: 8),
@@ -244,11 +341,14 @@ class ClientDrawer extends StatelessWidget {
                           child: DrawerQuickAction(
                             index: 5,
                             icon: Icons.notifications_none_rounded,
-                            label: 'Notifications',
-                            color: AppColors.orangeDark,
-                            onTap: () => _open(context, '/client/notifications'),
+                            label: 'Mes notifications',
+                            color: _ClientDrawerPalette.green,
+                            onTap: () =>
+                                _open(context, '/client/notifications'),
                           ),
                         ),
+                        const SizedBox(width: 8),
+                        const Expanded(child: SizedBox()),
                       ],
                     ),
                   ],

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 /// États vides (J24 §5) : icône + titre + sous-texte + CTA optionnel.
 class EmptyState extends StatelessWidget {
@@ -88,11 +89,23 @@ class ErrorState extends StatelessWidget {
               const SizedBox(height: 20),
               OutlinedButton.icon(onPressed: onRetry, icon: const Icon(Icons.refresh), label: const Text('Réessayer')),
             ],
+            if (_isConnectionError(message)) ...[
+              const SizedBox(height: 8),
+              TextButton.icon(
+                onPressed: () => context.push('/server'),
+                icon: const Icon(Icons.dns_outlined),
+                label: const Text('Configurer le serveur'),
+              ),
+            ],
           ],
         ),
       ),
     );
   }
+
+  bool _isConnectionError(String message) =>
+      message.startsWith('Connexion impossible.') ||
+      message.startsWith('Le serveur met trop de temps');
 }
 
 /// Chargement en squelette animé (J24 §2).
