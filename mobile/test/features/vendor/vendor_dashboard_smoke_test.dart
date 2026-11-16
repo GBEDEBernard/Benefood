@@ -538,7 +538,7 @@ void main() {
     expect(find.text('Dimanche'), findsOneWidget);
     await tester.tap(find.text('Lundi'));
     await tester.pumpAndSettle();
-    expect(find.text('Enregistrer'), findsOneWidget);
+    expect(find.text('Enregistrer les horaires'), findsOneWidget);
 
     // Jours ouverts dans le statut de départ (samedi/dimanche fermés).
     expect(find.text('08:00'), findsNWidgets(5));
@@ -574,7 +574,7 @@ void main() {
     expect(find.text('14:00'), findsOneWidget);
 
     // Enregistrement : la planification complète part en PATCH.
-    await tester.tap(find.text('Enregistrer'));
+    await tester.tap(find.text('Enregistrer les horaires'));
     await tester.pump();
     await tester.pumpAndSettle();
     expect(log, contains('PATCH /vendors/me'));
