@@ -92,8 +92,10 @@ class _BeninfoodAppState extends State<BeninfoodApp> {
             // par AppLocalizations.
             locale: language.code == 'fon'
                 ? const Locale('fr')
-                : language.locale,
-            supportedLocales: const [Locale('fr'), Locale('en')],
+                : language.code == 'en'
+                    ? Locale('en')
+                    : language.locale,
+            supportedLocales: const [Locale('fr'), Locale('en'), Locale('fon')],
             localizationsDelegates: const [
               GlobalMaterialLocalizations.delegate,
               GlobalWidgetsLocalizations.delegate,
