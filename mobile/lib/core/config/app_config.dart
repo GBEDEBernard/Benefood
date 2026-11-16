@@ -12,7 +12,7 @@ class AppConfig {
   /// Le domaine reste identique d'un build à l'autre tant que le tunnel est
   /// lancé avec `ngrok http --url=<domaine> 8000`.
   static const String productionApiBaseUrl =
-      'https://squatter-demotion-distrust.ngrok-free.dev';
+      'https://lazily-untagged-easiness.ngrok-free.dev';
 
   /// En-tête exigé par les tunnels ngrok gratuits pour éviter la page
   /// d'avertissement HTML renvoyée aux navigateurs.
