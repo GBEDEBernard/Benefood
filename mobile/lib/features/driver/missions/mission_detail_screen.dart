@@ -20,6 +20,7 @@ import '../../../shared/widgets/package_item_tile.dart';
 import '../../../shared/widgets/status_badge.dart';
 import '../../../shared/widgets/state_widgets.dart';
 import 'mission_navigation_screen.dart';
+import '../../../core/i18n/app_localizations.dart';
 
 /// Détail d'une mission livreur : commande restaurant ou colis.
 class MissionDetailScreen extends StatefulWidget {
@@ -171,7 +172,7 @@ class _MissionDetailScreenState extends State<MissionDetailScreen> {
     return showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Confirmer la remise'),
+        title: Text(context.tr('Confirmer la remise')),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -191,7 +192,7 @@ class _MissionDetailScreenState extends State<MissionDetailScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Retour'),
+            child: Text(context.tr('Retour')),
           ),
           FilledButton(
             onPressed: () {
@@ -200,7 +201,7 @@ class _MissionDetailScreenState extends State<MissionDetailScreen> {
                 Navigator.of(context).pop(value);
               }
             },
-            child: const Text('Valider'),
+            child: Text(context.tr('Valider')),
           ),
         ],
       ),
@@ -301,13 +302,13 @@ class _MissionDetailScreenState extends State<MissionDetailScreen> {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppDimens.radiusMd),
         ),
-        title: const Text('Décliner la course'),
+        title: Text(context.tr('Décliner la course')),
         content: TextField(
           controller: controller,
           autofocus: true,
           maxLines: 3,
           decoration: InputDecoration(
-            labelText: 'Motif (facultatif)',
+            labelText: context.tr('Motif (facultatif)'),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppDimens.radiusSm),
             ),
@@ -316,7 +317,7 @@ class _MissionDetailScreenState extends State<MissionDetailScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Retour'),
+            child: Text(context.tr('Retour')),
           ),
           FilledButton(
             style: FilledButton.styleFrom(
@@ -324,7 +325,7 @@ class _MissionDetailScreenState extends State<MissionDetailScreen> {
               foregroundColor: Colors.white,
             ),
             onPressed: () => Navigator.of(context).pop(controller.text.trim()),
-            child: const Text('Décliner'),
+            child: Text(context.tr('Décliner')),
           ),
         ],
       ),
@@ -342,7 +343,7 @@ class _MissionDetailScreenState extends State<MissionDetailScreen> {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppDimens.radiusMd),
         ),
-        title: const Text('Signaler un incident'),
+        title: Text(context.tr('Signaler un incident')),
         content: TextField(
           controller: controller,
           autofocus: true,
@@ -357,7 +358,7 @@ class _MissionDetailScreenState extends State<MissionDetailScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Retour'),
+            child: Text(context.tr('Retour')),
           ),
           FilledButton(
             style: FilledButton.styleFrom(
@@ -369,7 +370,7 @@ class _MissionDetailScreenState extends State<MissionDetailScreen> {
                 Navigator.of(context).pop(controller.text.trim());
               }
             },
-            child: const Text('Envoyer'),
+            child: Text(context.tr('Envoyer')),
           ),
         ],
       ),
@@ -489,7 +490,7 @@ class _MissionDetailScreenState extends State<MissionDetailScreen> {
             TextButton.icon(
               onPressed: _actionLoading ? null : _reportIncident,
               icon: const Icon(Icons.report_problem_outlined, size: 18),
-              label: const Text('Signaler un incident'),
+              label: Text(context.tr('Signaler un incident')),
               style: TextButton.styleFrom(
                 foregroundColor: AppColors.textSecondary,
               ),
@@ -556,7 +557,7 @@ class _MissionDetailScreenState extends State<MissionDetailScreen> {
           TextButton.icon(
             onPressed: _actionLoading ? null : _declineMission,
             icon: const Icon(Icons.close, size: 18),
-            label: const Text('Décliner la course'),
+            label: Text(context.tr('Décliner la course')),
             style: TextButton.styleFrom(
               foregroundColor: AppColors.textSecondary,
             ),
@@ -1007,7 +1008,7 @@ class _HandoverCard extends StatelessWidget {
                         ),
                       )
                     : const Icon(Icons.lock_open_outlined, size: 18),
-                label: const Text('Confirmer la remise'),
+                label: Text(context.tr('Confirmer la remise')),
               ),
             ),
           ],
@@ -1224,7 +1225,7 @@ class _StopTile extends StatelessWidget {
             ),
           ),
           if (phone.isNotEmpty)
-            CallButton(label: 'Appeler', phone: phone, compact: true),
+            CallButton(label: context.tr('Appeler'), phone: phone, compact: true),
         ],
       ),
     );
@@ -1284,14 +1285,14 @@ class _FeeCard extends StatelessWidget {
       child: Column(
         children: [
           _FeeRow(
-            label: 'Votre gain',
+            label: context.tr('Votre gain'),
             amount: mission.earnings,
             emphasized: true,
           ),
           if (mission.clientFee != mission.earnings) ...[
             const SizedBox(height: 9),
             _FeeRow(
-              label: 'Frais de livraison client',
+              label: context.tr('Frais de livraison client'),
               amount: mission.clientFee,
             ),
           ],

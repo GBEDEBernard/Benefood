@@ -15,6 +15,7 @@ import '../../../shared/widgets/feedback_widgets.dart';
 import '../../../shared/widgets/state_widgets.dart';
 import '../../../shared/widgets/timestamp_line.dart';
 import 'order_tracking_screen.dart';
+import '../../../core/i18n/app_localizations.dart';
 
 /// Mes commandes (J152) — suivi et historique : en-tête brandé, onglets de
 /// filtre, cartes par statut avec barre de progression et actions.
@@ -296,8 +297,8 @@ class _OrdersScreenState extends State<OrdersScreen> {
         children: [
           EmptyState(
             icon: Icons.receipt_long_outlined,
-            title: 'Aucune commande',
-            subtitle: 'Vos commandes apparaîtront ici.',
+            title: context.tr('Aucune commande'),
+            subtitle: context.tr('Vos commandes apparaîtront ici.'),
             actionLabel: 'Explorer',
             onAction: () => context.go('/client/search'),
           ),
@@ -508,14 +509,14 @@ class _OrderCard extends StatelessWidget {
                         const SizedBox(height: 4),
                         TimestampLine(
                           icon: Icons.event_outlined,
-                          label: 'Créée le',
+                          label: context.tr('Créée le'),
                           iso: order.createdAt,
                         ),
                         if (order.payment?.paidAt != null) ...[
                           const SizedBox(height: 3),
                           TimestampLine(
                             icon: Icons.payments_outlined,
-                            label: 'Payée le',
+                            label: context.tr('Payée le'),
                             iso: order.payment?.paidAt,
                           ),
                         ],
@@ -593,7 +594,7 @@ class _OrderCard extends StatelessWidget {
                   children: [
                     Expanded(
                       child: _OutlineAction(
-                        label: 'Voir détails',
+                        label: context.tr('Voir détails'),
                         color: AppColors.green,
                         onTap: onTap,
                       ),
@@ -659,7 +660,7 @@ class _OrderCard extends StatelessWidget {
                 SizedBox(
                   height: 46,
                   child: _OutlineAction(
-                    label: 'Voir détails',
+                    label: context.tr('Voir détails'),
                     color: AppColors.red,
                     height: 46,
                     onTap: onTap,

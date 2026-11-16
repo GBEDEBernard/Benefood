@@ -140,6 +140,7 @@ class User {
     String? name,
     String? avatarUrl,
     int? walletBalance,
+    String? locale,
   }) =>
       User(
         id: id,
@@ -147,7 +148,7 @@ class User {
         phone: phone,
         email: email ?? this.email,
         status: status,
-        locale: locale,
+        locale: locale ?? this.locale,
         avatarUrl: avatarUrl ?? this.avatarUrl,
         walletBalance: walletBalance ?? this.walletBalance,
         phoneVerifiedAt: phoneVerifiedAt,

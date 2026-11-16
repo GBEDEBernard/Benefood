@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/data/marketplace_api.dart';
 import '../../../../shared/widgets/city_area_picker.dart';
 import '../widgets/custom_text_field.dart';
+import '../../../../core/i18n/app_localizations.dart';
 
 /// Étape 1/4 — Informations légales : raison sociale, IFU, téléphone,
 /// email, ville/quartier et adresse complète de l'entreprise.
@@ -38,7 +39,7 @@ class LegalInfoStep extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           CustomTextField(
-            label: 'Raison sociale',
+            label: context.tr('Raison sociale'),
             required: true,
             controller: raisonSociale,
             hint: 'Le Délice Fast-Food',
@@ -47,7 +48,7 @@ class LegalInfoStep extends StatelessWidget {
           ),
           const SizedBox(height: 14),
           CustomTextField(
-            label: 'Numéro IFU',
+            label: context.tr('Numéro IFU'),
             required: true,
             controller: ifu,
             hint: '4202012345678',
@@ -57,7 +58,7 @@ class LegalInfoStep extends StatelessWidget {
           ),
           const SizedBox(height: 14),
           CustomTextField(
-            label: 'Téléphone',
+            label: context.tr('Téléphone'),
             required: true,
             controller: phone,
             hint: '+229 97 12 34 56',
@@ -67,7 +68,7 @@ class LegalInfoStep extends StatelessWidget {
           ),
           const SizedBox(height: 14),
           CustomTextField(
-            label: 'Email',
+            label: context.tr('Email'),
             required: true,
             controller: email,
             hint: 'contact@ledelice.com',
@@ -83,7 +84,7 @@ class LegalInfoStep extends StatelessWidget {
           ),
           const SizedBox(height: 14),
           CustomTextField(
-            label: 'Adresse complète',
+            label: context.tr('Adresse complète'),
             required: true,
             controller: adresse,
             hint: 'Cadjèhoun, Cotonou, Bénin',

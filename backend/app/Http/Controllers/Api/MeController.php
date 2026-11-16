@@ -85,6 +85,7 @@ class MeController extends Controller
         $data = $request->validate([
             'name' => ['sometimes', 'string', 'max:255'],
             'email' => ['sometimes', 'nullable', 'email', 'max:255'],
+            'locale' => ['sometimes', 'string', 'in:fr,en,fon'],
         ]);
 
         $user = $this->auth->updateProfile($request->user(), $data);

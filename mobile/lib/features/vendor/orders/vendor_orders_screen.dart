@@ -12,6 +12,7 @@ import '../../../shared/widgets/favorite_driver_picker.dart';
 import '../../../shared/widgets/status_badge.dart';
 import '../../../shared/widgets/state_widgets.dart';
 import 'vendor_order_detail_screen.dart';
+import '../../../core/i18n/app_localizations.dart';
 
 /// Commandes reçues (J156) : liste avec actions accept/refuse/prepare/ready.
 class VendorOrdersScreen extends StatefulWidget {
@@ -104,7 +105,7 @@ class _VendorOrdersScreenState extends State<VendorOrdersScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Retour'),
+            child: Text(context.tr('Retour')),
           ),
           FilledButton(
             onPressed: () {
@@ -112,7 +113,7 @@ class _VendorOrdersScreenState extends State<VendorOrdersScreen> {
                 Navigator.of(context).pop(controller.text.trim());
               }
             },
-            child: const Text('Confirmer'),
+            child: Text(context.tr('Confirmer')),
           ),
         ],
       ),
@@ -151,7 +152,7 @@ class _VendorOrdersScreenState extends State<VendorOrdersScreen> {
     final choice = await showFavoriteDriverPicker(
       context,
       widget.marketplace,
-      title: 'Livreur favori (optionnel)',
+      title: context.tr('Livreur favori (optionnel)'),
     );
     if (choice == null || !mounted) {
       return;
@@ -168,7 +169,7 @@ class _VendorOrdersScreenState extends State<VendorOrdersScreen> {
   @override
   Widget build(BuildContext context) {
     return BeninfoodPageScaffold(
-      title: 'Commandes',
+      title: context.tr('Commandes'),
       api: widget.marketplace,
       audience: NotificationAudience.vendor,
       body: _buildBody(),
@@ -185,7 +186,7 @@ class _VendorOrdersScreenState extends State<VendorOrdersScreen> {
     if (_orders.isEmpty) {
       return EmptyState(
         icon: Icons.receipt_long_outlined,
-        title: 'Aucune commande',
+        title: context.tr('Aucune commande'),
         subtitle: 'Vos commandes apparaîtront ici dès qu\'un client commande.',
       );
     }
@@ -331,25 +332,25 @@ class _OrderCard extends StatelessWidget {
                         FilledButton.tonal(
                           style: _compactStyle,
                           onPressed: onAccept,
-                          child: const Text('Accepter'),
+                          child: Text(context.tr('Accepter')),
                         ),
                       if (order.canVendorRefuse)
                         OutlinedButton(
                           style: _compactStyle,
                           onPressed: onRefuse,
-                          child: const Text('Refuser'),
+                          child: Text(context.tr('Refuser')),
                         ),
                       if (order.canVendorPrepare)
                         FilledButton.tonal(
                           style: _compactStyle,
                           onPressed: onPrepare,
-                          child: const Text('Commencer la préparation'),
+                          child: Text(context.tr('Commencer la préparation')),
                         ),
                       if (order.canVendorReady)
                         FilledButton.tonal(
                           style: _compactStyle,
                           onPressed: onReady,
-                          child: const Text('Marquer prête'),
+                          child: Text(context.tr('Marquer prête')),
                         ),
                     ],
                   ),

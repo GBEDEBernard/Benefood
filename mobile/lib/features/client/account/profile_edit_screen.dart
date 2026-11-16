@@ -12,6 +12,7 @@ import '../../../shared/models/user.dart';
 import '../../../shared/widgets/app_network_image.dart';
 import '../../../shared/widgets/beninfood_header.dart';
 import '../../../shared/widgets/feedback_widgets.dart';
+import '../../../core/i18n/app_localizations.dart';
 
 /// Édition du profil client : photo (upload), nom et e-mail (J153).
 class ProfileEditScreen extends StatefulWidget {
@@ -198,7 +199,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
             child: TextButton.icon(
               onPressed: _uploadingAvatar ? null : _pickAvatar,
               icon: const Icon(Icons.photo_camera_outlined, size: 18),
-              label: const Text('Changer la photo'),
+              label: Text(context.tr('Changer la photo')),
             ),
           ),
           const SizedBox(height: AppDimens.lg),
@@ -247,7 +248,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                       color: AppColors.green,
                     ),
                   ),
-                  title: const Text('Adresse'),
+                  title: Text(context.tr('Adresse')),
                   subtitle: Text(
                     widget.addressLine!.trim(),
                     style: const TextStyle(fontWeight: FontWeight.w700),
@@ -282,7 +283,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                     color: AppColors.orange,
                   ),
                 ),
-                title: const Text('Téléphone'),
+                title: Text(context.tr('Téléphone')),
                 subtitle: Text(
                   (user?.phone ?? '').isEmpty ? '—' : user!.phone,
                   style: const TextStyle(fontWeight: FontWeight.w700),
@@ -327,7 +328,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                     height: 20,
                     child: CircularProgressIndicator(strokeWidth: 2.5),
                   )
-                : const Text('Enregistrer'),
+                : Text(context.tr('Enregistrer')),
           ),
           const SizedBox(height: AppDimens.lg),
         ],

@@ -6,6 +6,7 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_dimens.dart';
 import 'amount_widgets.dart';
 import 'beninfood_header.dart';
+import '../../core/i18n/app_localizations.dart';
 
 /// Choix du moyen de paiement (page dédiée) : paiement en ligne sécurisé via
 /// FedaPay (mobile money / carte) ou espèces à la livraison. Renvoie
@@ -95,17 +96,16 @@ class _ParcelPaymentMethodScreenState extends State<ParcelPaymentMethodScreen> {
                 const SizedBox(height: AppDimens.xl),
                 _PaymentOption(
                   icon: Icons.smartphone,
-                  title: 'Mobile money / Carte',
-                  subtitle: 'Paiement en ligne sécurisé via FedaPay.',
+                  title: context.tr('Mobile money / Carte'),
+                  subtitle: context.tr('Paiement en ligne sécurisé via FedaPay.'),
                   selected: _selected == 'online',
                   onTap: () => setState(() => _selected = 'online'),
                 ),
                 const SizedBox(height: AppDimens.md),
                 _PaymentOption(
                   icon: Icons.payments_outlined,
-                  title: 'Espèces à la livraison',
-                  subtitle:
-                      'Vous remettez le montant total au livreur à la réception.',
+                  title: context.tr('Espèces à la livraison'),
+                  subtitle: context.tr('Vous remettez le montant total au livreur à la réception.'),
                   selected: _selected == 'cash',
                   onTap: () => setState(() => _selected = 'cash'),
                 ),
@@ -116,7 +116,7 @@ class _ParcelPaymentMethodScreenState extends State<ParcelPaymentMethodScreen> {
                   style: FilledButton.styleFrom(
                     minimumSize: const Size(double.infinity, 52),
                   ),
-                  label: const Text('Valider'),
+                  label: Text(context.tr('Valider')),
                 ),
               ],
             ),

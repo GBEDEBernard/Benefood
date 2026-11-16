@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/auth/session_provider.dart';
 import '../../../core/errors/api_exception.dart';
+import '../../../core/i18n/app_localizations.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../shared/models/user.dart';
 import '../../../shared/widgets/app_button.dart';
@@ -85,15 +86,19 @@ class _ChooseAccountScreenState extends State<ChooseAccountScreen> {
                         const Center(child: BrandLogo(size: 84, padding: 8)),
                         const SizedBox(height: 20),
                         Text(
-                          name.isEmpty ? 'Bienvenue !' : 'Bienvenue $name !',
+                          name.isEmpty
+                              ? context.tr('Bienvenue !')
+                              : '${context.tr('Bienvenue')} $name !',
                           textAlign: TextAlign.center,
                           style: theme.textTheme.headlineSmall
                               ?.copyWith(fontWeight: FontWeight.w800),
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          'Que souhaitez-vous faire sur Béninfood ?\n'
-                          'Vous pouvez choisir plusieurs espaces.',
+                          context.tr(
+                            'Que souhaitez-vous faire sur Béninfood ?\n'
+                            'Vous pouvez choisir plusieurs espaces.',
+                          ),
                           textAlign: TextAlign.center,
                           style: theme.textTheme.bodyMedium
                               ?.copyWith(color: AppColors.textSecondary, height: 1.4),
@@ -101,8 +106,8 @@ class _ChooseAccountScreenState extends State<ChooseAccountScreen> {
                         const SizedBox(height: 28),
                         _AccountCard(
                           icon: Icons.shopping_bag_outlined,
-                          title: 'Compte client',
-                          subtitle: 'Commander et envoyer des colis',
+                          title: context.tr('Compte client'),
+                          subtitle: context.tr('Commander et envoyer des colis'),
                           accent: AppColors.green,
                           selected: true,
                           locked: true,
@@ -111,8 +116,10 @@ class _ChooseAccountScreenState extends State<ChooseAccountScreen> {
                         const SizedBox(height: 14),
                         _AccountCard(
                           icon: Icons.storefront_outlined,
-                          title: 'Espace vendeur',
-                          subtitle: 'Vendre mes produits sur Béninfood',
+                          title: context.tr('Espace vendeur'),
+                          subtitle: context.tr(
+                            'Vendre mes produits sur Béninfood',
+                          ),
                           accent: AppColors.gold,
                           selected: _vendor,
                           onTap: _loading
@@ -122,8 +129,8 @@ class _ChooseAccountScreenState extends State<ChooseAccountScreen> {
                         const SizedBox(height: 14),
                         _AccountCard(
                           icon: Icons.delivery_dining_outlined,
-                          title: 'Espace livreur',
-                          subtitle: 'Livrer des commandes et des colis',
+                          title: context.tr('Espace livreur'),
+                          subtitle: context.tr('Livrer des commandes et des colis'),
                           accent: const Color(0xFF3949AB),
                           selected: _driver,
                           onTap: _loading
@@ -132,7 +139,7 @@ class _ChooseAccountScreenState extends State<ChooseAccountScreen> {
                         ),
                         const SizedBox(height: 28),
                         AppButton(
-                          label: 'Continuer',
+                          label: context.tr('Continuer'),
                           icon: Icons.arrow_forward,
                           loading: _loading,
                           onPressed: _continue,

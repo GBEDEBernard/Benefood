@@ -8,6 +8,7 @@ import '../../../core/theme/app_dimens.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../shared/widgets/beninfood_header.dart';
 import '../../../shared/widgets/notification_detail_sheet.dart';
+import '../../../core/i18n/app_localizations.dart';
 
 /// Liste des notifications du compte : réelle (GET /me/notifications),
 /// marquage lu à l'ouverture d'un élément et « Tout lire » groupé.
@@ -132,7 +133,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                   const SizedBox(height: 12),
                   FilledButton.tonal(
                     onPressed: _reload,
-                    child: const Text('Réessayer'),
+                    child: Text(context.tr('Réessayer')),
                   ),
                 ],
               ),
@@ -184,7 +185,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                 padding: const EdgeInsets.only(right: 8),
                 child: TextButton(
                   onPressed: _markAllRead,
-                  child: const Text('Tout lire'),
+                  child: Text(context.tr('Tout lire')),
                 ),
               ),
             ),

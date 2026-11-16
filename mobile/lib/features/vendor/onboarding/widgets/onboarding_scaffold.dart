@@ -4,7 +4,9 @@ import '../../../../core/data/marketplace_api.dart';
 import '../../../../core/navigation/notification_router.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/app_button.dart';
+import '../../../../shared/widgets/language_menu_button.dart';
 import '../../../../shared/widgets/notification_bell.dart';
+import '../../../../core/i18n/app_localizations.dart';
 
 /// Gabarit des étapes du parcours vendeur : en-tête (retour + indice « n/4 »),
 /// titre, sous-titre, contenu défilant et bouton pleine largeur en bas.
@@ -46,7 +48,7 @@ class OnboardingScaffold extends StatelessWidget {
             children: [
               if (onBack != null)
                 IconButton(
-                  tooltip: 'Retour',
+                  tooltip: context.tr('Retour'),
                   icon: const Icon(Icons.arrow_back_ios_new, size: 18),
                   color: AppColors.textSecondary,
                   onPressed: onBack,
@@ -67,6 +69,8 @@ class OnboardingScaffold extends StatelessWidget {
                   api: api!,
                   audience: NotificationAudience.vendor,
                 ),
+              const SizedBox(width: 4),
+              const LanguageMenuButton(),
             ],
           ),
         ),

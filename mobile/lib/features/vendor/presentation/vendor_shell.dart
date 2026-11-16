@@ -9,6 +9,7 @@ import '../../../shared/widgets/status_badge.dart';
 import '../../../shared/widgets/state_widgets.dart';
 import '../onboarding/vendor_onboarding_screen.dart';
 import '../restaurant/restaurant_shell_screen.dart';
+import '../../../core/i18n/app_localizations.dart';
 
 /// Espace Vendeur (J154) : tableau de bord mobile à menu latéral,
 /// produits, commandes, revenus et compte.
@@ -195,10 +196,10 @@ class _OnboardingGate extends StatelessWidget {
             child: Padding(
               padding: const EdgeInsets.all(8),
               child: documents.isEmpty
-                  ? const ListTile(
+                  ? ListTile(
                       leading: Icon(Icons.folder_off_outlined),
-                      title: Text('Aucun document fourni'),
-                      subtitle: Text('IFU et registre de commerce attendus.'),
+                      title: Text(context.tr('Aucun document fourni')),
+                      subtitle: Text(context.tr('IFU et registre de commerce attendus.')),
                     )
                   : Column(
                       children: documents.map((doc) {

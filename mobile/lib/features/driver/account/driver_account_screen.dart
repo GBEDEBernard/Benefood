@@ -25,6 +25,7 @@ import '../../../shared/widgets/feedback_widgets.dart';
 import '../../../shared/widgets/food_decor.dart';
 import '../../../shared/widgets/profile_widgets.dart';
 import '../../wallet/widgets/payout_request_sheet.dart';
+import '../../../core/i18n/app_localizations.dart';
 
 const _documentTypesCount = 5;
 
@@ -316,12 +317,12 @@ class _DriverAccountScreenState extends State<DriverAccountScreen>
             const SizedBox(height: 8),
             ListTile(
               leading: const Icon(Icons.photo_camera_outlined),
-              title: const Text('Prendre une photo'),
+              title: Text(context.tr('Prendre une photo')),
               onTap: () => Navigator.of(context).pop(ImageSource.camera),
             ),
             ListTile(
               leading: const Icon(Icons.photo_library_outlined),
-              title: const Text('Choisir dans la galerie'),
+              title: Text(context.tr('Choisir dans la galerie')),
               onTap: () => Navigator.of(context).pop(ImageSource.gallery),
             ),
             const SizedBox(height: 8),
@@ -598,8 +599,8 @@ class _DriverAccountScreenState extends State<DriverAccountScreen>
   Future<void> _confirmLogout() async {
     final confirmed = await showConfirmDialog(
       context,
-      title: 'Déconnexion',
-      message: 'Voulez-vous vraiment vous déconnecter ?',
+      title: context.tr('Déconnexion'),
+      message: context.tr('Voulez-vous vraiment vous déconnecter ?'),
       confirmLabel: 'Déconnecter',
     );
     if (!confirmed || !mounted) {
@@ -731,21 +732,21 @@ class _DriverAccountScreenState extends State<DriverAccountScreen>
     final account = _reveal(
       6,
       _MenuCard(
-        title: 'Mon compte',
+        title: context.tr('Mon compte'),
         entries: [
           _MenuEntry(
             icon: Icons.person_outline_rounded,
             tint: AppColors.greenMist,
             accent: AppColors.greenDeep,
-            title: 'Informations personnelles',
-            subtitle: 'Nom, e-mail, téléphone et adresse',
+            title: context.tr('Informations personnelles'),
+            subtitle: context.tr('Nom, e-mail, téléphone et adresse'),
             onTap: () => _openRoute(_profileEditPath),
           ),
           _MenuEntry(
             icon: Icons.two_wheeler_rounded,
             tint: AppColors.greenMist,
             accent: AppColors.greenDeep,
-            title: 'Véhicule',
+            title: context.tr('Véhicule'),
             subtitle:
                 '${_vehicle ?? 'Aucun véhicule renseigné'} · ${vehicleInfo.$1}',
             onTap: () => _openRoute('/driver/verification?focus=vehicle'),
@@ -754,7 +755,7 @@ class _DriverAccountScreenState extends State<DriverAccountScreen>
             icon: Icons.verified_user_outlined,
             tint: AppColors.orangeMist,
             accent: AppColors.orangeVivid,
-            title: 'Documents',
+            title: context.tr('Documents'),
             subtitle: _validDocumentCount == 0
                 ? 'Transmettre vos justificatifs'
                 : '$_validDocumentCount sur $_documentTypesCount validés',
@@ -764,16 +765,16 @@ class _DriverAccountScreenState extends State<DriverAccountScreen>
             icon: Icons.notifications_none_rounded,
             tint: AppColors.orangeMist,
             accent: AppColors.orangeVivid,
-            title: 'Notifications',
-            subtitle: 'Missions, commandes et alertes',
+            title: context.tr('Notifications'),
+            subtitle: context.tr('Missions, commandes et alertes'),
             onTap: () => _openRoute('/driver/notifications'),
           ),
           _MenuEntry(
             icon: Icons.shield_outlined,
             tint: AppColors.greenMist,
             accent: AppColors.greenDeep,
-            title: 'Sécurité',
-            subtitle: 'Mot de passe et appareils connectés',
+            title: context.tr('Sécurité'),
+            subtitle: context.tr('Mot de passe et appareils connectés'),
             onTap: () => _openRoute('/driver/security'),
           ),
         ],
@@ -782,14 +783,14 @@ class _DriverAccountScreenState extends State<DriverAccountScreen>
     final support = _reveal(
       7,
       _MenuCard(
-        title: 'Support',
+        title: context.tr('Support'),
         entries: [
           _MenuEntry(
             icon: Icons.headset_mic_outlined,
             tint: AppColors.orangeMist,
             accent: AppColors.orangeVivid,
-            title: 'Aide et support',
-            subtitle: 'Questions fréquentes et contact',
+            title: context.tr('Aide et support'),
+            subtitle: context.tr('Questions fréquentes et contact'),
             onTap: () => _openRoute('/driver/complaints'),
           ),
         ],
@@ -1245,7 +1246,7 @@ class _DriverAccountScreenState extends State<DriverAccountScreen>
             children: [
               Expanded(
                 child: _MoneyMetric(
-                  label: 'Disponible',
+                  label: context.tr('Disponible'),
                   value: _walletLoaded ? formatAmount(_walletAvailable) : '…',
                   color: AppColors.greenDeep,
                 ),
@@ -1254,7 +1255,7 @@ class _DriverAccountScreenState extends State<DriverAccountScreen>
               const SizedBox(width: 12),
               Expanded(
                 child: _MoneyMetric(
-                  label: 'En attente',
+                  label: context.tr('En attente'),
                   value: _walletLoaded ? formatAmount(_walletPending) : '…',
                   color: AppColors.orangeVivid,
                 ),
@@ -1292,7 +1293,7 @@ class _DriverAccountScreenState extends State<DriverAccountScreen>
                           ),
                         )
                       : const Icon(Icons.south_west_rounded, size: 18),
-                  label: const Text('Retirer'),
+                  label: Text(context.tr('Retirer')),
                 ),
               ),
               const SizedBox(width: 9),
@@ -1312,7 +1313,7 @@ class _DriverAccountScreenState extends State<DriverAccountScreen>
                     ),
                   ),
                   icon: const Icon(Icons.receipt_long_outlined, size: 17),
-                  label: const Text('Détails'),
+                  label: Text(context.tr('Détails')),
                 ),
               ),
             ],
@@ -1333,7 +1334,7 @@ class _DriverAccountScreenState extends State<DriverAccountScreen>
         icon: Icons.delivery_dining_rounded,
         tint: AppColors.orangeMist,
         accent: AppColors.orangeVivid,
-        label: 'Missions',
+        label: context.tr('Missions'),
         value: _statsLoaded ? '$_totalMissions' : '—',
         onTap: () => widget.onSelectTab(0),
       ),
@@ -1341,7 +1342,7 @@ class _DriverAccountScreenState extends State<DriverAccountScreen>
         icon: Icons.check_circle_outline_rounded,
         tint: AppColors.greenMist,
         accent: AppColors.greenDeep,
-        label: 'Terminées',
+        label: context.tr('Terminées'),
         value: _statsLoaded ? '$_completedMissions' : '—',
         onTap: () => widget.onSelectTab(3),
       ),
@@ -1349,14 +1350,14 @@ class _DriverAccountScreenState extends State<DriverAccountScreen>
         icon: Icons.star_outline_rounded,
         tint: AppColors.orangeMist,
         accent: AppColors.orangeVivid,
-        label: 'Note moyenne',
+        label: context.tr('Note moyenne'),
         value: _ratingLabel,
       ),
       _StatTile(
         icon: Icons.trending_up_rounded,
         tint: AppColors.greenMist,
         accent: AppColors.greenDeep,
-        label: 'Taux de réussite',
+        label: context.tr('Taux de réussite'),
         value: _successRateLabel,
       ),
     ];
@@ -1420,30 +1421,30 @@ class _DriverAccountScreenState extends State<DriverAccountScreen>
 
   Widget _buildActivityCard() {
     return _MenuCard(
-      title: 'Activité',
+      title: context.tr('Activité'),
       entries: [
         _MenuEntry(
           icon: Icons.insights_rounded,
           tint: AppColors.orangeMist,
           accent: AppColors.orangeVivid,
-          title: 'Mes statistiques',
-          subtitle: 'Gains, missions et dernières livraisons',
+          title: context.tr('Mes statistiques'),
+          subtitle: context.tr('Gains, missions et dernières livraisons'),
           onTap: () => _openRoute('/driver/stats'),
         ),
         _MenuEntry(
           icon: Icons.account_balance_wallet_outlined,
           tint: AppColors.greenMist,
           accent: AppColors.greenDeep,
-          title: 'Mes gains et retraits',
-          subtitle: 'Solde disponible, séquestre et historique',
+          title: context.tr('Mes gains et retraits'),
+          subtitle: context.tr('Solde disponible, séquestre et historique'),
           onTap: () => _openRoute('/driver/wallet'),
         ),
         _MenuEntry(
           icon: Icons.people_alt_outlined,
           tint: AppColors.orangeMist,
           accent: AppColors.orangeVivid,
-          title: 'Mes clients',
-          subtitle: 'Demandes de favori à accepter',
+          title: context.tr('Mes clients'),
+          subtitle: context.tr('Demandes de favori à accepter'),
           onTap: () => _openRoute('/driver/favorite-clients'),
         ),
       ],
@@ -1828,7 +1829,7 @@ class _AvailabilitySwitch extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Semantics(
-      label: 'Disponibilité livreur',
+      label: context.tr('Disponibilité livreur'),
       toggled: value,
       enabled: enabled,
       child: GestureDetector(

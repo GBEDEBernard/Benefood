@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import '../../core/i18n/app_localizations.dart';
 
 /// États vides (J24 §5) : icône + titre + sous-texte + CTA optionnel.
 class EmptyState extends StatelessWidget {
@@ -87,14 +88,14 @@ class ErrorState extends StatelessWidget {
             ),
             if (onRetry != null) ...[
               const SizedBox(height: 20),
-              OutlinedButton.icon(onPressed: onRetry, icon: const Icon(Icons.refresh), label: const Text('Réessayer')),
+              OutlinedButton.icon(onPressed: onRetry, icon: const Icon(Icons.refresh), label: Text(context.tr('Réessayer'))),
             ],
             if (_isConnectionError(message)) ...[
               const SizedBox(height: 8),
               TextButton.icon(
                 onPressed: () => context.push('/server'),
                 icon: const Icon(Icons.dns_outlined),
-                label: const Text('Configurer le serveur'),
+                label: Text(context.tr('Configurer le serveur')),
               ),
             ],
           ],

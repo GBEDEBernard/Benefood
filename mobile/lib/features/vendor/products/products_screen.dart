@@ -11,6 +11,7 @@ import '../../../shared/widgets/feedback_widgets.dart';
 import '../../../shared/widgets/state_widgets.dart';
 import '../restaurant/restaurant_palette.dart';
 import 'product_form_screen.dart';
+import '../../../core/i18n/app_localizations.dart';
 
 /// Actions du menu contextuel d'une carte produit.
 enum _ProductAction { edit, archive, delete }
@@ -273,7 +274,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                 textInputAction: TextInputAction.search,
                 style: const TextStyle(fontSize: 14),
                 decoration: InputDecoration(
-                  hintText: 'Rechercher un produit...',
+                  hintText: context.tr('Rechercher un produit...'),
                   hintStyle: const TextStyle(
                     color: RestaurantPalette.grayText,
                     fontSize: 14,
@@ -305,7 +306,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                 color: RestaurantPalette.darkText,
                 size: 20,
               ),
-              tooltip: 'Filtres',
+              tooltip: context.tr('Filtres'),
               onPressed: () =>
                   showToast(context, 'Filtres bientôt disponibles.'),
             ),
@@ -680,7 +681,7 @@ class _ControlColumn extends StatelessWidget {
             )
           else
             PopupMenuButton<_ProductAction>(
-              tooltip: 'Actions du produit',
+              tooltip: context.tr('Actions du produit'),
               enabled: !busy,
               padding: EdgeInsets.zero,
               iconSize: 18,

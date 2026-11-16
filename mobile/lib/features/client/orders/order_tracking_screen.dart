@@ -31,6 +31,7 @@ import '../../../shared/widgets/feedback_widgets.dart';
 import '../../../shared/widgets/package_item_tile.dart';
 import '../../../shared/widgets/state_widgets.dart';
 import '../../../shared/utils/delivery_confirmation_qr.dart';
+import '../../../core/i18n/app_localizations.dart';
 
 /// Écran de suivi / détail d'une commande (J152, J177).
 class OrderTrackingScreen extends StatefulWidget {
@@ -319,8 +320,8 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
               ListTile(
                 contentPadding: EdgeInsets.zero,
                 leading: const Icon(Icons.credit_card, color: AppColors.orange),
-                title: const Text('Payer en ligne'),
-                subtitle: const Text('Mobile Money via FedaPay'),
+                title: Text(context.tr('Payer en ligne')),
+                subtitle: Text(context.tr('Mobile Money via FedaPay')),
                 trailing: const Icon(Icons.chevron_right),
                 onTap: () => Navigator.of(sheetContext).pop('online'),
               ),
@@ -330,8 +331,8 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                   Icons.payments_outlined,
                   color: AppColors.orange,
                 ),
-                title: const Text('Payer à la livraison'),
-                subtitle: const Text('En espèces, en plus de la course'),
+                title: Text(context.tr('Payer à la livraison')),
+                subtitle: Text(context.tr('En espèces, en plus de la course')),
                 trailing: const Icon(Icons.chevron_right),
                 onTap: () => Navigator.of(sheetContext).pop('cash'),
               ),
@@ -473,7 +474,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
       final choice = await showDriverPickerSheet(
         context,
         drivers: drivers,
-        title: 'Choisir le nouveau livreur',
+        title: context.tr('Choisir le nouveau livreur'),
         subtitle: beforePickup
             ? 'Le nouveau livreur se rendra au point de collecte. Aucun frais supplémentaire ne vous sera facturé.'
             : 'La course sera partagée au prorata du trajet déjà effectué. Aucun frais supplémentaire ne vous sera facturé.',
@@ -502,12 +503,12 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
         await showDialog<void>(
           context: context,
           builder: (context) => AlertDialog(
-            title: const Text('Nouveau livreur affecté'),
+            title: Text(context.tr('Nouveau livreur affecté')),
             content: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Code de remise à communiquer au nouveau livreur :'),
+                Text(context.tr('Code de remise à communiquer au nouveau livreur :')),
                 const SizedBox(height: 12),
                 SelectableText(
                   code,
@@ -522,7 +523,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
             actions: [
               FilledButton(
                 onPressed: () => Navigator.of(context).pop(),
-                child: const Text('Compris'),
+                child: Text(context.tr('Compris')),
               ),
             ],
           ),
@@ -552,7 +553,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
     return showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Changer de livreur'),
+        title: Text(context.tr('Changer de livreur')),
         content: TextField(
           controller: controller,
           autofocus: true,
@@ -565,7 +566,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Retour'),
+            child: Text(context.tr('Retour')),
           ),
           FilledButton(
             onPressed: () {
@@ -573,7 +574,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                 Navigator.of(context).pop(controller.text.trim());
               }
             },
-            child: const Text('Continuer'),
+            child: Text(context.tr('Continuer')),
           ),
         ],
       ),
@@ -585,7 +586,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
     return showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Annuler la commande'),
+        title: Text(context.tr('Annuler la commande')),
         content: TextField(
           controller: controller,
           autofocus: true,
@@ -597,7 +598,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Retour'),
+            child: Text(context.tr('Retour')),
           ),
           FilledButton(
             onPressed: () {
@@ -605,7 +606,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                 Navigator.of(context).pop(controller.text.trim());
               }
             },
-            child: const Text('Confirmer'),
+            child: Text(context.tr('Confirmer')),
           ),
         ],
       ),
@@ -663,7 +664,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
   @override
   Widget build(BuildContext context) {
     return BeninfoodPageScaffold(
-      title: 'Suivi de commande',
+      title: context.tr('Suivi de commande'),
       api: widget.marketplace,
       body: _buildBody(),
     );
@@ -966,7 +967,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
           const SizedBox(height: 14),
           // --- Appel direct du livreur (téléphone exposé par l'API) ---
           CallButton(
-            label: 'Appeler le livreur',
+            label: context.tr('Appeler le livreur'),
             phone: driver.phone,
             onEmptyPhone: () => showToast(
               context,
@@ -1079,7 +1080,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
               child: ListTile(
                 onTap: _actionLoading ? null : _changeDriver,
                 leading: const Icon(Icons.swap_horiz, color: AppColors.orange),
-                title: const Text('Changer de livreur'),
+                title: Text(context.tr('Changer de livreur')),
                 subtitle: const Text(
                   'Le nouveau livreur reprend le colis au point de remise.',
                 ),
@@ -1135,24 +1136,24 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                       trailing: formatAmount(item.subtotal, showSymbol: false),
                     ),
                   const Divider(height: 24),
-                  _SummaryRow(label: 'Sous-total', amount: order.subtotal),
+                  _SummaryRow(label: context.tr('Sous-total'), amount: order.subtotal),
                   _SummaryRow(
-                    label: 'Livraison (base)',
+                    label: context.tr('Livraison (base)'),
                     amount: order.deliveryFee,
                   ),
                   if (order.approachFee > 0)
                     _SummaryRow(
-                      label: 'Approche livreur',
+                      label: context.tr('Approche livreur'),
                       amount: order.approachFee,
                     ),
                   if ((order.financials?.serviceFee ?? 0) > 0)
                     _SummaryRow(
-                      label: 'Commission client',
+                      label: context.tr('Commission client'),
                       amount: order.financials!.serviceFee!,
                     ),
                   const SizedBox(height: 4),
                   _SummaryRow(
-                    label: 'Total',
+                    label: context.tr('Total'),
                     amount: order.total,
                     emphasized: true,
                   ),
@@ -1166,7 +1167,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
             Card(
               child: ListTile(
                 leading: const Icon(Icons.location_on_outlined),
-                title: const Text('Adresse de livraison'),
+                title: Text(context.tr('Adresse de livraison')),
                 subtitle: Text(order.deliveryAddress!),
               ),
             ),
@@ -1191,14 +1192,14 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
           const SizedBox(height: 24),
           if (order.canCancel)
             AppButton(
-              label: 'Annuler la commande',
+              label: context.tr('Annuler la commande'),
               variant: AppButtonVariant.danger,
               onPressed: _actionLoading ? null : _cancel,
               loading: _actionLoading,
             ),
           const SizedBox(height: 8),
           AppButton(
-            label: 'Signaler un problème',
+            label: context.tr('Signaler un problème'),
             variant: AppButtonVariant.outline,
             icon: Icons.support_agent,
             onPressed: () => context.push(
@@ -1212,7 +1213,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
               _ReviewCard(review: order.review!),
             ] else ...[
               AppButton(
-                label: 'Donner mon avis',
+                label: context.tr('Donner mon avis'),
                 variant: AppButtonVariant.outline,
                 icon: Icons.star_outline,
                 onPressed: _reviewing ? null : () => _openReviewDialog(order),
@@ -1332,7 +1333,7 @@ class _ChooseDriverCard extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(vertical: 12),
                 ),
                 icon: const Icon(Icons.person_search_outlined, size: 19),
-                label: const Text('Choisir mon livreur'),
+                label: Text(context.tr('Choisir mon livreur')),
               ),
             ),
           ],
@@ -1593,7 +1594,7 @@ class _StatusHero extends StatelessWidget {
                     ),
                   ),
                   icon: const Icon(Icons.cancel_outlined, size: 18),
-                  label: const Text('Annuler la commande'),
+                  label: Text(context.tr('Annuler la commande')),
                 ),
               ),
             ),
@@ -1859,7 +1860,7 @@ class TrackingResultScreen extends StatelessWidget {
               ),
               const SizedBox(height: 32),
               AppButton(
-                label: 'Suivre ma commande',
+                label: context.tr('Suivre ma commande'),
                 icon: Icons.track_changes,
                 onPressed: () => Navigator.of(context).pushReplacement(
                   MaterialPageRoute<void>(
@@ -2030,7 +2031,7 @@ class _LiveDot extends StatelessWidget {
           decoration: BoxDecoration(color: color, shape: BoxShape.circle),
         ),
         const SizedBox(width: 6),
-        const Text('Suivi en direct'),
+        Text(context.tr('Suivi en direct')),
       ],
     );
   }
@@ -2152,7 +2153,7 @@ class _ReviewDialogState extends State<_ReviewDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('Donner mon avis'),
+      title: Text(context.tr('Donner mon avis')),
       content: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -2197,8 +2198,8 @@ class _ReviewDialogState extends State<_ReviewDialog> {
         ),
       ),
       actions: [
-        TextButton(onPressed: widget.onCancel, child: const Text('Plus tard')),
-        FilledButton(onPressed: _submit, child: const Text('Envoyer')),
+        TextButton(onPressed: widget.onCancel, child: Text(context.tr('Plus tard'))),
+        FilledButton(onPressed: _submit, child: Text(context.tr('Envoyer'))),
       ],
     );
   }

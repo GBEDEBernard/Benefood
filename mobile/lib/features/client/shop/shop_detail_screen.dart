@@ -16,6 +16,7 @@ import '../../../shared/widgets/feedback_widgets.dart';
 import '../../../shared/widgets/product_review_sheet.dart';
 import '../../../shared/widgets/state_widgets.dart';
 import '../presentation/client_shell.dart';
+import '../../../core/i18n/app_localizations.dart';
 
 /// Fiche boutique (J149) : couverture, infos, onglets (Plats / Avis / Infos)
 /// et barre de panier flottante.
@@ -893,7 +894,7 @@ class _InfosTab extends StatelessWidget {
       children: [
         if (vendor.isOpen != null)
           _InfoBlock(
-            title: 'Statut',
+            title: context.tr('Statut'),
             child: Row(
               children: [
                 Icon(
@@ -922,10 +923,10 @@ class _InfosTab extends StatelessWidget {
             ),
           ),
         if (hasDescription)
-          _InfoBlock(title: 'À propos', child: _InfoText(vendor.description!)),
+          _InfoBlock(title: context.tr('À propos'), child: _InfoText(vendor.description!)),
         if (hasCoordinates)
           _InfoBlock(
-            title: 'Coordonnées',
+            title: context.tr('Coordonnées'),
             child: Column(
               children: [
                 if (vendor.address != null && vendor.address!.isNotEmpty)
@@ -945,7 +946,7 @@ class _InfosTab extends StatelessWidget {
           ),
         if (hours.isNotEmpty)
           _InfoBlock(
-            title: 'Horaires',
+            title: context.tr('Horaires'),
             child: _HoursList(hours: hours),
           ),
       ],

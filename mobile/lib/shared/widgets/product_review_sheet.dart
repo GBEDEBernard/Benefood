@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_dimens.dart';
+import '../../core/i18n/app_localizations.dart';
 
 class ProductReviewInput {
   const ProductReviewInput({required this.rating, this.comment});
@@ -92,7 +93,7 @@ class _ProductReviewSheetState extends State<_ProductReviewSheet> {
             maxLength: 1000,
             textCapitalization: TextCapitalization.sentences,
             decoration: InputDecoration(
-              hintText: 'Votre commentaire (optionnel)',
+              hintText: context.tr('Votre commentaire (optionnel)'),
               filled: true,
               fillColor: AppColors.surfaceVariant,
               border: OutlineInputBorder(

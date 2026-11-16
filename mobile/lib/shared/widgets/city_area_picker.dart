@@ -6,6 +6,7 @@ import '../../core/services/location_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_dimens.dart';
 import '../models/neighborhood.dart';
+import '../../core/i18n/app_localizations.dart';
 
 /// Lieu choisi : ville + quartier, éventuellement accompagnés de coordonnées
 /// (position GPS ou centre du quartier).
@@ -175,7 +176,7 @@ class _CityAreaPickerSheetState extends State<_CityAreaPickerSheet> {
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
                         : const Icon(Icons.my_location),
-                    label: const Text('Autour de moi'),
+                    label: Text(context.tr('Autour de moi')),
                     onPressed: _locating ? null : _useMyPosition,
                   ),
                 ),
@@ -190,10 +191,10 @@ class _CityAreaPickerSheetState extends State<_CityAreaPickerSheet> {
                   }
                   final cities = snapshot.data ?? const [];
                   if (cities.isEmpty) {
-                    return const Center(
+                    return Center(
                       child: Padding(
                         padding: EdgeInsets.all(24),
-                        child: Text('Aucun lieu disponible pour le moment.'),
+                        child: Text(context.tr('Aucun lieu disponible pour le moment.')),
                       ),
                     );
                   }
@@ -280,9 +281,9 @@ class _CityAreaPickerSheetState extends State<_CityAreaPickerSheet> {
         ),
         const Divider(height: 1),
         if (neighborhoods.isEmpty)
-          const Padding(
+          Padding(
             padding: EdgeInsets.all(20),
-            child: Text('Aucun quartier ne correspond.'),
+            child: Text(context.tr('Aucun quartier ne correspond.')),
           ),
         for (final neighborhood in neighborhoods)
           ListTile(

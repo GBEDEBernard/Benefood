@@ -12,6 +12,7 @@ import '../../../shared/models/user.dart';
 import '../../../shared/widgets/feedback_widgets.dart';
 import '../../../shared/widgets/food_decor.dart';
 import '../../../shared/widgets/profile_widgets.dart';
+import '../../../core/i18n/app_localizations.dart';
 
 /// Profil client (J153) : carte verte, statistiques, menu « Mon compte ».
 ///
@@ -100,8 +101,8 @@ class _AccountScreenState extends State<AccountScreen> {
   Future<void> _confirmLogout() async {
     final confirmed = await showConfirmDialog(
       context,
-      title: 'Déconnexion',
-      message: 'Voulez-vous vraiment vous déconnecter ?',
+      title: context.tr('Déconnexion'),
+      message: context.tr('Voulez-vous vraiment vous déconnecter ?'),
       confirmLabel: 'Déconnecter',
     );
     if (!confirmed || !mounted) {
@@ -168,7 +169,7 @@ class _AccountScreenState extends State<AccountScreen> {
                 const SizedBox(height: AppDimens.lg),
                 FilledButton.tonal(
                   onPressed: () => Navigator.of(context).pop(),
-                  child: const Text('Fermer'),
+                  child: Text(context.tr('Fermer')),
                 ),
               ],
             ),
@@ -257,7 +258,7 @@ class _AccountScreenState extends State<AccountScreen> {
         tint: AppColors.greenLight,
         accent: AppColors.green,
         value: _statsLoaded ? '${_statInt('orders_count')}' : '…',
-        label: 'Commandes',
+        label: context.tr('Commandes'),
         onTap: () => widget.onSelectTab(3),
       ),
       ProfileStat(
@@ -265,7 +266,7 @@ class _AccountScreenState extends State<AccountScreen> {
         tint: AppColors.redLight,
         accent: AppColors.red,
         value: _statsLoaded ? '${_statInt('favorites_count')}' : '…',
-        label: 'Favoris',
+        label: context.tr('Favoris'),
         onTap: () => _openRoute('/client/favorites'),
       ),
       ProfileStat(
@@ -273,7 +274,7 @@ class _AccountScreenState extends State<AccountScreen> {
         tint: AppColors.goldLight,
         accent: AppColors.goldDark,
         value: _statsLoaded ? '${_statInt('coupons_count')}' : '…',
-        label: 'Coupons',
+        label: context.tr('Coupons'),
         onTap: () => _openRoute('/client/coupons'),
       ),
       ProfileStat(
@@ -284,7 +285,7 @@ class _AccountScreenState extends State<AccountScreen> {
             ? formatAmount(_statInt('wallet_balance'), showSymbol: false).trim()
             : '…',
         suffix: 'FCFA',
-        label: 'Portefeuille',
+        label: context.tr('Portefeuille'),
         onTap: _showWalletSheet,
       ),
     ];
@@ -296,56 +297,56 @@ class _AccountScreenState extends State<AccountScreen> {
         icon: Icons.person_outline,
         tint: AppColors.greenLight,
         accent: AppColors.green,
-        title: 'Informations personnelles',
-        subtitle: 'Nom, e-mail, photo...',
+        title: context.tr('Informations personnelles'),
+        subtitle: context.tr('Nom, e-mail, photo...'),
         onTap: () => _openRoute('/client/profile/edit'),
       ),
       ProfileMenuEntry(
         icon: Icons.location_on_outlined,
         tint: AppColors.orangeLight,
         accent: AppColors.orange,
-        title: 'Adresses enregistrées',
-        subtitle: 'Maison, travail, autres...',
+        title: context.tr('Adresses enregistrées'),
+        subtitle: context.tr('Maison, travail, autres...'),
         onTap: () => _openRoute('/client/addresses'),
       ),
       ProfileMenuEntry(
         icon: Icons.delivery_dining_outlined,
         tint: AppColors.greenLight,
         accent: AppColors.green,
-        title: 'Mes livreurs',
-        subtitle: 'Vos livreurs favoris, contactables...',
+        title: context.tr('Mes livreurs'),
+        subtitle: context.tr('Vos livreurs favoris, contactables...'),
         onTap: () => _openRoute('/client/favorite-drivers'),
       ),
       ProfileMenuEntry(
         icon: Icons.credit_card,
         tint: AppColors.greenLight,
         accent: AppColors.green,
-        title: 'Méthodes de paiement',
-        subtitle: 'Cartes, mobile money...',
+        title: context.tr('Méthodes de paiement'),
+        subtitle: context.tr('Cartes, mobile money...'),
         onTap: () => _openRoute('/client/payment-methods'),
       ),
       ProfileMenuEntry(
         icon: Icons.notifications_none,
         tint: AppColors.orangeLight,
         accent: AppColors.orange,
-        title: 'Notifications',
-        subtitle: 'Commandes, alertes, offres...',
+        title: context.tr('Notifications'),
+        subtitle: context.tr('Commandes, alertes, offres...'),
         onTap: () => _openRoute('/client/notifications'),
       ),
       ProfileMenuEntry(
         icon: Icons.shield_outlined,
         tint: AppColors.greenLight,
         accent: AppColors.green,
-        title: 'Sécurité',
-        subtitle: 'Mot de passe, appareils...',
+        title: context.tr('Sécurité'),
+        subtitle: context.tr('Mot de passe, appareils...'),
         onTap: () => _openRoute('/client/security'),
       ),
       ProfileMenuEntry(
         icon: Icons.help_outline,
         tint: AppColors.orangeLight,
         accent: AppColors.orange,
-        title: 'Aide et support',
-        subtitle: 'Questions fréquentes, nous contacter...',
+        title: context.tr('Aide et support'),
+        subtitle: context.tr('Questions fréquentes, nous contacter...'),
         onTap: () => _openRoute('/client/complaints'),
       ),
     ];

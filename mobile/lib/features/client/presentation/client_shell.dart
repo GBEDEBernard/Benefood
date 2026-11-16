@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/auth/session_provider.dart';
 import '../../../core/data/marketplace_api.dart';
 import '../../../core/errors/api_exception.dart';
+import '../../../core/i18n/app_localizations.dart';
 import '../../../core/theme/app_colors.dart';
 import '../account/account_screen.dart';
 import '../cart/cart_screen.dart';
@@ -275,7 +276,7 @@ class ClientBottomBar extends StatelessWidget {
                       child: _NavItem(
                         icon: Icons.home_outlined,
                         activeIcon: Icons.home,
-                        label: 'Accueil',
+                        label: context.tr('Accueil'),
                         active: activeIndex == 0,
                         onTap: () => onSelect(0),
                       ),
@@ -284,7 +285,7 @@ class ClientBottomBar extends StatelessWidget {
                       child: _NavItem(
                         icon: Icons.grid_view_outlined,
                         activeIcon: Icons.grid_view,
-                        label: 'Catégories',
+                        label: context.tr('Catégories'),
                         active: activeIndex == 1,
                         onTap: () => onSelect(1),
                       ),
@@ -294,7 +295,7 @@ class ClientBottomBar extends StatelessWidget {
                       child: _NavItem(
                         icon: Icons.shopping_bag_outlined,
                         activeIcon: Icons.shopping_bag,
-                        label: 'Commandes',
+                        label: context.tr('Commandes'),
                         active: activeIndex == 3,
                         onTap: () => onSelect(3),
                       ),
@@ -303,7 +304,7 @@ class ClientBottomBar extends StatelessWidget {
                       child: _NavItem(
                         icon: Icons.person_outline,
                         activeIcon: Icons.person,
-                        label: 'Profil',
+                        label: context.tr('Profil'),
                         active: activeIndex == 4,
                         onTap: () => onSelect(4),
                       ),

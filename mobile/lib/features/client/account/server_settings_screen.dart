@@ -6,6 +6,7 @@ import '../../../core/config/app_config.dart';
 import '../../../shared/widgets/app_button.dart';
 import '../../../shared/widgets/app_text_field.dart';
 import '../../../shared/widgets/feedback_widgets.dart';
+import '../../../core/i18n/app_localizations.dart';
 
 /// Réglages du serveur API (dev) — permet de pointer un appareil physique
 /// vers l'IP locale du poste, ex. `http://192.168.1.102:8000`.
@@ -97,7 +98,7 @@ class _ServerSettingsScreenState extends State<ServerSettingsScreen> {
     final theme = Theme.of(context);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Serveur')),
+      appBar: AppBar(title: Text(context.tr('Serveur'))),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         child: Column(
@@ -121,7 +122,7 @@ class _ServerSettingsScreenState extends State<ServerSettingsScreen> {
             const SizedBox(height: 24),
             AppTextField(
               controller: _controller,
-              label: 'URL de base',
+              label: context.tr('URL de base'),
               icon: Icons.link,
               keyboardType: TextInputType.url,
               hint: 'http://192.168.1.102:8000',
@@ -144,14 +145,14 @@ class _ServerSettingsScreenState extends State<ServerSettingsScreen> {
                   child: OutlinedButton.icon(
                     onPressed: _saving ? null : _save,
                     icon: const Icon(Icons.save_outlined),
-                    label: const Text('Enregistrer'),
+                    label: Text(context.tr('Enregistrer')),
                   ),
                 ),
                 const SizedBox(width: 12),
                 TextButton.icon(
                   onPressed: _saveWith(null),
                   icon: const Icon(Icons.restart_alt),
-                  label: const Text('Par défaut'),
+                  label: Text(context.tr('Par défaut')),
                 ),
               ],
             ),

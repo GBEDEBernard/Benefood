@@ -8,6 +8,7 @@ import '../../../../shared/widgets/beninfood_header.dart';
 import '../restaurant_palette.dart';
 import '../widgets/order_status_tag.dart';
 import 'order_details_screen.dart';
+import '../../../../core/i18n/app_localizations.dart';
 
 /// Écran « D. COMMANDES » : onglets Nouvelles / Préparation / Prêtes /
 /// Terminées, cartes de commandes avec actions rapides et navigation en pile
@@ -296,12 +297,12 @@ class _OrderCard extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 12),
-              _InfoRow(label: 'Client', value: order.customerName ?? 'Client', bold: true),
+              _InfoRow(label: context.tr('Client'), value: order.customerName ?? 'Client', bold: true),
               _InfoRow(
-                label: 'Livraison',
+                label: context.tr('Livraison'),
                 value: order.deliveryAddress ?? order.deliveryAddressSnapshot?.display ?? '—',
               ),
-              _InfoRow(label: 'Montant', value: formatAmount(order.total), bold: true),
+              _InfoRow(label: context.tr('Montant'), value: formatAmount(order.total), bold: true),
               const SizedBox(height: 10),
               Row(
                 children: [

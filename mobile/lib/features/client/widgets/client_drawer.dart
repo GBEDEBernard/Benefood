@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/auth/session_provider.dart';
+import '../../../core/i18n/app_localizations.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../shared/models/user.dart';
 import '../../../shared/widgets/drawer_kit.dart';
@@ -156,7 +157,7 @@ class ClientDrawer extends StatelessWidget {
                         ),
                         const Spacer(),
                         IconButton(
-                          tooltip: 'Fermer le menu',
+                          tooltip: context.tr('Fermer le menu'),
                           onPressed: () => Navigator.of(context).pop(),
                           style: IconButton.styleFrom(
                             backgroundColor: AppColors.surface,
@@ -176,12 +177,14 @@ class ClientDrawer extends StatelessWidget {
                 index: 1,
                 child: DrawerIdentityCard(
                   badgeIcon: Icons.shopping_bag_rounded,
-                  badgeLabel: 'ESPACE CLIENT',
+                  badgeLabel: context.tr('ESPACE CLIENT'),
                   avatarUrl: user?.avatarUrl,
                   name: _displayName(user),
                   compact: compact,
                   pillBuilder: (t) => DrawerStatusPill(
-                    label: verified ? 'CLIENT VÉRIFIÉ' : 'DOSSIER EN COURS',
+                    label: context.tr(
+                      verified ? 'CLIENT VÉRIFIÉ' : 'DOSSIER EN COURS',
+                    ),
                     active: verified,
                     dotColor: _ClientDrawerPalette.green,
                     textColor: _ClientDrawerPalette.greenDeep,
@@ -192,7 +195,7 @@ class ClientDrawer extends StatelessWidget {
                   trailing: statusLabel == null
                       ? null
                       : DrawerStatusChip(
-                          label: statusLabel!,
+                          label: context.tr(statusLabel!),
                           dotColor: statusColor ?? _ClientDrawerPalette.green,
                           textColor:
                               statusColor ?? _ClientDrawerPalette.greenDeep,
@@ -216,10 +219,10 @@ class ClientDrawer extends StatelessWidget {
               SizedBox(height: compact ? 8 : 14),
               DrawerStagger(
                 index: 2,
-                child: const Padding(
-                  padding: EdgeInsets.fromLTRB(22, 0, 22, 10),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(22, 0, 22, 10),
                   child: DrawerSectionHeader(
-                    label: 'NAVIGATION',
+                    label: context.tr('NAVIGATION'),
                     trailing: DrawerAccentBar(
                       color: _ClientDrawerPalette.green,
                     ),
@@ -245,8 +248,8 @@ class ClientDrawer extends StatelessWidget {
                             DrawerStagger(
                               index: i + 3,
                               child: DrawerNavTile(
-                                label: _items[i].label,
-                                subtitle: _items[i].subtitle,
+                                label: context.tr(_items[i].label),
+                                subtitle: context.tr(_items[i].subtitle),
                                 outline: _items[i].outline,
                                 filled: _items[i].filled,
                                 active: i == currentIndex,
@@ -277,9 +280,11 @@ class ClientDrawer extends StatelessWidget {
                     const SizedBox(height: 12),
                     DrawerStagger(
                       index: _items.length + 3,
-                      child: const Padding(
-                        padding: EdgeInsets.fromLTRB(10, 0, 10, 10),
-                        child: DrawerSectionHeader(label: 'ACCÈS RAPIDES'),
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(10, 0, 10, 10),
+                        child: DrawerSectionHeader(
+                          label: context.tr('ACCÈS RAPIDES'),
+                        ),
                       ),
                     ),
                     Row(
@@ -288,7 +293,7 @@ class ClientDrawer extends StatelessWidget {
                           child: DrawerQuickAction(
                             index: 0,
                             icon: Icons.support_agent_rounded,
-                            label: 'Aide & Support',
+                            label: context.tr('Aide & Support'),
                             color: _ClientDrawerPalette.green,
                             onTap: () => _open(context, '/client/complaints'),
                           ),
@@ -298,7 +303,7 @@ class ClientDrawer extends StatelessWidget {
                           child: DrawerQuickAction(
                             index: 1,
                             icon: Icons.location_on_outlined,
-                            label: 'Adresses',
+                            label: context.tr('Adresses'),
                             color: _ClientDrawerPalette.green,
                             onTap: () => _open(context, '/client/addresses'),
                           ),
@@ -308,7 +313,7 @@ class ClientDrawer extends StatelessWidget {
                           child: DrawerQuickAction(
                             index: 2,
                             icon: Icons.confirmation_number_outlined,
-                            label: 'Codes promo',
+                            label: context.tr('Codes promo'),
                             color: _ClientDrawerPalette.green,
                             onTap: () => _open(context, '/client/coupons'),
                           ),
@@ -318,7 +323,7 @@ class ClientDrawer extends StatelessWidget {
                           child: DrawerQuickAction(
                             index: 3,
                             icon: Icons.star_outline_rounded,
-                            label: 'Favoris',
+                            label: context.tr('Favoris'),
                             color: _ClientDrawerPalette.green,
                             onTap: () => _open(context, '/client/favorites'),
                           ),
@@ -331,7 +336,7 @@ class ClientDrawer extends StatelessWidget {
                           child: DrawerQuickAction(
                             index: 4,
                             icon: Icons.inventory_2_outlined,
-                            label: 'Mes colis',
+                            label: context.tr('Mes colis'),
                             color: _ClientDrawerPalette.green,
                             onTap: () => _open(context, '/client/parcels'),
                           ),
@@ -341,7 +346,7 @@ class ClientDrawer extends StatelessWidget {
                           child: DrawerQuickAction(
                             index: 5,
                             icon: Icons.notifications_none_rounded,
-                            label: 'Mes notifications',
+                            label: context.tr('Mes notifications'),
                             color: _ClientDrawerPalette.green,
                             onTap: () =>
                                 _open(context, '/client/notifications'),
@@ -403,8 +408,8 @@ class ClientDrawer extends StatelessWidget {
         HapticFeedback.mediumImpact();
         final confirmed = await showConfirmDialog(
           context,
-          title: 'Déconnexion',
-          message: 'Voulez-vous vraiment vous déconnecter ?',
+          title: context.tr('Déconnexion'),
+          message: context.tr('Voulez-vous vraiment vous déconnecter ?'),
           confirmLabel: 'Déconnecter',
         );
         if (!confirmed || !context.mounted) {

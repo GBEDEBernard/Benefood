@@ -15,6 +15,7 @@ import '../../../shared/widgets/brand_logo.dart';
 import '../../../shared/widgets/city_area_picker.dart';
 import '../../../shared/widgets/feedback_widgets.dart';
 import '../../../shared/widgets/status_badge.dart';
+import '../../../core/i18n/app_localizations.dart';
 
 /// Sélecteur d'images injectable pour les tests (caméra / galerie).
 typedef DriverImagePicker = Future<Uint8List?> Function(ImageSource source);
@@ -164,12 +165,12 @@ class _DriverOnboardingScreenState extends State<DriverOnboardingScreen> {
           children: [
             ListTile(
               leading: const Icon(Icons.photo_camera_outlined),
-              title: const Text('Prendre une photo'),
+              title: Text(context.tr('Prendre une photo')),
               onTap: () => Navigator.of(context).pop(ImageSource.camera),
             ),
             ListTile(
               leading: const Icon(Icons.photo_library_outlined),
-              title: const Text('Choisir dans la galerie'),
+              title: Text(context.tr('Choisir dans la galerie')),
               onTap: () => Navigator.of(context).pop(ImageSource.gallery),
             ),
           ],
@@ -330,7 +331,7 @@ class _WelcomePage extends StatelessWidget {
                   const SizedBox(height: 12),
                 ],
                 const SizedBox(height: 10),
-                AppButton(label: 'Commencer', onPressed: onStart),
+                AppButton(label: context.tr('Commencer'), onPressed: onStart),
               ],
             ),
           ),
@@ -416,7 +417,7 @@ class _DocumentsPage extends StatelessWidget {
           const SizedBox(height: 12),
           AppTextField(
             controller: vehicle,
-            label: 'Véhicule et immatriculation',
+            label: context.tr('Véhicule et immatriculation'),
             hint: 'Moto Bajaj 150 · immatriculation sur la carte grise',
             icon: Icons.two_wheeler_outlined,
             enabled: !hasProfile,
@@ -490,7 +491,7 @@ class _DocumentsPage extends StatelessWidget {
           ],
           const SizedBox(height: 16),
           AppButton(
-            label: 'Rafraîchir',
+            label: context.tr('Rafraîchir'),
             variant: AppButtonVariant.outline,
             icon: Icons.refresh,
             onPressed: () => onRefresh(),
@@ -593,7 +594,7 @@ class _DocumentTile extends StatelessWidget {
             else if (done)
               const Icon(Icons.check_circle, color: AppColors.green, size: 26)
             else
-              TextButton(onPressed: enabled ? onPick : null, child: const Text('Ajouter')),
+              TextButton(onPressed: enabled ? onPick : null, child: Text(context.tr('Ajouter'))),
           ],
         ),
       ),

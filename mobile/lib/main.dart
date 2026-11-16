@@ -6,6 +6,7 @@ import '../core/config/api_settings.dart';
 import '../core/config/app_config.dart';
 import '../core/data/marketplace_api.dart';
 import '../core/http/api_client.dart';
+import '../core/i18n/language_controller.dart';
 import '../core/storage/secure_token_store.dart';
 
 Future<void> main() async {
@@ -23,6 +24,8 @@ Future<void> main() async {
   debugPrint('main: creating ApiClient and SessionProvider');
   final api = ApiClient(tokenStore: SecureTokenStore());
   final session = SessionProvider(api: api);
+
+  await LanguageController.instance.initialize();
 
   debugPrint('main: calling runApp');
   runApp(

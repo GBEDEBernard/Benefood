@@ -11,6 +11,7 @@ import '../../../shared/widgets/beninfood_header.dart';
 import '../../../shared/widgets/feedback_widgets.dart';
 import '../../../shared/widgets/food_decor.dart';
 import '../../../shared/widgets/state_widgets.dart';
+import '../../../core/i18n/app_localizations.dart';
 
 class DriverVerificationScreen extends StatefulWidget {
   const DriverVerificationScreen({
@@ -192,12 +193,12 @@ class _DriverVerificationScreenState extends State<DriverVerificationScreen> {
             const SizedBox(height: 8),
             ListTile(
               leading: const Icon(Icons.photo_camera_outlined),
-              title: const Text('Prendre une photo'),
+              title: Text(context.tr('Prendre une photo')),
               onTap: () => Navigator.of(context).pop(ImageSource.camera),
             ),
             ListTile(
               leading: const Icon(Icons.photo_library_outlined),
-              title: const Text('Choisir dans la galerie'),
+              title: Text(context.tr('Choisir dans la galerie')),
               onTap: () => Navigator.of(context).pop(ImageSource.gallery),
             ),
             const SizedBox(height: 8),
@@ -255,7 +256,7 @@ class _DriverVerificationScreenState extends State<DriverVerificationScreen> {
     return BeninfoodPageScaffold(
       api: widget.marketplace,
       audience: NotificationAudience.driver,
-      title: 'Véhicule & documents',
+      title: context.tr('Véhicule & documents'),
       body: Stack(
         children: [
           const Positioned.fill(child: FoodDecorPageBackground()),
@@ -304,8 +305,8 @@ class _DriverVerificationScreenState extends State<DriverVerificationScreen> {
         const SizedBox(height: AppDimens.lg),
         _SectionCard(
           key: _vehicleKey,
-          title: 'Mon véhicule',
-          subtitle: 'Informations issues de votre dossier livreur.',
+          title: context.tr('Mon véhicule'),
+          subtitle: context.tr('Informations issues de votre dossier livreur.'),
           child: Column(
             children: [
               Row(
@@ -395,7 +396,7 @@ class _DriverVerificationScreenState extends State<DriverVerificationScreen> {
         const SizedBox(height: AppDimens.lg),
         _SectionCard(
           key: _documentsKey,
-          title: 'Documents et vérification',
+          title: context.tr('Documents et vérification'),
           subtitle: documents.isEmpty
               ? 'Aucun document transmis pour le moment.'
               : '${documents.length} document${documents.length > 1 ? 's' : ''} dans votre dossier.',
@@ -679,7 +680,7 @@ class _DocumentRow extends StatelessWidget {
                       TextButton.icon(
                         onPressed: () => onView(document!),
                         icon: const Icon(Icons.visibility_outlined, size: 16),
-                        label: const Text('Consulter'),
+                        label: Text(context.tr('Consulter')),
                         style: TextButton.styleFrom(
                           foregroundColor: AppColors.greenDeep,
                           padding: const EdgeInsets.symmetric(horizontal: 8),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/i18n/app_localizations.dart';
 
 /// Étape finale — Demande soumise : confirmation, badge « En attente de
 /// vérification », checklist d'avancement et sortie vers le tableau de bord.
@@ -106,7 +107,7 @@ class SubmittedStep extends StatelessWidget {
                 ),
                 textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
               ),
-              child: const Text('Aller au tableau de bord'),
+              child: Text(context.tr('Aller au tableau de bord')),
             ),
           ),
           const SizedBox(height: 8),

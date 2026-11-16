@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/auth/session_provider.dart';
 import '../../../core/errors/api_exception.dart';
+import '../../../core/i18n/app_localizations.dart';
 import '../../../core/data/marketplace_api.dart';
 import '../../../shared/models/order.dart';
 import '../../../shared/models/vendor.dart';
@@ -457,9 +458,9 @@ class _RestaurantShellScreenState extends State<RestaurantShellScreen> {
     }
     final confirmed = await showConfirmDialog(
       context,
-      title: 'Déconnexion',
-      message: 'Voulez-vous vraiment vous déconnecter ?',
-      confirmLabel: 'Déconnecter',
+      title: context.tr('Déconnexion'),
+      message: context.tr('Voulez-vous vraiment vous déconnecter ?'),
+      confirmLabel: context.tr('Déconnecter'),
     );
     if (!confirmed || !mounted) {
       return;
@@ -497,7 +498,7 @@ class _RestaurantShellScreenState extends State<RestaurantShellScreen> {
   /// Demande le motif de fermeture temporaire. Renvoie `null` si annulé.
   Future<String?> _promptCloseReason() => showTextPromptDialog(
         context,
-        title: 'Fermer la boutique',
+        title: context.tr('Fermer la boutique'),
         hint: 'Motif de la fermeture temporaire…',
         confirmLabel: 'Fermer',
       );
@@ -643,7 +644,7 @@ class _RestaurantShellScreenState extends State<RestaurantShellScreen> {
               FilledButton.icon(
                 onPressed: _load,
                 icon: const Icon(Icons.refresh),
-                label: const Text('Réessayer'),
+                label: Text(context.tr('Réessayer')),
               ),
             ],
           ),
@@ -741,13 +742,13 @@ class _RestaurantShellScreenState extends State<RestaurantShellScreen> {
           );
         }
         return _PlaceholderScreen(
-          title: _titles[8],
+          title: context.tr(_titles[8]),
           onOpenDrawer: _openDrawer,
           onBack: () => _select(0),
         );
       default:
         return _PlaceholderScreen(
-          title: _titles[_selectedIndex],
+          title: context.tr(_titles[_selectedIndex]),
           onOpenDrawer: _openDrawer,
           onBack: () => _select(0),
         );
@@ -800,7 +801,7 @@ class _PlaceholderScreen extends StatelessWidget {
                   OutlinedButton.icon(
                     onPressed: onBack,
                     icon: const Icon(Icons.arrow_back),
-                    label: const Text('Retour au tableau de bord'),
+                    label: Text(context.tr('Retour au tableau de bord')),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: RestaurantPalette.orange,
                     ),

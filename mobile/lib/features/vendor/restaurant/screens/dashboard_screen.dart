@@ -12,6 +12,7 @@ import '../../../../shared/widgets/beninfood_header.dart';
 import '../../../../shared/widgets/feedback_widgets.dart';
 import '../../../../shared/widgets/food_decor.dart';
 import '../restaurant_palette.dart';
+import '../../../../core/i18n/app_localizations.dart';
 
 /// Tableau de bord vendeur (mobile) — « Béninfood ».
 ///
@@ -198,12 +199,12 @@ class _DashboardScreenState extends State<DashboardScreen>
 
     return [
       _StatusSlice(
-        label: 'Livrées',
+        label: context.tr('Livrées'),
         count: count(const {'delivered'}),
         color: _DashColors.green,
       ),
       _StatusSlice(
-        label: 'En préparation',
+        label: context.tr('En préparation'),
         count: count(const {
           'accepted',
           'preparing',
@@ -215,12 +216,12 @@ class _DashboardScreenState extends State<DashboardScreen>
         color: RestaurantPalette.orange,
       ),
       _StatusSlice(
-        label: 'En attente',
+        label: context.tr('En attente'),
         count: count(const {'awaiting_payment', 'paid'}),
         color: _DashColors.gold,
       ),
       _StatusSlice(
-        label: 'Annulées',
+        label: context.tr('Annulées'),
         count: count(const {'cancelled', 'refunded'}),
         color: RestaurantPalette.danger,
       ),
@@ -1186,7 +1187,7 @@ class _StatsGrid extends StatelessWidget {
                   icon: Icons.schedule_rounded,
                   tint: _DashColors.peach,
                   accent: _DashColors.peachDeep,
-                  label: 'En attente d’action',
+                  label: context.tr('En attente d’action'),
                   value: _CountUp(
                     value: pending,
                     formatter: (value) => '${value.round()}',
@@ -1259,7 +1260,7 @@ class _StatsGrid extends StatelessWidget {
                   icon: Icons.star_rounded,
                   tint: _DashColors.yellowWash,
                   accent: _DashColors.amber,
-                  label: 'Note moyenne',
+                  label: context.tr('Note moyenne'),
                   value: FittedBox(
                     fit: BoxFit.scaleDown,
                     alignment: Alignment.centerLeft,
@@ -1567,35 +1568,35 @@ class _QuickActions extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _SectionHeader(title: 'Actions rapides', onSeeAll: onSeeAll),
+        _SectionHeader(title: context.tr('Actions rapides'), onSeeAll: onSeeAll),
         const SizedBox(height: 8),
         Wrap(
           spacing: 8,
           runSpacing: 8,
           children: [
             _QuickAction(
-              label: 'Ajouter un produit',
+              label: context.tr('Ajouter un produit'),
               icon: Icons.add_rounded,
               accent: _DashColors.green,
               tint: _DashColors.greenWash,
               onTap: onAddProduct,
             ),
             _QuickAction(
-              label: 'Modifier la boutique',
+              label: context.tr('Modifier la boutique'),
               icon: Icons.storefront_outlined,
               accent: _DashColors.peachDeep,
               tint: _DashColors.orangeWash,
               onTap: onEditShop,
             ),
             _QuickAction(
-              label: 'Créer une promo',
+              label: context.tr('Créer une promo'),
               icon: Icons.percent_rounded,
               accent: _DashColors.violet,
               tint: _DashColors.violetWash,
               onTap: onCreatePromo,
             ),
             _QuickAction(
-              label: 'Voir les statistiques',
+              label: context.tr('Voir les statistiques'),
               icon: Icons.insights_rounded,
               accent: _DashColors.blue,
               tint: _DashColors.blueWash,
@@ -2296,7 +2297,7 @@ class _NewOrdersSection extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _SectionHeader(
-          title: 'Nouvelles commandes',
+          title: context.tr('Nouvelles commandes'),
           onSeeAll: onSeeAll,
           badge: orders.isEmpty ? null : '${orders.length}',
         ),
@@ -2305,8 +2306,7 @@ class _NewOrdersSection extends StatelessWidget {
           const _EmptyCard(
             icon: Icons.receipt_long_outlined,
             title: 'Aucune nouvelle commande',
-            subtitle:
-                'Les prochaines commandes apparaîtront ici en temps réel.',
+            subtitle: 'Les prochaines commandes apparaîtront ici en temps réel.',
           )
         else
           LayoutBuilder(
@@ -2458,7 +2458,7 @@ class _NewOrderCard extends StatelessWidget {
             children: [
               Expanded(
                 child: _OrderAction(
-                  label: 'Accepter',
+                  label: context.tr('Accepter'),
                   icon: Icons.check_rounded,
                   color: _DashColors.green,
                   filled: true,
@@ -2468,7 +2468,7 @@ class _NewOrderCard extends StatelessWidget {
               const SizedBox(width: 7),
               Expanded(
                 child: _OrderAction(
-                  label: 'Refuser',
+                  label: context.tr('Refuser'),
                   icon: Icons.close_rounded,
                   color: RestaurantPalette.danger,
                   background: _DashColors.roseWash,
@@ -2478,7 +2478,7 @@ class _NewOrderCard extends StatelessWidget {
               const SizedBox(width: 7),
               Expanded(
                 child: _OrderAction(
-                  label: 'Détails',
+                  label: context.tr('Détails'),
                   icon: Icons.visibility_outlined,
                   color: RestaurantPalette.orange,
                   background: _DashColors.orangeWash,
@@ -2615,14 +2615,13 @@ class _TopProductsSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _SectionHeader(title: 'Produits les plus vendus', onSeeAll: onSeeAll),
+        _SectionHeader(title: context.tr('Produits les plus vendus'), onSeeAll: onSeeAll),
         const SizedBox(height: 8),
         if (products.isEmpty)
           const _EmptyCard(
             icon: Icons.restaurant_menu_rounded,
             title: 'Pas encore de ventes',
-            subtitle:
-                'Vos meilleures ventes s’afficheront dès la première commande.',
+            subtitle: 'Vos meilleures ventes s’afficheront dès la première commande.',
           )
         else
           LayoutBuilder(
@@ -3078,8 +3077,8 @@ class _RangeSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return _SheetShell(
-      title: 'Période',
-      subtitle: 'Les indicateurs se recalculent sur la période choisie.',
+      title: context.tr('Période'),
+      subtitle: context.tr('Les indicateurs se recalculent sur la période choisie.'),
       children: [
         for (final range in _SalesRange.values)
           _SheetOption(
@@ -3105,13 +3104,13 @@ class _StatusSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return _SheetShell(
-      title: 'Statut de la boutique',
-      subtitle: 'Votre boutique reçoit-elle des commandes en ce moment ?',
+      title: context.tr('Statut de la boutique'),
+      subtitle: context.tr('Votre boutique reçoit-elle des commandes en ce moment ?'),
       children: [
         _SheetOption(
           icon: Icons.storefront_rounded,
-          title: 'Ouvrir la boutique',
-          subtitle: 'Vous acceptez de nouvelles commandes.',
+          title: context.tr('Ouvrir la boutique'),
+          subtitle: context.tr('Vous acceptez de nouvelles commandes.'),
           tint: _DashColors.greenWash,
           accent: _DashColors.green,
           selected: isOpen,
@@ -3120,8 +3119,8 @@ class _StatusSheet extends StatelessWidget {
         const SizedBox(height: 8),
         _SheetOption(
           icon: Icons.pause_circle_outline_rounded,
-          title: 'Fermer la boutique',
-          subtitle: 'Vous suspendez temporairement les commandes.',
+          title: context.tr('Fermer la boutique'),
+          subtitle: context.tr('Vous suspendez temporairement les commandes.'),
           tint: _DashColors.roseWash,
           accent: RestaurantPalette.danger,
           selected: !isOpen,
@@ -3140,8 +3139,8 @@ class _RevenueInfoSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return _SheetShell(
-      title: 'Votre chiffre d’affaires',
-      subtitle: 'Ce montant correspond aux ventes validées sur la période.',
+      title: context.tr('Votre chiffre d’affaires'),
+      subtitle: context.tr('Ce montant correspond aux ventes validées sur la période.'),
       children: [
         const _InfoRow(
           icon: Icons.receipt_long_rounded,
@@ -3159,7 +3158,7 @@ class _RevenueInfoSheet extends StatelessWidget {
         const SizedBox(height: 10),
         _InfoRow(
           icon: Icons.trending_up_rounded,
-          title: 'Comparaison automatique',
+          title: context.tr('Comparaison automatique'),
           text:
               'Chaque période est comparée à la précédente ($rangeLabel) pour suivre votre progression.',
         ),

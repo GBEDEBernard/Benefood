@@ -20,6 +20,7 @@ import '../../../shared/widgets/favorite_driver_picker.dart';
 import '../../../shared/widgets/fedapay_checkout_screen.dart';
 import '../../../shared/widgets/map_picker.dart';
 import '../../../shared/widgets/payment_method_screen.dart';
+import '../../../core/i18n/app_localizations.dart';
 
 /// Envoi d'un colis (client ou boutique vendeuse) en trois étapes :
 /// adresses → détails du colis → confirmation et paiement.
@@ -426,7 +427,7 @@ class _ParcelCreateScreenState extends State<ParcelCreateScreen> {
     final choice = await showFavoriteDriverPicker(
       context,
       widget.marketplace,
-      title: 'Livreur favori (optionnel)',
+      title: context.tr('Livreur favori (optionnel)'),
       selectedId: _favoriteDriverId,
     );
     if (choice == null || !mounted) {
@@ -561,7 +562,7 @@ class _ParcelCreateScreenState extends State<ParcelCreateScreen> {
           children: [
             _SectionHeader(
               icon: Icons.trip_origin,
-              title: 'Adresse de ramassage',
+              title: context.tr('Adresse de ramassage'),
               color: AppColors.orange,
               background: AppColors.orangeLight,
               trailing: _LocateChip(
@@ -572,14 +573,14 @@ class _ParcelCreateScreenState extends State<ParcelCreateScreen> {
             const SizedBox(height: AppDimens.lg),
             AppTextField(
               controller: _pickupLabel,
-              label: 'Libellé',
+              label: context.tr('Libellé'),
               hint: 'Ex : Boutique, domicile…',
               icon: Icons.label_outline,
             ),
             const SizedBox(height: AppDimens.md),
             AppTextField(
               controller: _pickupAddress,
-              label: 'Adresse',
+              label: context.tr('Adresse'),
               hint: 'Rue, quartier, repère…',
               icon: Icons.place_outlined,
               required: true,
@@ -593,14 +594,14 @@ class _ParcelCreateScreenState extends State<ParcelCreateScreen> {
             const SizedBox(height: AppDimens.md),
             AppTextField(
               controller: _pickupContactName,
-              label: 'Contact sur place',
+              label: context.tr('Contact sur place'),
               hint: 'Nom de la personne à joindre',
               icon: Icons.person_outline,
             ),
             const SizedBox(height: AppDimens.md),
             AppTextField(
               controller: _pickupContactPhone,
-              label: 'Téléphone du contact',
+              label: context.tr('Téléphone du contact'),
               hint: '+229…',
               icon: Icons.phone_outlined,
               keyboardType: TextInputType.phone,
@@ -608,7 +609,7 @@ class _ParcelCreateScreenState extends State<ParcelCreateScreen> {
             const SizedBox(height: AppDimens.md),
             AppTextField(
               controller: _pickupLandmark,
-              label: 'Point de repère',
+              label: context.tr('Point de repère'),
               hint: 'Ex : en face de la pharmacie…',
               icon: Icons.push_pin_outlined,
             ),
@@ -641,7 +642,7 @@ class _ParcelCreateScreenState extends State<ParcelCreateScreen> {
           children: [
             _SectionHeader(
               icon: Icons.place,
-              title: 'Adresse de livraison',
+              title: context.tr('Adresse de livraison'),
               color: AppColors.orange,
               background: AppColors.orangeLight,
               trailing: _sameAsPickup
@@ -662,14 +663,14 @@ class _ParcelCreateScreenState extends State<ParcelCreateScreen> {
             else ...[
               AppTextField(
                 controller: _dropoffLabel,
-                label: 'Libellé',
+                label: context.tr('Libellé'),
                 hint: 'Ex : Bureau, domicile du destinataire…',
                 icon: Icons.label_outline,
               ),
               const SizedBox(height: AppDimens.md),
               AppTextField(
                 controller: _dropoffAddress,
-                label: 'Adresse',
+                label: context.tr('Adresse'),
                 hint: 'Rue, quartier, repère…',
                 icon: Icons.place_outlined,
                 required: true,
@@ -683,14 +684,14 @@ class _ParcelCreateScreenState extends State<ParcelCreateScreen> {
               const SizedBox(height: AppDimens.md),
               AppTextField(
                 controller: _dropoffContactName,
-                label: 'Nom du destinataire',
+                label: context.tr('Nom du destinataire'),
                 hint: 'Personne à contacter à l\'arrivée',
                 icon: Icons.person_outline,
               ),
               const SizedBox(height: AppDimens.md),
               AppTextField(
                 controller: _dropoffContactPhone,
-                label: 'Téléphone du destinataire',
+                label: context.tr('Téléphone du destinataire'),
                 hint: '+229…',
                 icon: Icons.phone_outlined,
                 keyboardType: TextInputType.phone,
@@ -698,7 +699,7 @@ class _ParcelCreateScreenState extends State<ParcelCreateScreen> {
               const SizedBox(height: AppDimens.md),
               AppTextField(
                 controller: _dropoffLandmark,
-                label: 'Point de repère',
+                label: context.tr('Point de repère'),
                 hint: 'Ex : derrière le marché…',
                 icon: Icons.push_pin_outlined,
               ),
@@ -743,7 +744,7 @@ class _ParcelCreateScreenState extends State<ParcelCreateScreen> {
             const SizedBox(height: AppDimens.lg),
             AppTextField(
               controller: _description,
-              label: 'Description du colis',
+              label: context.tr('Description du colis'),
               hint: 'Ex : sac de vêtements, documents…',
               icon: Icons.description_outlined,
               maxLines: 3,
@@ -761,7 +762,7 @@ class _ParcelCreateScreenState extends State<ParcelCreateScreen> {
                       labelText: 'Type de colis',
                       prefixIcon: Icon(Icons.category_outlined),
                     ),
-                    hint: const Text('Sélectionner'),
+                    hint: Text(context.tr('Sélectionner')),
                     items: _parcelTypes
                         .map(
                           (type) => DropdownMenuItem<String>(
@@ -778,7 +779,7 @@ class _ParcelCreateScreenState extends State<ParcelCreateScreen> {
                   flex: 2,
                   child: AppTextField(
                     controller: _weight,
-                    label: 'Poids (kg)',
+                    label: context.tr('Poids (kg)'),
                     hint: 'Ex : 2',
                     icon: Icons.monitor_weight_outlined,
                     keyboardType: const TextInputType.numberWithOptions(
@@ -791,7 +792,7 @@ class _ParcelCreateScreenState extends State<ParcelCreateScreen> {
             const SizedBox(height: AppDimens.md),
             AppTextField(
               controller: _instructions,
-              label: 'Instructions au livreur',
+              label: context.tr('Instructions au livreur'),
               hint: 'Ex : appeler à l\'arrivée, remettre au gardien…',
               icon: Icons.chat_bubble_outline,
               maxLines: 2,
@@ -894,14 +895,14 @@ class _ParcelCreateScreenState extends State<ParcelCreateScreen> {
             _SummaryRow(
               icon: Icons.trip_origin,
               color: AppColors.green,
-              label: 'Ramassage',
+              label: context.tr('Ramassage'),
               value: _formatAddress(_pickup),
             ),
             const Divider(height: AppDimens.xl),
             _SummaryRow(
               icon: Icons.place,
               color: AppColors.orange,
-              label: 'Livraison',
+              label: context.tr('Livraison'),
               value: _formatAddress(_dropoff),
             ),
             if (_composedDescription.trim().isNotEmpty) ...[
@@ -909,7 +910,7 @@ class _ParcelCreateScreenState extends State<ParcelCreateScreen> {
               _SummaryRow(
                 icon: Icons.inventory_2_outlined,
                 color: AppColors.orange,
-                label: 'Détails',
+                label: context.tr('Détails'),
                 value: _composedDescription.trim(),
               ),
             ],
@@ -918,7 +919,7 @@ class _ParcelCreateScreenState extends State<ParcelCreateScreen> {
               _SummaryRow(
                 icon: Icons.delivery_dining_outlined,
                 color: AppColors.green,
-                label: 'Livreur favori',
+                label: context.tr('Livreur favori'),
                 value: _favoriteDriverName!,
               ),
             ],
@@ -1068,7 +1069,7 @@ class _LocateChip extends StatelessWidget {
               child: CircularProgressIndicator(strokeWidth: 2),
             )
           : const Icon(Icons.my_location, size: 16),
-      label: const Text('Ma position'),
+      label: Text(context.tr('Ma position')),
       style: OutlinedButton.styleFrom(
         foregroundColor: AppColors.green,
         side: const BorderSide(color: AppColors.greenLight, width: 1.4),
@@ -1558,10 +1559,10 @@ class _QuoteCard extends StatelessWidget {
               ),
             ),
           const SizedBox(height: AppDimens.md),
-          _QuoteLine(label: 'Frais de livraison', amount: fee),
+          _QuoteLine(label: context.tr('Frais de livraison'), amount: fee),
           if (creationFee > 0) ...[
             const SizedBox(height: 8),
-            _QuoteLine(label: 'Frais de création', amount: creationFee),
+            _QuoteLine(label: context.tr('Frais de création'), amount: creationFee),
           ],
           if (approachFee > 0) ...[
             const SizedBox(height: 8),
@@ -1702,7 +1703,7 @@ class _QuoteErrorCard extends StatelessWidget {
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
                 : const Icon(Icons.refresh, size: 18),
-            label: const Text('Réessayer'),
+            label: Text(context.tr('Réessayer')),
           ),
         ],
       ),

@@ -9,6 +9,7 @@ import '../../../shared/models/vendor.dart';
 import '../../../shared/widgets/beninfood_header.dart';
 import '../../../shared/widgets/state_widgets.dart';
 import '../../../shared/widgets/vendor_cards.dart';
+import '../../../core/i18n/app_localizations.dart';
 
 /// Liste des boutiques ouvertes d'un type donné (Restaurant, Boutique, Maquis),
 /// atteinte depuis les actions rapides de l'accueil.
@@ -139,7 +140,7 @@ class _ShopListScreenState extends State<ShopListScreen> {
                           height: 360,
                           child: EmptyState(
                             icon: Icons.storefront_outlined,
-                            title: 'Aucune boutique ouverte',
+                            title: context.tr('Aucune boutique ouverte'),
                             subtitle:
                                 'Revenez plus tard, les $_title ouvrent bientôt.',
                           ),

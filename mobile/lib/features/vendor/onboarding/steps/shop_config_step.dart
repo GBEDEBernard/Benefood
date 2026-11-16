@@ -7,6 +7,7 @@ import '../../../../shared/models/category.dart';
 import '../../../../shared/models/vendor.dart';
 import '../../../../shared/widgets/app_network_image.dart';
 import '../widgets/custom_text_field.dart';
+import '../../../../core/i18n/app_localizations.dart';
 
 /// Étape 3/4 — Configuration de la boutique : identité visuelle (nom,
 /// description, catégorie) et médias (logo, image de couverture).
@@ -76,7 +77,7 @@ class _ShopConfigStepState extends State<ShopConfigStep> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           CustomTextField(
-            label: 'Nom de la boutique',
+            label: context.tr('Nom de la boutique'),
             required: true,
             controller: widget.shopName,
             hint: 'Le Délice Fast-Food',
@@ -86,7 +87,7 @@ class _ShopConfigStepState extends State<ShopConfigStep> {
           ),
           const SizedBox(height: 14),
           CustomTextField(
-            label: 'Description',
+            label: context.tr('Description'),
             required: true,
             controller: widget.description,
             hint: 'Spécialités, plats signature, horaires…',
@@ -186,7 +187,7 @@ class _ShopConfigStepState extends State<ShopConfigStep> {
           const SizedBox(height: 10),
           Center(
             child: Tooltip(
-              message: 'Ajouter le logo',
+              message: context.tr('Ajouter le logo'),
               child: InkWell(
                 onTap: widget.onPickLogo,
                 customBorder: const CircleBorder(),
@@ -214,7 +215,7 @@ class _ShopConfigStepState extends State<ShopConfigStep> {
           _Label(text: 'Image de couverture', required: true),
           const SizedBox(height: 10),
           Tooltip(
-            message: 'Ajouter la couverture',
+            message: context.tr('Ajouter la couverture'),
             child: InkWell(
               onTap: widget.onPickCover,
               borderRadius: BorderRadius.circular(14),

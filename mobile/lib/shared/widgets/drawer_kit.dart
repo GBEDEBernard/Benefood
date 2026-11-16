@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../../core/i18n/app_localizations.dart';
 import '../../core/theme/app_colors.dart';
 import 'app_network_image.dart';
 import 'food_decor.dart';
@@ -1041,25 +1042,25 @@ class DrawerLogoutButton extends StatelessWidget {
               borderRadius: BorderRadius.circular(17),
               border: Border.all(color: DrawerPalette.logoutBorder),
             ),
-            child: const Row(
+            child: Row(
               children: [
-                Icon(
+                const Icon(
                   Icons.logout_rounded,
                   size: 20,
                   color: DrawerPalette.logoutIcon,
                 ),
-                SizedBox(width: 11),
+                const SizedBox(width: 11),
                 Expanded(
                   child: Text(
-                    'Se déconnecter',
-                    style: TextStyle(
+                    context.tr('Se déconnecter'),
+                    style: const TextStyle(
                       color: DrawerPalette.logoutLabel,
                       fontSize: 13.5,
                       fontWeight: FontWeight.w800,
                     ),
                   ),
                 ),
-                Icon(
+                const Icon(
                   Icons.chevron_right_rounded,
                   size: 20,
                   color: DrawerPalette.logoutChevron,

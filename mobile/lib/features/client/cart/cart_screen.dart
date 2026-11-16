@@ -11,6 +11,7 @@ import '../../../shared/widgets/beninfood_header.dart';
 import '../../../shared/widgets/feedback_widgets.dart';
 import '../../../shared/widgets/quantity_stepper.dart';
 import '../../../shared/widgets/state_widgets.dart';
+import '../../../core/i18n/app_localizations.dart';
 
 /// Panier client (J150) : quantités, suppression, récapitulatif.
 class CartScreen extends StatefulWidget {
@@ -129,8 +130,8 @@ class _CartScreenState extends State<CartScreen> {
     if (cart == null || cart.isEmpty) {
       return EmptyState(
         icon: Icons.shopping_cart_outlined,
-        title: 'Votre panier est vide',
-        subtitle: 'Parcourez les boutiques pour ajouter des produits.',
+        title: context.tr('Votre panier est vide'),
+        subtitle: context.tr('Parcourez les boutiques pour ajouter des produits.'),
         actionLabel: 'Explorer les boutiques',
         onAction: () => context.go('/client/search'),
       );
@@ -251,7 +252,7 @@ class _CheckoutBar extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             AppButton(
-              label: 'Commander',
+              label: context.tr('Commander'),
               icon: Icons.shopping_bag_outlined,
               onPressed: onCheckout,
             ),
@@ -345,7 +346,7 @@ class _CartItemTile extends StatelessWidget {
                           onPressed: onRemove,
                           icon: const Icon(Icons.delete_outline, size: 20),
                           color: Theme.of(context).colorScheme.error,
-                          tooltip: 'Retirer',
+                          tooltip: context.tr('Retirer'),
                           padding: EdgeInsets.zero,
                           visualDensity: VisualDensity.compact,
                           constraints: const BoxConstraints.tightFor(width: 36, height: 36),

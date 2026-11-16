@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/auth/session_provider.dart';
 import '../../../core/errors/api_exception.dart';
+import '../../../core/i18n/app_localizations.dart';
 import '../../../shared/models/user.dart';
 import '../../../shared/widgets/auth_kit.dart';
 import '../../../shared/widgets/feedback_widgets.dart';
@@ -65,7 +66,7 @@ class _LoginScreenState extends State<LoginScreen> {
     } on ApiException catch (e) {
       if (mounted) {
         if (e.isUnauthorized) {
-          showToast(context, 'Identifiants invalides.', isError: true);
+          showToast(context, context.tr('Identifiants invalides.'), isError: true);
         } else if (e.fieldErrors.isNotEmpty) {
           showToast(context, e.fieldErrors.values.first.first, isError: true);
         } else {
@@ -83,8 +84,8 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget build(BuildContext context) {
     return AuthScaffold(
       hero: true,
-      title: 'Bon retour !',
-      subtitle: 'Connectez-vous pour continuer vos achats.',
+      title: context.tr('Bon retour !'),
+      subtitle: context.tr('Connectez-vous pour continuer vos achats.'),
       onBack: _back,
       child: AutofillGroup(
         child: Form(
@@ -94,25 +95,28 @@ class _LoginScreenState extends State<LoginScreen> {
             children: [
               AuthField(
                 controller: _login,
-                label: 'Téléphone ou email',
-                hint: 'Votre numéro ou votre email',
+                label: context.tr('Téléphone ou email'),
+                hint: context.tr('Votre numéro ou votre email'),
                 icon: Icons.person_outline_rounded,
                 keyboardType: TextInputType.emailAddress,
                 textInputAction: TextInputAction.next,
                 autofillHints: const [AutofillHints.username],
-                validator: (v) => (v == null || v.trim().isEmpty) ? 'Requis' : null,
+                validator: (v) =>
+                    (v == null || v.trim().isEmpty) ? context.tr('Requis') : null,
               ),
               const SizedBox(height: 16),
               AuthField(
                 controller: _password,
-                label: 'Mot de passe',
-                hint: 'Votre mot de passe',
+                label: context.tr('Mot de passe'),
+                hint: context.tr('Votre mot de passe'),
                 icon: Icons.lock_outline_rounded,
                 isPassword: true,
                 textInputAction: TextInputAction.done,
                 autofillHints: const [AutofillHints.password],
                 onSubmitted: (_) => _submit(),
-                validator: (v) => (v == null || v.length < 6) ? 'Au moins 6 caractères' : null,
+                validator: (v) => (v == null || v.length < 6)
+                    ? context.tr('Au moins 6 caractères')
+                    : null,
               ),
               Align(
                 alignment: Alignment.centerRight,
@@ -123,15 +127,18 @@ class _LoginScreenState extends State<LoginScreen> {
                     padding: const EdgeInsets.symmetric(horizontal: 4),
                     minimumSize: const Size(0, 40),
                   ),
-                  child: const Text(
-                    'Mot de passe oublié ?',
-                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                  child: Text(
+                    context.tr('Mot de passe oublié ?'),
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
               ),
               const SizedBox(height: 8),
               AuthPrimaryButton(
-                label: 'Se connecter',
+                label: context.tr('Se connecter'),
                 icon: Icons.login_rounded,
                 loading: _loading,
                 onPressed: _submit,

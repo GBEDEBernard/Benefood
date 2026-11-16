@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_dimens.dart';
 import '../../../core/utils/formatters.dart';
+import '../../../core/i18n/app_localizations.dart';
 
 /// Demande de retrait saisie par l'utilisateur.
 class PayoutRequest {
@@ -291,7 +292,7 @@ class _PayoutRequestSheetState extends State<PayoutRequestSheet> {
               decoration: InputDecoration(
                 prefixIcon: const Icon(Icons.payments_outlined),
                 suffixText: 'FCFA',
-                hintText: 'Montant',
+                hintText: context.tr('Montant'),
                 errorText: _amountError,
               ),
             ),
@@ -309,7 +310,7 @@ class _PayoutRequestSheetState extends State<PayoutRequestSheet> {
               children: [
                 Expanded(
                   child: _MethodChip(
-                    label: 'MTN',
+                    label: context.tr('MTN'),
                     value: 'mtn_open',
                     selected: _method,
                     onTap: (value) => setState(() => _method = value),
@@ -318,7 +319,7 @@ class _PayoutRequestSheetState extends State<PayoutRequestSheet> {
                 const SizedBox(width: AppDimens.sm),
                 Expanded(
                   child: _MethodChip(
-                    label: 'Moov',
+                    label: context.tr('Moov'),
                     value: 'moov',
                     selected: _method,
                     onTap: (value) => setState(() => _method = value),
@@ -327,7 +328,7 @@ class _PayoutRequestSheetState extends State<PayoutRequestSheet> {
                 const SizedBox(width: AppDimens.sm),
                 Expanded(
                   child: _MethodChip(
-                    label: 'Celtiis',
+                    label: context.tr('Celtiis'),
                     value: 'sbin',
                     selected: _method,
                     onTap: (value) => setState(() => _method = value),
@@ -341,9 +342,9 @@ class _PayoutRequestSheetState extends State<PayoutRequestSheet> {
               controller: _destination,
               keyboardType: TextInputType.phone,
               decoration: InputDecoration(
-                labelText: 'Numéro Mobile Money',
+                labelText: context.tr('Numéro Mobile Money'),
                 prefixIcon: const Icon(Icons.phone_iphone),
-                hintText: 'Ex. +229 96 00 00 00',
+                hintText: context.tr('Ex. +229 96 00 00 00'),
                 errorText: _phoneError,
               ),
             ),

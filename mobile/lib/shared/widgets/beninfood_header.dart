@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 
 import '../../core/data/marketplace_api.dart';
+import '../../core/i18n/app_localizations.dart';
 import '../../core/navigation/notification_router.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_dimens.dart';
+import 'language_menu_button.dart';
 import 'notification_bell.dart';
 
 /// Marque Béninfood affichée au centre des en-têtes de page :
@@ -150,7 +152,7 @@ class BeninfoodAppBar extends StatelessWidget {
     this.leading,
     this.trailing,
     this.actions = const [],
-    this.tooltip = 'Ouvrir le menu',
+    this.tooltip,
     this.backgroundColor = Colors.white,
     this.height = 56,
     this.notificationBadgeColor = AppColors.red,
@@ -177,7 +179,8 @@ class BeninfoodAppBar extends StatelessWidget {
   /// Actions de page affichées à gauche de la cloche (rafraîchir, favori…).
   final List<Widget> actions;
 
-  final String tooltip;
+  /// Infobulle du bouton menu (par défaut traduite).
+  final String? tooltip;
   final Color backgroundColor;
   final double height;
 
@@ -188,11 +191,14 @@ class BeninfoodAppBar extends StatelessWidget {
     final leading = onMenu != null
         ? IconButton(
             onPressed: onMenu,
-            tooltip: tooltip,
+            tooltip: tooltip ?? context.tr('Ouvrir le menu'),
             icon: const Icon(Icons.menu, size: 26, color: AppColors.text),
           )
         : const SizedBox(width: 44);
-    final trailing = this.trailing ??
+    final hasPageActions =
+        this.trailing != null || actions.isNotEmpty || api != null;
+    final pageActions =
+        this.trailing ??
         Row(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -202,11 +208,16 @@ class BeninfoodAppBar extends StatelessWidget {
                 api: api!,
                 audience: audience,
                 badgeColor: notificationBadgeColor,
-              )
-            else
-              const SizedBox(width: 44),
+              ),
           ],
         );
+    final trailing = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (hasPageActions) ...[pageActions, const SizedBox(width: 4)],
+        const LanguageMenuButton(),
+      ],
+    );
 
     return Material(
       color: backgroundColor,

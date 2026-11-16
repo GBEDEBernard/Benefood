@@ -8,6 +8,7 @@ import '../../../shared/widgets/amount_widgets.dart';
 import '../../../shared/widgets/call_button.dart';
 import '../../../shared/widgets/package_item_tile.dart';
 import '../../../shared/widgets/status_badge.dart';
+import '../../../core/i18n/app_localizations.dart';
 
 /// Feuille « Détail de la mission » ouverte depuis l'historique livreur.
 ///
@@ -102,29 +103,29 @@ class _DriverHistoryDetails extends StatelessWidget {
                     const SizedBox(height: AppDimens.lg),
 
                     _Section(
-                      title: 'Avancement',
+                      title: context.tr('Avancement'),
                       icon: Icons.timeline,
                       children: [
                         _TimelineRow(
-                          label: 'Mission créée',
+                          label: context.tr('Mission créée'),
                           date: delivery.createdAt,
                           icon: Icons.fiber_manual_record,
                           color: AppColors.textSecondary,
                         ),
                         _TimelineRow(
-                          label: 'Affectée au livreur',
+                          label: context.tr('Affectée au livreur'),
                           date: delivery.assignedAt,
                           icon: Icons.motorcycle,
                           color: AppColors.orange,
                         ),
                         _TimelineRow(
-                          label: 'Commande collectée',
+                          label: context.tr('Commande collectée'),
                           date: delivery.pickedUpAt,
                           icon: Icons.inventory_2_outlined,
                           color: AppColors.goldDark,
                         ),
                         _TimelineRow(
-                          label: 'Livraison terminée',
+                          label: context.tr('Livraison terminée'),
                           date: delivery.deliveredAt,
                           icon: Icons.check_circle_outline,
                           color: AppColors.green,
@@ -135,22 +136,22 @@ class _DriverHistoryDetails extends StatelessWidget {
                     const SizedBox(height: AppDimens.md),
 
                     _Section(
-                      title: 'Montants',
+                      title: context.tr('Montants'),
                       icon: Icons.payments_outlined,
                       children: [
                         _AmountRow(
-                          label: 'Frais de livraison client',
+                          label: context.tr('Frais de livraison client'),
                           amount: delivery.fee,
                           accent: AppColors.orange,
                         ),
                         _AmountRow(
-                          label: 'Votre gain',
+                          label: context.tr('Votre gain'),
                           amount: delivery.netEarnings,
                           accent: AppColors.green,
                         ),
                         if (order?.total != null)
                           _AmountRow(
-                            label: 'Total de la commande',
+                            label: context.tr('Total de la commande'),
                             amount: order!.total,
                             accent: AppColors.text,
                           ),
@@ -159,7 +160,7 @@ class _DriverHistoryDetails extends StatelessWidget {
                     const SizedBox(height: AppDimens.md),
 
                     _Section(
-                      title: 'Collecte',
+                      title: context.tr('Collecte'),
                       icon: Icons.storefront_outlined,
                       children: [
                         _InfoLine(
@@ -173,7 +174,7 @@ class _DriverHistoryDetails extends StatelessWidget {
                         ),
                         if (vendor?.phone?.trim().isNotEmpty ?? false)
                           _ActionLine(
-                            label: 'Appeler la boutique',
+                            label: context.tr('Appeler la boutique'),
                             phone: vendor!.phone,
                           ),
                       ],
@@ -181,11 +182,11 @@ class _DriverHistoryDetails extends StatelessWidget {
                     const SizedBox(height: AppDimens.md),
 
                     _Section(
-                      title: 'Livraison',
+                      title: context.tr('Livraison'),
                       icon: Icons.location_on_outlined,
                       children: [
                         _InfoLine(
-                          label: 'Adresse de livraison',
+                          label: context.tr('Adresse de livraison'),
                           value: order?.address ?? '—',
                           icon: Icons.location_on_outlined,
                           accent: AppColors.green,
@@ -198,7 +199,7 @@ class _DriverHistoryDetails extends StatelessWidget {
                         ),
                         if (order?.client?.phone?.trim().isNotEmpty ?? false)
                           _ActionLine(
-                            label: 'Appeler le client',
+                            label: context.tr('Appeler le client'),
                             phone: order!.client!.phone,
                           ),
                       ],
@@ -222,7 +223,7 @@ class _DriverHistoryDetails extends StatelessWidget {
 
                     if (delivery.proofCode?.trim().isNotEmpty ?? false) ...[
                       _Section(
-                        title: 'Preuve de livraison',
+                        title: context.tr('Preuve de livraison'),
                         icon: Icons.verified_outlined,
                         children: [
                           Row(

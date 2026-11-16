@@ -9,6 +9,7 @@ import '../../../../shared/widgets/beninfood_header.dart';
 import '../../../../shared/widgets/feedback_widgets.dart';
 import '../../../../shared/widgets/state_widgets.dart';
 import '../restaurant_palette.dart';
+import '../../../../core/i18n/app_localizations.dart';
 
 /// Mon dossier (J21 §4) : progression de la vérification et documents
 /// transmis (statut, motif de rejet, consultation et renvoi).
@@ -424,7 +425,7 @@ class _DocumentCard extends StatelessWidget {
               TextButton.icon(
                 onPressed: () => onOpen(document),
                 icon: const Icon(Icons.visibility_outlined, size: 18),
-                label: const Text('Consulter'),
+                label: Text(context.tr('Consulter')),
                 style: TextButton.styleFrom(
                   foregroundColor: RestaurantPalette.forest,
                   padding: const EdgeInsets.symmetric(horizontal: 10),
@@ -441,7 +442,7 @@ class _DocumentCard extends StatelessWidget {
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
                       : const Icon(Icons.upload_file_outlined, size: 18),
-                  label: const Text('Renvoyer'),
+                  label: Text(context.tr('Renvoyer')),
                   style: TextButton.styleFrom(
                     foregroundColor: RestaurantPalette.orange,
                     padding: const EdgeInsets.symmetric(horizontal: 10),

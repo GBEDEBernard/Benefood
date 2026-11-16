@@ -13,6 +13,7 @@ import '../../../shared/widgets/beninfood_header.dart';
 import '../../../shared/widgets/feedback_widgets.dart';
 import '../../../shared/widgets/state_widgets.dart';
 import '../../../shared/widgets/status_badge.dart';
+import '../../../core/i18n/app_localizations.dart';
 
 /// Centre de réclamations (J158 côté client : création, suivi, messages).
 class ComplaintsScreen extends StatefulWidget {
@@ -81,7 +82,7 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
         backgroundColor: AppColors.green,
         foregroundColor: Colors.white,
         icon: const Icon(Icons.support_agent),
-        label: const Text('Nouvelle'),
+        label: Text(context.tr('Nouvelle')),
       ),
     );
   }
@@ -96,8 +97,8 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
     if (_complaints.isEmpty) {
       return EmptyState(
         icon: Icons.support_agent,
-        title: 'Aucune réclamation',
-        subtitle: 'Un souci avec une commande ? Faites-le nous savoir.',
+        title: context.tr('Aucune réclamation'),
+        subtitle: context.tr('Un souci avec une commande ? Faites-le nous savoir.'),
         actionLabel: 'Signaler un problème',
         onAction: () => context.push('/client/complaints/new'),
       );
@@ -345,7 +346,7 @@ class _ComplaintDetailScreenState extends State<ComplaintDetailScreen> {
                         ),
                         child: const Icon(Icons.receipt_long_outlined, color: AppColors.green, size: 20),
                       ),
-                      title: const Text('Commande concernée'),
+                      title: Text(context.tr('Commande concernée')),
                       subtitle: Text(
                         '${complaint.order!.reference ?? '—'} · Statut : ${complaint.order!.status ?? '—'}',
                       ),
@@ -599,7 +600,7 @@ class _ComplaintCreateScreenState extends State<ComplaintCreateScreen> {
                   prefixIcon: Icon(Icons.receipt_long_outlined),
                 ),
                 items: [
-                  const DropdownMenuItem(value: null, child: Text('Aucune')),
+                  DropdownMenuItem(value: null, child: Text(context.tr('Aucune'))),
                   ..._orders.map(
                     (o) => DropdownMenuItem(
                       value: o.id,
@@ -625,21 +626,21 @@ class _ComplaintCreateScreenState extends State<ComplaintCreateScreen> {
             const SizedBox(height: 16),
             AppTextField(
               controller: _subject,
-              label: 'Objet',
+              label: context.tr('Objet'),
               required: true,
               validator: (v) => (v == null || v.trim().length < 3) ? 'Titre trop court' : null,
             ),
             const SizedBox(height: 16),
             AppTextField(
               controller: _description,
-              label: 'Description',
+              label: context.tr('Description'),
               maxLines: 5,
               required: true,
               validator: (v) => (v == null || v.trim().length < 10) ? 'Décrivez le problème (min. 10 caractères)' : null,
             ),
             const SizedBox(height: 24),
             AppButton(
-              label: 'Envoyer',
+              label: context.tr('Envoyer'),
               icon: Icons.send,
               onPressed: _saving ? null : _save,
               loading: _saving,

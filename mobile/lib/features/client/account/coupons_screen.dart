@@ -8,6 +8,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../shared/widgets/beninfood_header.dart';
 import '../../../shared/widgets/feedback_widgets.dart';
+import '../../../core/i18n/app_localizations.dart';
 
 /// Coupons du client : liste réelle (GET /me/coupons), copie du code.
 class CouponsScreen extends StatefulWidget {
@@ -49,7 +50,7 @@ class _CouponsScreenState extends State<CouponsScreen> {
   @override
   Widget build(BuildContext context) {
     return BeninfoodPageScaffold(
-      title: 'Mes coupons',
+      title: context.tr('Mes coupons'),
       api: widget.marketplace,
       backgroundColor: AppColors.background,
       body: FutureBuilder<List<Map<String, dynamic>>>(
@@ -72,7 +73,7 @@ class _CouponsScreenState extends State<CouponsScreen> {
                     const SizedBox(height: 12),
                     FilledButton.tonal(
                       onPressed: _reload,
-                      child: const Text('Réessayer'),
+                      child: Text(context.tr('Réessayer')),
                     ),
                   ],
                 ),

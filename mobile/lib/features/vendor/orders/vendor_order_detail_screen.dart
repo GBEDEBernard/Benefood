@@ -21,6 +21,7 @@ import '../../../shared/widgets/favorite_driver_picker.dart';
 import '../../../shared/widgets/package_item_tile.dart';
 import '../../../shared/widgets/status_badge.dart';
 import '../../../shared/widgets/state_widgets.dart';
+import '../../../core/i18n/app_localizations.dart';
 
 /// Détail d'une commande vendeur (J156) : articles, totaux, adresse, actions.
 class VendorOrderDetailScreen extends StatefulWidget {
@@ -199,7 +200,7 @@ class _VendorOrderDetailScreenState extends State<VendorOrderDetailScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Retour'),
+            child: Text(context.tr('Retour')),
           ),
           FilledButton(
             onPressed: () {
@@ -207,7 +208,7 @@ class _VendorOrderDetailScreenState extends State<VendorOrderDetailScreen> {
                 Navigator.of(context).pop(controller.text.trim());
               }
             },
-            child: const Text('Confirmer'),
+            child: Text(context.tr('Confirmer')),
           ),
         ],
       ),
@@ -238,7 +239,7 @@ class _VendorOrderDetailScreenState extends State<VendorOrderDetailScreen> {
     final choice = await showFavoriteDriverPicker(
       context,
       widget.marketplace,
-      title: 'Livreur favori (optionnel)',
+      title: context.tr('Livreur favori (optionnel)'),
     );
     if (choice == null || !mounted) {
       return;
@@ -415,12 +416,12 @@ class _VendorOrderDetailScreenState extends State<VendorOrderDetailScreen> {
   @override
   Widget build(BuildContext context) {
     return BeninfoodPageScaffold(
-      title: 'Commande',
+      title: context.tr('Commande'),
       api: widget.marketplace,
       audience: NotificationAudience.vendor,
       actions: [
         IconButton(
-          tooltip: 'Rafraîchir',
+          tooltip: context.tr('Rafraîchir'),
           icon: const Icon(Icons.refresh),
           onPressed: _actionLoading ? null : _load,
         ),
@@ -501,13 +502,13 @@ class _VendorOrderDetailScreenState extends State<VendorOrderDetailScreen> {
                       trailing: formatAmount(item.subtotal, showSymbol: false),
                     ),
                   const Divider(height: 24),
-                  _SummaryRow(label: 'Sous-total', amount: order.subtotal),
-                  _SummaryRow(label: 'Livraison', amount: order.deliveryFee),
+                  _SummaryRow(label: context.tr('Sous-total'), amount: order.subtotal),
+                  _SummaryRow(label: context.tr('Livraison'), amount: order.deliveryFee),
                   if ((order.financials?.serviceFee ?? 0) > 0)
-                    _SummaryRow(label: 'Commission client', amount: order.financials!.serviceFee!),
-                  if (order.discount > 0) _SummaryRow(label: 'Remise', amount: -order.discount),
+                    _SummaryRow(label: context.tr('Commission client'), amount: order.financials!.serviceFee!),
+                  if (order.discount > 0) _SummaryRow(label: context.tr('Remise'), amount: -order.discount),
                   const SizedBox(height: 4),
-                  _SummaryRow(label: 'Total', amount: order.total, emphasized: true),
+                  _SummaryRow(label: context.tr('Total'), amount: order.total, emphasized: true),
                 ],
               ),
             ),
@@ -517,14 +518,14 @@ class _VendorOrderDetailScreenState extends State<VendorOrderDetailScreen> {
             Card(
               child: ListTile(
                 leading: const Icon(Icons.location_on_outlined),
-                title: const Text('Adresse de livraison'),
+                title: Text(context.tr('Adresse de livraison')),
                 subtitle: Text(order.deliveryAddress!),
               ),
             ),
           ],
           const SizedBox(height: 24),
           AppButton(
-            label: 'Rafraîchir',
+            label: context.tr('Rafraîchir'),
             variant: AppButtonVariant.outline,
             icon: Icons.refresh,
             onPressed: _actionLoading ? null : _load,
@@ -532,32 +533,32 @@ class _VendorOrderDetailScreenState extends State<VendorOrderDetailScreen> {
           if (order.canVendorAccept || order.canVendorRefuse || order.canVendorPrepare || order.canVendorReady || order.canCancel) ...[
             const SizedBox(height: 12),
             if (order.canVendorAccept) ...[
-              AppButton(label: 'Accepter la commande', icon: Icons.check, onPressed: _actionLoading ? null : _accept, loading: _actionLoading),
+              AppButton(label: context.tr('Accepter la commande'), icon: Icons.check, onPressed: _actionLoading ? null : _accept, loading: _actionLoading),
               const SizedBox(height: 8),
             ],
             if (order.canVendorRefuse)
               AppButton(
-                label: 'Refuser la commande',
+                label: context.tr('Refuser la commande'),
                 icon: Icons.close,
                 variant: AppButtonVariant.danger,
                 onPressed: _actionLoading ? null : _refuse,
               ),
             if (order.canVendorPrepare) ...[
               AppButton(
-                label: 'Commencer la préparation',
+                label: context.tr('Commencer la préparation'),
                 icon: Icons.restaurant_outlined,
                 onPressed: _actionLoading ? null : _prepare,
                 loading: _actionLoading,
               ),
             ],
             if (order.canVendorReady) ...[
-              AppButton(label: 'Marquer prête', icon: Icons.check_circle_outline, onPressed: _actionLoading ? null : _ready, loading: _actionLoading),
+              AppButton(label: context.tr('Marquer prête'), icon: Icons.check_circle_outline, onPressed: _actionLoading ? null : _ready, loading: _actionLoading),
               const SizedBox(height: 8),
             ],
             if (order.canCancel) ...[
               const SizedBox(height: 8),
               AppButton(
-                label: 'Annuler la commande',
+                label: context.tr('Annuler la commande'),
                 icon: Icons.cancel_outlined,
                 variant: AppButtonVariant.danger,
                 onPressed: _actionLoading ? null : _cancel,

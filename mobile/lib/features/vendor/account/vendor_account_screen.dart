@@ -20,6 +20,7 @@ import '../../../shared/widgets/food_decor.dart';
 import '../../../shared/widgets/profile_widgets.dart';
 import '../../../shared/widgets/status_badge.dart';
 import '../../../shared/widgets/state_widgets.dart';
+import '../../../core/i18n/app_localizations.dart';
 
 /// Compte vendeur (J157) : carte verte, statistiques boutique, menu « Mon
 /// compte » et sections routées — même langage visuel que le profil client
@@ -155,8 +156,8 @@ class _VendorAccountScreenState extends State<VendorAccountScreen> {
   Future<void> _confirmLogout() async {
     final confirmed = await showConfirmDialog(
       context,
-      title: 'Déconnexion',
-      message: 'Voulez-vous vraiment vous déconnecter ?',
+      title: context.tr('Déconnexion'),
+      message: context.tr('Voulez-vous vraiment vous déconnecter ?'),
       confirmLabel: 'Déconnecter',
     );
     if (!confirmed || !mounted) {
@@ -326,7 +327,7 @@ class _VendorAccountScreenState extends State<VendorAccountScreen> {
         tint: AppColors.greenLight,
         accent: AppColors.green,
         value: _statsLoaded ? '${_products.length}' : '…',
-        label: 'Produits',
+        label: context.tr('Produits'),
         onTap: () => widget.onSelectTab(1),
       ),
       ProfileStat(
@@ -334,7 +335,7 @@ class _VendorAccountScreenState extends State<VendorAccountScreen> {
         tint: AppColors.orangeLight,
         accent: AppColors.orange,
         value: _statsLoaded ? '${_orders.length}' : '…',
-        label: 'Commandes',
+        label: context.tr('Commandes'),
         onTap: () => widget.onSelectTab(2),
       ),
       ProfileStat(
@@ -342,7 +343,7 @@ class _VendorAccountScreenState extends State<VendorAccountScreen> {
         tint: AppColors.goldLight,
         accent: AppColors.goldDark,
         value: _statsLoaded ? '$_pendingOrders' : '…',
-        label: 'En attente',
+        label: context.tr('En attente'),
         onTap: () => widget.onSelectTab(2),
       ),
       ProfileStat(
@@ -353,7 +354,7 @@ class _VendorAccountScreenState extends State<VendorAccountScreen> {
             ? formatAmount(_revenue, showSymbol: false).trim()
             : '…',
         suffix: 'FCFA',
-        label: 'Revenus',
+        label: context.tr('Revenus'),
         onTap: () => widget.onSelectTab(0),
       ),
     ];
@@ -365,64 +366,64 @@ class _VendorAccountScreenState extends State<VendorAccountScreen> {
         icon: Icons.insights_outlined,
         tint: AppColors.greenLight,
         accent: AppColors.green,
-        title: 'Mes statistiques',
-        subtitle: 'Ventes, commandes et meilleurs produits...',
+        title: context.tr('Mes statistiques'),
+        subtitle: context.tr('Ventes, commandes et meilleurs produits...'),
         onTap: () => _openRoute('/vendor/stats'),
       ),
       ProfileMenuEntry(
         icon: Icons.person_outline,
         tint: AppColors.greenLight,
         accent: AppColors.green,
-        title: 'Informations personnelles',
-        subtitle: 'Nom, e-mail, photo...',
+        title: context.tr('Informations personnelles'),
+        subtitle: context.tr('Nom, e-mail, photo...'),
         onTap: () => _openRoute('/vendor/profile/edit'),
       ),
       ProfileMenuEntry(
         icon: Icons.tune_outlined,
         tint: AppColors.orangeLight,
         accent: AppColors.orange,
-        title: 'Préférences boutique',
-        subtitle: 'Reversement, notifications, langue...',
+        title: context.tr('Préférences boutique'),
+        subtitle: context.tr('Reversement, notifications, langue...'),
         onTap: () => _openRoute('/vendor/settings'),
       ),
       ProfileMenuEntry(
         icon: Icons.inventory_2_outlined,
         tint: AppColors.orangeLight,
         accent: AppColors.orange,
-        title: 'Mes colis',
-        subtitle: 'Envoyer et suivre vos expéditions...',
+        title: context.tr('Mes colis'),
+        subtitle: context.tr('Envoyer et suivre vos expéditions...'),
         onTap: () => _openRoute('/vendor/parcels'),
       ),
       ProfileMenuEntry(
         icon: Icons.delivery_dining_outlined,
         tint: AppColors.greenLight,
         accent: AppColors.green,
-        title: 'Mes livreurs',
-        subtitle: 'Livreurs favoris pour vos commandes et colis...',
+        title: context.tr('Mes livreurs'),
+        subtitle: context.tr('Livreurs favoris pour vos commandes et colis...'),
         onTap: () => _openRoute('/vendor/favorite-drivers'),
       ),
       ProfileMenuEntry(
         icon: Icons.notifications_none,
         tint: AppColors.orangeLight,
         accent: AppColors.orange,
-        title: 'Notifications',
-        subtitle: 'Commandes, alertes, offres...',
+        title: context.tr('Notifications'),
+        subtitle: context.tr('Commandes, alertes, offres...'),
         onTap: () => _openRoute('/vendor/notifications'),
       ),
       ProfileMenuEntry(
         icon: Icons.shield_outlined,
         tint: AppColors.greenLight,
         accent: AppColors.green,
-        title: 'Sécurité',
-        subtitle: 'Mot de passe, appareils...',
+        title: context.tr('Sécurité'),
+        subtitle: context.tr('Mot de passe, appareils...'),
         onTap: () => _openRoute('/vendor/security'),
       ),
       ProfileMenuEntry(
         icon: Icons.help_outline,
         tint: AppColors.orangeLight,
         accent: AppColors.orange,
-        title: 'Aide et support',
-        subtitle: 'Questions fréquentes, nous contacter...',
+        title: context.tr('Aide et support'),
+        subtitle: context.tr('Questions fréquentes, nous contacter...'),
         onTap: () => _openRoute('/vendor/complaints'),
       ),
     ];
@@ -504,8 +505,8 @@ class _VendorAccountScreenState extends State<VendorAccountScreen> {
         Text('Photo de la boutique', style: theme.textTheme.titleSmall),
         const SizedBox(height: 8),
         _buildMediaTile(
-          title: 'Logo',
-          subtitle: 'Le logo est affiché dans le catalogue',
+          title: context.tr('Logo'),
+          subtitle: context.tr('Le logo est affiché dans le catalogue'),
           bytes: _logoBytes,
           remoteUrl: logoUrl,
           isLoading: _uploadingLogo,
@@ -513,8 +514,8 @@ class _VendorAccountScreenState extends State<VendorAccountScreen> {
         ),
         const SizedBox(height: 12),
         _buildMediaTile(
-          title: 'Couverture',
-          subtitle: 'La photo de couverture en haut de la fiche boutique',
+          title: context.tr('Couverture'),
+          subtitle: context.tr('La photo de couverture en haut de la fiche boutique'),
           bytes: _coverBytes,
           remoteUrl: coverUrl,
           isLoading: _uploadingCover,
@@ -555,7 +556,7 @@ class _VendorAccountScreenState extends State<VendorAccountScreen> {
                 ),
                 if (hasImage) const SizedBox(width: 8),
                 if (hasImage)
-                  TextButton(onPressed: onPick, child: const Text('Modifier')),
+                  TextButton(onPressed: onPick, child: Text(context.tr('Modifier'))),
               ],
             ),
             Text(subtitle, style: theme.textTheme.bodySmall),

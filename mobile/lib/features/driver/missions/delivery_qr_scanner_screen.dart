@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../shared/widgets/language_menu_button.dart';
+import '../../../core/i18n/app_localizations.dart';
 
 class DeliveryQrScannerScreen extends StatefulWidget {
   const DeliveryQrScannerScreen({super.key});
@@ -50,9 +52,10 @@ class _DeliveryQrScannerScreenState extends State<DeliveryQrScannerScreen> {
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
-        title: const Text('Scanner le QR du client'),
+        title: Text(context.tr('Scanner le QR du client')),
         foregroundColor: Colors.white,
         backgroundColor: Colors.black,
+        actions: const [LanguageMenuButton(), SizedBox(width: 8)],
       ),
       body: Stack(
         fit: StackFit.expand,

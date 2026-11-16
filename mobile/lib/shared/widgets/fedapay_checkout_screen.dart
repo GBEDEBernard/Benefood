@@ -3,6 +3,7 @@ import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 
 import '../../core/data/marketplace_api.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/i18n/app_localizations.dart';
 
 /// Ouvre la page de paiement hébergée FedaPay et renvoie `true` si la
 /// transaction est confirmée.
@@ -86,7 +87,7 @@ class _FedaPayCheckoutScreenState extends State<FedaPayCheckoutScreen> {
         title: Text(widget.title),
         leading: IconButton(
           icon: const Icon(Icons.close),
-          tooltip: 'Fermer',
+          tooltip: context.tr('Fermer'),
           onPressed: () => _resolve(verify: true),
         ),
       ),
@@ -132,7 +133,7 @@ class _FedaPayCheckoutScreenState extends State<FedaPayCheckoutScreen> {
               padding: const EdgeInsets.all(12),
               child: TextButton(
                 onPressed: () => _resolve(verify: true),
-                child: const Text('J’ai terminé le paiement'),
+                child: Text(context.tr('J’ai terminé le paiement')),
               ),
             ),
           ),

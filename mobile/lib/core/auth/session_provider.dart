@@ -217,6 +217,18 @@ class SessionProvider extends ChangeNotifier {
     }
   }
 
+  /// Met à jour la langue du profil en cache après un changement depuis le
+  /// sélecteur d'en-tête (la requête `PATCH /me` est faite par l'appelant).
+  Future<void> applyLocale(String locale) async {
+    final user = _user;
+    if (user == null || user.locale == locale) {
+      return;
+    }
+    _user = user.copyWith(locale: locale);
+    await _persist();
+    notifyListeners();
+  }
+
   Future<void> logout() async {
     try {
       await _api.post('/auth/logout');

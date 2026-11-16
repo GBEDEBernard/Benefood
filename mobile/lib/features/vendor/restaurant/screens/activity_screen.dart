@@ -8,6 +8,7 @@ import '../../../../shared/widgets/beninfood_header.dart';
 import '../../../../shared/widgets/state_widgets.dart';
 import '../restaurant_palette.dart';
 import '../screens/order_details_screen.dart';
+import '../../../../core/i18n/app_localizations.dart';
 
 /// Historique des activités (J21 §10) : chronologie des événements du compte,
 /// des documents, des commandes et des produits.

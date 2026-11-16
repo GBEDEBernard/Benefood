@@ -7,6 +7,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_dimens.dart';
 import '../../../shared/widgets/beninfood_header.dart';
 import '../../../shared/widgets/feedback_widgets.dart';
+import '../../../core/i18n/app_localizations.dart';
 
 /// Préférences de la boutique (J21 §3.6) : mode de reversement, préférences de
 /// notifications et langue de l'espace vendeur.
@@ -96,7 +97,7 @@ class _VendorSettingsScreenState extends State<VendorSettingsScreen> {
   @override
   Widget build(BuildContext context) {
     return BeninfoodPageScaffold(
-      title: 'Préférences boutique',
+      title: context.tr('Préférences boutique'),
       api: widget.marketplace,
       audience: NotificationAudience.vendor,
       backgroundColor: AppColors.background,
@@ -115,7 +116,7 @@ class _VendorSettingsScreenState extends State<VendorSettingsScreen> {
           children: [
             Text(_error!, textAlign: TextAlign.center),
             const SizedBox(height: 12),
-            FilledButton(onPressed: _load, child: const Text('Réessayer')),
+            FilledButton(onPressed: _load, child: Text(context.tr('Réessayer'))),
           ],
         ),
       );
@@ -164,8 +165,8 @@ class _VendorSettingsScreenState extends State<VendorSettingsScreen> {
             value: _autoAccept,
             activeTrackColor: AppColors.green,
             onChanged: (v) => setState(() => _autoAccept = v),
-            title: const Text('Acceptation automatique'),
-            subtitle: const Text('Les commandes payées sont acceptées sans action manuelle'),
+            title: Text(context.tr('Acceptation automatique')),
+            subtitle: Text(context.tr('Les commandes payées sont acceptées sans action manuelle')),
           ),
         ),
         const SizedBox(height: AppDimens.lg),
@@ -177,19 +178,19 @@ class _VendorSettingsScreenState extends State<VendorSettingsScreen> {
                 value: _notifyNewOrders,
                 activeTrackColor: AppColors.green,
                 onChanged: (v) => setState(() => _notifyNewOrders = v),
-                title: const Text('Nouvelles commandes'),
+                title: Text(context.tr('Nouvelles commandes')),
               ),
               SwitchListTile(
                 value: _notifyCancellations,
                 activeTrackColor: AppColors.green,
                 onChanged: (v) => setState(() => _notifyCancellations = v),
-                title: const Text('Annulations'),
+                title: Text(context.tr('Annulations')),
               ),
               SwitchListTile(
                 value: _notifyPayments,
                 activeTrackColor: AppColors.green,
                 onChanged: (v) => setState(() => _notifyPayments = v),
-                title: const Text('Paiements et reversements'),
+                title: Text(context.tr('Paiements et reversements')),
               ),
             ],
           ),
@@ -212,6 +213,11 @@ class _VendorSettingsScreenState extends State<VendorSettingsScreen> {
                   activeColor: AppColors.green,
                   title: Text('English'),
                 ),
+                RadioListTile<String>(
+                  value: 'fon',
+                  activeColor: AppColors.green,
+                  title: Text('Fɔngbè'),
+                ),
               ],
             ),
           ),
@@ -229,7 +235,7 @@ class _VendorSettingsScreenState extends State<VendorSettingsScreen> {
                   height: 22,
                   child: CircularProgressIndicator(strokeWidth: 2.4, color: Colors.white),
                 )
-              : const Text('Enregistrer les préférences'),
+              : Text(context.tr('Enregistrer les préférences')),
         ),
       ],
     );

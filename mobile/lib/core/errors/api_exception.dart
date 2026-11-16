@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
+import '../i18n/app_localizations.dart';
 
 /// Erreur API normalisée (J24, §4).
 ///

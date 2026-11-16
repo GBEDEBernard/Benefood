@@ -15,6 +15,7 @@ import '../../../shared/widgets/stat_charts.dart';
 import '../../../shared/widgets/state_widgets.dart';
 import '../../vendor/restaurant/restaurant_palette.dart';
 import '../../wallet/widgets/payout_request_sheet.dart';
+import '../../../core/i18n/app_localizations.dart';
 
 abstract final class _WalletColors {
   static const Color forest = Color(0xFF0B3320);
@@ -1292,7 +1293,7 @@ class _CurrencyWidget extends StatelessWidget {
               Expanded(
                 child: _BanknoteCard(
                   code: 'FCFA',
-                  label: 'Solde disponible',
+                  label: context.tr('Solde disponible'),
                   amount: hidden
                       ? '•••'
                       : formatAmount(available, showSymbol: false),
@@ -1309,7 +1310,7 @@ class _CurrencyWidget extends StatelessWidget {
               Expanded(
                 child: _BanknoteCard(
                   code: 'EUR',
-                  label: 'Équivalent indicatif',
+                  label: context.tr('Équivalent indicatif'),
                   amount: hidden
                       ? '•••'
                       : formatEuroFromXof(available, rate: rate),
@@ -1540,7 +1541,7 @@ class _StatsGrid extends StatelessWidget {
             icon: Icons.hourglass_bottom_rounded,
             tint: _WalletColors.orangeWash,
             accent: RestaurantPalette.orange,
-            label: 'En attente',
+            label: context.tr('En attente'),
             value: formatAmount(pending, showSymbol: false),
             caption: 'Non encaissées',
           ),
@@ -1551,7 +1552,7 @@ class _StatsGrid extends StatelessWidget {
             icon: Icons.percent_rounded,
             tint: _WalletColors.goldWash,
             accent: _WalletColors.goldDark,
-            label: 'Commissions',
+            label: context.tr('Commissions'),
             value: formatAmount(commissionTotal, showSymbol: false),
             caption: '$commissionRate % prélevé',
           ),
@@ -1562,7 +1563,7 @@ class _StatsGrid extends StatelessWidget {
             icon: Icons.south_west_rounded,
             tint: _WalletColors.greenWash,
             accent: RestaurantPalette.success,
-            label: 'Retrait min.',
+            label: context.tr('Retrait min.'),
             value: formatAmount(minPayout, showSymbol: false),
             caption: 'FCFA',
           ),
@@ -2279,22 +2280,22 @@ class _HelpSheet extends StatelessWidget {
           const SizedBox(height: 12),
           _HelpRow(
             icon: Icons.south_west_rounded,
-            title: 'Retrait minimum',
+            title: context.tr('Retrait minimum'),
             value: '${formatAmount(minPayout)} par demande',
           ),
           _HelpRow(
             icon: Icons.percent_rounded,
-            title: 'Commission plateforme',
+            title: context.tr('Commission plateforme'),
             value: '$commissionRate % prélevée sur le prix de livraison',
           ),
           _HelpRow(
             icon: Icons.payments_rounded,
-            title: 'Flottant espèces',
+            title: context.tr('Flottant espèces'),
             value: 'À recharger pour honorer les commandes cash',
           ),
           _HelpRow(
             icon: Icons.account_balance_wallet_rounded,
-            title: 'Solde disponible',
+            title: context.tr('Solde disponible'),
             value: 'Montant retirable vers votre Mobile Money',
           ),
         ],
@@ -2421,11 +2422,11 @@ class _FloatSheetState extends State<_FloatSheet> {
             autofocus: true,
             style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
             decoration: InputDecoration(
-              labelText: 'Montant (F CFA)',
+              labelText: context.tr('Montant (F CFA)'),
               prefixIcon: const Icon(Icons.payments_outlined),
               suffixText: 'FCFA',
               errorText: _error,
-              hintText: 'Minimum 100',
+              hintText: context.tr('Minimum 100'),
               filled: true,
               fillColor: const Color(0xFFF8F9FA),
               border: OutlineInputBorder(

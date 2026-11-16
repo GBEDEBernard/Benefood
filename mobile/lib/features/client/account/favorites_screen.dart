@@ -10,6 +10,7 @@ import '../../../core/utils/formatters.dart';
 import '../../../shared/widgets/app_network_image.dart';
 import '../../../shared/widgets/beninfood_header.dart';
 import '../../../shared/widgets/feedback_widgets.dart';
+import '../../../core/i18n/app_localizations.dart';
 
 /// Favoris du client : produits enregistrés, retrait et ouverture fiche.
 class FavoritesScreen extends StatefulWidget {
@@ -66,7 +67,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
   @override
   Widget build(BuildContext context) {
     return BeninfoodPageScaffold(
-      title: 'Mes favoris',
+      title: context.tr('Mes favoris'),
       api: widget.marketplace,
       backgroundColor: AppColors.background,
       body: FutureBuilder<List<Map<String, dynamic>>>(
@@ -89,7 +90,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                     const SizedBox(height: 12),
                     FilledButton.tonal(
                       onPressed: _reload,
-                      child: const Text('Réessayer'),
+                      child: Text(context.tr('Réessayer')),
                     ),
                   ],
                 ),
@@ -218,7 +219,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                       ),
                     ),
                     trailing: IconButton(
-                      tooltip: 'Retirer des favoris',
+                      tooltip: context.tr('Retirer des favoris'),
                       onPressed: () => _remove(item),
                       icon: const Icon(Icons.favorite, color: AppColors.red),
                     ),

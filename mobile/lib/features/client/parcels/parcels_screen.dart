@@ -13,6 +13,7 @@ import '../../../shared/widgets/profile_widgets.dart';
 import '../../../shared/widgets/status_badge.dart';
 import '../../../shared/widgets/state_widgets.dart';
 import '../../../shared/widgets/timestamp_line.dart';
+import '../../../core/i18n/app_localizations.dart';
 
 /// Mes colis — expéditions de l'espace courant (cahier v1.0, phase 3).
 ///
@@ -91,7 +92,7 @@ class _ParcelsScreenState extends State<ParcelsScreen> {
           await _load();
         },
         icon: const Icon(Icons.add),
-        label: const Text('Envoyer un colis'),
+        label: Text(context.tr('Envoyer un colis')),
       ),
       body: Column(
         children: [
@@ -219,14 +220,14 @@ class _ParcelCard extends StatelessWidget {
                       children: [
                         TimestampLine(
                           icon: Icons.event_outlined,
-                          label: 'Créé le',
+                          label: context.tr('Créé le'),
                           iso: parcel.createdAt,
                         ),
                         if (parcel.payment?.paidAt != null) ...[
                           const SizedBox(height: 3),
                           TimestampLine(
                             icon: Icons.payments_outlined,
-                            label: 'Payé le',
+                            label: context.tr('Payé le'),
                             iso: parcel.payment?.paidAt,
                           ),
                         ],

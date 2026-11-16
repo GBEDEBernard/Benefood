@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/theme/app_colors.dart';
+import '../../core/i18n/app_localizations.dart';
 
 /// Ouvre le composeur téléphonique sur [phone].
 ///
@@ -52,7 +53,7 @@ class CallButton extends StatelessWidget {
     void showNoNumber() {
       messenger.showSnackBar(
         SnackBar(
-          content: const Text('Numéro de téléphone indisponible.'),
+          content: Text(context.tr('Numéro de téléphone indisponible.')),
           behavior: SnackBarBehavior.floating,
           backgroundColor: AppColors.text,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),

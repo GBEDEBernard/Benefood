@@ -4,6 +4,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/app_button.dart';
 import '../../../../shared/widgets/brand_logo.dart';
 import '../widgets/step_dots.dart';
+import '../../../../core/i18n/app_localizations.dart';
 
 /// Écran d'accueil du parcours vendeur : illustration, promesses et bouton
 /// « Commencer » (avec lien « Passer » en haut à droite).
@@ -99,7 +100,7 @@ class WelcomeStep extends StatelessWidget {
                   const SizedBox(height: 12),
                 ],
                 const SizedBox(height: 10),
-                AppButton(label: 'Commencer', onPressed: onStart),
+                AppButton(label: context.tr('Commencer'), onPressed: onStart),
                 const SizedBox(height: 18),
                 const StepDots(activeIndex: 0),
                 const SizedBox(height: 8),

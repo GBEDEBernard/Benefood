@@ -16,6 +16,7 @@ import '../../shared/models/product.dart';
 import '../../shared/models/route_plan.dart';
 import '../../shared/models/user.dart';
 import '../../shared/models/vendor.dart';
+import '../i18n/app_language.dart';
 
 /// Extraction de la valeur `data` d'une enveloppe API.
 Map<String, dynamic>? _dataObject(Map<String, dynamic> response) {
@@ -932,17 +933,24 @@ class MarketplaceApi {
     );
   }
 
+  /// Référentiel public des langues (`GET /languages`).
+  Future<List<AppLanguage>> supportedLanguages() async {
+    final response = await _api.get('/languages');
+    return _dataList(response).map(AppLanguage.fromJson).toList();
+  }
+
   Future<User> me() async {
     final response = await _api.get('/me');
     return User.fromJson(_dataObject(response) ?? {});
   }
 
-  Future<void> updateMe({String? name, String? email}) async {
+  Future<void> updateMe({String? name, String? email, String? locale}) async {
     await _api.patch(
       '/me',
       body: {
         if (name != null && name.isNotEmpty) 'name': name,
         if (email != null) 'email': email,
+        'locale': ?locale,
       },
     );
   }

@@ -14,6 +14,7 @@ import '../../../shared/widgets/food_decor.dart';
 import '../../../shared/widgets/stat_charts.dart';
 import '../../../shared/widgets/state_widgets.dart';
 import '../widgets/driver_bottom_bar.dart';
+import '../../../core/i18n/app_localizations.dart';
 
 const _ink = Color(0xFF18231F);
 const _muted = Color(0xFF6B7670);
@@ -297,7 +298,7 @@ class _DriverStatisticsScreenState extends State<DriverStatisticsScreen>
               Expanded(
                 child: _MiniKpi(
                   icon: Icons.delivery_dining_outlined,
-                  label: 'Missions',
+                  label: context.tr('Missions'),
                   value: _int('missions_completed').toString(),
                   animatedValue: _int('missions_completed'),
                   valueFormatter: (value) => value.round().toString(),
@@ -310,7 +311,7 @@ class _DriverStatisticsScreenState extends State<DriverStatisticsScreen>
               Expanded(
                 child: _MiniKpi(
                   icon: Icons.route_outlined,
-                  label: 'Distance colis',
+                  label: context.tr('Distance colis'),
                   value: distance <= 0 ? '—' : formatDistance(distance),
                   animatedValue: distance > 0 ? distance : null,
                   valueFormatter: (value) => formatDistance(value.toDouble()),
@@ -322,7 +323,7 @@ class _DriverStatisticsScreenState extends State<DriverStatisticsScreen>
               Expanded(
                 child: _MiniKpi(
                   icon: Icons.star_rounded,
-                  label: 'Note',
+                  label: context.tr('Note'),
                   value: ratingAvg == null
                       ? '—'
                       : '${'$ratingAvg'.replaceAll('.', ',')} / 5',
@@ -337,13 +338,13 @@ class _DriverStatisticsScreenState extends State<DriverStatisticsScreen>
           ),
           const SizedBox(height: AppDimens.lg),
           _Panel(
-            title: 'Performance',
+            title: context.tr('Performance'),
             child: Column(
               children: [
                 _MetricRow(
                   icon: Icons.check_circle_outline,
                   color: AppColors.green,
-                  label: 'Missions terminées',
+                  label: context.tr('Missions terminées'),
                   value: _int('missions_completed').toString(),
                   hint:
                       '${_int('orders_delivered')} commande(s) · ${_int('parcels_delivered')} colis',
@@ -352,28 +353,28 @@ class _DriverStatisticsScreenState extends State<DriverStatisticsScreen>
                 _MetricRow(
                   icon: Icons.trending_up_rounded,
                   color: AppColors.blue,
-                  label: 'Taux de réussite',
+                  label: context.tr('Taux de réussite'),
                   value: '${_kpis['completion_rate'] ?? 0} %',
                 ),
                 const _RowDivider(),
                 _MetricRow(
                   icon: Icons.cancel_outlined,
                   color: AppColors.red,
-                  label: 'Missions annulées',
+                  label: context.tr('Missions annulées'),
                   value: _int('missions_cancelled').toString(),
                 ),
                 const _RowDivider(),
                 _MetricRow(
                   icon: Icons.payments_outlined,
                   color: AppColors.goldDark,
-                  label: 'Gain moyen / mission',
+                  label: context.tr('Gain moyen / mission'),
                   value: formatAmount(_int('average_per_mission')),
                 ),
                 const _RowDivider(),
                 _MetricRow(
                   icon: Icons.star_outline_rounded,
                   color: AppColors.goldDark,
-                  label: 'Avis reçus',
+                  label: context.tr('Avis reçus'),
                   value: '${rating['count'] ?? 0}',
                   hint: ratingAvg == null
                       ? 'Pas encore de note'
@@ -384,14 +385,14 @@ class _DriverStatisticsScreenState extends State<DriverStatisticsScreen>
           ),
           const SizedBox(height: AppDimens.lg),
           _Panel(
-            title: 'Répartition des missions',
-            subtitle: 'Commandes et colis livrés sur la période',
+            title: context.tr('Répartition des missions'),
+            subtitle: context.tr('Commandes et colis livrés sur la période'),
             child: _MissionsBreakdown(entries: _breakdown),
           ),
           const SizedBox(height: AppDimens.lg),
           _Panel(
-            title: 'Dernières livraisons',
-            subtitle: 'Vos 5 dernières missions terminées',
+            title: context.tr('Dernières livraisons'),
+            subtitle: context.tr('Vos 5 dernières missions terminées'),
             child: _RecentMissions(missions: _recent),
           ),
         ],
@@ -519,7 +520,7 @@ class _EarningsCard extends StatelessWidget {
                 Expanded(
                   child: _SplitStat(
                     color: AppColors.orangeDark,
-                    label: 'Commandes',
+                    label: context.tr('Commandes'),
                     amount: ordersEarnings,
                   ),
                 ),
@@ -532,7 +533,7 @@ class _EarningsCard extends StatelessWidget {
                 Expanded(
                   child: _SplitStat(
                     color: AppColors.green,
-                    label: 'Colis',
+                    label: context.tr('Colis'),
                     amount: parcelsEarnings,
                   ),
                 ),
@@ -837,7 +838,7 @@ class _MissionsBreakdown extends StatelessWidget {
             Expanded(
               child: _BreakdownTile(
                 color: AppColors.orange,
-                label: 'Commandes',
+                label: context.tr('Commandes'),
                 count: rows
                     .where((row) => row.type == 'orders')
                     .fold<int>(0, (sum, row) => sum + row.count),
@@ -850,7 +851,7 @@ class _MissionsBreakdown extends StatelessWidget {
             Expanded(
               child: _BreakdownTile(
                 color: AppColors.green,
-                label: 'Colis',
+                label: context.tr('Colis'),
                 count: rows
                     .where((row) => row.type == 'parcels')
                     .fold<int>(0, (sum, row) => sum + row.count),

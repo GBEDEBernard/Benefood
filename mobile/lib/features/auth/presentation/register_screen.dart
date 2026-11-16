@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/auth/session_provider.dart';
 import '../../../core/errors/api_exception.dart';
+import '../../../core/i18n/app_localizations.dart';
 import '../../../shared/widgets/auth_kit.dart';
 import '../../../shared/widgets/feedback_widgets.dart';
 
@@ -89,8 +90,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
   @override
   Widget build(BuildContext context) {
     return AuthScaffold(
-      title: 'Créer un compte',
-      subtitle: 'Rejoignez Béninfood en quelques secondes.',
+      title: context.tr('Créer un compte'),
+      subtitle: context.tr('Rejoignez Béninfood en quelques secondes.'),
       child: AutofillGroup(
         child: Form(
           key: _formKey,
@@ -99,19 +100,21 @@ class _RegisterScreenState extends State<RegisterScreen> {
             children: [
               AuthField(
                 controller: _name,
-                label: 'Nom complet',
-                hint: 'Votre nom et prénom',
+                label: context.tr('Nom complet'),
+                hint: context.tr('Votre nom et prénom'),
                 icon: Icons.badge_outlined,
                 textCapitalization: TextCapitalization.words,
                 textInputAction: TextInputAction.next,
                 autofillHints: const [AutofillHints.name],
                 validator: (v) =>
-                    (v == null || v.trim().isEmpty) ? 'Requis' : null,
+                    (v == null || v.trim().isEmpty)
+                    ? context.tr('Requis')
+                    : null,
               ),
               const SizedBox(height: 16),
               AuthField(
                 controller: _phone,
-                label: 'Téléphone',
+                label: context.tr('Téléphone'),
                 hint: '+229 XX XX XX XX',
                 icon: Icons.phone_outlined,
                 keyboardType: TextInputType.phone,
@@ -122,16 +125,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 ],
                 validator: (v) {
                   if (v == null || v.trim().isEmpty) {
-                    return 'Requis';
+                    return context.tr('Requis');
                   }
                   final digits = v.replaceAll(RegExp(r'\D'), '');
-                  return digits.length >= 8 ? null : 'Numéro invalide';
+                  return digits.length >= 8
+                      ? null
+                      : context.tr('Numéro invalide');
                 },
               ),
               const SizedBox(height: 16),
               AuthField(
                 controller: _email,
-                label: 'Email',
+                label: context.tr('Email'),
                 hint: 'nom@exemple.com',
                 icon: Icons.mail_outline_rounded,
                 keyboardType: TextInputType.emailAddress,
@@ -142,42 +147,44 @@ class _RegisterScreenState extends State<RegisterScreen> {
               const SizedBox(height: 16),
               AuthField(
                 controller: _password,
-                label: 'Mot de passe',
-                hint: 'Au moins 8 caractères',
+                label: context.tr('Mot de passe'),
+                hint: context.tr('Au moins 8 caractères'),
                 icon: Icons.lock_outline_rounded,
                 isPassword: true,
                 textInputAction: TextInputAction.next,
                 autofillHints: const [AutofillHints.newPassword],
                 validator: (v) => (v == null || v.length < 8)
-                    ? 'Au moins 8 caractères'
+                    ? context.tr('Au moins 8 caractères')
                     : null,
               ),
               _PasswordMeter(controller: _password),
               const SizedBox(height: 16),
               AuthField(
                 controller: _confirm,
-                label: 'Confirmer le mot de passe',
-                hint: 'Retapez votre mot de passe',
+                label: context.tr('Confirmer le mot de passe'),
+                hint: context.tr('Retapez votre mot de passe'),
                 icon: Icons.lock_outline_rounded,
                 isPassword: true,
                 textInputAction: TextInputAction.done,
                 autofillHints: const [AutofillHints.newPassword],
                 onSubmitted: (_) => _submit(),
                 validator: (v) =>
-                    v == _password.text ? null : 'Les mots de passe diffèrent',
+                    v == _password.text
+                    ? null
+                    : context.tr('Les mots de passe diffèrent'),
               ),
               const SizedBox(height: 28),
               AuthPrimaryButton(
-                label: 'Créer mon compte',
+                label: context.tr('Créer mon compte'),
                 icon: Icons.person_add_alt_1_rounded,
                 loading: _loading,
                 onPressed: _submit,
               ),
               const SizedBox(height: 14),
-              const Text(
-                'Vous choisirez ensuite le type de compte à créer.',
+              Text(
+                context.tr('Vous choisirez ensuite le type de compte à créer.'),
                 textAlign: TextAlign.center,
-                style: TextStyle(
+                style: const TextStyle(
                   fontSize: 13,
                   color: AuthColors.muted,
                   height: 1.3,

@@ -6,6 +6,7 @@ import '../../../../shared/widgets/notification_bell.dart';
 import '../../../../shared/models/vendor.dart';
 import '../../../../shared/widgets/app_network_image.dart';
 import '../../../../shared/widgets/food_decor.dart';
+import '../../../../shared/widgets/language_menu_button.dart';
 
 import '../restaurant_palette.dart';
 import '../widgets/status_chip.dart';
@@ -13,6 +14,7 @@ import 'shop_address_edit_screen.dart';
 import 'shop_hours_edit_screen.dart';
 import 'shop_info_edit_screen.dart';
 import 'shop_zones_edit_screen.dart';
+import '../../../../core/i18n/app_localizations.dart';
 
 /// Écran « Ma boutique » (mobile) : carte de profil et réglages entièrement
 /// éditables. Les valeurs arrivent de l'API ; chaque réglage ouvre un
@@ -142,7 +144,7 @@ class ShopScreen extends StatelessWidget {
               IconButton(
                 onPressed: onBack,
                 icon: const Icon(Icons.arrow_back, color: RestaurantPalette.darkText),
-                tooltip: 'Retour',
+                tooltip: context.tr('Retour'),
               ),
               const Expanded(
                 child: Text(
@@ -163,6 +165,8 @@ class ShopScreen extends StatelessWidget {
                 ),
                 const SizedBox(width: 4),
               ],
+              const LanguageMenuButton(),
+              const SizedBox(width: 4),
               FilledButton.icon(
                 onPressed: () => _openEditor(
                   context,
@@ -172,7 +176,7 @@ class ShopScreen extends StatelessWidget {
                   ),
                 ),
                 icon: const Icon(Icons.edit_outlined, size: 16),
-                label: const Text('Modifier'),
+                label: Text(context.tr('Modifier')),
                 style: FilledButton.styleFrom(
                   backgroundColor: RestaurantPalette.orange,
                   foregroundColor: RestaurantPalette.white,
@@ -276,35 +280,35 @@ class ShopScreen extends StatelessWidget {
         children: [
           _SettingTile(
             icon: Icons.info_outline,
-            label: 'Informations',
+            label: context.tr('Informations'),
             subtitle: _vendor.businessName,
             onTap: () => _openEditor(context, ShopInfoEditScreen(vendor: _vendor, marketplace: marketplace)),
           ),
           const _SettingDivider(),
           _SettingTile(
             icon: Icons.map_outlined,
-            label: 'Adresse',
+            label: context.tr('Adresse'),
             subtitle: _vendor.city ?? 'Définir la ville',
             onTap: () => _openEditor(context, ShopAddressEditScreen(vendor: _vendor, marketplace: marketplace)),
           ),
           const _SettingDivider(),
           _SettingTile(
             icon: Icons.schedule_outlined,
-            label: 'Horaires d’ouverture',
+            label: context.tr('Horaires d’ouverture'),
             subtitle: '$_hourCount jours ouverts par semaine',
             onTap: () => _openHoursEditor(context),
           ),
           const _SettingDivider(),
           _SettingTile(
             icon: Icons.location_city_outlined,
-            label: 'Zones desservies',
-            subtitle: 'Définir les quartiers livrés',
+            label: context.tr('Zones desservies'),
+            subtitle: context.tr('Définir les quartiers livrés'),
             onTap: () => _openEditor(context, ShopZonesEditScreen(marketplace: marketplace)),
           ),
           const _SettingDivider(),
           _SettingTile(
             icon: Icons.storefront_outlined,
-            label: 'Statut de la boutique',
+            label: context.tr('Statut de la boutique'),
             trailing: Switch.adaptive(
               value: isOpen,
               activeTrackColor: RestaurantPalette.success,
@@ -314,7 +318,7 @@ class ShopScreen extends StatelessWidget {
           const _SettingDivider(),
           _SettingTile(
             icon: Icons.verified_user_outlined,
-            label: 'Statut du compte',
+            label: context.tr('Statut du compte'),
             trailing: StatusChip(
               label: statusLabel,
               background: RestaurantPalette.success.withValues(alpha: 0.15),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'features/vendor/restaurant/restaurant_palette.dart';
 import 'features/vendor/restaurant/restaurant_shell_screen.dart';
+import 'core/i18n/app_localizations.dart';
 
 /// Point d'entrée dédié à la prévisualisation de l'interface
 /// « Le Délice Fast-Food ».
@@ -17,7 +18,7 @@ class LeDeliceFastFoodApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Le Délice Fast-Food',
+      title: context.tr('Le Délice Fast-Food'),
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,

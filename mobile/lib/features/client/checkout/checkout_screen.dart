@@ -17,6 +17,7 @@ import '../../../shared/widgets/state_widgets.dart';
 import '../account/addresses_screen.dart';
 import '../drivers/driver_selection_screen.dart';
 import '../orders/order_tracking_screen.dart';
+import '../../../core/i18n/app_localizations.dart';
 
 /// Checkout client (J151) : adresse → récapitulatif serveur → commande → paiement.
 class CheckoutScreen extends StatefulWidget {
@@ -305,7 +306,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   @override
   Widget build(BuildContext context) {
     return BeninfoodPageScaffold(
-      title: 'Valider la commande',
+      title: context.tr('Valider la commande'),
       api: widget.marketplace,
       body: _order != null ? _buildPaymentStep() : _buildAddressStep(),
     );
@@ -327,7 +328,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             children: [
               _SectionTitle(
                 icon: Icons.location_on_outlined,
-                title: 'Adresse de livraison',
+                title: context.tr('Adresse de livraison'),
               ),
               const SizedBox(height: 12),
               if (_addresses.isEmpty)
@@ -383,7 +384,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                           ),
                           TextButton(
                             onPressed: _pinSelectedAddress,
-                            child: const Text('Positionner'),
+                            child: Text(context.tr('Positionner')),
                           ),
                         ],
                       ),
@@ -407,7 +408,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   }
                 },
                 icon: const Icon(Icons.add_location_alt_outlined),
-                label: const Text('Ajouter une nouvelle adresse'),
+                label: Text(context.tr('Ajouter une nouvelle adresse')),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: AppColors.orange,
                   side: BorderSide(
@@ -449,7 +450,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               else if (_summary != null) ...[
                 _SectionTitle(
                   icon: Icons.receipt_long_outlined,
-                  title: 'Récapitulatif',
+                  title: context.tr('Récapitulatif'),
                 ),
                 const SizedBox(height: 8),
                 Card(
@@ -458,16 +459,16 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                     child: Column(
                       children: [
                         _SummaryRow(
-                          label: 'Sous-total',
+                          label: context.tr('Sous-total'),
                           amount: _summary!.subtotal,
                         ),
                         _SummaryRow(
-                          label: 'Livraison (base)',
+                          label: context.tr('Livraison (base)'),
                           amount: _summary!.deliveryFee,
                         ),
                         if (_summary!.approachFee > 0)
                           _SummaryRow(
-                            label: 'Approche livreur',
+                            label: context.tr('Approche livreur'),
                             amount: _summary!.approachFee,
                           ),
                         if (_summary!.deliveryDistanceKm != null)
@@ -504,7 +505,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                           ),
                         if (_summary!.serviceFee > 0)
                           _SummaryRow(
-                            label: 'Commission client',
+                            label: context.tr('Commission client'),
                             amount: _summary!.serviceFee,
                           ),
                         if (_summary!.deliveryZoneName != null)
@@ -534,7 +535,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                           ),
                         const Divider(height: 24),
                         _SummaryRow(
-                          label: 'Total',
+                          label: context.tr('Total'),
                           amount: _summary!.total,
                           emphasized: true,
                         ),
@@ -545,7 +546,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 const SizedBox(height: 20),
                 _SectionTitle(
                   icon: Icons.account_balance_wallet_outlined,
-                  title: 'Mode de paiement',
+                  title: context.tr('Mode de paiement'),
                 ),
                 const SizedBox(height: 12),
                 Card(
@@ -555,10 +556,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                         setState(() => _paymentMethod = value ?? 'online'),
                     child: Column(
                       children: [
-                        const RadioListTile<String>(
+                        RadioListTile<String>(
                           value: 'online',
                           activeColor: AppColors.orange,
-                          title: Text('Mobile Money (en ligne)'),
+                          title: Text(context.tr('Mobile Money (en ligne)')),
                           subtitle: Text(
                             'Réglez maintenant, la commande part aussitôt',
                           ),
@@ -567,11 +568,11 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                             color: AppColors.orange,
                           ),
                         ),
-                        const RadioListTile<String>(
+                        RadioListTile<String>(
                           value: 'cash',
                           activeColor: AppColors.orange,
-                          title: Text('Paiement à la livraison'),
-                          subtitle: Text('Vous payez le livreur en espèces'),
+                          title: Text(context.tr('Paiement à la livraison')),
+                          subtitle: Text(context.tr('Vous payez le livreur en espèces')),
                           secondary: Icon(
                             Icons.payments_outlined,
                             color: AppColors.orange,
@@ -607,7 +608,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 const SizedBox(height: 20),
                 _SectionTitle(
                   icon: Icons.delivery_dining_outlined,
-                  title: 'Votre livreur',
+                  title: context.tr('Votre livreur'),
                 ),
                 const SizedBox(height: 8),
                 Card(
@@ -630,7 +631,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                     trailing: _selectedDriver == null
                         ? const Icon(Icons.chevron_right)
                         : IconButton(
-                            tooltip: 'Retirer le livreur',
+                            tooltip: context.tr('Retirer le livreur'),
                             onPressed: () {
                               setState(() => _selectedDriver = null);
                               _loadSummary();
@@ -701,24 +702,24 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                     ),
                   ),
                 const Divider(height: 24),
-                _SummaryRow(label: 'Sous-total', amount: order.subtotal),
+                _SummaryRow(label: context.tr('Sous-total'), amount: order.subtotal),
                 _SummaryRow(
-                  label: 'Livraison (base)',
+                  label: context.tr('Livraison (base)'),
                   amount: order.deliveryFee,
                 ),
                 if (order.approachFee > 0)
                   _SummaryRow(
-                    label: 'Approche livreur',
+                    label: context.tr('Approche livreur'),
                     amount: order.approachFee,
                   ),
                 if ((order.financials?.serviceFee ?? 0) > 0)
                   _SummaryRow(
-                    label: 'Commission client',
+                    label: context.tr('Commission client'),
                     amount: order.financials!.serviceFee!,
                   ),
                 const SizedBox(height: 4),
                 _SummaryRow(
-                  label: 'Total à payer',
+                  label: context.tr('Total à payer'),
                   amount: order.total,
                   emphasized: true,
                 ),

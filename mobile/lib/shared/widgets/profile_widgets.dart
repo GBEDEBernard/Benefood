@@ -12,6 +12,7 @@ import '../models/user.dart';
 import 'app_network_image.dart';
 import 'beninfood_header.dart';
 import 'food_decor.dart';
+import '../../core/i18n/app_localizations.dart';
 
 /// Vert profond de la bannière d'identité (dégradé de la carte verte).
 const Color _greenDeep = Color(0xFF0E3B1D);
@@ -607,7 +608,7 @@ class _QrButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return Semantics(
       button: true,
-      label: 'Ma carte de contact (QR code)',
+      label: context.tr('Ma carte de contact (QR code)'),
       child: Material(
         color: AppColors.surface,
         elevation: 3,

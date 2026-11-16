@@ -8,6 +8,7 @@ import '../../../../shared/widgets/beninfood_header.dart';
 import '../../../../shared/widgets/feedback_widgets.dart';
 import '../../../../shared/widgets/state_widgets.dart';
 import '../restaurant_palette.dart';
+import '../../../../core/i18n/app_localizations.dart';
 
 /// Mes avis clients (J21 §9) : note moyenne, répartition des notes,
 /// commentaires et réponse du vendeur.
@@ -108,7 +109,7 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Annuler')),
+          TextButton(onPressed: () => Navigator.pop(context), child: Text(context.tr('Annuler'))),
           FilledButton(
             onPressed: () {
               final value = controller.text.trim();
@@ -118,7 +119,7 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
               Navigator.pop(context, value);
             },
             style: FilledButton.styleFrom(backgroundColor: RestaurantPalette.orange),
-            child: const Text('Envoyer'),
+            child: Text(context.tr('Envoyer')),
           ),
         ],
       ),
@@ -428,7 +429,7 @@ class _ReviewCard extends StatelessWidget {
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
                     : const Icon(Icons.reply_outlined, size: 18),
-                label: const Text('Répondre'),
+                label: Text(context.tr('Répondre')),
                 style: TextButton.styleFrom(foregroundColor: RestaurantPalette.orange),
               ),
             ),

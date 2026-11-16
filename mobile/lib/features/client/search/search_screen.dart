@@ -17,6 +17,7 @@ import '../../../shared/widgets/feedback_widgets.dart';
 import '../../../shared/widgets/product_cards.dart';
 import '../../../shared/widgets/state_widgets.dart';
 import '../../../shared/widgets/vendor_cards.dart';
+import '../../../core/i18n/app_localizations.dart';
 
 /// Onglets de recherche client.
 enum _SearchTab {
@@ -286,7 +287,7 @@ class _SearchScreenState extends State<SearchScreen> {
             child: AppSearchField(
               controller: _controller,
               autofocus: widget.initialCategory == null,
-              hintText: 'Rechercher un plat, un restaurant, une boutique…',
+              hintText: context.tr('Rechercher un plat, un restaurant, une boutique…'),
               onChanged: _onChanged,
               suffix: _controller.text.isEmpty
                   ? null
@@ -328,7 +329,7 @@ class _SearchScreenState extends State<SearchScreen> {
                     title: _query.isEmpty
                         ? 'Recherchez sur Béninfood'
                         : 'Aucun résultat pour “$_query”',
-                    subtitle: 'Essayez d’autres mots-clés ou élargissez la zone.',
+                    subtitle: context.tr('Essayez d’autres mots-clés ou élargissez la zone.'),
                   );
                 }
                 return _buildResults(context, results);
@@ -465,13 +466,13 @@ class _SearchScreenState extends State<SearchScreen> {
                 ),
                 const SizedBox(width: 8),
                 _sortChip(
-                  label: 'Pertinence',
+                  label: context.tr('Pertinence'),
                   selected: !_byDistance,
                   onTap: () => setState(() => _byDistance = false),
                 ),
                 const SizedBox(width: 6),
                 _sortChip(
-                  label: 'Proximité',
+                  label: context.tr('Proximité'),
                   selected: _byDistance,
                   onTap: () => setState(() => _byDistance = true),
                 ),

@@ -436,7 +436,7 @@ class VendorController extends Controller
             'notify_new_orders' => ['sometimes', 'boolean'],
             'notify_cancellations' => ['sometimes', 'boolean'],
             'notify_payments' => ['sometimes', 'boolean'],
-            'locale' => ['sometimes', 'string', 'in:fr,en'],
+            'locale' => ['sometimes', 'string', 'in:fr,en,fon'],
         ]);
 
         $settings = $vendor->settings()->firstOrCreate([]);

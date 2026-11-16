@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/auth/session_provider.dart';
+import '../../../core/i18n/app_localizations.dart';
 import '../../../core/theme/app_colors.dart';
 
 /// Couleurs relevées sur la maquette « écran chaleureux ».
@@ -132,7 +133,7 @@ class _TopZone extends StatelessWidget {
                 child: Padding(
                   padding: const EdgeInsets.only(top: 4, right: 12),
                   child: IconButton(
-                    tooltip: 'Réglages du serveur',
+                    tooltip: context.tr('Réglages du serveur'),
                     onPressed: () => context.go('/server'),
                     icon: const Icon(
                       Icons.settings_outlined,
@@ -217,10 +218,12 @@ class _Hero extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 8),
-        const Text(
-          'Commandez, payez, recevez.\nLe goût du Bénin livré chez vous.',
+        Text(
+          context.tr(
+            'Commandez, payez, recevez.\nLe goût du Bénin livré chez vous.',
+          ),
           textAlign: TextAlign.center,
-          style: TextStyle(
+          style: const TextStyle(
             color: Colors.white,
             fontSize: 15.5,
             height: 1.3,
@@ -264,14 +267,14 @@ class _ActionsPanel extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   _PillButton(
-                    label: 'Se connecter',
+                    label: context.tr('Se connecter'),
                     icon: Icons.login,
                     height: buttonHeight,
                     onPressed: () => context.go('/login'),
                   ),
                   const SizedBox(height: 18),
                   _PillButton(
-                    label: 'Créer un compte',
+                    label: context.tr('Créer un compte'),
                     icon: Icons.person_add_alt_outlined,
                     height: buttonHeight,
                     filled: false,
@@ -284,9 +287,12 @@ class _ActionsPanel extends StatelessWidget {
                       foregroundColor: _buttonOrange,
                       minimumSize: const Size.fromHeight(44),
                     ),
-                    child: const Text(
-                      'Mot de passe oublié ?',
-                      style: TextStyle(fontSize: 15.5, fontWeight: FontWeight.w600),
+                    child: Text(
+                      context.tr('Mot de passe oublié ?'),
+                      style: const TextStyle(
+                        fontSize: 15.5,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
                 ],

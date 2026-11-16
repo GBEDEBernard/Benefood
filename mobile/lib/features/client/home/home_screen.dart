@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/auth/session_provider.dart';
 import '../../../core/data/marketplace_api.dart';
 import '../../../core/errors/api_exception.dart';
+import '../../../core/i18n/app_localizations.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_dimens.dart';
 import '../../../core/theme/app_theme.dart';
@@ -251,7 +252,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               : AppColors.orange,
                         ),
                       ),
-                      title: const Text('Tous'),
+                      title: Text(context.tr('Tous')),
                       trailing: _categoryIndex == 0
                           ? const Icon(
                               Icons.check_circle,
@@ -311,8 +312,10 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _topSection() {
     final firstName = (widget.session.user?.name ?? '').trim().split(' ').first;
     final greeting = firstName.isEmpty || firstName == 'null'
-        ? 'Le goût du Bénin, livré chez vous'
-        : 'Bonjour, $firstName 👋 Que mangerez-vous aujourd’hui ?';
+        ? context.tr('Le goût du Bénin, livré chez vous')
+        : context
+              .tr('Bonjour, {name} 👋 Que mangerez-vous aujourd’hui ?')
+              .replaceAll('{name}', firstName);
 
     return Material(
       color: AppColors.surface,
@@ -352,7 +355,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     Expanded(
                       child: AppSearchField(
                         controller: _searchController,
-                        hintText: 'Rechercher un plat, un resto...',
+                        hintText: context.tr('Rechercher un plat, un resto...'),
                         onChanged: _onSearchChanged,
                         suffix: _searchController.text.isEmpty
                             ? null
@@ -464,8 +467,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 // --- Restaurants populaires ---
                 if (data.vendors.isNotEmpty) ...[
                   SectionHeader(
-                    title: 'Boutiques les mieux notées',
-                    actionLabel: 'Voir tout',
+                    title: context.tr('Boutiques les mieux notées'),
+                    actionLabel: context.tr('Voir tout'),
                     onAction: () => context.push('/client/search'),
                   ),
                   Padding(
@@ -500,8 +503,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 // --- Plats du jour ---
                 if (allProducts.isNotEmpty) ...[
                   SectionHeader(
-                    title: 'Plats du jour les mieux notés',
-                    actionLabel: 'Voir tout',
+                    title: context.tr('Plats du jour les mieux notés'),
+                    actionLabel: context.tr('Voir tout'),
                     onAction: () => context.push('/client/search'),
                   ),
                   if (products.isNotEmpty)
@@ -512,12 +515,14 @@ class _HomeScreenState extends State<HomeScreen> {
                       onAdd: _addToCart,
                     )
                   else
-                    const Padding(
-                      padding: EdgeInsets.fromLTRB(16, 0, 16, 12),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
                       child: Text(
-                        'Aucun plat dans cette catégorie pour le moment.',
+                        context.tr(
+                          'Aucun plat dans cette catégorie pour le moment.',
+                        ),
                         textAlign: TextAlign.center,
-                        style: TextStyle(
+                        style: const TextStyle(
                           fontSize: 13,
                           color: AppColors.textSecondary,
                         ),
@@ -526,9 +531,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 ],
 
                 if (data.vendors.isEmpty && allProducts.isEmpty)
-                  const EmptyState(
+                  EmptyState(
                     icon: Icons.shopping_bag_outlined,
-                    title: 'Aucune boutique pour le moment',
+                    title: context.tr('Aucune boutique pour le moment'),
                   ),
               ],
             );
@@ -649,18 +654,18 @@ class _PromoBannerState extends State<_PromoBanner> {
                         height: 1.25,
                       ),
                       children: [
-                        TextSpan(text: slide.head),
+                        TextSpan(text: context.tr(slide.head)),
                         TextSpan(
-                          text: slide.highlight,
+                          text: context.tr(slide.highlight),
                           style: const TextStyle(color: AppColors.orange),
                         ),
-                        TextSpan(text: slide.tail),
+                        TextSpan(text: context.tr(slide.tail)),
                       ],
                     ),
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    slide.subtitle,
+                    context.tr(slide.subtitle),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
@@ -1076,7 +1081,7 @@ class _FilterButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Tooltip(
-      message: 'Filtres',
+      message: context.tr('Filtres'),
       child: InkWell(
         onTap: onPressed,
         borderRadius: BorderRadius.circular(14),

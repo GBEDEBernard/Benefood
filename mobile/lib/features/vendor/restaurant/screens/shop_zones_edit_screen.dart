@@ -6,6 +6,7 @@ import '../../../../core/errors/api_exception.dart';
 import '../../../../shared/widgets/beninfood_header.dart';
 import '../../../../shared/widgets/feedback_widgets.dart';
 import '../restaurant_palette.dart';
+import '../../../../core/i18n/app_localizations.dart';
 
 /// Zone desservie sélectionnable.
 class _ZoneOption {
@@ -107,7 +108,7 @@ class _ShopZonesEditScreenState extends State<ShopZonesEditScreen> {
   @override
   Widget build(BuildContext context) {
     return BeninfoodPageScaffold(
-      title: 'Zones desservies',
+      title: context.tr('Zones desservies'),
       api: widget.marketplace,
       audience: NotificationAudience.vendor,
       backgroundColor: RestaurantPalette.background,
@@ -148,7 +149,7 @@ class _ShopZonesEditScreenState extends State<ShopZonesEditScreen> {
           children: [
             Text(_error!, textAlign: TextAlign.center),
             const SizedBox(height: 12),
-            FilledButton(onPressed: _load, child: const Text('Réessayer')),
+            FilledButton(onPressed: _load, child: Text(context.tr('Réessayer'))),
           ],
         ),
       );

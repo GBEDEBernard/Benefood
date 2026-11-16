@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../../core/theme/app_dimens.dart';
+import '../../core/i18n/app_localizations.dart';
 
 /// Périodes d'analyse proposées par les tableaux de bord statistiques.
 ///

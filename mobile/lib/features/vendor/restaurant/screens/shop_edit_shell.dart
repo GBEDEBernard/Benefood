@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/data/marketplace_api.dart';
 import '../../../../core/navigation/notification_router.dart';
+import '../../../../shared/widgets/language_menu_button.dart';
 import '../../../../shared/widgets/notification_bell.dart';
 import '../restaurant_palette.dart';
+import '../../../../core/i18n/app_localizations.dart';
 
 /// Barre d'édition commune aux écrans « Ma boutique » : retour, titre,
 /// cloche de notification et bouton Enregistrer avec indicateur de chargement.
@@ -36,7 +38,7 @@ class ShopEditorAppBar extends StatelessWidget {
               IconButton(
                 onPressed: () => Navigator.of(context).maybePop(),
                 icon: const Icon(Icons.arrow_back, color: RestaurantPalette.darkText),
-                tooltip: 'Retour',
+                tooltip: context.tr('Retour'),
               ),
               Expanded(
                 child: Text(
@@ -55,6 +57,9 @@ class ShopEditorAppBar extends StatelessWidget {
                   api: api!,
                   audience: NotificationAudience.vendor,
                 ),
+              const SizedBox(width: 4),
+              const LanguageMenuButton(),
+              const SizedBox(width: 8),
               FilledButton(
                 onPressed: saving ? null : onSave,
                 style: FilledButton.styleFrom(

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/i18n/app_localizations.dart';
 import '../../../core/theme/app_colors.dart';
 
 /// Barre de navigation du livreur (Missions, Offres, Colis, Historique,
@@ -63,31 +64,31 @@ class DriverBottomBar extends StatelessWidget {
         selectedIndex: activeIndex ?? 0,
         onDestinationSelected: onSelect,
         animationDuration: const Duration(milliseconds: 280),
-        destinations: const [
+        destinations: [
           NavigationDestination(
             icon: Icon(Icons.delivery_dining_outlined),
             selectedIcon: Icon(Icons.delivery_dining_rounded),
-            label: 'Missions',
+            label: context.tr('Missions'),
           ),
           NavigationDestination(
             icon: Icon(Icons.local_offer_outlined),
             selectedIcon: Icon(Icons.local_offer_rounded),
-            label: 'Offres',
+            label: context.tr('Offres'),
           ),
           NavigationDestination(
             icon: Icon(Icons.inventory_2_outlined),
             selectedIcon: Icon(Icons.inventory_2_rounded),
-            label: 'Colis',
+            label: context.tr('Colis'),
           ),
           NavigationDestination(
             icon: Icon(Icons.history_outlined),
             selectedIcon: Icon(Icons.history_rounded),
-            label: 'Historique',
+            label: context.tr('Historique'),
           ),
           NavigationDestination(
             icon: Icon(Icons.person_outline_rounded),
             selectedIcon: Icon(Icons.person_rounded),
-            label: 'Compte',
+            label: context.tr('Compte'),
           ),
         ],
       ),

@@ -13,6 +13,7 @@ import '../../../shared/widgets/app_text_field.dart';
 import '../../../shared/widgets/brand_logo.dart';
 import '../../../shared/widgets/city_area_picker.dart';
 import '../../../shared/widgets/feedback_widgets.dart';
+import '../../../core/i18n/app_localizations.dart';
 
 /// Sélecteur d'images injectable (tests).
 typedef ClientImagePicker = Future<Uint8List?> Function(ImageSource source);
@@ -162,12 +163,12 @@ class _ClientOnboardingScreenState extends State<ClientOnboardingScreen> {
             ),
             ListTile(
               leading: const Icon(Icons.photo_camera_outlined, color: AppColors.orange),
-              title: const Text('Prendre une photo'),
+              title: Text(context.tr('Prendre une photo')),
               onTap: () => Navigator.pop(sheetContext, ImageSource.camera),
             ),
             ListTile(
               leading: const Icon(Icons.photo_library_outlined, color: AppColors.orange),
-              title: const Text('Choisir dans la galerie'),
+              title: Text(context.tr('Choisir dans la galerie')),
               onTap: () => Navigator.pop(sheetContext, ImageSource.gallery),
             ),
             ListTile(
@@ -425,7 +426,7 @@ class _WelcomePage extends StatelessWidget {
                       ],
                       const Spacer(flex: 3),
                       AppButton(
-                        label: 'Commencer',
+                        label: context.tr('Commencer'),
                         icon: Icons.arrow_forward,
                         onPressed: onStart,
                       ),
@@ -513,14 +514,14 @@ class _DocumentsPage extends StatelessWidget {
               const SizedBox(height: 12),
               AppTextField(
                 controller: name,
-                label: 'Nom complet',
+                label: context.tr('Nom complet'),
                 icon: Icons.person_outline,
                 enabled: !profileCreated,
               ),
               const SizedBox(height: 12),
               AppTextField(
                 controller: phone,
-                label: 'Téléphone',
+                label: context.tr('Téléphone'),
                 icon: Icons.phone_outlined,
                 keyboardType: TextInputType.phone,
                 enabled: !profileCreated,
@@ -535,14 +536,14 @@ class _DocumentsPage extends StatelessWidget {
               const SizedBox(height: 12),
               AppTextField(
                 controller: address,
-                label: 'Adresse (domicile)',
+                label: context.tr('Adresse (domicile)'),
                 icon: Icons.home_outlined,
                 enabled: !profileCreated,
               ),
               const SizedBox(height: 16),
               if (!profileCreated)
                 AppButton(
-                  label: 'Enregistrer mes informations',
+                  label: context.tr('Enregistrer mes informations'),
                   icon: Icons.save_outlined,
                   loading: submitting,
                   onPressed: onCreateProfile,

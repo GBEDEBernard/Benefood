@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/i18n/app_localizations.dart';
 import '../../../../shared/widgets/app_network_image.dart';
 import '../../../../shared/widgets/drawer_kit.dart';
 
@@ -156,10 +157,10 @@ class RestaurantDrawer extends StatelessWidget {
                       ),
                     ),
                   const SizedBox(height: 13),
-                  const Padding(
-                    padding: EdgeInsets.fromLTRB(10, 0, 10, 10),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(10, 0, 10, 10),
                     child: Text(
-                      'ACCÈS RAPIDES',
+                      context.tr('ACCÈS RAPIDES'),
                       style: TextStyle(
                         color: _muted,
                         fontSize: 10,
@@ -173,7 +174,7 @@ class RestaurantDrawer extends StatelessWidget {
                       Expanded(
                         child: _QuickAction(
                           icon: Icons.inventory_2_outlined,
-                          label: 'Mes colis',
+                          label: context.tr('Mes colis'),
                           color: const Color(0xFF2E7953),
                           onTap: () => _open(context, '/vendor/parcels'),
                         ),
@@ -182,7 +183,7 @@ class RestaurantDrawer extends StatelessWidget {
                       Expanded(
                         child: _QuickAction(
                           icon: Icons.insights_rounded,
-                          label: 'Statistiques',
+                          label: context.tr('Statistiques'),
                           color: const Color(0xFFBA672C),
                           onTap: () => _open(context, '/vendor/stats'),
                         ),
@@ -191,7 +192,7 @@ class RestaurantDrawer extends StatelessWidget {
                       Expanded(
                         child: _QuickAction(
                           icon: Icons.account_balance_wallet_outlined,
-                          label: 'Portefeuille',
+                          label: context.tr('Portefeuille'),
                           color: const Color(0xFF5274A5),
                           onTap: () {
                             HapticFeedback.selectionClick();
@@ -391,7 +392,7 @@ class RestaurantDrawer extends StatelessWidget {
             } else {
               ScaffoldMessenger.of(
                 context,
-              ).showSnackBar(const SnackBar(content: Text('Déconnexion…')));
+              ).showSnackBar(SnackBar(content: Text(context.tr('Déconnexion…'))));
             }
           },
           child: Container(
@@ -502,7 +503,7 @@ class _NavTile extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        item.label,
+                        context.tr(item.label),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
@@ -515,7 +516,7 @@ class _NavTile extends StatelessWidget {
                       ),
                       const SizedBox(height: 3),
                       Text(
-                        item.subtitle,
+                        context.tr(item.subtitle),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
@@ -637,7 +638,7 @@ class _StatusPill extends StatelessWidget {
           ),
           const SizedBox(width: 6),
           Text(
-            isOpen ? 'OUVERTE' : 'FERMÉE',
+            context.tr(isOpen ? 'OUVERTE' : 'FERMÉE'),
             style: TextStyle(
               color: color,
               fontSize: 9,

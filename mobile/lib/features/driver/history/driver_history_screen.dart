@@ -12,6 +12,7 @@ import '../../../shared/widgets/food_decor.dart';
 import '../../../shared/widgets/status_badge.dart';
 import '../../../shared/widgets/state_widgets.dart';
 import 'driver_history_detail_sheet.dart';
+import '../../../core/i18n/app_localizations.dart';
 
 /// Historique des missions terminées du livreur (J162).
 class DriverHistoryScreen extends StatefulWidget {

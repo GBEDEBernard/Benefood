@@ -9,6 +9,7 @@ import '../../../../shared/widgets/feedback_widgets.dart';
 import '../restaurant_palette.dart';
 import '../widgets/time_picker_sheet.dart';
 import 'shop_edit_shell.dart';
+import '../../../../core/i18n/app_localizations.dart';
 
 const List<String> _dayNames = [
   'Lundi',
@@ -244,7 +245,7 @@ class _ShopHoursEditScreenState extends State<ShopHoursEditScreen> {
           child: Column(
             children: [
               ShopEditorAppBar(
-                title: 'Horaires',
+                title: context.tr('Horaires'),
                 onSave: _save,
                 saving: _saveRequested,
                 api: widget.marketplace,
@@ -619,7 +620,7 @@ class _SummaryCardState extends State<_SummaryCard> with SingleTickerProviderSta
                         Expanded(
                           child: _SummaryStat(
                             icon: Icons.event_available_rounded,
-                            label: 'Jours ouverts',
+                            label: context.tr('Jours ouverts'),
                             value: TweenAnimationBuilder<double>(
                               tween: Tween(begin: 0, end: widget.openDays.toDouble()),
                               duration: const Duration(milliseconds: 700),
@@ -635,7 +636,7 @@ class _SummaryCardState extends State<_SummaryCard> with SingleTickerProviderSta
                         Expanded(
                           child: _SummaryStat(
                             icon: Icons.timelapse_rounded,
-                            label: 'Par semaine',
+                            label: context.tr('Par semaine'),
                             value: TweenAnimationBuilder<double>(
                               tween: Tween(
                                   begin: 0, end: widget.weeklyMinutes.toDouble()),
@@ -724,10 +725,10 @@ class _ShortcutChips extends StatelessWidget {
       spacing: 8,
       runSpacing: 8,
       children: [
-        _ShortcutChip(icon: Icons.lock_open_rounded, label: 'Tout ouvrir', onTap: onOpenAll),
-        _ShortcutChip(icon: Icons.event_busy_rounded, label: 'Tout fermer', onTap: onCloseAll),
+        _ShortcutChip(icon: Icons.lock_open_rounded, label: context.tr('Tout ouvrir'), onTap: onOpenAll),
+        _ShortcutChip(icon: Icons.event_busy_rounded, label: context.tr('Tout fermer'), onTap: onCloseAll),
         _ShortcutChip(
-            icon: Icons.copy_all_rounded, label: 'Copier le lundi', onTap: onCopyMonday),
+            icon: Icons.copy_all_rounded, label: context.tr('Copier le lundi'), onTap: onCopyMonday),
       ],
     );
   }
@@ -955,7 +956,7 @@ class _DayCard extends StatelessWidget {
                           children: [
                             Expanded(
                               child: _TimeBox(
-                                label: 'Ouverture',
+                                label: context.tr('Ouverture'),
                                 value: slot.opensAt,
                                 icon: Icons.wb_sunny_rounded,
                                 onTap: onPickOpen,
@@ -968,7 +969,7 @@ class _DayCard extends StatelessWidget {
                             ),
                             Expanded(
                               child: _TimeBox(
-                                label: 'Fermeture',
+                                label: context.tr('Fermeture'),
                                 value: slot.closesAt,
                                 icon: Icons.nightlight_round,
                                 onTap: onPickClose,
@@ -1258,13 +1259,13 @@ class _SaveBar extends StatelessWidget {
                           color: Colors.white,
                         ),
                       )
-                    : const Row(
+                    : Row(
                         key: ValueKey('idle'),
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Icon(Icons.check_rounded, size: 20),
                           SizedBox(width: 8),
-                          Text('Enregistrer les horaires'),
+                          Text(context.tr('Enregistrer les horaires')),
                         ],
                       ),
               ),

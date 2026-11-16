@@ -6,6 +6,7 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_dimens.dart';
 import '../models/favorite_driver.dart';
 import 'state_widgets.dart';
+import '../../core/i18n/app_localizations.dart';
 
 /// Choix renvoyé par [showFavoriteDriverPicker] :
 /// - `driverId == null` → « aucun » (offre laissée ouverte) ;
@@ -156,7 +157,7 @@ class _FavoriteDriverPickerSheetState extends State<_FavoriteDriverPickerSheet> 
         if (widget.allowNone)
           _DriverOption(
             icon: Icons.public,
-            title: 'Aucun livreur',
+            title: context.tr('Aucun livreur'),
             subtitle: 'L\'offre sera visible par tous les livreurs disponibles.',
             selected: widget.selectedId == null,
             onTap: () => Navigator.of(context).pop(const FavoriteDriverChoice.none()),

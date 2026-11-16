@@ -13,6 +13,7 @@ import '../../../shared/widgets/city_area_picker.dart';
 import '../../../shared/widgets/feedback_widgets.dart';
 import '../../../shared/widgets/map_picker.dart';
 import '../../../shared/widgets/state_widgets.dart';
+import '../../../core/i18n/app_localizations.dart';
 
 /// Ouvre le formulaire de création d'adresse (ville, quartier et point exact).
 ///
@@ -106,13 +107,13 @@ class _AddressesScreenState extends State<AddressesScreen> {
   @override
   Widget build(BuildContext context) {
     return BeninfoodPageScaffold(
-      title: 'Mes adresses',
+      title: context.tr('Mes adresses'),
       api: widget.marketplace,
       body: _buildBody(),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _openAdd,
         icon: const Icon(Icons.add_location_alt_outlined),
-        label: const Text('Ajouter'),
+        label: Text(context.tr('Ajouter')),
       ),
     );
   }
@@ -127,8 +128,8 @@ class _AddressesScreenState extends State<AddressesScreen> {
     if (_addresses.isEmpty) {
       return EmptyState(
         icon: Icons.location_on_outlined,
-        title: 'Aucune adresse',
-        subtitle: 'Ajoutez une adresse pour vos livraisons.',
+        title: context.tr('Aucune adresse'),
+        subtitle: context.tr('Ajoutez une adresse pour vos livraisons.'),
         actionLabel: 'Ajouter une adresse',
         onAction: _openAdd,
       );
@@ -350,7 +351,7 @@ class _AddressLocationSheetState extends State<_AddressLocationSheet> {
               ),
               const SizedBox(height: 16),
               AppButton(
-                label: 'Enregistrer la position',
+                label: context.tr('Enregistrer la position'),
                 onPressed: _saving ? null : _save,
                 loading: _saving,
               ),
@@ -520,14 +521,14 @@ class _AddAddressSheetState extends State<_AddAddressSheet> {
                   const SizedBox(height: 16),
                   AppTextField(
                     controller: _label,
-                    label: 'Libellé',
+                    label: context.tr('Libellé'),
                     required: true,
                     validator: (v) => (v == null || v.trim().isEmpty) ? 'Requis' : null,
                   ),
                   const SizedBox(height: 12),
                   AppTextField(
                     controller: _address,
-                    label: 'Adresse complète',
+                    label: context.tr('Adresse complète'),
                     hint: 'Rue, quartier, repères…',
                     required: true,
                     validator: (v) => (v == null || v.trim().isEmpty) ? 'Requis' : null,
@@ -541,19 +542,19 @@ class _AddAddressSheetState extends State<_AddAddressSheet> {
                   const SizedBox(height: 12),
                   AppTextField(
                     controller: _landmark,
-                    label: 'Point de repère',
+                    label: context.tr('Point de repère'),
                     hint: 'Près de…',
                   ),
                   const SizedBox(height: 12),
                   AppTextField(
                     controller: _contactPhone,
-                    label: 'Téléphone du destinataire (optionnel)',
+                    label: context.tr('Téléphone du destinataire (optionnel)'),
                     hint: '+229…',
                     keyboardType: TextInputType.phone,
                   ),
                   const SizedBox(height: 20),
                   AppButton(
-                    label: 'Enregistrer',
+                    label: context.tr('Enregistrer'),
                     onPressed: _saving ? null : _save,
                     loading: _saving,
                   ),

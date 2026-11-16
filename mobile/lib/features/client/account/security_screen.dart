@@ -9,6 +9,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../shared/widgets/beninfood_header.dart';
 import '../../../shared/widgets/feedback_widgets.dart';
+import '../../../core/i18n/app_localizations.dart';
 
 /// Sécurité du compte : changement de mot de passe et appareils connectés.
 class SecurityScreen extends StatefulWidget {
@@ -124,7 +125,7 @@ class _SecurityScreenState extends State<SecurityScreen> {
                         controller: _currentController,
                         obscureText: _obscure,
                         decoration: InputDecoration(
-                          labelText: 'Mot de passe actuel',
+                          labelText: context.tr('Mot de passe actuel'),
                           prefixIcon: const Icon(Icons.lock_outline),
                           suffixIcon: IconButton(
                             onPressed: () =>
@@ -193,7 +194,7 @@ class _SecurityScreenState extends State<SecurityScreen> {
                                     strokeWidth: 2.5,
                                   ),
                                 )
-                              : const Text('Modifier le mot de passe'),
+                              : Text(context.tr('Modifier le mot de passe')),
                         ),
                       ),
                     ],
@@ -229,16 +230,16 @@ class _SecurityScreenState extends State<SecurityScreen> {
                     );
                   }
                   if (snapshot.hasError) {
-                    return const ListTile(
+                    return ListTile(
                       leading: Icon(Icons.error_outline),
-                      title: Text('Appareils indisponibles'),
+                      title: Text(context.tr('Appareils indisponibles')),
                     );
                   }
                   final devices = snapshot.data ?? const [];
                   if (devices.isEmpty) {
-                    return const ListTile(
+                    return ListTile(
                       leading: Icon(Icons.phonelink_lock_outlined),
-                      title: Text('Aucun appareil enregistré'),
+                      title: Text(context.tr('Aucun appareil enregistré')),
                     );
                   }
                   return Column(

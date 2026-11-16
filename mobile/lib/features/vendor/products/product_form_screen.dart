@@ -14,6 +14,7 @@ import '../../../shared/widgets/beninfood_header.dart';
 import '../../../shared/widgets/app_network_image.dart';
 import '../../../shared/widgets/app_text_field.dart';
 import '../../../shared/widgets/feedback_widgets.dart';
+import '../../../core/i18n/app_localizations.dart';
 
 /// Création / édition d'un produit vendeur (J155).
 ///
@@ -337,7 +338,7 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
   Future<void> _delete() async {
     final confirmed = await showConfirmDialog(
       context,
-      title: 'Supprimer le produit',
+      title: context.tr('Supprimer le produit'),
       message: 'Voulez-vous vraiment supprimer « ${_editingProduct!.name} » ?',
       confirmLabel: 'Supprimer',
     );
@@ -379,7 +380,7 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
                 const SizedBox(height: 14),
                 AppTextField(
                   controller: _name,
-                  label: 'Nom du produit',
+                  label: context.tr('Nom du produit'),
                   icon: Icons.shopping_bag_outlined,
                   validator: (v) =>
                       (v == null || v.trim().isEmpty) ? 'Requis' : null,
@@ -390,7 +391,7 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
                     Expanded(
                       child: AppTextField(
                         controller: _price,
-                        label: 'Prix (FCFA)',
+                        label: context.tr('Prix (FCFA)'),
                         icon: Icons.payments_outlined,
                         keyboardType: const TextInputType.numberWithOptions(
                           decimal: true,
@@ -410,7 +411,7 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
                     Expanded(
                       child: AppTextField(
                         controller: _stock,
-                        label: 'Stock',
+                        label: context.tr('Stock'),
                         icon: Icons.inventory_2_outlined,
                         keyboardType: TextInputType.number,
                       ),
@@ -437,21 +438,21 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
                 const SizedBox(height: 14),
                 AppTextField(
                   controller: _unit,
-                  label: 'Unité',
+                  label: context.tr('Unité'),
                   icon: Icons.straighten_outlined,
                   hint: 'pce, kg, sachet…',
                 ),
                 const SizedBox(height: 14),
                 AppTextField(
                   controller: _description,
-                  label: 'Description',
+                  label: context.tr('Description'),
                   icon: Icons.notes_outlined,
                   maxLines: 3,
                 ),
                 const SizedBox(height: 14),
                 Card(
                   child: SwitchListTile(
-                    title: const Text('Produit disponible'),
+                    title: Text(context.tr('Produit disponible')),
                     subtitle: const Text(
                       'Visible et commandable par les clients',
                     ),
@@ -471,7 +472,7 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
                 if (_isEditing) ...[
                   const SizedBox(height: 12),
                   AppButton(
-                    label: 'Supprimer le produit',
+                    label: context.tr('Supprimer le produit'),
                     icon: Icons.delete_outline,
                     variant: AppButtonVariant.danger,
                     onPressed: _deleting ? null : _delete,
@@ -646,7 +647,7 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
               ),
             ),
             IconButton(
-              tooltip: 'Retirer la vidéo',
+              tooltip: context.tr('Retirer la vidéo'),
               icon: const Icon(Icons.delete_outline),
               onPressed: _pickingVideo
                   ? null
@@ -669,7 +670,7 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
               child: CircularProgressIndicator(strokeWidth: 2),
             )
           : const Icon(Icons.videocam_outlined),
-      label: const Text('Ajouter une petite vidéo'),
+      label: Text(context.tr('Ajouter une petite vidéo')),
       onPressed: _pickingVideo ? null : _pickVideo,
     );
   }

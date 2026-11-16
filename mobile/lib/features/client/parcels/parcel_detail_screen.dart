@@ -29,6 +29,7 @@ import '../../../shared/widgets/fedapay_checkout_screen.dart';
 import '../../../shared/widgets/status_badge.dart';
 import '../../../shared/widgets/state_widgets.dart';
 import '../../../shared/widgets/timestamp_line.dart';
+import '../../../core/i18n/app_localizations.dart';
 
 /// Suivi détaillé d'un colis (client ou boutique vendeuse) :
 /// carte, livreur, paiement et journal.
@@ -324,9 +325,8 @@ class _ParcelDetailScreenState extends State<ParcelDetailScreen> {
       final choice = await showDriverPickerSheet(
         context,
         drivers: drivers,
-        title: 'Choisir le nouveau livreur',
-        subtitle:
-            'Le trajet déjà effectué est partagé au prorata. Aucun frais supplémentaire ne vous sera facturé.',
+        title: context.tr('Choisir le nouveau livreur'),
+        subtitle: context.tr('Le trajet déjà effectué est partagé au prorata. Aucun frais supplémentaire ne vous sera facturé.'),
       );
       if (choice == null || !mounted) {
         return;
@@ -352,12 +352,12 @@ class _ParcelDetailScreenState extends State<ParcelDetailScreen> {
         await showDialog<void>(
           context: context,
           builder: (context) => AlertDialog(
-            title: const Text('Nouveau livreur affecté'),
+            title: Text(context.tr('Nouveau livreur affecté')),
             content: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Code de remise à communiquer au nouveau livreur :'),
+                Text(context.tr('Code de remise à communiquer au nouveau livreur :')),
                 const SizedBox(height: 12),
                 SelectableText(
                   code,
@@ -372,7 +372,7 @@ class _ParcelDetailScreenState extends State<ParcelDetailScreen> {
             actions: [
               FilledButton(
                 onPressed: () => Navigator.of(context).pop(),
-                child: const Text('Compris'),
+                child: Text(context.tr('Compris')),
               ),
             ],
           ),
@@ -397,7 +397,7 @@ class _ParcelDetailScreenState extends State<ParcelDetailScreen> {
     final reason = await showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Changer de livreur'),
+        title: Text(context.tr('Changer de livreur')),
         content: TextField(
           controller: controller,
           autofocus: true,
@@ -410,7 +410,7 @@ class _ParcelDetailScreenState extends State<ParcelDetailScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Retour'),
+            child: Text(context.tr('Retour')),
           ),
           FilledButton(
             onPressed: () {
@@ -418,7 +418,7 @@ class _ParcelDetailScreenState extends State<ParcelDetailScreen> {
                 Navigator.of(context).pop(controller.text.trim());
               }
             },
-            child: const Text('Continuer'),
+            child: Text(context.tr('Continuer')),
           ),
         ],
       ),
@@ -473,8 +473,8 @@ class _ParcelDetailScreenState extends State<ParcelDetailScreen> {
               ListTile(
                 contentPadding: EdgeInsets.zero,
                 leading: const Icon(Icons.credit_card, color: AppColors.orange),
-                title: const Text('Payer en ligne'),
-                subtitle: const Text('Mobile Money via FedaPay'),
+                title: Text(context.tr('Payer en ligne')),
+                subtitle: Text(context.tr('Mobile Money via FedaPay')),
                 trailing: const Icon(Icons.chevron_right),
                 onTap: () => Navigator.of(sheetContext).pop('online'),
               ),
@@ -484,8 +484,8 @@ class _ParcelDetailScreenState extends State<ParcelDetailScreen> {
                   Icons.payments_outlined,
                   color: AppColors.orange,
                 ),
-                title: const Text('Payer à la livraison'),
-                subtitle: const Text('En espèces, en plus de la course'),
+                title: Text(context.tr('Payer à la livraison')),
+                subtitle: Text(context.tr('En espèces, en plus de la course')),
                 trailing: const Icon(Icons.chevron_right),
                 onTap: () => Navigator.of(sheetContext).pop('cash'),
               ),
@@ -551,7 +551,7 @@ class _ParcelDetailScreenState extends State<ParcelDetailScreen> {
     return showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Annuler le colis'),
+        title: Text(context.tr('Annuler le colis')),
         content: TextField(
           controller: controller,
           autofocus: true,
@@ -561,7 +561,7 @@ class _ParcelDetailScreenState extends State<ParcelDetailScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Retour'),
+            child: Text(context.tr('Retour')),
           ),
           FilledButton(
             onPressed: () {
@@ -571,7 +571,7 @@ class _ParcelDetailScreenState extends State<ParcelDetailScreen> {
               }
               Navigator.of(context).pop(text);
             },
-            child: const Text('Annuler le colis'),
+            child: Text(context.tr('Annuler le colis')),
           ),
         ],
       ),
@@ -710,14 +710,14 @@ class _ParcelDetailScreenState extends State<ParcelDetailScreen> {
                   const SizedBox(height: AppDimens.md),
                   TimestampLine(
                     icon: Icons.event_outlined,
-                    label: 'Créé le',
+                    label: context.tr('Créé le'),
                     iso: parcel.createdAt,
                   ),
                   if (parcel.payment?.paidAt != null) ...[
                     const SizedBox(height: 3),
                     TimestampLine(
                       icon: Icons.payments_outlined,
-                      label: 'Payé le',
+                      label: context.tr('Payé le'),
                       iso: parcel.payment?.paidAt,
                     ),
                   ],
@@ -816,7 +816,7 @@ class _ParcelDetailScreenState extends State<ParcelDetailScreen> {
                   Icons.warning_amber_rounded,
                   color: AppColors.orangeDark,
                 ),
-                title: const Text('Incident signalé'),
+                title: Text(context.tr('Incident signalé')),
                 subtitle: Text(parcel.openIncident!.message),
               ),
             ),
@@ -826,7 +826,7 @@ class _ParcelDetailScreenState extends State<ParcelDetailScreen> {
             Card(
               child: ListTile(
                 leading: const Icon(Icons.swap_horiz, color: AppColors.orange),
-                title: const Text('Changer de livreur'),
+                title: Text(context.tr('Changer de livreur')),
                 subtitle: const Text(
                   'Le nouveau livreur reprend le colis au point de remise.',
                 ),
@@ -850,7 +850,7 @@ class _ParcelDetailScreenState extends State<ParcelDetailScreen> {
             Card(
               child: ListTile(
                 leading: const Icon(Icons.payments_outlined),
-                title: const Text('Paiement requis'),
+                title: Text(context.tr('Paiement requis')),
                 subtitle: Text(
                   'Montant à payer : ${formatAmount(parcel.totalAmount)}',
                 ),
@@ -883,13 +883,13 @@ class _ParcelDetailScreenState extends State<ParcelDetailScreen> {
           const SizedBox(height: AppDimens.xl),
           if (parcel.isAwaitingPayment) ...[
             AppButton(
-              label: 'Payer maintenant',
+              label: context.tr('Payer maintenant'),
               icon: Icons.payment,
               onPressed: _actionId == null ? _pay : null,
             ),
             const SizedBox(height: AppDimens.sm),
             AppButton(
-              label: 'Annuler le colis',
+              label: context.tr('Annuler le colis'),
               variant: AppButtonVariant.danger,
               onPressed: _actionId == null ? _cancel : null,
               loading: _actionId == 'cancel',
@@ -917,14 +917,14 @@ class _RouteCard extends StatelessWidget {
             _RouteRow(
               icon: Icons.trip_origin,
               color: AppColors.orange,
-              title: 'Ramassage',
+              title: context.tr('Ramassage'),
               text: parcel.pickup?.display ?? '—',
             ),
             const SizedBox(height: AppDimens.sm),
             _RouteRow(
               icon: Icons.place,
               color: AppColors.orange,
-              title: 'Livraison',
+              title: context.tr('Livraison'),
               text: parcel.dropoff?.display ?? '—',
             ),
             const Divider(height: AppDimens.xl),
@@ -1171,7 +1171,7 @@ class _ParcelChooseDriverCard extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(vertical: 12),
                 ),
                 icon: const Icon(Icons.person_search_outlined, size: 19),
-                label: const Text('Choisir mon livreur'),
+                label: Text(context.tr('Choisir mon livreur')),
               ),
             ),
           ],
@@ -1365,7 +1365,7 @@ class _DriverCard extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             CallButton(
-              label: 'Appeler le livreur',
+              label: context.tr('Appeler le livreur'),
               phone: driver.phone,
               onEmptyPhone: () => showToast(
                 context,

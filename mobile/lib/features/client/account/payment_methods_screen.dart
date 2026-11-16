@@ -7,6 +7,7 @@ import '../../../core/theme/app_dimens.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/beninfood_header.dart';
 import '../../../shared/widgets/feedback_widgets.dart';
+import '../../../core/i18n/app_localizations.dart';
 
 /// Moyens de paiement du client : liste, ajout, défaut, suppression (J153).
 ///
@@ -95,18 +96,18 @@ class _PaymentMethodsScreenState extends State<PaymentMethodsScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Supprimer ce moyen ?'),
+        title: Text(context.tr('Supprimer ce moyen ?')),
         content: const Text(
           'Ce moyen de paiement sera retiré de votre compte.',
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Annuler'),
+            child: Text(context.tr('Annuler')),
           ),
           FilledButton(
             onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Supprimer'),
+            child: Text(context.tr('Supprimer')),
           ),
         ],
       ),
@@ -130,13 +131,13 @@ class _PaymentMethodsScreenState extends State<PaymentMethodsScreen> {
   @override
   Widget build(BuildContext context) {
     return BeninfoodPageScaffold(
-      title: 'Méthodes de paiement',
+      title: context.tr('Méthodes de paiement'),
       api: widget.marketplace,
       backgroundColor: AppColors.background,
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _openAddSheet,
         icon: const Icon(Icons.add),
-        label: const Text('Ajouter'),
+        label: Text(context.tr('Ajouter')),
       ),
       body: FutureBuilder<List<Map<String, dynamic>>>(
         future: _future,
@@ -158,7 +159,7 @@ class _PaymentMethodsScreenState extends State<PaymentMethodsScreen> {
                     const SizedBox(height: 12),
                     FilledButton.tonal(
                       onPressed: _reload,
-                      child: const Text('Réessayer'),
+                      child: Text(context.tr('Réessayer')),
                     ),
                   ],
                 ),
@@ -293,22 +294,22 @@ class _PaymentMethodsScreenState extends State<PaymentMethodsScreen> {
                       },
                       itemBuilder: (_) => [
                         if (!isDefault)
-                          const PopupMenuItem(
+                          PopupMenuItem(
                             value: 'default',
                             child: ListTile(
                               leading: Icon(Icons.star_outline),
-                              title: Text('Définir par défaut'),
+                              title: Text(context.tr('Définir par défaut')),
                               contentPadding: EdgeInsets.zero,
                             ),
                           ),
-                        const PopupMenuItem(
+                        PopupMenuItem(
                           value: 'delete',
                           child: ListTile(
                             leading: Icon(
                               Icons.delete_outline,
                               color: AppColors.red,
                             ),
-                            title: Text('Supprimer'),
+                            title: Text(context.tr('Supprimer')),
                             contentPadding: EdgeInsets.zero,
                           ),
                         ),
@@ -399,18 +400,18 @@ class _AddPaymentMethodSheetState extends State<_AddPaymentMethodSheet> {
               DropdownButtonFormField<String>(
                 initialValue: _type,
                 decoration: const InputDecoration(labelText: 'Type'),
-                items: const [
+                items: [
                   DropdownMenuItem(
                     value: 'mobile_money',
                     child: Text('Mobile money'),
                   ),
                   DropdownMenuItem(
                     value: 'card',
-                    child: Text('Carte bancaire'),
+                    child: Text(context.tr('Carte bancaire')),
                   ),
                   DropdownMenuItem(
                     value: 'cash',
-                    child: Text('Espèces à la livraison'),
+                    child: Text(context.tr('Espèces à la livraison')),
                   ),
                 ],
                 onChanged: (value) {
@@ -478,7 +479,7 @@ class _AddPaymentMethodSheetState extends State<_AddPaymentMethodSheet> {
                           height: 20,
                           child: CircularProgressIndicator(strokeWidth: 2.5),
                         )
-                      : const Text('Enregistrer'),
+                      : Text(context.tr('Enregistrer')),
                 ),
               ),
             ],

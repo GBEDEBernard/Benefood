@@ -8,6 +8,7 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_dimens.dart';
 import '../../core/utils/formatters.dart';
 import 'notification_detail_sheet.dart';
+import '../../core/i18n/app_localizations.dart';
 
 /// Anti-doublon des bandeaux : plusieurs cloches peuvent être montées en même
 /// temps (onglets d'un même shell). La première qui détecte l'arrivée affiche
@@ -175,7 +176,7 @@ class _NotificationBellState extends State<NotificationBell>
           ],
         ),
         action: SnackBarAction(
-          label: 'Voir',
+          label: context.tr('Voir'),
           textColor: AppColors.orangeLight,
           onPressed: () {
             // Le bandeau survit à la cloche : on n'ouvre la feuille que si
@@ -227,7 +228,7 @@ class _NotificationBellState extends State<NotificationBell>
         children: [
           IconButton(
             onPressed: _openSheet,
-            tooltip: 'Notifications',
+            tooltip: context.tr('Notifications'),
             icon: const Icon(
               Icons.notifications_none,
               size: 26,
@@ -341,7 +342,7 @@ class _NotificationsSheetState extends State<_NotificationsSheet> {
                 ),
                 TextButton(
                   onPressed: _markAllRead,
-                  child: const Text('Tout lire'),
+                  child: Text(context.tr('Tout lire')),
                 ),
               ],
             ),

@@ -15,6 +15,7 @@ import '../../../shared/widgets/product_review_sheet.dart';
 import '../../../shared/widgets/quantity_stepper.dart';
 import '../../../shared/widgets/state_widgets.dart';
 import '../../../shared/widgets/status_badge.dart';
+import '../../../core/i18n/app_localizations.dart';
 
 /// Fiche produit client (J148) : description, prix, quantité, ajout panier.
 class ProductDetailScreen extends StatefulWidget {
@@ -150,7 +151,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   @override
   Widget build(BuildContext context) {
     return BeninfoodPageScaffold(
-      title: 'Produit',
+      title: context.tr('Produit'),
       api: widget.marketplace,
       actions: [
         IconButton(
@@ -386,7 +387,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                         const SizedBox(width: 16),
                         Expanded(
                           child: AppButton(
-                            label: 'Ajouter au panier',
+                            label: context.tr('Ajouter au panier'),
                             icon: Icons.add_shopping_cart,
                             onPressed: () => _addToCart(product),
                             loading: _adding,

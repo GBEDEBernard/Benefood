@@ -10,6 +10,7 @@ import '../../core/theme/app_dimens.dart';
 import '../../core/utils/geo.dart';
 import '../models/geo_point.dart';
 import 'app_network_image.dart';
+import '../../core/i18n/app_localizations.dart';
 
 /// Marqueur supplémentaire affiché en plus des points principaux.
 class AppMapMarker {
@@ -575,7 +576,7 @@ class _AppMapState extends State<AppMap> {
                       bottom: 52,
                       child: _MapButton(
                         icon: Icons.directions_outlined,
-                        tooltip: 'Ouvrir dans Google Maps',
+                        tooltip: context.tr('Ouvrir dans Google Maps'),
                         onPressed: _openInGoogleMaps,
                       ),
                     ),
@@ -585,7 +586,7 @@ class _AppMapState extends State<AppMap> {
                       top: 8,
                       child: _MapButton(
                         icon: Icons.fullscreen,
-                        tooltip: 'Agrandir la carte',
+                        tooltip: context.tr('Agrandir la carte'),
                         onPressed: _openFullscreen,
                       ),
                     ),
@@ -595,7 +596,7 @@ class _AppMapState extends State<AppMap> {
                       top: 8,
                       child: _MapButton(
                         icon: Icons.close,
-                        tooltip: 'Fermer',
+                        tooltip: context.tr('Fermer'),
                         onPressed: () => Navigator.of(context).maybePop(),
                       ),
                     ),

@@ -15,6 +15,7 @@ import '../../../../shared/widgets/feedback_widgets.dart';
 import '../../../../shared/widgets/state_widgets.dart';
 import '../../../wallet/widgets/payout_request_sheet.dart';
 import '../restaurant_palette.dart';
+import '../../../../core/i18n/app_localizations.dart';
 
 /// Écran « Portefeuille » du vendeur.
 ///
@@ -269,7 +270,7 @@ class _RevenusScreenState extends State<RevenusScreen>
           txs.add(
             _Tx(
               kind: _TxKind.commission,
-              title: 'Commission prélevée',
+              title: context.tr('Commission prélevée'),
               subtitle: subtitle,
               amount: -commission,
               status: delivered ? _TxStatus.success : _TxStatus.pending,
@@ -347,7 +348,7 @@ class _RevenusScreenState extends State<RevenusScreen>
         txs.add(
           _Tx(
             kind: _TxKind.commission,
-            title: 'Commission prélevée',
+            title: context.tr('Commission prélevée'),
             subtitle: subtitle,
             amount: -commission,
             status: delivered ? _TxStatus.success : _TxStatus.pending,
@@ -439,7 +440,7 @@ class _RevenusScreenState extends State<RevenusScreen>
   _Tx _payoutTx(_Payout payout) {
     return _Tx(
       kind: _TxKind.payout,
-      title: 'Retrait demandé',
+      title: context.tr('Retrait demandé'),
       subtitle: 'vers ${_methodLabel(payout.method)} · ${_when(payout.at)}',
       amount: -payout.amount,
       status: switch (payout.status) {
@@ -1240,7 +1241,7 @@ class _StatsGrid extends StatelessWidget {
                   icon: Icons.local_shipping_outlined,
                   tint: _WalletColors.orangeWash,
                   accent: RestaurantPalette.orange,
-                  label: 'Livraisons en attente',
+                  label: context.tr('Livraisons en attente'),
                   value: Text(
                     formatAmount(overview.pending, showSymbol: false),
                     style: _valueStyle,
@@ -1256,7 +1257,7 @@ class _StatsGrid extends StatelessWidget {
                   icon: Icons.savings_outlined,
                   tint: _WalletColors.greenWash,
                   accent: RestaurantPalette.success,
-                  label: 'Total gagné',
+                  label: context.tr('Total gagné'),
                   value: _CountUp(
                     value: overview.gross,
                     formatter: (v) =>
@@ -1280,7 +1281,7 @@ class _StatsGrid extends StatelessWidget {
                   icon: Icons.percent_rounded,
                   tint: _WalletColors.redWash,
                   accent: RestaurantPalette.danger,
-                  label: 'Taux de commission',
+                  label: context.tr('Taux de commission'),
                   value: Text(
                     '${overview.commissionRate} %',
                     style: _valueStyle,
@@ -1295,7 +1296,7 @@ class _StatsGrid extends StatelessWidget {
                   icon: Icons.paid_outlined,
                   tint: _WalletColors.goldWash,
                   accent: _WalletColors.goldDark,
-                  label: 'Commissions payées',
+                  label: context.tr('Commissions payées'),
                   value: _CountUp(
                     value: overview.commission,
                     formatter: (v) =>
@@ -2367,25 +2368,25 @@ class _HelpSheet extends StatelessWidget {
             const SizedBox(height: 16),
             _HelpRow(
               icon: Icons.lock_clock_rounded,
-              title: 'Séquestre',
+              title: context.tr('Séquestre'),
               text:
                   'Le montant d’une commande est retenu jusqu’à sa livraison, puis libéré sur votre solde.',
             ),
             _HelpRow(
               icon: Icons.percent_rounded,
-              title: 'Commission Béninfood',
+              title: context.tr('Commission Béninfood'),
               text:
                   '$commissionRate % sont prélevés sur chaque commande livrée ; le reste vous est reversé.',
             ),
             _HelpRow(
               icon: Icons.account_balance_wallet_rounded,
-              title: 'Retrait',
+              title: context.tr('Retrait'),
               text:
                   'Retirez votre solde vers MTN, Moov ou Celtiis. Minimum ${formatAmount(minPayout <= 0 ? 1000 : minPayout)}.',
             ),
             _HelpRow(
               icon: Icons.schedule_rounded,
-              title: 'Délais',
+              title: context.tr('Délais'),
               text:
                   'Les demandes sont traitées sous 24 h ouvrées. Le statut reste visible dans l’historique.',
             ),

@@ -25,8 +25,10 @@ import '../../../shared/widgets/app_map.dart';
 import '../../../shared/widgets/amount_widgets.dart';
 import '../../../shared/widgets/call_button.dart';
 import '../../../shared/widgets/feedback_widgets.dart';
+import '../../../shared/widgets/language_menu_button.dart';
 import '../../../shared/widgets/package_item_tile.dart';
 import 'delivery_qr_scanner_screen.dart';
+import '../../../core/i18n/app_localizations.dart';
 
 /// Navigation plein écran d'une mission active.
 ///
@@ -688,10 +690,12 @@ class _MissionNavigationScreenState extends State<MissionNavigationScreen> {
                       children: [
                         _MapCircleButton(
                           icon: Icons.arrow_back,
-                          tooltip: 'Retour à la mission',
+                          tooltip: context.tr('Retour à la mission'),
                           onPressed: () => Navigator.of(context).pop(_mission),
                         ),
                         const Spacer(),
+                        const LanguageMenuButton(),
+                        const SizedBox(width: 8),
                         _MapCircleButton(
                           icon: _voiceEnabled
                               ? Icons.volume_up
@@ -1004,7 +1008,7 @@ class _BottomMissionPanel extends StatelessWidget {
                 const SizedBox(height: 12),
                 OutlinedButton(
                   onPressed: onFinish,
-                  child: const Text('Retour'),
+                  child: Text(context.tr('Retour')),
                 ),
               ] else ...[
                 Row(
@@ -1130,7 +1134,7 @@ class _BottomMissionPanel extends StatelessWidget {
                     ),
                     if (phone.isNotEmpty) ...[
                       const SizedBox(width: 6),
-                      CallButton(label: 'Appeler', phone: phone, compact: true),
+                      CallButton(label: context.tr('Appeler'), phone: phone, compact: true),
                     ],
                   ],
                 ),
@@ -1188,7 +1192,7 @@ class _BottomMissionPanel extends StatelessWidget {
                     TextButton.icon(
                       onPressed: onOpenMaps,
                       icon: const Icon(Icons.directions_outlined, size: 16),
-                      label: const Text('Ouvrir dans Maps'),
+                      label: Text(context.tr('Ouvrir dans Maps')),
                       style: TextButton.styleFrom(
                         foregroundColor: AppColors.textSecondary,
                         textStyle: const TextStyle(
@@ -1548,7 +1552,7 @@ class _PickupConfirmationDialog extends StatelessWidget {
                     ),
                   ),
                   if (phone.isNotEmpty)
-                    CallButton(label: 'Appeler', phone: phone, compact: true),
+                    CallButton(label: context.tr('Appeler'), phone: phone, compact: true),
                 ],
               ),
             ],
@@ -1558,7 +1562,7 @@ class _PickupConfirmationDialog extends StatelessWidget {
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(false),
-          child: const Text('Pas encore'),
+          child: Text(context.tr('Pas encore')),
         ),
         FilledButton(
           onPressed: () => Navigator.of(context).pop(true),
@@ -1566,7 +1570,7 @@ class _PickupConfirmationDialog extends StatelessWidget {
             backgroundColor: AppColors.green,
             foregroundColor: Colors.white,
           ),
-          child: const Text('Confirmer'),
+          child: Text(context.tr('Confirmer')),
         ),
       ],
     );
@@ -1687,7 +1691,7 @@ class _ProofCodeDialogState extends State<_ProofCodeDialog> {
               letterSpacing: 9,
             ),
             decoration: InputDecoration(
-              hintText: '000000',
+              hintText: context.tr('000000'),
               counterText: '',
               errorText: _error,
               border: OutlineInputBorder(
@@ -1708,7 +1712,7 @@ class _ProofCodeDialogState extends State<_ProofCodeDialog> {
               child: OutlinedButton.icon(
                 onPressed: _loading ? null : _scanAndSubmit,
                 icon: const Icon(Icons.qr_code_scanner_rounded),
-                label: const Text('Scanner le QR de la commande'),
+                label: Text(context.tr('Scanner le QR de la commande')),
               ),
             ),
           ],
@@ -1717,7 +1721,7 @@ class _ProofCodeDialogState extends State<_ProofCodeDialog> {
       actions: [
         TextButton(
           onPressed: _loading ? null : () => Navigator.of(context).pop(false),
-          child: const Text('Annuler'),
+          child: Text(context.tr('Annuler')),
         ),
         FilledButton(
           onPressed: _loading ? null : _submit,
@@ -1734,7 +1738,7 @@ class _ProofCodeDialogState extends State<_ProofCodeDialog> {
                     color: Colors.white,
                   ),
                 )
-              : const Text('Confirmer'),
+              : Text(context.tr('Confirmer')),
         ),
       ],
     );

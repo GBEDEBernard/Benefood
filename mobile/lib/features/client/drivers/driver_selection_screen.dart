@@ -15,6 +15,7 @@ import '../../../shared/models/driver_selection.dart';
 import '../../../shared/widgets/app_map.dart';
 import '../../../shared/widgets/app_network_image.dart';
 import '../../../shared/widgets/feedback_widgets.dart';
+import '../../../core/i18n/app_localizations.dart';
 
 /// Ouvre l'écran « Choisir mon livreur » (commande ou colis).
 ///
@@ -504,7 +505,7 @@ class _DriverSelectionScreenState extends State<DriverSelectionScreen>
                   style: FilledButton.styleFrom(
                     backgroundColor: AppColors.orange,
                   ),
-                  child: const Text('Compris'),
+                  child: Text(context.tr('Compris')),
                 ),
               ),
             ],
@@ -537,7 +538,7 @@ class _DriverSelectionScreenState extends State<DriverSelectionScreen>
               _DetailRow(
                 icon: Icons.storefront_outlined,
                 color: AppColors.orange,
-                title: 'Point de collecte',
+                title: context.tr('Point de collecte'),
                 name: page.pickup?.title ?? '—',
                 address: page.pickup?.display ?? '—',
               ),
@@ -545,7 +546,7 @@ class _DriverSelectionScreenState extends State<DriverSelectionScreen>
               _DetailRow(
                 icon: Icons.home_outlined,
                 color: AppColors.green,
-                title: 'Adresse de livraison',
+                title: context.tr('Adresse de livraison'),
                 name: page.dropoff?.title ?? '—',
                 address: page.dropoff?.display ?? '—',
               ),
@@ -603,7 +604,7 @@ class _DriverSelectionScreenState extends State<DriverSelectionScreen>
                       context,
                     ).pop(const CheckoutDriverChoice.none()),
                     icon: const Icon(Icons.delivery_dining_outlined),
-                    label: const Text('Continuer sans livreur'),
+                    label: Text(context.tr('Continuer sans livreur')),
                     style: OutlinedButton.styleFrom(
                       minimumSize: const Size.fromHeight(48),
                       foregroundColor: AppColors.orangeDark,
@@ -878,7 +879,7 @@ class _Header extends StatelessWidget {
       child: Row(
         children: [
           IconButton(
-            tooltip: 'Retour',
+            tooltip: context.tr('Retour'),
             onPressed: onBack,
             icon: const Icon(Icons.arrow_back, color: AppColors.text),
           ),
@@ -1012,7 +1013,7 @@ class _SummaryCard extends StatelessWidget {
             ),
           ),
           IconButton(
-            tooltip: 'Détails',
+            tooltip: context.tr('Détails'),
             onPressed: onDetails,
             visualDensity: VisualDensity.compact,
             icon: const Icon(
@@ -1917,7 +1918,7 @@ class _ErrorView extends StatelessWidget {
               onPressed: onRetry,
               style: FilledButton.styleFrom(backgroundColor: AppColors.orange),
               icon: const Icon(Icons.refresh, size: 18),
-              label: const Text('Réessayer'),
+              label: Text(context.tr('Réessayer')),
             ),
           ],
         ),

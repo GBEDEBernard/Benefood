@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/auth/session_provider.dart';
 import '../../../core/errors/api_exception.dart';
+import '../../../core/i18n/app_localizations.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../shared/models/user.dart';
 import '../../../shared/widgets/feedback_widgets.dart';
@@ -49,7 +50,7 @@ class _ContextSelectorScreenState extends State<ContextSelectorScreen> {
     final contexts = user?.contexts ?? const <String>{};
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Choisir un espace')),
+      appBar: AppBar(title: Text(context.tr('Choisir un espace'))),
       body: SafeArea(
         child: Stack(
           children: [
@@ -57,7 +58,7 @@ class _ContextSelectorScreenState extends State<ContextSelectorScreen> {
               padding: const EdgeInsets.all(24),
               children: [
                 const SizedBox(height: 8),
-                const Text('Quel espace voulez-vous ouvrir ?', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                Text(context.tr('Quel espace voulez-vous ouvrir ?'), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 4),
                 Text(
                   'Bonjour ${user?.name ?? ''}',
@@ -67,24 +68,26 @@ class _ContextSelectorScreenState extends State<ContextSelectorScreen> {
                 if (contexts.contains(AppContext.client))
                   _ContextCard(
                     icon: Icons.shopping_bag_outlined,
-                    title: 'Client',
-                    subtitle: 'Commander chez les vendeurs Béninfood',
+                    title: context.tr('Client'),
+                    subtitle: context.tr('Commander chez les vendeurs Béninfood'),
                     onTap: _loading ? null : () => _select(AppContext.client),
                     accent: AppColors.green,
                   ),
                 if (contexts.contains(AppContext.vendor))
                   _ContextCard(
                     icon: Icons.storefront_outlined,
-                    title: 'Vendeur',
-                    subtitle: 'Gérer ma boutique, mes produits et mes commandes',
+                    title: context.tr('Vendeur'),
+                    subtitle: context.tr(
+                      'Gérer ma boutique, mes produits et mes commandes',
+                    ),
                     onTap: _loading ? null : () => _select(AppContext.vendor),
                     accent: AppColors.gold,
                   ),
                 if (contexts.contains(AppContext.driver))
                   _ContextCard(
                     icon: Icons.delivery_dining_outlined,
-                    title: 'Livreur',
-                    subtitle: 'Recevoir des missions et livrer',
+                    title: context.tr('Livreur'),
+                    subtitle: context.tr('Recevoir des missions et livrer'),
                     onTap: _loading ? null : () => _select(AppContext.driver),
                     accent: const Color(0xFF3949AB),
                   ),
@@ -97,7 +100,7 @@ class _ContextSelectorScreenState extends State<ContextSelectorScreen> {
                     }
                   },
                   icon: const Icon(Icons.logout),
-                  label: const Text('Se déconnecter'),
+                  label: Text(context.tr('Se déconnecter')),
                 ),
               ],
             ),

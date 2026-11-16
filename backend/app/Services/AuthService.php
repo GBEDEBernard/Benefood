@@ -232,6 +232,7 @@ class AuthService
         $user->update(array_filter([
             'name' => $data['name'] ?? null,
             'email' => $data['email'] ?? null,
+            'locale' => $data['locale'] ?? null,
         ], fn ($value) => $value !== null));
 
         return $user->fresh();

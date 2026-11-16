@@ -15,6 +15,7 @@ import 'steps/shop_config_step.dart';
 import 'steps/submitted_step.dart';
 import 'steps/welcome_step.dart';
 import 'widgets/onboarding_scaffold.dart';
+import '../../../core/i18n/app_localizations.dart';
 
 /// Sélecteur d'images injectable : les tests remplacent le plugin natif.
 typedef OnboardingImagePicker = Future<Uint8List?> Function(ImageSource source);
@@ -215,13 +216,13 @@ class _VendorOnboardingScreenState extends State<VendorOnboardingScreen> {
             ListTile(
               leading: const Icon(Icons.photo_camera_outlined,
                   color: AppColors.orange),
-              title: const Text('Prendre une photo'),
+              title: Text(context.tr('Prendre une photo')),
               onTap: () => Navigator.pop(sheetContext, ImageSource.camera),
             ),
             ListTile(
               leading: const Icon(Icons.photo_library_outlined,
                   color: AppColors.orange),
-              title: const Text('Choisir dans la galerie'),
+              title: Text(context.tr('Choisir dans la galerie')),
               onTap: () => Navigator.pop(sheetContext, ImageSource.gallery),
             ),
             ListTile(
@@ -457,8 +458,8 @@ class _VendorOnboardingScreenState extends State<VendorOnboardingScreen> {
               OnboardingScaffold(
                 stepIndex: 1,
                 api: widget.marketplace,
-                title: 'Informations légales',
-                subtitle: 'Renseignez les informations légales de votre entreprise.',
+                title: context.tr('Informations légales'),
+                subtitle: context.tr('Renseignez les informations légales de votre entreprise.'),
                 nextLabel: 'Suivant',
                 loading: _submitting,
                 onBack: () => _goTo(0),
@@ -478,8 +479,8 @@ class _VendorOnboardingScreenState extends State<VendorOnboardingScreen> {
               OnboardingScaffold(
                 stepIndex: 2,
                 api: widget.marketplace,
-                title: 'Documents requis',
-                subtitle: 'Envoyez les justificatifs demandés pour la vérification.',
+                title: context.tr('Documents requis'),
+                subtitle: context.tr('Envoyez les justificatifs demandés pour la vérification.'),
                 nextLabel: 'Suivant',
                 onBack: () => _goTo(1),
                 onNext: _continueFromDocuments,
@@ -493,8 +494,8 @@ class _VendorOnboardingScreenState extends State<VendorOnboardingScreen> {
               OnboardingScaffold(
                 stepIndex: 3,
                 api: widget.marketplace,
-                title: 'Configuration de la boutique',
-                subtitle: 'Personnalisez la vitrine de votre boutique.',
+                title: context.tr('Configuration de la boutique'),
+                subtitle: context.tr('Personnalisez la vitrine de votre boutique.'),
                 nextLabel: 'Suivant',
                 loading: _submitting,
                 onBack: () => _goTo(2),

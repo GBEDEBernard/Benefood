@@ -22,6 +22,7 @@ import '../../../shared/widgets/food_decor.dart';
 import '../../../shared/widgets/status_badge.dart';
 import '../../../shared/widgets/state_widgets.dart';
 import '../../../shared/widgets/timestamp_line.dart';
+import '../../../core/i18n/app_localizations.dart';
 
 /// Offres de livraison disponibles (J161).
 class OffersScreen extends StatefulWidget {
@@ -202,11 +203,11 @@ class _OffersScreenState extends State<OffersScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Retour'),
+            child: Text(context.tr('Retour')),
           ),
           FilledButton(
             onPressed: () => Navigator.of(context).pop(controller.text.trim()),
-            child: const Text('Décliner'),
+            child: Text(context.tr('Décliner')),
           ),
         ],
       ),
@@ -437,7 +438,7 @@ class _OfferCardState extends State<_OfferCard> {
                     ),
                   ),
                   StatusBadge(
-                    label: 'Disponible',
+                    label: context.tr('Disponible'),
                     color: widget.busy
                         ? AppColors.textSecondary
                         : AppColors.gold,
@@ -451,14 +452,14 @@ class _OfferCardState extends State<_OfferCard> {
               const SizedBox(height: 6),
               TimestampLine(
                 icon: Icons.event_outlined,
-                label: 'Créée le',
+                label: context.tr('Créée le'),
                 iso: widget.offer.order?.createdAt,
               ),
               if (widget.offer.order?.paidAt != null) ...[
                 const SizedBox(height: 3),
                 TimestampLine(
                   icon: Icons.payments_outlined,
-                  label: 'Payée le',
+                  label: context.tr('Payée le'),
                   iso: widget.offer.order?.paidAt,
                 ),
               ],
@@ -644,7 +645,7 @@ class _OfferCardState extends State<_OfferCard> {
                               height: 18,
                               child: CircularProgressIndicator(strokeWidth: 2),
                             )
-                          : const Text('Décliner'),
+                          : Text(context.tr('Décliner')),
                     ),
                   ),
                   const SizedBox(width: 10),
@@ -672,7 +673,7 @@ class _OfferCardState extends State<_OfferCard> {
                                 color: Colors.white,
                               ),
                             )
-                          : const Text('Accepter'),
+                          : Text(context.tr('Accepter')),
                     ),
                   ),
                 ],

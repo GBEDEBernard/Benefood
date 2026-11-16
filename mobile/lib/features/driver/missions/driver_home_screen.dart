@@ -24,6 +24,7 @@ import '../../../shared/widgets/section_header.dart';
 import '../../../shared/widgets/status_badge.dart';
 import '../../../shared/widgets/state_widgets.dart';
 import 'mission_detail_screen.dart';
+import '../../../core/i18n/app_localizations.dart';
 
 /// Missions livreur : commandes et colis réunis dans un même espace.
 class DriverHomeScreen extends StatefulWidget {
@@ -399,7 +400,7 @@ class DriverHomeScreenState extends State<DriverHomeScreen>
                     child: HomeStatTile(
                       icon: Icons.local_shipping_outlined,
                       value: '${active.length}',
-                      label: 'En cours',
+                      label: context.tr('En cours'),
                       accent: AppColors.orange,
                     ),
                   ),
@@ -408,7 +409,7 @@ class DriverHomeScreenState extends State<DriverHomeScreen>
                     child: HomeStatTile(
                       icon: Icons.check_circle_outline,
                       value: '$deliveredCount',
-                      label: 'Terminées',
+                      label: context.tr('Terminées'),
                       accent: AppColors.green,
                     ),
                   ),
@@ -417,7 +418,7 @@ class DriverHomeScreenState extends State<DriverHomeScreen>
                     child: HomeStatTile(
                       icon: Icons.account_balance_wallet_outlined,
                       value: formatAmount(availableBalance, showSymbol: false),
-                      label: 'Solde dispo.',
+                      label: context.tr('Solde dispo.'),
                       accent: AppColors.goldDark,
                     ),
                   ),
@@ -1094,7 +1095,7 @@ class _RouteSummary extends StatelessWidget {
       children: [
         _RouteLine(
           color: AppColors.green,
-          label: 'Collecte',
+          label: context.tr('Collecte'),
           title: mission.pickup.title,
           address: mission.pickup.displayAddress,
         ),

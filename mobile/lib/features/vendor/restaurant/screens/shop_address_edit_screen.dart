@@ -12,6 +12,7 @@ import '../../../../shared/widgets/map_picker.dart';
 import '../../onboarding/widgets/custom_text_field.dart';
 import '../restaurant_palette.dart';
 import 'shop_edit_shell.dart';
+import '../../../../core/i18n/app_localizations.dart';
 
 /// Gestion des adresses de la boutique : adresse publique, point de retrait
 /// utilisé par les livreurs et informations complémentaires.
@@ -164,7 +165,7 @@ class _ShopAddressEditScreenState extends State<ShopAddressEditScreen> {
         child: Column(
           children: [
             ShopEditorAppBar(
-              title: 'Mes adresses',
+              title: context.tr('Mes adresses'),
               onSave: _save,
               saving: _saving,
               api: widget.marketplace,
@@ -187,14 +188,14 @@ class _ShopAddressEditScreenState extends State<ShopAddressEditScreen> {
                     )
                   else
                     CustomTextField(
-                      label: 'Ville',
+                      label: context.tr('Ville'),
                       controller: _city,
                       hint: 'Cotonou',
                       textInputAction: TextInputAction.next,
                     ),
                   const SizedBox(height: 14),
                   CustomTextField(
-                    label: 'Adresse exacte',
+                    label: context.tr('Adresse exacte'),
                     required: true,
                     controller: _address,
                     hint: 'Cadjèhoun, carrefour des 3 collèges',
@@ -237,14 +238,14 @@ class _ShopAddressEditScreenState extends State<ShopAddressEditScreen> {
                   ),
                   const SizedBox(height: 12),
                   CustomTextField(
-                    label: 'Point de repère',
+                    label: context.tr('Point de repère'),
                     controller: _pickupLandmark,
                     hint: 'Ex : face au marché de nuit',
                     textInputAction: TextInputAction.next,
                   ),
                   const SizedBox(height: 14),
                   CustomTextField(
-                    label: 'Adresse de retrait',
+                    label: context.tr('Adresse de retrait'),
                     required: true,
                     controller: _pickupAddress,
                     hint: 'Entrepôt, porte bleue…',
@@ -283,7 +284,7 @@ class _ShopAddressEditScreenState extends State<ShopAddressEditScreen> {
                   ),
                   const SizedBox(height: 12),
                   CustomTextField(
-                    label: 'Instructions pour le livreur',
+                    label: context.tr('Instructions pour le livreur'),
                     controller: _deliveryInstructions,
                     hint: 'Ex : sonner à l’entrée, appeler en arrivant…',
                     maxLines: 3,

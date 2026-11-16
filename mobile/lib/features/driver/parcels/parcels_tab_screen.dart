@@ -16,6 +16,7 @@ import '../../../shared/widgets/food_decor.dart';
 import '../../../shared/widgets/status_badge.dart';
 import '../../../shared/widgets/state_widgets.dart';
 import '../../../shared/widgets/timestamp_line.dart';
+import '../../../core/i18n/app_localizations.dart';
 
 /// Service colis côté livreur (cahier v1.0, phase 3) :
 /// offres de colis disponibles + courses assignées (accept → pickup → start → deliver).
@@ -121,7 +122,7 @@ class _DriverParcelsScreenState extends State<DriverParcelsScreen> {
     final code = await showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Confirmer la remise'),
+        title: Text(context.tr('Confirmer la remise')),
         content: TextField(
           controller: controller,
           autofocus: true,
@@ -133,7 +134,7 @@ class _DriverParcelsScreenState extends State<DriverParcelsScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Annuler'),
+            child: Text(context.tr('Annuler')),
           ),
           FilledButton(
             onPressed: () {
@@ -141,7 +142,7 @@ class _DriverParcelsScreenState extends State<DriverParcelsScreen> {
                 Navigator.of(context).pop(controller.text.trim());
               }
             },
-            child: const Text('Confirmer'),
+            child: Text(context.tr('Confirmer')),
           ),
         ],
       ),
@@ -155,7 +156,7 @@ class _DriverParcelsScreenState extends State<DriverParcelsScreen> {
     final message = await showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Signaler un incident'),
+        title: Text(context.tr('Signaler un incident')),
         content: TextField(
           controller: controller,
           autofocus: true,
@@ -168,7 +169,7 @@ class _DriverParcelsScreenState extends State<DriverParcelsScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Annuler'),
+            child: Text(context.tr('Annuler')),
           ),
           FilledButton(
             onPressed: () {
@@ -176,7 +177,7 @@ class _DriverParcelsScreenState extends State<DriverParcelsScreen> {
                 Navigator.of(context).pop(controller.text.trim());
               }
             },
-            child: const Text('Envoyer'),
+            child: Text(context.tr('Envoyer')),
           ),
         ],
       ),
@@ -211,11 +212,11 @@ class _DriverParcelsScreenState extends State<DriverParcelsScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Retour'),
+            child: Text(context.tr('Retour')),
           ),
           FilledButton(
             onPressed: () => Navigator.of(context).pop(controller.text.trim()),
-            child: const Text('Décliner'),
+            child: Text(context.tr('Décliner')),
           ),
         ],
       ),
@@ -232,7 +233,7 @@ class _DriverParcelsScreenState extends State<DriverParcelsScreen> {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppDimens.radiusMd),
         ),
-        title: const Text('Code de confirmation'),
+        title: Text(context.tr('Code de confirmation')),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -248,8 +249,8 @@ class _DriverParcelsScreenState extends State<DriverParcelsScreen> {
               keyboardType: TextInputType.number,
               maxLength: 6,
               decoration: InputDecoration(
-                labelText: 'Code à 6 chiffres *',
-                hintText: '000000',
+                labelText: context.tr('Code à 6 chiffres *'),
+                hintText: context.tr('000000'),
                 counterText: '',
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(AppDimens.radiusSm),
@@ -261,7 +262,7 @@ class _DriverParcelsScreenState extends State<DriverParcelsScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Annuler'),
+            child: Text(context.tr('Annuler')),
           ),
           FilledButton(
             style: FilledButton.styleFrom(
@@ -275,7 +276,7 @@ class _DriverParcelsScreenState extends State<DriverParcelsScreen> {
               }
               Navigator.of(context).pop(value);
             },
-            child: const Text('Confirmer'),
+            child: Text(context.tr('Confirmer')),
           ),
         ],
       ),
@@ -344,7 +345,7 @@ class _DriverParcelsScreenState extends State<DriverParcelsScreen> {
         children: [
           _SectionHeader(
             icon: Icons.route_outlined,
-            label: 'Mes courses colis',
+            label: context.tr('Mes courses colis'),
             count: _runs.length,
             color: AppColors.green,
           ),
@@ -367,7 +368,7 @@ class _DriverParcelsScreenState extends State<DriverParcelsScreen> {
           const SizedBox(height: AppDimens.xl),
           _SectionHeader(
             icon: Icons.local_offer_outlined,
-            label: 'Offres de colis',
+            label: context.tr('Offres de colis'),
             count: _offers.length,
             color: AppColors.orange,
           ),
@@ -551,14 +552,14 @@ class _RunCard extends StatelessWidget {
             const SizedBox(height: AppDimens.sm),
             TimestampLine(
               icon: Icons.event_outlined,
-              label: 'Créé le',
+              label: context.tr('Créé le'),
               iso: parcel.createdAt,
             ),
             if (parcel.payment?.paidAt != null) ...[
               const SizedBox(height: 3),
               TimestampLine(
                 icon: Icons.payments_outlined,
-                label: 'Payé le',
+                label: context.tr('Payé le'),
                 iso: parcel.payment?.paidAt,
               ),
             ],
@@ -613,7 +614,7 @@ class _RunCard extends StatelessWidget {
                 child: TextButton.icon(
                   onPressed: busy == null ? () => onIncident(parcel) : null,
                   icon: const Icon(Icons.report_problem_outlined, size: 18),
-                  label: const Text('Signaler un incident'),
+                  label: Text(context.tr('Signaler un incident')),
                 ),
               ),
             ],
@@ -659,7 +660,7 @@ class _OfferCard extends StatelessWidget {
                   ),
                 ),
                 StatusBadge(
-                  label: 'Disponible',
+                  label: context.tr('Disponible'),
                   color: AppColors.gold,
                   small: true,
                   icon: Icons.local_offer,
@@ -707,14 +708,14 @@ class _OfferCard extends StatelessWidget {
             const SizedBox(height: AppDimens.sm),
             TimestampLine(
               icon: Icons.event_outlined,
-              label: 'Créé le',
+              label: context.tr('Créé le'),
               iso: parcel.createdAt,
             ),
             if (parcel.payment?.paidAt != null) ...[
               const SizedBox(height: 3),
               TimestampLine(
                 icon: Icons.payments_outlined,
-                label: 'Payé le',
+                label: context.tr('Payé le'),
                 iso: parcel.payment?.paidAt,
               ),
             ],
@@ -757,11 +758,11 @@ class _OfferCard extends StatelessWidget {
                   children: [
                     TextButton(
                       onPressed: busy == null ? () => onDecline(parcel) : null,
-                      child: const Text('Décliner'),
+                      child: Text(context.tr('Décliner')),
                     ),
                     const SizedBox(width: 6),
                     AppButton(
-                      label: 'Accepter',
+                      label: context.tr('Accepter'),
                       icon: Icons.check,
                       fullWidth: false,
                       onPressed: busy == null ? () => onAccept(parcel) : null,

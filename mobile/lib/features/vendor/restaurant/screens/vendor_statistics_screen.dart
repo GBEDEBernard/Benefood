@@ -13,6 +13,7 @@ import '../../../../shared/widgets/beninfood_header.dart';
 import '../../../../shared/widgets/stat_charts.dart';
 import '../../../../shared/widgets/state_widgets.dart';
 import '../widgets/vendor_bottom_bar.dart';
+import '../../../../core/i18n/app_localizations.dart';
 
 const _ink = Color(0xFF18231F);
 const _muted = Color(0xFF6B7670);
@@ -299,7 +300,7 @@ class _VendorStatisticsScreenState extends State<VendorStatisticsScreen>
               Expanded(
                 child: _MiniKpi(
                   icon: Icons.shopping_bag_outlined,
-                  label: 'Livrées',
+                  label: context.tr('Livrées'),
                   value: _int('orders_delivered').toString(),
                   animatedValue: _int('orders_delivered'),
                   valueFormatter: (value) => value.round().toString(),
@@ -312,7 +313,7 @@ class _VendorStatisticsScreenState extends State<VendorStatisticsScreen>
               Expanded(
                 child: _MiniKpi(
                   icon: Icons.payments_outlined,
-                  label: 'Panier moyen',
+                  label: context.tr('Panier moyen'),
                   value: formatCompactAmount(_int('average_basket')),
                   animatedValue: _int('average_basket'),
                   valueFormatter: formatCompactAmount,
@@ -324,7 +325,7 @@ class _VendorStatisticsScreenState extends State<VendorStatisticsScreen>
               Expanded(
                 child: _MiniKpi(
                   icon: Icons.groups_outlined,
-                  label: 'Clients',
+                  label: context.tr('Clients'),
                   value: _int('unique_clients').toString(),
                   animatedValue: _int('unique_clients'),
                   valueFormatter: (value) => value.round().toString(),
@@ -338,13 +339,13 @@ class _VendorStatisticsScreenState extends State<VendorStatisticsScreen>
 
           // ── Détails de performance en liste ──
           _Panel(
-            title: 'Performance',
+            title: context.tr('Performance'),
             child: Column(
               children: [
                 _MetricRow(
                   icon: Icons.receipt_long_outlined,
                   color: AppColors.blue,
-                  label: 'Commandes totales',
+                  label: context.tr('Commandes totales'),
                   value: _int('orders_total').toString(),
                   hint: '${_int('orders_cancelled')} annulée(s)',
                 ),
@@ -352,14 +353,14 @@ class _VendorStatisticsScreenState extends State<VendorStatisticsScreen>
                 _MetricRow(
                   icon: Icons.inventory_2_outlined,
                   color: AppColors.goldDark,
-                  label: 'Articles vendus',
+                  label: context.tr('Articles vendus'),
                   value: _int('items_sold').toString(),
                 ),
                 const _RowDivider(),
                 _MetricRow(
                   icon: Icons.star_rounded,
                   color: AppColors.goldDark,
-                  label: 'Note moyenne',
+                  label: context.tr('Note moyenne'),
                   value: ratingAvg == null
                       ? '—'
                       : '${'$ratingAvg'.replaceAll('.', ',')} / 5',
@@ -379,8 +380,8 @@ class _VendorStatisticsScreenState extends State<VendorStatisticsScreen>
 
           // ── Statuts : barre segmentée + légende ──
           _Panel(
-            title: 'Commandes par statut',
-            subtitle: 'Répartition sur la période',
+            title: context.tr('Commandes par statut'),
+            subtitle: context.tr('Répartition sur la période'),
             child: _StatusBreakdown(
               entries: [
                 for (final row in _breakdown)
@@ -396,8 +397,8 @@ class _VendorStatisticsScreenState extends State<VendorStatisticsScreen>
 
           // ── Meilleurs produits avec barres de progression ──
           _Panel(
-            title: 'Meilleurs produits',
-            subtitle: 'Classés par quantité vendue',
+            title: context.tr('Meilleurs produits'),
+            subtitle: context.tr('Classés par quantité vendue'),
             child: _TopProducts(products: _topProducts),
           ),
         ],
@@ -525,7 +526,7 @@ class _RevenueCard extends StatelessWidget {
                 Expanded(
                   child: _SplitStat(
                     color: AppColors.green,
-                    label: 'Net vendeur',
+                    label: context.tr('Net vendeur'),
                     amount: net,
                   ),
                 ),
@@ -538,7 +539,7 @@ class _RevenueCard extends StatelessWidget {
                 Expanded(
                   child: _SplitStat(
                     color: AppColors.orangeDark,
-                    label: 'Commission',
+                    label: context.tr('Commission'),
                     amount: commission,
                   ),
                 ),

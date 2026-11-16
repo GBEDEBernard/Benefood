@@ -12,6 +12,7 @@ import '../../../shared/widgets/app_search_field.dart';
 import '../../../shared/widgets/beninfood_header.dart';
 import '../../../shared/widgets/state_widgets.dart';
 import '../home/home_screen.dart' show categoryIcon;
+import '../../../core/i18n/app_localizations.dart';
 
 /// Catégories (J151) : grille 2 colonnes d'exploration visuelle.
 ///
@@ -88,7 +89,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
               0,
             ),
             child: AppSearchField(
-              hintText: 'Rechercher un plat, un restaurant...',
+              hintText: context.tr('Rechercher un plat, un restaurant...'),
               readOnly: true,
               onTap: () => _openSearch(context),
             ),

@@ -55,6 +55,25 @@ class MeProfileTest extends TestCase
             ->assertJsonPath('errors.0.code', 'unauthenticated');
     }
 
+    public function test_me_can_update_locale_to_fon(): void
+    {
+        $user = $this->actingUser();
+
+        $this->patchJson('/api/v1/me', ['locale' => 'fon'])
+            ->assertOk()
+            ->assertJsonPath('data.locale', 'fon');
+
+        $this->assertSame('fon', $user->fresh()->locale);
+    }
+
+    public function test_me_rejects_unsupported_locale(): void
+    {
+        $this->actingUser();
+
+        $this->patchJson('/api/v1/me', ['locale' => 'de'])
+            ->assertStatus(422);
+    }
+
     public function test_me_roles_lists_assigned_roles(): void
     {
         $this->actingUser(['client', 'vendor']);

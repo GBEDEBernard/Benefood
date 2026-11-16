@@ -11,6 +11,7 @@ import '../../../../shared/widgets/feedback_widgets.dart';
 import '../../onboarding/widgets/custom_text_field.dart';
 import '../restaurant_palette.dart';
 import 'shop_edit_shell.dart';
+import '../../../../core/i18n/app_localizations.dart';
 
 /// Métadonnée d'un média (logo / couverture) sélectionné par le vendeur.
 class _PickedMedia {
@@ -134,7 +135,7 @@ class _ShopInfoEditScreenState extends State<ShopInfoEditScreen> {
         child: Column(
           children: [
             ShopEditorAppBar(
-              title: 'Informations',
+              title: context.tr('Informations'),
               onSave: _save,
               saving: _saving,
               api: widget.marketplace,
@@ -150,7 +151,7 @@ class _ShopInfoEditScreenState extends State<ShopInfoEditScreen> {
                     const ShopEditLabel('À propos de la boutique'),
                     const SizedBox(height: 10),
                     CustomTextField(
-                      label: 'Nom de la boutique',
+                      label: context.tr('Nom de la boutique'),
                       controller: _name,
                       required: true,
                       validator: (v) => (v == null || v.trim().isEmpty) ? 'Le nom est requis.' : null,
@@ -158,7 +159,7 @@ class _ShopInfoEditScreenState extends State<ShopInfoEditScreen> {
                     ),
                     const SizedBox(height: 14),
                     CustomTextField(
-                      label: 'Description',
+                      label: context.tr('Description'),
                       controller: _description,
                       hint: 'Cuisine, spécialités, délais…',
                       maxLines: 4,
@@ -167,7 +168,7 @@ class _ShopInfoEditScreenState extends State<ShopInfoEditScreen> {
                     const ShopEditLabel('Coordonnées'),
                     const SizedBox(height: 10),
                     CustomTextField(
-                      label: 'Téléphone',
+                      label: context.tr('Téléphone'),
                       controller: _phone,
                       keyboardType: TextInputType.phone,
                       hint: '+229 01 02 03 04 05',
@@ -175,7 +176,7 @@ class _ShopInfoEditScreenState extends State<ShopInfoEditScreen> {
                     ),
                     const SizedBox(height: 14),
                     CustomTextField(
-                      label: 'E-mail',
+                      label: context.tr('E-mail'),
                       controller: _email,
                       keyboardType: TextInputType.emailAddress,
                       hint: 'contact@ma-boutique.com',
@@ -201,7 +202,7 @@ class _ShopInfoEditScreenState extends State<ShopInfoEditScreen> {
         ),
         const SizedBox(height: 10),
         _MediaEditor(
-          label: 'Photo de couverture',
+          label: context.tr('Photo de couverture'),
           height: 140,
           preview: _cover?.bytes != null
               ? Image.memory(_cover!.bytes, fit: BoxFit.cover)
@@ -213,7 +214,7 @@ class _ShopInfoEditScreenState extends State<ShopInfoEditScreen> {
         ),
         const SizedBox(height: 12),
         _MediaEditor(
-          label: 'Logo',
+          label: context.tr('Logo'),
           height: 84,
           preview: _logo?.bytes != null
               ? Image.memory(_logo!.bytes, fit: BoxFit.cover)

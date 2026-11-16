@@ -73,5 +73,12 @@ void main() {
       expect(restored.contexts, {AppContext.vendor, AppContext.driver});
       expect(restored.slugForContext(AppContext.driver), 'driver-independent');
     });
+
+    test('copyWith met à jour la langue sans perdre les rôles', () {
+      final updated = _userWithRoles(['client']).copyWith(locale: 'fon');
+
+      expect(updated.locale, 'fon');
+      expect(updated.contexts, {AppContext.client});
+    });
   });
 }

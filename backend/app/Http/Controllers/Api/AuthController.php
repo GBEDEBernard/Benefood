@@ -21,7 +21,7 @@ class AuthController extends Controller
             'phone' => ['required', 'string', 'regex:/^(?:\+?229|00229|0)?0?1?[0-9]{8}$/'],
             'email' => ['required', 'string', 'email', 'max:255'],
             'password' => ['required', 'string', 'min:8', 'confirmed'],
-            'locale' => ['sometimes', 'string', 'in:fr,en'],
+            'locale' => ['sometimes', 'string', 'in:fr,en,fon'],
             'roles' => ['sometimes', 'array'],
             'roles.*' => ['string', 'in:client,vendor,driver-independent'],
         ]);

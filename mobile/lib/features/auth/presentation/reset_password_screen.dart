@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/auth/session_provider.dart';
 import '../../../core/errors/api_exception.dart';
+import '../../../core/i18n/app_localizations.dart';
 import '../../../shared/widgets/auth_kit.dart';
 import '../../../shared/widgets/feedback_widgets.dart';
 
@@ -105,8 +106,8 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
   @override
   Widget build(BuildContext context) {
     return AuthScaffold(
-      title: 'Mot de passe oublié',
-      subtitle: 'Recevez un code et récupérez votre compte.',
+      title: context.tr('Mot de passe oublié'),
+      subtitle: context.tr('Recevez un code et récupérez votre compte.'),
       child: AutofillGroup(
         child: Form(
           key: _formKey,
@@ -116,17 +117,19 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
               if (!_stepCode) ...[
                 AuthField(
                   controller: _login,
-                  label: 'Téléphone ou email',
-                  hint: 'Votre numéro ou votre email',
+                  label: context.tr('Téléphone ou email'),
+                  hint: context.tr('Votre numéro ou votre email'),
                   icon: Icons.person_outline_rounded,
                   keyboardType: TextInputType.emailAddress,
                   textInputAction: TextInputAction.next,
                   autofillHints: const [AutofillHints.username],
-                  validator: (v) => (v == null || v.trim().isEmpty) ? 'Requis' : null,
+                  validator: (v) => (v == null || v.trim().isEmpty)
+                      ? context.tr('Requis')
+                      : null,
                 ),
                 const SizedBox(height: 24),
                 AuthPrimaryButton(
-                  label: 'Envoyer le code',
+                  label: context.tr('Envoyer le code'),
                   icon: Icons.send_outlined,
                   loading: _loading,
                   onPressed: _requestCode,
@@ -136,39 +139,45 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
               ] else ...[
                 AuthField(
                   controller: _code,
-                  label: 'Code de réinitialisation',
-                  hint: '6 chiffres',
+                  label: context.tr('Code de réinitialisation'),
+                  hint: context.tr('6 chiffres'),
                   icon: Icons.verified_outlined,
                   keyboardType: TextInputType.number,
                   textInputAction: TextInputAction.next,
-                  validator: (v) => (v == null || v.trim().length < 6) ? 'Code de 6 chiffres' : null,
+                  validator: (v) => (v == null || v.trim().length < 6)
+                      ? context.tr('Code de 6 chiffres')
+                      : null,
                 ),
                 const SizedBox(height: 16),
                 AuthField(
                   controller: _password,
-                  label: 'Nouveau mot de passe',
-                  hint: 'Au moins 8 caractères',
+                  label: context.tr('Nouveau mot de passe'),
+                  hint: context.tr('Au moins 8 caractères'),
                   icon: Icons.lock_outline_rounded,
                   isPassword: true,
                   textInputAction: TextInputAction.next,
                   autofillHints: const [AutofillHints.newPassword],
-                  validator: (v) => (v == null || v.length < 8) ? 'Au moins 8 caractères' : null,
+                  validator: (v) => (v == null || v.length < 8)
+                      ? context.tr('Au moins 8 caractères')
+                      : null,
                 ),
                 const SizedBox(height: 16),
                 AuthField(
                   controller: _confirm,
-                  label: 'Confirmer',
-                  hint: 'Retapez le nouveau mot de passe',
+                  label: context.tr('Confirmer'),
+                  hint: context.tr('Retapez le nouveau mot de passe'),
                   icon: Icons.lock_outline_rounded,
                   isPassword: true,
                   textInputAction: TextInputAction.done,
                   autofillHints: const [AutofillHints.newPassword],
                   onSubmitted: (_) => _reset(),
-                  validator: (v) => v == _password.text ? null : 'Les mots de passe diffèrent',
+                  validator: (v) => v == _password.text
+                      ? null
+                      : context.tr('Les mots de passe diffèrent'),
                 ),
                 const SizedBox(height: 24),
                 AuthPrimaryButton(
-                  label: 'Réinitialiser',
+                  label: context.tr('Réinitialiser'),
                   icon: Icons.check_circle_outline,
                   loading: _loading,
                   onPressed: _reset,

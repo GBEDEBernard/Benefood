@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../../../core/i18n/app_localizations.dart';
 import '../restaurant_palette.dart';
 
 /// Barre inférieure de l'espace vendeur : cinq accès, avec la boutique
@@ -58,7 +59,7 @@ class VendorBottomBar extends StatelessWidget {
                     child: _BarItem(
                       icon: Icons.home_outlined,
                       activeIcon: Icons.home_rounded,
-                      label: 'Accueil',
+                      label: context.tr('Accueil'),
                       active: currentIndex == 0,
                       onTap: () => _tap(0),
                     ),
@@ -68,7 +69,7 @@ class VendorBottomBar extends StatelessWidget {
                     child: _BarItem(
                       icon: Icons.receipt_long_outlined,
                       activeIcon: Icons.receipt_long_rounded,
-                      label: 'Commandes',
+                      label: context.tr('Commandes'),
                       active: currentIndex == 3,
                       badge: pendingOrders,
                       onTap: () => _tap(3),
@@ -81,7 +82,7 @@ class VendorBottomBar extends StatelessWidget {
                     child: _BarItem(
                       icon: Icons.account_balance_wallet_outlined,
                       activeIcon: Icons.account_balance_wallet_rounded,
-                      label: 'Portefeuille',
+                      label: context.tr('Portefeuille'),
                       active: currentIndex == 4,
                       onTap: () => _tap(4),
                     ),
@@ -91,7 +92,7 @@ class VendorBottomBar extends StatelessWidget {
                     child: _BarItem(
                       icon: Icons.person_outline_rounded,
                       activeIcon: Icons.person_rounded,
-                      label: 'Profil',
+                      label: context.tr('Profil'),
                       active: currentIndex == 8,
                       onTap: () => _tap(8),
                     ),
@@ -182,7 +183,7 @@ class _BoutiqueButton extends StatelessWidget {
               color: active ? RestaurantPalette.orange : RestaurantPalette.grayText,
               height: 1.1,
             ),
-            child: const Text('Boutique'),
+            child: Text(context.tr('Boutique')),
           ),
         ],
       ),

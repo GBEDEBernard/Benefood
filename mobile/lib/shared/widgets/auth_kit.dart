@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/i18n/app_localizations.dart';
 import '../../../core/theme/app_colors.dart';
 
 /// Kit visuel partagé par les écrans d'authentification (connexion,
@@ -703,12 +704,21 @@ class AuthPromises extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Row(
+    return Row(
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: [
-        _Promise(icon: Icons.shopping_cart_outlined, label: 'COMMANDEZ'),
-        _Promise(icon: Icons.payments_outlined, label: 'PAYEZ'),
-        _Promise(icon: Icons.check_circle_outline, label: 'RECEVEZ'),
+        _Promise(
+          icon: Icons.shopping_cart_outlined,
+          label: context.tr('COMMANDEZ'),
+        ),
+        _Promise(
+          icon: Icons.payments_outlined,
+          label: context.tr('PAYEZ'),
+        ),
+        _Promise(
+          icon: Icons.check_circle_outline,
+          label: context.tr('RECEVEZ'),
+        ),
       ],
     );
   }
@@ -751,9 +761,9 @@ class _Promise extends StatelessWidget {
 
 /// Petite mention « Connexion sécurisée » en bas de formulaire.
 class AuthSecureNote extends StatelessWidget {
-  const AuthSecureNote({super.key, this.text = 'Connexion sécurisée'});
+  const AuthSecureNote({super.key, this.text});
 
-  final String text;
+  final String? text;
 
   @override
   Widget build(BuildContext context) {
@@ -764,7 +774,7 @@ class AuthSecureNote extends StatelessWidget {
         const SizedBox(width: 6),
         Flexible(
           child: Text(
-            text,
+            text ?? context.tr('Connexion sécurisée'),
             textAlign: TextAlign.center,
             style: const TextStyle(fontSize: 12.5, color: AuthColors.muted),
           ),

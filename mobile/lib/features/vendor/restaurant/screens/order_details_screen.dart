@@ -6,10 +6,12 @@ import '../../../../core/data/marketplace_api.dart';
 import '../../../../core/navigation/notification_router.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../shared/models/order.dart';
-import '../../../../shared/widgets/notification_bell.dart';
 import '../../../../shared/widgets/feedback_widgets.dart';
+import '../../../../shared/widgets/language_menu_button.dart';
+import '../../../../shared/widgets/notification_bell.dart';
 import '../restaurant_palette.dart';
 import '../widgets/order_status_tag.dart';
+import '../../../../core/i18n/app_localizations.dart';
 
 /// Détail d'une commande vendeur : client, articles, paiement, notes et
 /// actions en pied de page fixe (Accepter / Refuser, Préparation, Prête,
@@ -191,6 +193,8 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                 api: widget.marketplace!,
                 audience: NotificationAudience.vendor,
               ),
+            const SizedBox(width: 4),
+            const LanguageMenuButton(),
           ],
         ),
       ),
@@ -289,10 +293,10 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
               const SizedBox(height: 10),
             ],
             const Divider(height: 16, color: RestaurantPalette.borderColor),
-            _SummaryRow(label: 'Sous-total', value: formatAmount(_order.subtotal)),
-            _SummaryRow(label: 'Livraison', value: formatAmount(_order.deliveryFee)),
+            _SummaryRow(label: context.tr('Sous-total'), value: formatAmount(_order.subtotal)),
+            _SummaryRow(label: context.tr('Livraison'), value: formatAmount(_order.deliveryFee)),
             if ((_order.financials?.serviceFee ?? 0) > 0)
-              _SummaryRow(label: 'Commission client', value: formatAmount(_order.financials!.serviceFee!)),
+              _SummaryRow(label: context.tr('Commission client'), value: formatAmount(_order.financials!.serviceFee!)),
             const SizedBox(height: 4),
             Row(
               children: [
@@ -448,13 +452,13 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
               ),
             ),
             const SizedBox(height: 12),
-            _SummaryRow(label: 'Base commissionnable', value: formatAmount(_order.subtotal)),
+            _SummaryRow(label: context.tr('Base commissionnable'), value: formatAmount(_order.subtotal)),
             if (f.commissionRate != null)
-              _SummaryRow(label: 'Taux commission', value: '${f.commissionRate} %'),
+              _SummaryRow(label: context.tr('Taux commission'), value: '${f.commissionRate} %'),
             if (f.commissionAmount != null)
-              _SummaryRow(label: 'Commission plateforme', value: '- ${formatAmount(f.commissionAmount!)}'),
+              _SummaryRow(label: context.tr('Commission plateforme'), value: '- ${formatAmount(f.commissionAmount!)}'),
             if (f.deliveryPartnerAmount != null)
-              _SummaryRow(label: 'Part livraison', value: formatAmount(f.deliveryPartnerAmount!)),
+              _SummaryRow(label: context.tr('Part livraison'), value: formatAmount(f.deliveryPartnerAmount!)),
             const Divider(height: 16, color: RestaurantPalette.borderColor),
             Row(
               children: [
@@ -540,7 +544,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
     return OutlinedButton.icon(
       onPressed: _busy ? null : _reportProblem,
       icon: const Icon(Icons.report_problem_outlined, size: 20),
-      label: const Text('Signaler un problème'),
+      label: Text(context.tr('Signaler un problème')),
       style: OutlinedButton.styleFrom(
         foregroundColor: RestaurantPalette.danger,
         side: const BorderSide(color: RestaurantPalette.danger),
@@ -554,7 +558,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
   Future<void> _reportProblem() async {
     final description = await showTextPromptDialog(
       context,
-      title: 'Signaler un problème',
+      title: context.tr('Signaler un problème'),
       hint: 'Décrivez le problème rencontré sur cette commande…',
       confirmLabel: 'Envoyer',
       maxLines: 4,
@@ -609,7 +613,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
           children: [
             Expanded(
               child: _FooterButton(
-                label: 'Accepter',
+                label: context.tr('Accepter'),
                 color: RestaurantPalette.success,
                 onPressed: () => _run(widget.onAccept, 'accepted'),
               ),
@@ -617,7 +621,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
             const SizedBox(width: 12),
             Expanded(
               child: _FooterButton(
-                label: 'Refuser',
+                label: context.tr('Refuser'),
                 color: RestaurantPalette.danger,
                 onPressed: () => _run(widget.onRefuse, 'cancelled'),
               ),
@@ -629,7 +633,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
     if (_order.status == 'accepted') {
       return [
         _FooterButton(
-          label: 'Commencer la préparation',
+          label: context.tr('Commencer la préparation'),
           color: RestaurantPalette.orange,
           onPressed: () => _run(widget.onPrepare, 'preparing'),
         ),
@@ -638,7 +642,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
     if (_order.status == 'preparing') {
       return [
         _FooterButton(
-          label: 'Marquer comme Prête',
+          label: context.tr('Marquer comme Prête'),
           color: RestaurantPalette.orange,
           onPressed: () => _run(widget.onReady, 'ready'),
         ),
@@ -648,7 +652,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
     if (widget.onConfirmDelivery != null) {
       return [
         _FooterButton(
-          label: 'Marquer comme Livrée',
+          label: context.tr('Marquer comme Livrée'),
           color: RestaurantPalette.success,
           onPressed: () => _run(widget.onConfirmDelivery!, 'delivered'),
         ),

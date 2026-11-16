@@ -11,6 +11,7 @@ import '../../../shared/widgets/call_button.dart';
 import '../../../shared/widgets/feedback_widgets.dart';
 import '../../../shared/widgets/food_decor.dart';
 import '../../../shared/widgets/state_widgets.dart';
+import '../../../core/i18n/app_localizations.dart';
 
 /// « Mes clients » : demandes de favori reçues par un livreur.
 ///
@@ -84,7 +85,7 @@ class _FavoriteClientsScreenState extends State<FavoriteClientsScreen> {
   @override
   Widget build(BuildContext context) {
     return BeninfoodPageScaffold(
-      title: 'Mes clients',
+      title: context.tr('Mes clients'),
       api: widget.marketplace,
       audience: NotificationAudience.driver,
       body: Stack(
@@ -195,7 +196,7 @@ class _FavoriteClientCard extends StatelessWidget {
                   Expanded(
                     child: OutlinedButton(
                       onPressed: busy ? null : onDecline,
-                      child: const Text('Refuser'),
+                      child: Text(context.tr('Refuser')),
                     ),
                   ),
                   const SizedBox(width: 10),
@@ -204,7 +205,7 @@ class _FavoriteClientCard extends StatelessWidget {
                       onPressed: busy ? null : onAccept,
                       child: busy
                           ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                          : const Text('Accepter'),
+                          : Text(context.tr('Accepter')),
                     ),
                   ),
                 ],
@@ -212,7 +213,7 @@ class _FavoriteClientCard extends StatelessWidget {
             else if (favorite.isAccepted)
               Align(
                 alignment: Alignment.centerLeft,
-                child: CallButton(label: 'Appeler', phone: owner.phone, compact: true),
+                child: CallButton(label: context.tr('Appeler'), phone: owner.phone, compact: true),
               ),
           ],
         ),

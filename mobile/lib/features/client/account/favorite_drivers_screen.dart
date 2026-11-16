@@ -10,6 +10,7 @@ import '../../../shared/widgets/beninfood_header.dart';
 import '../../../shared/widgets/call_button.dart';
 import '../../../shared/widgets/feedback_widgets.dart';
 import '../../../shared/widgets/state_widgets.dart';
+import '../../../core/i18n/app_localizations.dart';
 
 /// « Mes livreurs » : favoris d'un client ou d'un vendeur.
 ///
@@ -95,14 +96,14 @@ class _FavoriteDriversScreenState extends State<FavoriteDriversScreen> {
   @override
   Widget build(BuildContext context) {
     return BeninfoodPageScaffold(
-      title: 'Mes livreurs',
+      title: context.tr('Mes livreurs'),
       api: widget.marketplace,
       audience: widget.audience,
       body: _buildBody(),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _openAdd,
         icon: const Icon(Icons.person_add_alt),
-        label: const Text('Ajouter'),
+        label: Text(context.tr('Ajouter')),
       ),
     );
   }
@@ -117,8 +118,8 @@ class _FavoriteDriversScreenState extends State<FavoriteDriversScreen> {
     if (_favorites.isEmpty) {
       return EmptyState(
         icon: Icons.delivery_dining_outlined,
-        title: 'Aucun livreur favori',
-        subtitle: 'Ajoutez les livreurs qui vous ont déjà livré. Ils recevront une demande.',
+        title: context.tr('Aucun livreur favori'),
+        subtitle: context.tr('Ajoutez les livreurs qui vous ont déjà livré. Ils recevront une demande.'),
         actionLabel: 'Ajouter un livreur',
         onAction: _openAdd,
       );
@@ -201,10 +202,10 @@ class _FavoriteDriverCard extends StatelessWidget {
             Row(
               children: [
                 if (favorite.isAccepted)
-                  CallButton(label: 'Appeler', phone: driver.phone, compact: true),
+                  CallButton(label: context.tr('Appeler'), phone: driver.phone, compact: true),
                 const Spacer(),
                 IconButton(
-                  tooltip: 'Retirer',
+                  tooltip: context.tr('Retirer'),
                   onPressed: onRemove,
                   icon: const Icon(Icons.delete_outline, color: AppColors.red),
                 ),
