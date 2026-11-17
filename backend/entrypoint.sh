@@ -20,6 +20,12 @@ if [ -f /etc/secrets/ca.pem ]; then
     export MYSQL_ATTR_SSL_CA=/var/www/html/storage/ca.pem
 fi
 
+# Comptes de service Firebase : même contrainte de droits que le CA MySQL.
+if [ -f /etc/secrets/firebase.json ]; then
+    install -m 0644 /etc/secrets/firebase.json /var/www/html/storage/firebase-service-account.json
+    export FIREBASE_CREDENTIALS=/var/www/html/storage/firebase-service-account.json
+fi
+
 attempt=1
 until php artisan migrate --force --no-interaction; do
     if [ "$attempt" -ge 5 ]; then

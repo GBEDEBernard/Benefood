@@ -2,32 +2,27 @@
 # build_release.sh — Construit un APK release Béninfood pour Firebase App Distribution.
 #
 # Usage :
-#   ./build_release.sh                      # URL lue depuis le tunnel Cloudflare actif
-#   ./build_release.sh "https://..."        # URL explicite (ex. après redémarrage du tunnel)
+#   ./build_release.sh                      # API de production (Render)
+#   ./build_release.sh "https://..."        # URL explicite (serveur de test)
 #   API_BASE_URL="https://..." ./build_release.sh
 #
 # Actions :
-#   1. récupère l'URL du backend (tunnel actif ou argument) ;
-#   2. incrémente automatiquement le versionCode dans pubspec.yaml (+1) ;
-#   3. recompile l'APK release avec cette URL ;
+#   1. choisit l'URL de l'API (argument, variable d'environnement ou production) ;
+#   2. incrémente le versionCode dans pubspec.yaml (+1) ;
+#   3. compile l'APK release avec cette URL ;
 #   4. affiche le chemin de l'APK prêt à téléverser.
 set -euo pipefail
 
 MOBILE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PUBSPEC="$MOBILE_DIR/pubspec.yaml"
-TUNNEL_LOG="${TUNNEL_LOG:-/tmp/opencode/tunnel.log}"
+DEFAULT_API_BASE_URL="https://benefood.onrender.com"
 OUT="$MOBILE_DIR/build/app/outputs/flutter-apk/app-release.apk"
 
 # 1) URL de l'API
 if [[ -n "${1:-}" ]]; then
   API_BASE_URL="$1"
 elif [[ -z "${API_BASE_URL:-}" ]]; then
-  API_BASE_URL="$(grep -oE 'https://[a-z0-9-]+\.trycloudflare\.com' "$TUNNEL_LOG" 2>/dev/null | head -1 || true)"
-  if [[ -z "$API_BASE_URL" ]]; then
-    echo "ERREUR : aucune URL fournie ni trouvée dans $TUNNEL_LOG" >&2
-    echo "Relance le tunnel (ou passe l'URL en argument)." >&2
-    exit 1
-  fi
+  API_BASE_URL="$DEFAULT_API_BASE_URL"
 fi
 echo "→ URL API   : $API_BASE_URL"
 

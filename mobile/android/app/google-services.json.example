@@ -9,7 +9,7 @@
       "client_info": {
         "mobilesdk_app_id": "CHANGEME_MOBILESDK_APP_ID",
         "android_client_info": {
-          "package_name": "Beninfood.com"
+          "package_name": "com.beninfood.beninfood"
         }
       },
       "oauth_client": [],
