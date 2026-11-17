@@ -132,6 +132,12 @@ return [
         ],
 
         'beninfood' => [
+            'driver' => 'stack',
+            'channels' => explode(',', (string) env('BENINFOOD_LOG_CHANNELS', 'beninfood_file,stderr')),
+            'ignore_exceptions' => false,
+        ],
+
+        'beninfood_file' => [
             'driver' => 'daily',
             'path' => storage_path('logs/beninfood.log'),
             'level' => env('LOG_LEVEL', 'debug'),

@@ -10,6 +10,7 @@ use App\Services\NotificationService;
 use App\Services\Push\PushTransport;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
+use Laravel\Sanctum\Sanctum;
 use Tests\Fakes\PushTransportFake;
 use Tests\TestCase;
 
@@ -69,6 +70,22 @@ class PushNotificationTest extends TestCase
         $this->assertSame(1, $this->transport->calls);
         $this->assertFalse($stale->refresh()->is_active);
         $this->assertSame(1, UserDevice::query()->where('is_active', true)->count());
+    }
+
+    public function test_unregister_device_deactivates_only_own_token(): void
+    {
+        $user = User::factory()->create();
+        $device = UserDevice::factory()->create(['user_id' => $user->id]);
+        $other = UserDevice::factory()->create();
+
+        Sanctum::actingAs($user);
+
+        $this->deleteJson('/api/v1/me/devices', ['fcm_token' => $device->fcm_token])
+            ->assertOk()
+            ->assertJsonPath('data.unregistered', true);
+
+        $this->assertFalse($device->refresh()->is_active);
+        $this->assertTrue($other->refresh()->is_active);
     }
 
     public function test_skips_send_when_no_active_device(): void

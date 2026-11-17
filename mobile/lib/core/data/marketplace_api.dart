@@ -933,6 +933,13 @@ class MarketplaceApi {
     );
   }
 
+  Future<void> unregisterDevice({required String fcmToken}) async {
+    await _api.delete(
+      '/me/devices',
+      body: {'fcm_token': fcmToken},
+    );
+  }
+
   /// Référentiel public des langues (`GET /languages`).
   Future<List<AppLanguage>> supportedLanguages() async {
     final response = await _api.get('/languages');

@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 
 import '../../core/errors/api_exception.dart';
 import '../../core/http/api_client.dart';
+import '../../core/push/fcm_token.dart';
 import '../../core/storage/secure_token_store.dart';
 import '../../shared/models/user.dart';
 
@@ -230,6 +231,16 @@ class SessionProvider extends ChangeNotifier {
   }
 
   Future<void> logout() async {
+    // Désactive l'appareil push avant que le token d'auth ne soit supprimé.
+    final fcmToken = await currentFcmToken();
+    if (fcmToken != null) {
+      try {
+        await _api.delete('/me/devices', body: {'fcm_token': fcmToken});
+      } on ApiException {
+        // Best effort : la déconnexion ne doit pas être bloquée.
+      }
+    }
+
     try {
       await _api.post('/auth/logout');
     } on ApiException {

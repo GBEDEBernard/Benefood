@@ -127,6 +127,17 @@ class MeController extends Controller
         ]);
     }
 
+    public function unregisterDevice(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'fcm_token' => ['required', 'string', 'max:255'],
+        ]);
+
+        $this->auth->unregisterDevice($request->user(), $data['fcm_token']);
+
+        return Api::ok(['unregistered' => true]);
+    }
+
     // ------------------------------------------------------------------ J153
     /** Photo de profil : upload multipart `avatar`, l'ancienne est supprimée. */
     public function uploadAvatar(Request $request): JsonResponse

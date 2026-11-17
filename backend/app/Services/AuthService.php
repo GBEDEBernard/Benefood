@@ -259,6 +259,13 @@ class AuthService
         return $device;
     }
 
+    public function unregisterDevice(User $user, string $fcmToken): void
+    {
+        $user->devices()
+            ->where('fcm_token', $fcmToken)
+            ->update(['is_active' => false, 'last_seen_at' => now()]);
+    }
+
     public function assignRole(User $user, string $slug, bool $isActive = false): void
     {
         $role = Role::where('slug', $slug)->first();

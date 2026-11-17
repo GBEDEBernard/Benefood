@@ -52,7 +52,14 @@ class _BeninfoodAppState extends State<BeninfoodApp> {
   /// de contexte pour réenregistrer le jeton côté serveur).
   void _onSessionChanged() {
     final user = widget.session.user;
-    if (user == null || widget.session.restoring) {
+    if (user == null) {
+      // Déconnexion : la prochaine session devra réenregistrer le jeton FCM.
+      _pushReady = false;
+      _pushUserId = null;
+      PushService.audience = NotificationAudience.client;
+      return;
+    }
+    if (widget.session.restoring) {
       return;
     }
 

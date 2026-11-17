@@ -1,0 +1,9 @@
+# Signature release Android — copier vers key.properties (jamais versionné).
+# Générer le keystore :
+#   keytool -genkeypair -v -keystore keystore/beninfood-release.jks \
+#     -alias beninfood -keyalg RSA -keysize 2048 -validity 10000
+# Conserver une sauvegarde du .jks et des mots de passe hors du dépôt.
+storePassword=CHANGEME
+keyPassword=CHANGEME
+keyAlias=beninfood
+storeFile=keystore/beninfood-release.jks

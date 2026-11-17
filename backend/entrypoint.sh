@@ -24,6 +24,8 @@ fi
 if [ -f /etc/secrets/firebase.json ]; then
     install -m 0644 /etc/secrets/firebase.json /var/www/html/storage/firebase-service-account.json
     export FIREBASE_CREDENTIALS=/var/www/html/storage/firebase-service-account.json
+elif [ "${BENINFOOD_PUSH_ENABLED:-false}" = "true" ]; then
+    echo "AVERTISSEMENT : BENINFOOD_PUSH_ENABLED=true mais /etc/secrets/firebase.json est absent ; les push FCM echoueront." >&2
 fi
 
 attempt=1

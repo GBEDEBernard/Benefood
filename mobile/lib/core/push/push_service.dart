@@ -1,8 +1,10 @@
-import 'dart:io';
+import 'dart:convert';
 
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 import '../data/marketplace_api.dart';
 import '../navigation/notification_router.dart';
@@ -13,13 +15,23 @@ import '../navigation/notification_router.dart';
 /// - Intercepte les taps de notification (app en arrière-plan / terminée ou
 ///   premier plan) et ouvre l'écran cible porté par les données FCM :
 ///   `order_id` + `type` + `role` → détail commande vendeur ou client.
+/// - Android : affiche une bannière locale quand l'app est au premier plan
+///   (FCM ne le fait pas automatiquement). iOS : bannière native via les
+///   options de présentation au premier plan.
 ///
 /// Le service doit être initialisé APRÈS que la session est prête (appelé
 /// depuis `BeninfoodApp` quand un utilisateur est connecté).
 class PushService {
   PushService._();
 
+  static const String _channelId = 'beninfood_default';
+  static const String _channelName = 'Notifications Béninfood';
+  static const String _channelDescription =
+      'Commandes, livraisons et paiements Béninfood';
+
   static FirebaseMessaging? _messaging;
+  static FlutterLocalNotificationsPlugin? _localNotifications;
+  static MarketplaceApi? _marketplace;
   static bool _initialized = false;
   static String? _lastPayloadKey;
 
@@ -30,32 +42,50 @@ class PushService {
   /// tap. Tenu à jour par l'app à chaque changement de contexte de session.
   static NotificationAudience audience = NotificationAudience.client;
 
+  static bool get _isAndroid =>
+      !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
+
+  static bool get _isIOS =>
+      !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
+
   /// Initialise FCM et abonne les écouteurs. Idempotent.
   static Future<void> initialize({required MarketplaceApi marketplace}) async {
     if (_initialized) {
+      // Nouvelle session (autre compte sur le même appareil) : le jeton FCM
+      // doit être réassocié au bon utilisateur côté backend.
+      _marketplace = marketplace;
+      await _registerToken(marketplace);
       return;
     }
-    try {
-      await Firebase.initializeApp();
-    } catch (e) {
-      // Firebase non configuré (sans google-services.json) : push silencieux,
-      // l'app reste fonctionnelle via le center de notifications intégré.
-      debugPrint('PushService: Firebase indisponible ($e)');
-      return;
-    }
-    _initialized = true;
 
+    // `main` initialise Firebase avant `runApp` ; si l'initialisation a échoué
+    // (plateforme sans configuration), on reste silencieux.
+    if (Firebase.apps.isEmpty) {
+      debugPrint('PushService: Firebase non initialisé, push désactivé');
+      return;
+    }
+
+    _initialized = true;
+    _marketplace = marketplace;
     _messaging = FirebaseMessaging.instance;
 
-    // Autorisations (iOS surtout) : alerte, badge, son.
+    // Autorisations (iOS surtout, et POST_NOTIFICATIONS sur Android 13+).
     await _messaging!.requestPermission(
       alert: true,
       badge: true,
       sound: true,
     );
 
-    // Handler requis pour les messages en arrière-plan (iOS / Android 12+).
-    FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+    // iOS : affiche la notification même quand l'app est ouverte.
+    if (_isIOS) {
+      await _messaging!.setForegroundNotificationPresentationOptions(
+        alert: true,
+        badge: true,
+        sound: true,
+      );
+    }
+
+    await _initializeLocalNotifications();
 
     // Enregistrement du jeton auprès du backend.
     await _registerToken(marketplace);
@@ -74,12 +104,102 @@ class PushService {
       _handleTap(marketplace, _dataOf(message));
     });
 
-    // Premier plan : le backend envoie des messages « notification » ; on
-    // laisse l'OS afficher le bandeau et on gère l'ouverture via le
-    // deep-link du payload data (order_id).
-    FirebaseMessaging.onMessage.listen((message) {
+    // Premier plan : Android affiche une bannière locale ; iOS laisse l'OS
+    // présenter la notification via les options ci-dessus.
+    FirebaseMessaging.onMessage.listen((message) async {
+      if (_isAndroid) {
+        await _showLocalNotification(message);
+      }
       debugPrint('PushService: message FCM premier plan ${message.messageId}');
     });
+  }
+
+  /// Initialise le plugin Android de notifications locales + son canal.
+  static Future<void> _initializeLocalNotifications() async {
+    if (!_isAndroid) {
+      return;
+    }
+
+    try {
+      final plugin = FlutterLocalNotificationsPlugin();
+      const settings = InitializationSettings(
+        android: AndroidInitializationSettings('ic_notification'),
+      );
+
+      await plugin.initialize(
+        settings: settings,
+        onDidReceiveNotificationResponse: (response) {
+          final raw = response.payload;
+          if (raw == null || raw.isEmpty) {
+            return;
+          }
+          try {
+            final decoded = jsonDecode(raw);
+            final marketplace = _marketplace;
+            if (decoded is! Map || marketplace == null) {
+              return;
+            }
+            _handleTap(marketplace, Map<String, dynamic>.from(decoded));
+          } catch (e) {
+            debugPrint('PushService: payload de notification invalide ($e)');
+          }
+        },
+      );
+
+      final android = plugin.resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin>();
+      await android?.createNotificationChannel(
+        const AndroidNotificationChannel(
+          _channelId,
+          _channelName,
+          description: _channelDescription,
+          importance: Importance.high,
+        ),
+      );
+
+      _localNotifications = plugin;
+    } catch (e) {
+      debugPrint('PushService: notifications locales indisponibles ($e)');
+    }
+  }
+
+  /// Bannière locale Android pour un message reçu app ouverte.
+  static Future<void> _showLocalNotification(RemoteMessage message) async {
+    final plugin = _localNotifications;
+    if (plugin == null) {
+      return;
+    }
+
+    final notification = message.notification;
+    final title = notification?.title ?? message.data['title']?.toString();
+    final body =
+        notification?.body ?? message.data['body']?.toString() ?? '';
+
+    if (title == null && body.isEmpty) {
+      return;
+    }
+
+    try {
+      await plugin.show(
+        id: message.messageId?.hashCode ??
+            DateTime.now().millisecondsSinceEpoch.remainder(1 << 31),
+        title: title ?? 'Béninfood',
+        body: body,
+        notificationDetails: const NotificationDetails(
+          android: AndroidNotificationDetails(
+            _channelId,
+            _channelName,
+            channelDescription: _channelDescription,
+            importance: Importance.high,
+            priority: Priority.high,
+            icon: 'ic_notification',
+          ),
+        ),
+        payload: jsonEncode(_dataOf(message)),
+      );
+    } catch (e) {
+      debugPrint('PushService: affichage local impossible ($e)');
+    }
   }
 
   /// Anti-doublon : FCM délivre parfois le même tap deux fois.
@@ -116,6 +236,9 @@ class PushService {
 }
 
 /// Handler des messages FCM en arrière-plan (requis, top-level et annoté).
+///
+/// Enregistré dans `main` avant `runApp` pour être disponible même quand
+/// l'application est terminée.
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   // Rien à faire côté UI : l'OS affiche déjà la notification (transport
@@ -129,9 +252,12 @@ Future<void> _registerToken(MarketplaceApi marketplace) async {
     if (token == null || token.isEmpty) {
       return;
     }
+    if (kDebugMode) {
+      debugPrint('PushService: FCM token = $token');
+    }
     await marketplace.registerDevice(
       fcmToken: token,
-      platform: Platform.isIOS ? 'ios' : 'android',
+      platform: PushService._isIOS ? 'ios' : 'android',
     );
   } catch (_) {
     // Erreur réseau / device : on retentera via onTokenRefresh.

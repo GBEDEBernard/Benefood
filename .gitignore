@@ -23,6 +23,8 @@ mobile/lib/generated_plugin_registrant.dart
 mobile/android/.gradle/
 mobile/android/build/
 mobile/android/local.properties
+mobile/android/key.properties
+mobile/android/keystore/
 mobile/lib/core/config/app_config.dart.save
 mobile/ios/Pods/
 mobile/ios/.symlinks/

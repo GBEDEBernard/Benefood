@@ -12,6 +12,7 @@ storage/framework/cache/*
 storage/framework/sessions/*
 storage/framework/views/*
 storage/logs/*
+storage/app/firebase-service-account.json
 bootstrap/cache/*
 tests
 .phpunit.result.cache

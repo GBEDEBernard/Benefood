@@ -61,6 +61,7 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::patch('/me', [MeController::class, 'update'])->name('api.v1.me.update');
     Route::get('/me/devices', [MeController::class, 'devices'])->name('api.v1.me.devices.index');
     Route::post('/me/devices', [MeController::class, 'registerDevice'])->name('api.v1.me.devices.store');
+    Route::delete('/me/devices', [MeController::class, 'unregisterDevice'])->name('api.v1.me.devices.destroy');
     Route::post('/me/avatar', [MeController::class, 'uploadAvatar'])->name('api.v1.me.avatar.store');
     Route::post('/me/password', [MeController::class, 'changePassword'])->name('api.v1.me.password.update');
     Route::get('/me/stats', [MeController::class, 'stats'])->name('api.v1.me.stats');
