@@ -11,6 +11,18 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Compte administrateur créé au déploiement
+    |--------------------------------------------------------------------------
+    | ADMIN_PASSWORD n'a pas de valeur par défaut : le seeder de production ne
+    | crée aucun compte avec un mot de passe connu de tous.
+    */
+    'admin_seed' => [
+        'email' => env('ADMIN_EMAIL', 'admin@local'),
+        'password' => env('ADMIN_PASSWORD'),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Devise et précision monétaire
     |--------------------------------------------------------------------------
     | Tous les montants sont stockés en XOF entiers (FCFA, sans décimales).

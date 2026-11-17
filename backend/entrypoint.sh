@@ -31,6 +31,9 @@ until php artisan migrate --force --no-interaction; do
     sleep 5
 done
 
+# Référentiels et compte administrateur (idempotent, sans données de démo).
+php artisan db:seed --class=ProductionSeeder --force --no-interaction
+
 php artisan config:cache
 php artisan view:cache
 
