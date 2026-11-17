@@ -6,16 +6,14 @@ class AppConfig {
 
   static const String appName = 'Béninfood';
 
-  /// Domaine public fixe du serveur Laravel (ngrok gratuit).
+  /// Domaine public fixe de l'API Laravel déployée sur Render.
   ///
   /// À renseigner sans `/api` ni slash final : [apiUrl] ajoute `/api/v1`.
-  /// Le domaine reste identique d'un build à l'autre tant que le tunnel est
-  /// lancé avec `ngrok http --url=<domaine> 8000`.
-  static const String productionApiBaseUrl =
-      'https://lazily-untagged-easiness.ngrok-free.dev';
+  static const String productionApiBaseUrl = 'https://benefood.onrender.com';
 
-  /// En-tête exigé par les tunnels ngrok gratuits pour éviter la page
-  /// d'avertissement HTML renvoyée aux navigateurs.
+  /// En-tête exigé par les anciens tunnels ngrok gratuits (surcharges
+  /// persistantes) pour éviter la page d'avertissement HTML. Inutile sur Render,
+  /// mais conservé pour ne pas casser les installs encore configurées ainsi.
   static const Map<String, String> tunnelHeaders = {
     'ngrok-skip-browser-warning': 'true',
   };
