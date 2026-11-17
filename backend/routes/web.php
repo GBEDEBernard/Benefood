@@ -23,6 +23,7 @@ use App\Http\Controllers\Admin\AdminZonesController;
 use App\Http\Controllers\Admin\RolesController;
 use App\Http\Controllers\Admin\UsersController;
 use App\Http\Controllers\Admin\VendorsController;
+use App\Http\Controllers\Api\HealthController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Models\User;
 use Illuminate\Support\Facades\Route;
@@ -177,5 +178,8 @@ Route::get('/dashboard', fn () => redirect()->route('admin.dashboard'));
 
 // Backoffice shortlink
 Route::get('/backoffice', fn () => redirect()->route('admin.dashboard'))->name('backoffice');
+
+// Health check utilisé par la plateforme d'hébergement (Render).
+Route::get('/healthz', [HealthController::class, 'index'])->name('healthz');
 
 Route::get('/', fn () => view('welcome'));

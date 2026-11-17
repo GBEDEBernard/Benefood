@@ -21,4 +21,13 @@ class HealthTest extends TestCase
             ->assertJsonPath('data.service', 'beninfood-api')
             ->assertJsonPath('data.db', true);
     }
+
+    public function test_render_health_check_returns_ok(): void
+    {
+        $this->getJson('/healthz')
+            ->assertOk()
+            ->assertJsonPath('data.status', 'ok')
+            ->assertJsonPath('data.service', 'beninfood-api')
+            ->assertJsonPath('data.db', true);
+    }
 }
