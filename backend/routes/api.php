@@ -20,6 +20,20 @@ Route::get('/__diag', function (): JsonResponse {
         'vite_manifest' => file_exists(public_path('build/manifest.json')),
     ];
 
+    $caPath = '/etc/secrets/ca.pem';
+    $checks['ca_exists'] = file_exists($caPath);
+    $checks['ca_readable'] = is_readable($caPath);
+
+    try {
+        /** @var array<string, mixed>|false $cert */
+        $cert = openssl_x509_parse((string) file_get_contents($caPath));
+        $checks['ca_valid'] = $cert === false
+            ? 'parse failed: '.openssl_error_string()
+            : ($cert['subject']['CN'] ?? 'parsed');
+    } catch (Throwable $e) {
+        $checks['ca_valid'] = $e::class.' : '.$e->getMessage();
+    }
+
     $checks['db'] = 'ok';
     try {
         DB::select('select 1');
