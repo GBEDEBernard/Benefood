@@ -38,6 +38,8 @@ RUN set -eux; \
     apt-get install -y --no-install-recommends \
         ca-certificates curl unzip git \
         nginx gettext-base supervisor \
+        libpng16-16 libjpeg62-turbo libfreetype6 libzip4 \
+        libicu72 libonig5 libxml2 \
         libfreetype6-dev libjpeg62-turbo-dev libpng-dev \
         libicu-dev libzip-dev libxml2-dev libonig-dev; \
     docker-php-ext-configure gd --with-freetype --with-jpeg; \
