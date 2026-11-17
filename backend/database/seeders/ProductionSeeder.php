@@ -58,6 +58,7 @@ class ProductionSeeder extends Seeder
 
     private function seedAdmin(): void
     {
+        $name = (string) config('beninfood.admin_seed.name');
         $email = (string) config('beninfood.admin_seed.email');
         $password = config('beninfood.admin_seed.password');
 
@@ -70,7 +71,7 @@ class ProductionSeeder extends Seeder
         $admin = User::query()->firstOrCreate(
             ['email' => $email],
             [
-                'name' => 'Administrateur',
+                'name' => $name,
                 'phone' => '00000000',
                 'password' => $password,
                 'status' => 'active',

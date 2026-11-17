@@ -17,7 +17,8 @@ return [
     | crée aucun compte avec un mot de passe connu de tous.
     */
     'admin_seed' => [
-        'email' => env('ADMIN_EMAIL', 'admin@local'),
+        'name' => env('ADMIN_NAME', 'GBEDE Bernard'),
+        'email' => env('ADMIN_EMAIL', 'gbedebernard60@gmail.com'),
         'password' => env('ADMIN_PASSWORD'),
     ],
 

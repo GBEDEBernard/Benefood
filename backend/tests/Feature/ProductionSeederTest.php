@@ -30,6 +30,7 @@ class ProductionSeederTest extends TestCase
 
     public function test_creates_admin_who_can_log_in_with_configured_password(): void
     {
+        config()->set('beninfood.admin_seed.name', 'GBEDE Bernard');
         config()->set('beninfood.admin_seed.email', 'admin@benefood.test');
         config()->set('beninfood.admin_seed.password', 'admin-password');
 
@@ -41,6 +42,7 @@ class ProductionSeederTest extends TestCase
         ])->assertRedirect(route('admin.dashboard'));
 
         $admin = User::query()->where('email', 'admin@benefood.test')->firstOrFail();
+        $this->assertSame('GBEDE Bernard', $admin->name);
         $this->assertTrue($admin->hasRole('admin-technique'));
     }
 
@@ -50,14 +52,14 @@ class ProductionSeederTest extends TestCase
 
         $this->seed(ProductionSeeder::class);
 
-        $this->assertDatabaseMissing('users', ['email' => 'admin@local']);
+        $this->assertDatabaseMissing('users', ['email' => 'gbedebernard60@gmail.com']);
         $this->assertTrue(Role::query()->where('slug', 'admin-technique')->exists());
     }
 
     public function test_does_not_reset_existing_admin_password(): void
     {
         $admin = User::factory()->create([
-            'email' => 'admin@local',
+            'email' => 'gbedebernard60@gmail.com',
             'password' => 'original-password',
         ]);
         config()->set('beninfood.admin_seed.password', 'new-password');
