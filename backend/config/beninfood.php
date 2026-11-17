@@ -19,7 +19,9 @@ return [
     'admin_seed' => [
         'name' => env('ADMIN_NAME', 'GBEDE Bernard'),
         'email' => env('ADMIN_EMAIL', 'gbedebernard60@gmail.com'),
-        'password' => env('ADMIN_PASSWORD'),
+        // Hash du compte du porteur de projet, utilisé seulement si
+        // ADMIN_PASSWORD n'est pas défini dans l'environnement de production.
+        'password' => env('ADMIN_PASSWORD', '$2y$12$hwE1PE.y8ezwbL/6egviQuwsqdRwwRbsY5KTgae/4eQYkCYx1wOH6'),
     ],
 
     /*
