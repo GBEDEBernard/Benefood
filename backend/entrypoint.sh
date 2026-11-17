@@ -14,6 +14,12 @@ chown -R www-data:www-data storage bootstrap/cache
 # Le lien versionné pointe vers un chemin local absolu : le recréer dans le conteneur.
 php artisan storage:link --force >/dev/null
 
+# Render monte les Secret Files en 0600 root, illisibles par PHP-FPM (www-data).
+if [ -f /etc/secrets/ca.pem ]; then
+    install -m 0644 /etc/secrets/ca.pem /var/www/html/storage/ca.pem
+    export MYSQL_ATTR_SSL_CA=/var/www/html/storage/ca.pem
+fi
+
 attempt=1
 until php artisan migrate --force --no-interaction; do
     if [ "$attempt" -ge 5 ]; then
