@@ -37,6 +37,15 @@ if [ "${BENINFOOD_IMAGES_DISK:-public}" = "s3" ]; then
     [ -n "${AWS_URL:-}" ] || echo "AVERTISSEMENT : BENINFOOD_IMAGES_DISK=s3 mais AWS_URL est vide ; les URLs des images seront invalides." >&2
 fi
 
+# Documents privés : sans disque externe, ils sont perdus à chaque redéploiement.
+if [ "${BENINFOOD_DOCUMENTS_DISK:-private}" = "s3" ]; then
+    [ -n "${AWS_ACCESS_KEY_ID:-}" ] || echo "AVERTISSEMENT : BENINFOOD_DOCUMENTS_DISK=s3 mais AWS_ACCESS_KEY_ID est vide." >&2
+    [ -n "${AWS_SECRET_ACCESS_KEY:-}" ] || echo "AVERTISSEMENT : BENINFOOD_DOCUMENTS_DISK=s3 mais AWS_SECRET_ACCESS_KEY est vide." >&2
+    [ -n "${AWS_DOCUMENTS_BUCKET:-${AWS_BUCKET:-}}" ] || echo "AVERTISSEMENT : BENINFOOD_DOCUMENTS_DISK=s3 mais AWS_DOCUMENTS_BUCKET/AWS_BUCKET est vide." >&2
+else
+    echo "AVERTISSEMENT : BENINFOOD_DOCUMENTS_DISK=private (stockage local éphémère) ; les documents seront perdus au prochain redéploiement." >&2
+fi
+
 attempt=1
 until php artisan migrate --force --no-interaction; do
     if [ "$attempt" -ge 5 ]; then

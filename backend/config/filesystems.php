@@ -72,12 +72,21 @@ return [
                 'report' => false,
             ],
 
-        'private' => [
-            'driver' => 'local',
-            'root' => storage_path('app/private'),
-            'throw' => false,
-            'report' => false,
-        ],
+        // Pièces justificatives privées (vendeurs, livreurs, clients).
+        // En production sur un hébergeur à disque éphémère (Render…), utiliser
+        // `BENINFOOD_DOCUMENTS_DISK=s3` : sinon chaque redéploiement efface les
+        // fichiers, alors que les lignes restent en base (aperçus cassés).
+        'private' => env('BENINFOOD_DOCUMENTS_DISK', 'private') === 's3'
+            ? array_merge($s3, [
+                'bucket' => env('AWS_DOCUMENTS_BUCKET', env('AWS_BUCKET')),
+                'url' => null,
+            ])
+            : [
+                'driver' => 'local',
+                'root' => storage_path('app/private'),
+                'throw' => false,
+                'report' => false,
+            ],
 
         's3' => $s3,
 

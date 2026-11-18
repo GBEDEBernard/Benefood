@@ -229,6 +229,25 @@ class AdminCrudTest extends TestCase
             ->assertHeader('content-disposition', 'inline; filename=id-card.pdf');
     }
 
+    public function test_admin_vendor_page_reports_missing_document_file(): void
+    {
+        $vendor = $this->vendor();
+        VendorDocument::create([
+            'vendor_id' => $vendor->id,
+            'type' => 'store_photo',
+            'file_path' => 'vendor-documents/'.$vendor->id.'/store_photo-lost.jpg',
+            'status' => 'valid',
+            'submitted_by' => $vendor->user_id,
+        ]);
+
+        $this->actingAs($this->admin())
+            ->get(route('admin.vendors.show', $vendor))
+            ->assertOk()
+            ->assertSee('Fichier introuvable.')
+            ->assertSee('Demandez au vendeur de le renvoyer')
+            ->assertDontSee('Ouvrir dans un nouvel onglet');
+    }
+
     public function test_admin_can_download_vendor_document(): void
     {
         $vendor = $this->vendor();

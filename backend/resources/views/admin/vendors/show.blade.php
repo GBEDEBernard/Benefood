@@ -180,6 +180,7 @@
                     @php
                         $extension = strtolower(pathinfo($document->file_path, PATHINFO_EXTENSION));
                         $documentUrl = route('admin.vendors.documents.download', [$vendor, $document]);
+                        $fileExists = \Illuminate\Support\Facades\Storage::disk('private')->exists($document->file_path);
                     @endphp
                     <article class="mb-4 p-3" style="border: 1px solid var(--border-color); border-radius: 12px; background: #FFFFFF;">
                         <div class="d-flex flex-wrap justify-content-between align-items-start mb-3" style="gap: 12px;">
@@ -203,7 +204,13 @@
                             {!! \App\Support\AdminLabels::documentStatusBadge($document->status) !!}
                         </div>
 
-                        @if (in_array($extension, ['jpg', 'jpeg', 'png', 'webp'], true))
+                        @if (! $fileExists)
+                            <div class="alert alert-warning mb-0 py-2">
+                                <strong>Fichier introuvable.</strong>
+                                Le document n'est plus présent sur le stockage (perte lors d'un redéploiement).
+                                Demandez au vendeur de le renvoyer depuis son espace.
+                            </div>
+                        @elseif (in_array($extension, ['jpg', 'jpeg', 'png', 'webp'], true))
                             <a href="{{ $documentUrl }}" target="_blank" rel="noopener" aria-label="Ouvrir le document en grand">
                                 <img src="{{ $documentUrl }}" alt="{{ \App\Support\AdminLabels::documentTypeLabel($document->type) }}" loading="lazy"
                                      style="display: block; width: 100%; max-height: 460px; object-fit: contain; background: #F6F8F7; border-radius: 8px;">
@@ -216,7 +223,7 @@
                                 <i class="ti ti-external-link mr-1"></i> Ouvrir le fichier
                             </a>
                         @endif
-                        @if (in_array($extension, ['jpg', 'jpeg', 'png', 'webp', 'pdf'], true))
+                        @if ($fileExists && in_array($extension, ['jpg', 'jpeg', 'png', 'webp', 'pdf'], true))
                             <a href="{{ $documentUrl }}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-secondary mt-2">
                                 <i class="ti ti-external-link mr-1"></i> Ouvrir dans un nouvel onglet
                             </a>
