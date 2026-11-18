@@ -507,6 +507,106 @@ class VendorController extends Controller
         ];
     }
 
+    /**
+     * Boutiques en ligne à proximité d'un point GPS (cartographie client).
+     *
+     * Renvoie les vendeurs actifs disposant de coordonnées GPS, triés par
+     * distance croissante. Paramètre optionnel `radius` (km) pour ne garder
+     * que les boutiques dans le rayon demandé.
+     */
+    public function nearby(Request $request): JsonResponse
+    {
+        $latitude = Geo::coordinate($request->query('latitude'), -90, 90);
+        $longitude = Geo::coordinate($request->query('longitude'), -180, 180);
+        $radius = $request->filled('radius') ? (float) $request->query('radius') : null;
+        if ($radius !== null && $radius <= 0) {
+            $radius = null;
+        }
+
+        $vendors = Vendor::query()
+            ->where('status', VendorStatus::Active->value)
+            ->whereNull('closed_at')
+            ->whereNotNull('latitude')
+            ->whereNotNull('longitude')
+            ->get();
+
+        $items = $vendors->map(function (Vendor $vendor) use ($latitude, $longitude) {
+            $distance = ($latitude !== null && $longitude !== null)
+                ? Geo::haversineKm($latitude, $longitude, (float) $vendor->latitude, (float) $vendor->longitude)
+                : null;
+
+            return [
+                'vendor' => $vendor,
+                'distance_km' => $distance,
+            ];
+        });
+
+        if ($latitude !== null && $longitude !== null) {
+            $items = $items->sortBy(fn (array $item) => $item['distance_km'] ?? PHP_FLOAT_MAX)->values();
+        }
+
+        if ($radius !== null && $latitude !== null && $longitude !== null) {
+            $items = $items->filter(fn (array $item) => $item['distance_km'] !== null && $item['distance_km'] <= $radius)->values();
+        }
+
+        $payload = $items->map(function (array $item) {
+            /** @var Vendor $vendor */
+            $vendor = $item['vendor'];
+
+            return [
+                'id' => $vendor->id,
+                'business_name' => $vendor->business_name,
+                'description' => $vendor->description,
+                'type' => $vendor->type?->value,
+                'logo_url' => $this->mediaUrl($vendor->logo_url),
+                'cover_url' => $this->mediaUrl($vendor->cover_url),
+                'city' => $vendor->city,
+                'area' => $vendor->area,
+                'address' => $vendor->address,
+                'adresse_texte' => $vendor->adresse_texte ?? $vendor->address_text,
+                'latitude' => $vendor->latitude,
+                'longitude' => $vendor->longitude,
+                'is_open' => $vendor->isOpenNow(),
+                'distance_km' => $item['distance_km'] !== null ? round($item['distance_km'], 2) : null,
+            ];
+        })->values();
+
+        return Api::ok($payload);
+    }
+
+    /**
+     * Met à jour la position GPS et l'adresse textuelle d'une boutique.
+     */
+    public function updateLocation(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        $vendor = $user?->vendor()->first();
+
+        if ($vendor === null) {
+            return Api::error('Aucun profil vendeur associé à ce compte.', 'vendor.not_onboarded', 404);
+        }
+
+        $data = $request->validate([
+            'latitude' => ['required', 'numeric', 'between:-90,90'],
+            'longitude' => ['required', 'numeric', 'between:-180,180'],
+            'adresse_texte' => ['sometimes', 'nullable', 'string'],
+            'address_text' => ['sometimes', 'nullable', 'string'],
+            'address' => ['sometimes', 'nullable', 'string'],
+        ]);
+
+        $adresseTexte = $data['adresse_texte'] ?? $data['address_text'] ?? $data['address'] ?? null;
+
+        $vendor->update([
+            'latitude' => $data['latitude'],
+            'longitude' => $data['longitude'],
+            'adresse_texte' => $adresseTexte,
+            'address_text' => $adresseTexte,
+            'address' => $adresseTexte ?? $vendor->address,
+        ]);
+
+        return Api::ok(new VendorResource($vendor->fresh()));
+    }
+
     public function index(Request $request): JsonResponse
     {
         // Note moyenne et nombre d'avis : les avis sont rattachés aux commandes,

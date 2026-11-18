@@ -126,6 +126,45 @@ class MarketplaceApi {
     return _dataList(response).map(Vendor.fromJson).toList();
   }
 
+  /// Boutiques en ligne géolocalisées, triées par distance croissante.
+  ///
+  /// `GET /shops/nearby` : sans coordonnées, renvoie toutes les boutiques
+  /// disposant d'une position GPS (distances nulles).
+  Future<List<Vendor>> nearbyShops({
+    double? latitude,
+    double? longitude,
+    double? radiusKm,
+  }) async {
+    final response = await _api.get(
+      '/shops/nearby',
+      query: {
+        if (latitude != null) 'latitude': latitude.toString(),
+        if (longitude != null) 'longitude': longitude.toString(),
+        if (radiusKm != null) 'radius': radiusKm.toString(),
+      },
+    );
+    return _dataList(response).map(Vendor.fromJson).toList();
+  }
+
+  /// Frais de livraison calculés sur la distance réelle boutique → client.
+  ///
+  /// `POST /checkout/calculate-delivery` — formule 200 + distance_km * 150.
+  Future<DeliveryQuote> calculateDelivery(
+    String vendorId, {
+    required double latitude,
+    required double longitude,
+  }) async {
+    final response = await _api.post(
+      '/checkout/calculate-delivery',
+      body: {
+        'vendor_id': vendorId,
+        'latitude': latitude,
+        'longitude': longitude,
+      },
+    );
+    return DeliveryQuote.fromJson(_dataObject(response) ?? {});
+  }
+
   /// Référentiel des villes et de leurs quartiers (GET /locations).
   Future<List<LocationCity>> locations() async {
     final response = await _api.get('/locations');

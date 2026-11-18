@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\AddressController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CartController;
 use App\Http\Controllers\Api\CatalogController;
+use App\Http\Controllers\Api\CheckoutController;
 use App\Http\Controllers\Api\ClientController;
 use App\Http\Controllers\Api\ComplaintController;
 use App\Http\Controllers\Api\DeliveryController;
@@ -103,6 +104,8 @@ Route::middleware('auth:sanctum')->group(function (): void {
         Route::post('/products/{product}/video', [VendorProductController::class, 'uploadVideo'])->name('api.v1.vendors.me.products.video.store');
         Route::delete('/products/{product}/video', [VendorProductController::class, 'removeVideo'])->name('api.v1.vendors.me.products.video.destroy');
         Route::patch('/', [VendorController::class, 'updateProfile'])->name('api.v1.vendors.me.update');
+        Route::put('/update-location', [VendorController::class, 'updateLocation'])->name('api.v1.vendors.me.update-location');
+        Route::patch('/update-location', [VendorController::class, 'updateLocation'])->name('api.v1.vendors.me.update-location.patch');
         Route::get('/contacts', [VendorController::class, 'listContacts'])->name('api.v1.vendors.me.contacts.index');
         Route::post('/contacts', [VendorController::class, 'addContact'])->name('api.v1.vendors.me.contacts.store');
         Route::delete('/contacts/{contact}', [VendorController::class, 'removeContact'])->name('api.v1.vendors.me.contacts.destroy');
@@ -311,11 +314,18 @@ Route::get('/locations', [LocationController::class, 'index'])->name('api.v1.loc
 Route::get('/products', [CatalogController::class, 'index'])->name('api.v1.products.index');
 Route::get('/products/{product}', [CatalogController::class, 'show'])->name('api.v1.products.show');
 Route::get('/vendors', [VendorController::class, 'index'])->name('api.v1.vendors.index');
+Route::get('/shops/nearby', [VendorController::class, 'nearby'])->name('api.v1.shops.nearby');
+Route::get('/vendors/nearby', [VendorController::class, 'nearby'])->name('api.v1.vendors.nearby');
+Route::post('/checkout/calculate-delivery', [CheckoutController::class, 'calculateDelivery'])->name('api.v1.checkout.calculate-delivery');
 Route::get('/delivery/zones', [DeliveryZoneController::class, 'index'])->name('api.v1.delivery.zones.index');
 Route::get('/vendors/{vendor}', [VendorController::class, 'show'])->name('api.v1.vendors.show');
 Route::get('/vendors/{vendor}/products', [VendorProductController::class, 'index'])->name('api.v1.vendors.products.index');
 
 Route::post('/delivery/quote', [DeliveryQuoteController::class, 'quote'])->name('api.v1.delivery.quote');
+
+// Alias public pour la compatibilité avec l'ancienne spec (/api/shops...).
+Route::put('/vendor/update-location', [VendorController::class, 'updateLocation'])->middleware('auth:sanctum')->name('api.v1.vendor.update-location');
+Route::patch('/vendor/update-location', [VendorController::class, 'updateLocation'])->middleware('auth:sanctum')->name('api.v1.vendor.update-location.patch');
 
 // Public webhook for payment providers
 Route::post('/payments/webhook', [PaymentController::class, 'webhook'])->name('api.v1.payments.webhook');

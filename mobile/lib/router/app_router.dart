@@ -15,6 +15,7 @@ import '../features/client/presentation/client_sub_shell.dart';
 import '../features/client/product/product_detail_screen.dart';
 import '../features/client/shop/shop_detail_screen.dart';
 import '../features/client/shops/shop_list_screen.dart';
+import '../features/client/shops/shops_map_screen.dart';
 import '../features/client/search/search_screen.dart';
 import '../features/client/checkout/checkout_screen.dart';
 import '../features/client/account/addresses_screen.dart';
@@ -155,6 +156,12 @@ GoRouter buildAppRouter(SessionProvider session, MarketplaceApi marketplace) {
             builder: (context, state) => ShopListScreen(
               marketplace: marketplace,
               type: VendorType.fromApi(state.uri.queryParameters['type']),
+            ),
+          ),
+          GoRoute(
+            path: '/client/shops/map',
+            builder: (context, state) => ShopsMapScreen(
+              marketplace: marketplace,
             ),
           ),
           GoRoute(

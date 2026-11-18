@@ -100,6 +100,16 @@ class _ShopListScreenState extends State<ShopListScreen> {
                     color: AppColors.textSecondary,
                   ),
                 ),
+                const Spacer(),
+                TextButton.icon(
+                  onPressed: () => context.push('/client/shops/map'),
+                  style: TextButton.styleFrom(
+                    foregroundColor: AppColors.orange,
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                  ),
+                  icon: const Icon(Icons.map_outlined, size: 18),
+                  label: const Text('Carte'),
+                ),
               ],
             ),
           ),

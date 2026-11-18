@@ -24,6 +24,10 @@ use Laravel\Sanctum\HasApiTokens;
     'phone_verified_at',
     'avatar_path',
     'wallet_balance',
+    'latitude',
+    'longitude',
+    'adresse_texte',
+    'address_text',
 ])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
@@ -42,6 +46,8 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'phone_verified_at' => 'datetime',
             'password' => 'hashed',
+            'latitude' => 'float',
+            'longitude' => 'float',
         ];
     }
 
