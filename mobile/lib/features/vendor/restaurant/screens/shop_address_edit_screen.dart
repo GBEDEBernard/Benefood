@@ -5,6 +5,7 @@ import '../../../../core/data/marketplace_api.dart';
 import '../../../../core/errors/api_exception.dart';
 import '../../../../core/services/location_service.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../shared/models/neighborhood.dart';
 import '../../../../shared/models/vendor.dart';
 import '../../../../shared/widgets/city_area_picker.dart';
 import '../../../../shared/widgets/feedback_widgets.dart';
@@ -41,6 +42,21 @@ class _ShopAddressEditScreenState extends State<ShopAddressEditScreen> {
   double? _pickupLatitude;
   double? _pickupLongitude;
 
+  /// Quartiers du référentiel, chargés pour centrer les cartes sur le
+  /// quartier choisi et poser un repère de départ.
+  List<LocationCity> _cities = const [];
+  LatLng? _shopCenter;
+  LatLng? _pickupCenter;
+
+  /// Vrai quand le vendeur a lui-même touché la carte ou utilisé son GPS :
+  /// on ne remplace alors jamais son repère par le centre du quartier.
+  bool _shopPinPlaced = false;
+  bool _pickupPinPlaced = false;
+
+  /// Vrai quand le repère affiché est seulement le centre du quartier.
+  bool _shopAutoPlaced = false;
+  bool _pickupAutoPlaced = false;
+
   @override
   void initState() {
     super.initState();
@@ -54,6 +70,92 @@ class _ShopAddressEditScreenState extends State<ShopAddressEditScreen> {
     _longitude = widget.vendor.longitude;
     _pickupLatitude = widget.vendor.pickupLatitude ?? widget.vendor.latitude;
     _pickupLongitude = widget.vendor.pickupLongitude ?? widget.vendor.longitude;
+    _shopPinPlaced = widget.vendor.latitude != null && widget.vendor.longitude != null;
+    _pickupPinPlaced = _pickupLatitude != null && _pickupLongitude != null;
+    _loadLocations();
+  }
+
+  Future<void> _loadLocations() async {
+    final api = widget.marketplace;
+    if (api == null) {
+      return;
+    }
+    try {
+      final cities = await api.locations();
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _cities = cities;
+        final center = _centerFor(_city.text.trim(), _area.text.trim());
+        if (center != null) {
+          _applyCenter(center);
+        }
+      });
+    } catch (_) {
+      // Référentiel indisponible : la carte garde son centre par défaut.
+    }
+  }
+
+  /// Centre du quartier choisi, sinon barycentre des quartiers connus de la
+  /// ville, sinon `null`.
+  LatLng? _centerFor(String city, String area) {
+    if (city.isEmpty) {
+      return null;
+    }
+    double? lat;
+    double? lng;
+    var count = 0;
+    for (final entry in _cities) {
+      if (entry.city != city) {
+        continue;
+      }
+      final neighborhood = entry.neighborhoodNamed(area);
+      if (area.isNotEmpty &&
+          neighborhood?.latitude != null &&
+          neighborhood?.longitude != null) {
+        return LatLng(neighborhood!.latitude!, neighborhood.longitude!);
+      }
+      for (final item in entry.neighborhoods) {
+        if (item.latitude == null || item.longitude == null) {
+          continue;
+        }
+        lat = (lat ?? 0) + item.latitude!;
+        lng = (lng ?? 0) + item.longitude!;
+        count++;
+      }
+    }
+    if (count == 0) {
+      return null;
+    }
+    return LatLng(lat! / count, lng! / count);
+  }
+
+  /// Recadre les deux cartes et pré-pose un repère au centre du quartier
+  /// quand le vendeur n'a pas encore choisi de point.
+  void _applyCenter(LatLng center) {
+    _shopCenter = center;
+    _pickupCenter = center;
+    if (!_shopPinPlaced) {
+      _latitude = center.latitude;
+      _longitude = center.longitude;
+      _shopAutoPlaced = true;
+    }
+    if (!_pickupPinPlaced) {
+      _pickupLatitude = center.latitude;
+      _pickupLongitude = center.longitude;
+      _pickupAutoPlaced = true;
+    }
+  }
+
+  void _onAreaSelected(CityAreaSelection selection) {
+    final center = selection.latitude != null && selection.longitude != null
+        ? LatLng(selection.latitude!, selection.longitude!)
+        : _centerFor(selection.city ?? '', selection.area ?? '');
+    if (center == null) {
+      return;
+    }
+    setState(() => _applyCenter(center));
   }
 
   @override
@@ -90,12 +192,18 @@ class _ShopAddressEditScreenState extends State<ShopAddressEditScreen> {
         if (pickup) {
           _pickupLatitude = geo.latitude;
           _pickupLongitude = geo.longitude;
+          _pickupPinPlaced = true;
+          _pickupAutoPlaced = false;
         } else {
           _latitude = geo.latitude;
           _longitude = geo.longitude;
+          _shopPinPlaced = true;
+          _shopAutoPlaced = false;
           if (_pickupLatitude == null || _pickupLongitude == null) {
             _pickupLatitude = geo.latitude;
             _pickupLongitude = geo.longitude;
+            _pickupPinPlaced = true;
+            _pickupAutoPlaced = false;
           }
         }
       }
@@ -185,6 +293,7 @@ class _ShopAddressEditScreenState extends State<ShopAddressEditScreen> {
                       marketplace: widget.marketplace!,
                       cityController: _city,
                       areaController: _area,
+                      onChanged: _onAreaSelected,
                     )
                   else
                     CustomTextField(
@@ -216,6 +325,7 @@ class _ShopAddressEditScreenState extends State<ShopAddressEditScreen> {
                     point: _latitude != null && _longitude != null
                         ? LatLng(_latitude!, _longitude!)
                         : null,
+                    initialCenter: _shopCenter,
                     instruction: 'Touchez la carte pour placer la boutique',
                     onLocate: () => _locate(pickup: false),
                     locating: _locatingShop,
@@ -223,13 +333,21 @@ class _ShopAddressEditScreenState extends State<ShopAddressEditScreen> {
                       setState(() {
                         _latitude = point.latitude;
                         _longitude = point.longitude;
+                        _shopPinPlaced = true;
+                        _shopAutoPlaced = false;
                         if (_pickupLatitude == null || _pickupLongitude == null) {
                           _pickupLatitude = point.latitude;
                           _pickupLongitude = point.longitude;
+                          _pickupPinPlaced = true;
+                          _pickupAutoPlaced = false;
                         }
                       });
                     },
                   ),
+                  if (_shopAutoPlaced)
+                    const _AutoPinHint(
+                      'Position approximative : centre du quartier. Touchez la carte pour la préciser.',
+                    ),
                   const SizedBox(height: 26),
                   const _SectionTitle(
                     icon: Icons.local_shipping_outlined,
@@ -266,6 +384,7 @@ class _ShopAddressEditScreenState extends State<ShopAddressEditScreen> {
                     point: _pickupLatitude != null && _pickupLongitude != null
                         ? LatLng(_pickupLatitude!, _pickupLongitude!)
                         : null,
+                    initialCenter: _pickupCenter,
                     instruction: 'Touchez la carte pour placer le point de retrait',
                     onLocate: () => _locate(pickup: true),
                     locating: _locatingPickup,
@@ -273,9 +392,15 @@ class _ShopAddressEditScreenState extends State<ShopAddressEditScreen> {
                       setState(() {
                         _pickupLatitude = point.latitude;
                         _pickupLongitude = point.longitude;
+                        _pickupPinPlaced = true;
+                        _pickupAutoPlaced = false;
                       });
                     },
                   ),
+                  if (_pickupAutoPlaced)
+                    const _AutoPinHint(
+                      'Position approximative : centre du quartier. Touchez la carte pour la préciser.',
+                    ),
                   const SizedBox(height: 26),
                   const _SectionTitle(
                     icon: Icons.notes_outlined,
@@ -336,6 +461,37 @@ class _SectionTitle extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Rappelle que le repère affiché n'est que le centre du quartier choisi.
+class _AutoPinHint extends StatelessWidget {
+  const _AutoPinHint(this.message);
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.info_outline, size: 14, color: AppColors.orange),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              message,
+              style: const TextStyle(
+                fontSize: 11.5,
+                fontWeight: FontWeight.w600,
+                color: RestaurantPalette.grayText,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

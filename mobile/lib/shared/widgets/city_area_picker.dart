@@ -326,6 +326,7 @@ class CityAreaPickerField extends StatelessWidget {
     this.label = 'Ville et quartier',
     this.icon = Icons.location_city_outlined,
     this.enabled = true,
+    this.onChanged,
   });
 
   final MarketplaceApi marketplace;
@@ -334,6 +335,10 @@ class CityAreaPickerField extends StatelessWidget {
   final String label;
   final IconData icon;
   final bool enabled;
+
+  /// Appelé après la sélection, avec les coordonnées du quartier si elles
+  /// sont connues du référentiel.
+  final ValueChanged<CityAreaSelection>? onChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -360,6 +365,7 @@ class CityAreaPickerField extends StatelessWidget {
                   }
                   cityController.text = selection.city ?? '';
                   areaController.text = selection.area ?? '';
+                  onChanged?.call(selection);
                 }
               : null,
           child: InputDecorator(

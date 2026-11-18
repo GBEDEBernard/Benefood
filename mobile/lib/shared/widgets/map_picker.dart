@@ -57,6 +57,23 @@ class _MapPickerState extends State<MapPicker> {
   void didUpdateWidget(MapPicker oldWidget) {
     super.didUpdateWidget(oldWidget);
     final point = widget.point;
+    final center = widget.initialCenter;
+    if (point == null &&
+        center != null &&
+        center != oldWidget.initialCenter) {
+      // Le quartier choisi vient d'être résolu : on recadre la carte sans
+      // déplacer un éventuel repère déjà posé.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) {
+          return;
+        }
+        try {
+          _controller.move(center, _controller.camera.zoom);
+        } catch (_) {
+          // Carte pas encore montée : le build suivant la cadrera.
+        }
+      });
+    }
     if (point != null && point != _lastPoint) {
       _lastPoint = point;
       WidgetsBinding.instance.addPostFrameCallback((_) {
