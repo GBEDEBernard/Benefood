@@ -11,4 +11,9 @@ enum PaymentMethod: string
     {
         return $this === self::Cash;
     }
+
+    public function isOnline(): bool
+    {
+        return $this === self::Online;
+    }
 }
