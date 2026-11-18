@@ -100,10 +100,15 @@ void main() {
     expect(exception, isNull, reason: 'exception pendant le build: $exception');
 
     expect(find.text('Boutiques les mieux notées'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('La Boulangerie du Centre'),
+      400,
+      scrollable: find.byType(Scrollable).first,
+    );
     expect(find.text('La Boulangerie du Centre'), findsOneWidget);
     await tester.scrollUntilVisible(
       find.text('Plats du jour les mieux notés'),
-      1200,
+      300,
       scrollable: find.byType(Scrollable).first,
     );
     expect(find.text('Plats du jour les mieux notés'), findsOneWidget);
@@ -117,6 +122,11 @@ void main() {
     expect(exception, isNull, reason: 'exception pendant le build: $exception');
 
     expect(find.text('Boutiques les mieux notées'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('La Boulangerie du Centre'),
+      400,
+      scrollable: find.byType(Scrollable).first,
+    );
     expect(find.text('La Boulangerie du Centre'), findsOneWidget);
   });
 }

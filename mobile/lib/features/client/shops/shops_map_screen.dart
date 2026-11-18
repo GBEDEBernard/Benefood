@@ -28,10 +28,15 @@ class _ShopsMapScreenState extends State<ShopsMapScreen> {
 
   final MapController _mapController = MapController();
 
+  final TextEditingController _searchController = TextEditingController();
+
   LatLng? _position;
   List<Vendor> _vendors = const [];
   Vendor? _selected;
   double? _radiusKm;
+  VendorType? _type;
+  String? _area;
+  String _query = '';
   bool _loading = true;
   String? _error;
 
@@ -45,8 +50,53 @@ class _ShopsMapScreenState extends State<ShopsMapScreen> {
 
   @override
   void dispose() {
+    _searchController.dispose();
     _mapController.dispose();
     super.dispose();
+  }
+
+  /// Boutiques après recherche par nom/quartier et filtres type/quartier.
+  List<Vendor> get _visible {
+    final query = _query.trim().toLowerCase();
+    return _vendors.where((vendor) {
+      if (_type != null && vendor.type != _type) {
+        return false;
+      }
+      if (_area != null &&
+          vendor.area != _area &&
+          vendor.city != _area) {
+        return false;
+      }
+      if (query.isEmpty) {
+        return true;
+      }
+      final haystack = [
+        vendor.businessName,
+        vendor.area,
+        vendor.city,
+        vendor.address,
+        vendor.description,
+      ].whereType<String>().join(' ').toLowerCase();
+      return haystack.contains(query);
+    }).toList();
+  }
+
+  /// Quartiers (ou villes à défaut) disponibles parmi les boutiques chargées.
+  List<String> get _areas {
+    final areas = _vendors
+        .map((vendor) {
+          final area = vendor.area?.trim();
+          if (area != null && area.isNotEmpty) {
+            return area;
+          }
+          final city = vendor.city?.trim();
+          return city != null && city.isNotEmpty ? city : null;
+        })
+        .whereType<String>()
+        .toSet()
+        .toList()
+      ..sort();
+    return areas;
   }
 
   LatLng get _center =>
@@ -73,11 +123,31 @@ class _ShopsMapScreenState extends State<ShopsMapScreen> {
     });
 
     try {
-      final vendors = await widget.marketplace.nearbyShops(
+      // Toutes les boutiques ouvertes : celles sans position GPS restent
+      // visibles dans la liste de résultats, seules les géolocalisées ont un
+      // marqueur sur la carte.
+      final vendors = await widget.marketplace.vendors(
+        onlyOpen: true,
         latitude: _position?.latitude,
         longitude: _position?.longitude,
         radiusKm: _radiusKm,
+        sort: _position != null ? 'distance' : null,
+        perPage: 100,
       );
+      vendors.sort((a, b) {
+        final da = a.distanceKm;
+        final db = b.distanceKm;
+        if (da == null && db == null) {
+          return a.businessName.compareTo(b.businessName);
+        }
+        if (da == null) {
+          return 1;
+        }
+        if (db == null) {
+          return -1;
+        }
+        return da.compareTo(db);
+      });
       if (!mounted) {
         return;
       }
@@ -117,6 +187,65 @@ class _ShopsMapScreenState extends State<ShopsMapScreen> {
       _selected = null;
     });
     _load();
+  }
+
+  void _onSearchChanged(String value) {
+    setState(() {
+      _query = value;
+      if (_selected != null && !_visible.any((v) => v.id == _selected!.id)) {
+        _selected = null;
+      }
+    });
+  }
+
+  void _selectType(VendorType? type) {
+    setState(() {
+      _type = type;
+      _selected = null;
+    });
+  }
+
+  Future<void> _pickArea() async {
+    final choice = await showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) => SafeArea(
+        child: ListView(
+          shrinkWrap: true,
+          children: [
+            const Padding(
+              padding: EdgeInsets.fromLTRB(20, 0, 20, 8),
+              child: Text(
+                'Filtrer par quartier',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+              ),
+            ),
+            ListTile(
+              title: const Text('Tous les quartiers'),
+              trailing: _area == null
+                  ? const Icon(Icons.check, color: AppColors.orange)
+                  : null,
+              onTap: () => Navigator.of(context).pop(''),
+            ),
+            for (final area in _areas)
+              ListTile(
+                title: Text(area),
+                trailing: _area == area
+                    ? const Icon(Icons.check, color: AppColors.orange)
+                    : null,
+                onTap: () => Navigator.of(context).pop(area),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (choice == null || !mounted) {
+      return;
+    }
+    setState(() {
+      _area = choice.isEmpty ? null : choice;
+      _selected = null;
+    });
   }
 
   void _recenter() {
@@ -162,10 +291,58 @@ class _ShopsMapScreenState extends State<ShopsMapScreen> {
       ),
       body: Column(
         children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppDimens.pagePadding,
+              8,
+              AppDimens.pagePadding,
+              0,
+            ),
+            child: TextField(
+              controller: _searchController,
+              onChanged: _onSearchChanged,
+              textInputAction: TextInputAction.search,
+              decoration: InputDecoration(
+                hintText: 'Restaurant, maquis, quartier...',
+                prefixIcon: const Icon(Icons.search, size: 21),
+                suffixIcon: _query.isEmpty
+                    ? null
+                    : IconButton(
+                        icon: const Icon(Icons.close, size: 19),
+                        onPressed: () {
+                          _searchController.clear();
+                          _onSearchChanged('');
+                        },
+                      ),
+                isDense: true,
+                filled: true,
+                fillColor: AppColors.surface,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: const BorderSide(color: AppColors.border),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: const BorderSide(color: AppColors.border),
+                ),
+              ),
+            ),
+          ),
           _RadiusBar(
             selected: _radiusKm,
             options: _radiusOptions,
+            enabled: _position != null,
             onSelected: _selectRadius,
+          ),
+          _TypeAreaBar(
+            selectedType: _type,
+            area: _area,
+            onType: _selectType,
+            onArea: _pickArea,
+            onClearArea: () => setState(() {
+              _area = null;
+              _selected = null;
+            }),
           ),
           Expanded(
             child: _loading
@@ -200,7 +377,7 @@ class _ShopsMapScreenState extends State<ShopsMapScreen> {
                                       height: 24,
                                       child: const _UserDot(),
                                     ),
-                                  for (final vendor in _vendors)
+                                  for (final vendor in _visible)
                                     if (vendor.latitude != null &&
                                         vendor.longitude != null)
                                       Marker(
@@ -231,7 +408,7 @@ class _ShopsMapScreenState extends State<ShopsMapScreen> {
                           ),
                           Positioned(
                             right: 12,
-                            bottom: _selected == null ? 16 : 176,
+                            bottom: _selected == null ? 132 : 176,
                             child: FloatingActionButton.small(
                               heroTag: 'shops-map-recenter',
                               backgroundColor: Colors.white,
@@ -253,13 +430,27 @@ class _ShopsMapScreenState extends State<ShopsMapScreen> {
                                   '/client/shop/${_selected!.id}',
                                 ),
                               ),
+                            )
+                          else if (_visible.isNotEmpty)
+                            Positioned(
+                              left: 0,
+                              right: 0,
+                              bottom: 0,
+                              child: _ResultsStrip(
+                                vendors: _visible,
+                                onTap: _openVendor,
+                              ),
                             ),
-                          if (_vendors.isEmpty)
-                            const Positioned(
+                          if (_visible.isEmpty)
+                            Positioned(
                               left: 16,
                               right: 16,
                               top: 16,
-                              child: _EmptyBanner(),
+                              child: _EmptyBanner(
+                                message: _vendors.isEmpty
+                                    ? 'Aucune boutique géolocalisée dans ce rayon.'
+                                    : 'Aucune boutique ne correspond à votre recherche.',
+                              ),
                             ),
                         ],
                       ),
@@ -274,11 +465,13 @@ class _RadiusBar extends StatelessWidget {
   const _RadiusBar({
     required this.selected,
     required this.options,
+    required this.enabled,
     required this.onSelected,
   });
 
   final double? selected;
   final List<double?> options;
+  final bool enabled;
   final ValueChanged<double?> onSelected;
 
   String _label(double? radius) =>
@@ -302,7 +495,7 @@ class _RadiusBar extends StatelessWidget {
               ChoiceChip(
                 label: Text(_label(option)),
                 selected: selected == option,
-                onSelected: (_) => onSelected(option),
+                onSelected: enabled ? (_) => onSelected(option) : null,
                 selectedColor: AppColors.orangeLight,
                 labelStyle: TextStyle(
                   fontWeight: FontWeight.w700,
@@ -320,6 +513,225 @@ class _RadiusBar extends StatelessWidget {
               const SizedBox(width: 8),
             ],
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _TypeAreaBar extends StatelessWidget {
+  const _TypeAreaBar({
+    required this.selectedType,
+    required this.area,
+    required this.onType,
+    required this.onArea,
+    required this.onClearArea,
+  });
+
+  final VendorType? selectedType;
+  final String? area;
+  final ValueChanged<VendorType?> onType;
+  final VoidCallback onArea;
+  final VoidCallback onClearArea;
+
+  @override
+  Widget build(BuildContext context) {
+    final types = <VendorType?>[null, ...VendorType.values];
+    return Container(
+      color: AppColors.surface,
+      padding: const EdgeInsets.only(bottom: 8),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: AppDimens.pagePadding),
+        child: Row(
+          children: [
+            for (final type in types) ...[
+              ChoiceChip(
+                label: Text(type?.label ?? 'Tout'),
+                selected: selectedType == type,
+                onSelected: (_) => onType(type),
+                selectedColor: AppColors.orangeLight,
+                labelStyle: TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w700,
+                  color: selectedType == type
+                      ? AppColors.orangeDark
+                      : AppColors.textSecondary,
+                ),
+                side: BorderSide(
+                  color: selectedType == type
+                      ? AppColors.orange
+                      : AppColors.border,
+                ),
+                showCheckmark: false,
+                visualDensity: VisualDensity.compact,
+              ),
+              const SizedBox(width: 8),
+            ],
+            const SizedBox(width: 4),
+            InputChip(
+              avatar: const Icon(
+                Icons.place_outlined,
+                size: 17,
+                color: AppColors.orange,
+              ),
+              label: Text(
+                area ?? 'Quartier',
+                style: const TextStyle(fontSize: 12.5),
+              ),
+              onPressed: onArea,
+              onDeleted: area == null ? null : onClearArea,
+              deleteIcon: const Icon(Icons.close, size: 16),
+              backgroundColor: AppColors.surface,
+              side: const BorderSide(color: AppColors.border),
+              visualDensity: VisualDensity.compact,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Liste horizontale des boutiques correspondant à la recherche : elle
+/// affiche aussi celles qui n'ont pas encore publié leur position GPS.
+class _ResultsStrip extends StatelessWidget {
+  const _ResultsStrip({required this.vendors, required this.onTap});
+
+  final List<Vendor> vendors;
+  final ValueChanged<Vendor> onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 132,
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+        boxShadow: [
+          BoxShadow(
+            color: Color(0x1A000000),
+            blurRadius: 10,
+            offset: Offset(0, -2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 8, 14, 4),
+            child: Text(
+              vendors.length == 1
+                  ? '1 boutique ouverte'
+                  : '${vendors.length} boutiques ouvertes',
+              style: const TextStyle(
+                fontSize: 12.5,
+                fontWeight: FontWeight.w800,
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ),
+          Expanded(
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
+              itemCount: vendors.length,
+              separatorBuilder: (_, _) => const SizedBox(width: 8),
+              itemBuilder: (context, index) {
+                final vendor = vendors[index];
+                return _ResultCard(
+                  vendor: vendor,
+                  onTap: () => onTap(vendor),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ResultCard extends StatelessWidget {
+  const _ResultCard({required this.vendor, required this.onTap});
+
+  final Vendor vendor;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final located = vendor.latitude != null && vendor.longitude != null;
+    final subtitle = [
+      if (vendor.type != null) vendor.type!.label,
+      if (vendor.area != null && vendor.area!.isNotEmpty)
+        vendor.area!
+      else if (vendor.city != null && vendor.city!.isNotEmpty)
+        vendor.city!,
+      vendor.distanceLabel ?? (located ? null : 'Position non partagée'),
+    ].whereType<String>().join(' · ');
+
+    return Material(
+      color: AppColors.surfaceVariant,
+      borderRadius: BorderRadius.circular(12),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: SizedBox(
+          width: 168,
+          child: Padding(
+            padding: const EdgeInsets.all(8),
+            child: Row(
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(9),
+                  child: SizedBox(
+                    width: 42,
+                    height: 42,
+                    child: vendor.logoUrl != null
+                        ? AppNetworkImage(url: vendor.logoUrl!, fit: BoxFit.cover)
+                        : Container(
+                            color: AppColors.orangeLight,
+                            child: const Icon(
+                              Icons.storefront,
+                              size: 20,
+                              color: AppColors.orange,
+                            ),
+                          ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        vendor.businessName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.text,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        subtitle,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -504,7 +916,9 @@ class _VendorSheet extends StatelessWidget {
 }
 
 class _EmptyBanner extends StatelessWidget {
-  const _EmptyBanner();
+  const _EmptyBanner({required this.message});
+
+  final String message;
 
   @override
   Widget build(BuildContext context) {
@@ -512,16 +926,16 @@ class _EmptyBanner extends StatelessWidget {
       color: Colors.white,
       elevation: 2,
       borderRadius: BorderRadius.circular(12),
-      child: const Padding(
-        padding: EdgeInsets.all(12),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
         child: Row(
           children: [
-            Icon(Icons.location_off_outlined, color: AppColors.orange),
-            SizedBox(width: 10),
+            const Icon(Icons.location_off_outlined, color: AppColors.orange),
+            const SizedBox(width: 10),
             Expanded(
               child: Text(
-                'Aucune boutique géolocalisée dans ce rayon.',
-                style: TextStyle(fontSize: 12.5, color: AppColors.text),
+                message,
+                style: const TextStyle(fontSize: 12.5, color: AppColors.text),
               ),
             ),
           ],

@@ -458,6 +458,19 @@ class _HomeScreenState extends State<HomeScreen> {
                   onOrder: () => context.push('/client/search'),
                 ),
 
+                // --- Accès direct à la carte des boutiques ---
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppDimens.pagePadding,
+                    4,
+                    AppDimens.pagePadding,
+                    0,
+                  ),
+                  child: _NearbyMapCard(
+                    onTap: () => context.push('/client/shops/map'),
+                  ),
+                ),
+
                 // --- Actions rapides par type de boutique ---
                 _ShopTypeStrip(
                   onSelect: (type) =>
@@ -735,6 +748,87 @@ class _PromoBannerState extends State<_PromoBanner> {
 
 /// Actions rapides de l'accueil : raccourcis vers les boutiques ouvertes par
 /// type (Restaurant, Boutique, Maquis).
+/// Bandeau d'accès à la carte : boutiques ouvertes autour du client.
+class _NearbyMapCard extends StatelessWidget {
+  const _NearbyMapCard({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppDimens.radiusLg),
+        child: Ink(
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [AppColors.orangeLight, Color(0xFFFFF3E4)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(AppDimens.radiusLg),
+            border: Border.all(color: AppColors.orange.withValues(alpha: 0.35)),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(14, 12, 10, 12),
+            child: Row(
+              children: [
+                Container(
+                  width: 42,
+                  height: 42,
+                  decoration: const BoxDecoration(
+                    color: AppColors.orange,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.map_outlined,
+                    color: Colors.white,
+                    size: 22,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        context.tr('Boutiques autour de moi'),
+                        style: const TextStyle(
+                          fontSize: 14.5,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.text,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        context.tr(
+                          'Restaurants, maquis et boutiques sur la carte',
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const Icon(
+                  Icons.chevron_right,
+                  color: AppColors.orangeDark,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _ShopTypeStrip extends StatelessWidget {
   const _ShopTypeStrip({required this.onSelect});
 
