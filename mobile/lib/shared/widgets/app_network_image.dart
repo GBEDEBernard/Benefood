@@ -24,11 +24,16 @@ String? resolveMediaUrl(String? source) {
     return base.resolve(source).toString();
   }
 
-  // Les URLs Laravel du disque local sont construites avec APP_URL. Cette
-  // valeur peut être un ancien domaine de tunnel (Cloudflare/ngrok) alors que
-  // l'API est joignable sur une autre adresse. Les fichiers /storage restent
-  // sur le même serveur que l'API : on réutilise donc toujours son origine.
-  if (uri.path == '/storage' || uri.path.startsWith('/storage/')) {
+  // Les URLs legacy du disque local Laravel utilisent `/storage/...` et
+  // doivent être ramenées sur l'API. Les stockages externes (Supabase, R2,
+  // S3) peuvent aussi exposer un chemin `/storage/...` : on ne réécrit donc
+  // que si l'hôte est celui de l'API, un hôte local ou un ancien tunnel.
+  final isApiOrLocalHost = uri.host == base.host ||
+      uri.host == 'localhost' ||
+      uri.host == '127.0.0.1' ||
+      _isLegacyTunnelHost(uri.host);
+  if (isApiOrLocalHost &&
+      (uri.path == '/storage' || uri.path.startsWith('/storage/'))) {
     return base
         .replace(
           path: uri.path,
@@ -51,6 +56,21 @@ String? resolveMediaUrl(String? source) {
         fragment: uri.hasFragment ? uri.fragment : null,
       )
       .toString();
+}
+
+bool _isLegacyTunnelHost(String host) {
+  return host.endsWith('.ngrok-free.app') ||
+      host.endsWith('.ngrok.io') ||
+      host.endsWith('.trycloudflare.com');
+}
+
+bool _needsTunnelHeaders(String url) {
+  final uri = Uri.tryParse(url);
+  if (uri == null || uri.host.isEmpty) {
+    return false;
+  }
+  return uri.host == Uri.parse(AppConfig.apiBaseUrl).host ||
+      _isLegacyTunnelHost(uri.host);
 }
 
 /// Image distante avec placeholder et fallback d'erreur.
@@ -90,7 +110,9 @@ class AppNetworkImage extends StatelessWidget {
       child: SizedBox.expand(
         child: Image.network(
           resolved,
-          headers: AppConfig.tunnelHeaders,
+          headers: _needsTunnelHeaders(resolved)
+              ? AppConfig.tunnelHeaders
+              : null,
           fit: fit,
           errorBuilder: (_, _, _) => fallback ?? _fallback(context),
           loadingBuilder: (context, child, progress) {

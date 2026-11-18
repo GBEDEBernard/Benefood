@@ -58,6 +58,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
       final picked = await ImagePicker().pickImage(
         source: ImageSource.gallery,
         maxWidth: 900,
+        imageQuality: 85,
       );
       if (picked == null) {
         return;
@@ -72,6 +73,10 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
     } on ApiException catch (e) {
       if (mounted) {
         showToast(context, e.message, isError: true);
+      }
+    } catch (e) {
+      if (mounted) {
+        showToast(context, 'Impossible d’envoyer la photo : $e', isError: true);
       }
     } finally {
       if (mounted) {

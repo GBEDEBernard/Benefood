@@ -98,17 +98,23 @@ class ApiClient {
         }
         request.fields.addAll(fields);
         files?.forEach((name, bytes) {
+          final fileName = fileNames?[name] ?? '$name.bin';
           request.files.add(http.MultipartFile.fromBytes(
             name,
             bytes,
-            filename: fileNames?[name] ?? '$name.bin',
+            filename: fileName,
+            contentType: _contentTypeFor(fileName),
           ));
         });
 
+        // Les uploads (surtout les vidéos et le cold start Render) peuvent
+        // dépasser le timeout court des requêtes JSON.
+        const uploadTimeout = Duration(seconds: 90);
+
         // Via `_http` (et non `request.send()`) : même client injecté,
         // mêmes timeouts et mêmes tests que le reste des requêtes.
-        final streamed = await _http.send(request).timeout(timeout);
-        return await http.Response.fromStream(streamed).timeout(timeout);
+        final streamed = await _http.send(request).timeout(uploadTimeout);
+        return await http.Response.fromStream(streamed).timeout(uploadTimeout);
       }
 
       var response = await sendRequest();
@@ -282,6 +288,26 @@ class ApiClient {
     });
     return uri.replace(queryParameters: map);
   }
+}
+
+/// Type MIME déduit de l'extension du fichier envoyé en multipart.
+/// Évite que Laravel reçoive un `application/octet-stream` générique.
+http.MediaType? _contentTypeFor(String fileName) {
+  final lower = fileName.toLowerCase();
+  if (lower.endsWith('.png')) return http.MediaType('image', 'png');
+  if (lower.endsWith('.webp')) return http.MediaType('image', 'webp');
+  if (lower.endsWith('.gif')) return http.MediaType('image', 'gif');
+  if (lower.endsWith('.heic') || lower.endsWith('.heif')) {
+    return http.MediaType('image', 'heic');
+  }
+  if (lower.endsWith('.jpg') || lower.endsWith('.jpeg')) {
+    return http.MediaType('image', 'jpeg');
+  }
+  if (lower.endsWith('.mp4')) return http.MediaType('video', 'mp4');
+  if (lower.endsWith('.mov')) return http.MediaType('video', 'quicktime');
+  if (lower.endsWith('.webm')) return http.MediaType('video', 'webm');
+  if (lower.endsWith('.pdf')) return http.MediaType('application', 'pdf');
+  return null;
 }
 
 /// Persistance du token (SecureStorage côté App).

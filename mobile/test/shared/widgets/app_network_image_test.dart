@@ -10,11 +10,11 @@ void main() {
 
   group('resolveMediaUrl', () {
     test('réécrit une URL localhost vers l\'hôte du tunnel sans garder le port', () {
-      AppConfig.apiBaseUrlOverride = 'https://xxx.trycloudflare.com';
+      AppConfig.apiBaseUrlOverride = 'https://api.example.com';
 
       final resolved = resolveMediaUrl(backendUrl);
 
-      expect(resolved, 'https://xxx.trycloudflare.com/storage/products/a/b/c.webp');
+      expect(resolved, 'https://api.example.com/storage/products/a/b/c.webp');
     });
 
     test('réécrit une URL 127.0.0.1 vers l\'hôte courant (adb reverse local)', () {
@@ -39,17 +39,25 @@ void main() {
     });
 
     test('préfixe un chemin racine-relative', () {
-      AppConfig.apiBaseUrlOverride = 'https://xxx.trycloudflare.com';
+      AppConfig.apiBaseUrlOverride = 'https://api.example.com';
 
-      expect(resolveMediaUrl('/storage/x.webp'), 'https://xxx.trycloudflare.com/storage/x.webp');
+      expect(resolveMediaUrl('/storage/x.webp'), 'https://api.example.com/storage/x.webp');
     });
 
     test('laisse intacte une URL déjà distante (CDN)', () {
-      AppConfig.apiBaseUrlOverride = 'https://xxx.trycloudflare.com';
+      AppConfig.apiBaseUrlOverride = 'https://api.example.com';
 
       const cdn = 'https://cdn.example.com/img/x.webp';
 
       expect(resolveMediaUrl(cdn), cdn);
+    });
+
+    test('laisse intacte une URL Supabase contenant /storage/', () {
+      AppConfig.apiBaseUrlOverride = 'https://benefood.onrender.com';
+
+      const supabase = 'https://jpadhaxrfcttwboymbuc.supabase.co/storage/v1/object/public/beninfood-media/avatars/user.webp';
+
+      expect(resolveMediaUrl(supabase), supabase);
     });
 
     test('laisse passer null et chaîne vide', () {
