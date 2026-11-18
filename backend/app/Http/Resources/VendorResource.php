@@ -37,6 +37,12 @@ class VendorResource extends JsonResource
             'approved_at' => $this->approved_at?->toIso8601String(),
             'closed_at' => $this->closed_at?->toIso8601String(),
             'closed_reason' => $this->closed_reason,
+            'hours' => $this->hours->map(fn ($hour) => [
+                'day_of_week' => $hour->day_of_week,
+                'opens_at' => $hour->opens_at,
+                'closes_at' => $hour->closes_at,
+                'is_closed' => (bool) $hour->is_closed,
+            ])->values(),
             'created_at' => $this->created_at?->toIso8601String(),
         ];
     }
