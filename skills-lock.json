@@ -1,0 +1,12 @@
+{
+  "version": 2,
+  "skills": {
+    "firebase-basics": {
+      "source": "firebase/agent-skills",
+      "commit": "99954a30898bb5ddc8152ee10e124dc3b4106bf7",
+      "sourceType": "github",
+      "skillPath": "skills/firebase-basics/SKILL.md",
+      "computedHash": "13a496dfb9130cbb273e44f521e78106c2e59787af92d8c06eb225839d346bbf"
+    }
+  }
+}

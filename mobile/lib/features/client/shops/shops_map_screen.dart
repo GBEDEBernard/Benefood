@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:go_router/go_router.dart';
@@ -23,14 +25,34 @@ class ShopsMapScreen extends StatefulWidget {
   State<ShopsMapScreen> createState() => _ShopsMapScreenState();
 }
 
-class _ShopsMapScreenState extends State<ShopsMapScreen> {
+class _ShopsMapScreenState extends State<ShopsMapScreen>
+    with SingleTickerProviderStateMixin {
   static const LatLng _cotonou = LatLng(6.3702932, 2.3912362);
+  static const Distance _geoDistance = Distance();
 
   final MapController _mapController = MapController();
 
   final TextEditingController _searchController = TextEditingController();
 
+  /// Rayon du cercle affiché sur la carte, animé à chaque changement.
+  final ValueNotifier<double> _radiusMeters = ValueNotifier<double>(0);
+
+  late final AnimationController _radiusAnim;
+
+  double _radiusFrom = 0;
+  double _radiusTo = 0;
+  double _zoomFrom = 13;
+  double _zoomTo = 13;
+  LatLng _centerFrom = _cotonou;
+  LatLng _centerTo = _cotonou;
+
   LatLng? _position;
+
+  /// Point de référence du rayon : la position du client, ou le centre de la
+  /// carte quand la localisation n'est pas disponible.
+  LatLng? _anchor;
+
+  bool _locating = false;
   List<Vendor> _vendors = const [];
   Vendor? _selected;
   double? _radiusKm;
@@ -45,22 +67,80 @@ class _ShopsMapScreenState extends State<ShopsMapScreen> {
   @override
   void initState() {
     super.initState();
+    _radiusAnim = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 520),
+    )..addListener(_tickRadiusAnimation);
     _boot();
   }
 
   @override
   void dispose() {
+    _radiusAnim.dispose();
+    _radiusMeters.dispose();
     _searchController.dispose();
     _mapController.dispose();
     super.dispose();
   }
 
-  /// Boutiques après recherche par nom/quartier et filtres type/quartier.
+  static double _lerp(double start, double end, double t) =>
+      start + (end - start) * t;
+
+  /// Zoom approximatif pour cadrer un rayon de [km] kilomètres.
+  static double zoomForRadiusKm(double km) =>
+      (14.6 - 1.15 * (math.log(km) / math.ln2)).clamp(9.5, 15.0);
+
+  void _tickRadiusAnimation() {
+    final t = Curves.easeOutCubic.transform(_radiusAnim.value);
+    _radiusMeters.value = _lerp(_radiusFrom, _radiusTo, t);
+    final center = LatLng(
+      _lerp(_centerFrom.latitude, _centerTo.latitude, t),
+      _lerp(_centerFrom.longitude, _centerTo.longitude, t),
+    );
+    try {
+      _mapController.move(center, _lerp(_zoomFrom, _zoomTo, t));
+    } catch (_) {
+      // Carte pas encore montée.
+    }
+  }
+
+  LatLng _cameraCenter() {
+    try {
+      return _mapController.camera.center;
+    } catch (_) {
+      return _center;
+    }
+  }
+
+  double _cameraZoom() {
+    try {
+      return _mapController.camera.zoom;
+    } catch (_) {
+      return 13;
+    }
+  }
+
+  /// Boutiques après recherche par nom/quartier et filtres type/quartier/rayon.
   List<Vendor> get _visible {
     final query = _query.trim().toLowerCase();
+    final anchor = _anchor;
+    final radiusKm = _radiusKm;
     return _vendors.where((vendor) {
       if (_type != null && vendor.type != _type) {
         return false;
+      }
+      if (radiusKm != null && anchor != null) {
+        if (vendor.latitude == null || vendor.longitude == null) {
+          return false;
+        }
+        final distance = _geoDistance.as(
+          LengthUnit.Kilometer,
+          anchor,
+          LatLng(vendor.latitude!, vendor.longitude!),
+        );
+        if (distance > radiusKm) {
+          return false;
+        }
       }
       if (_area != null &&
           vendor.area != _area &&
@@ -130,7 +210,6 @@ class _ShopsMapScreenState extends State<ShopsMapScreen> {
         onlyOpen: true,
         latitude: _position?.latitude,
         longitude: _position?.longitude,
-        radiusKm: _radiusKm,
         sort: _position != null ? 'distance' : null,
         perPage: 100,
       );
@@ -178,15 +257,49 @@ class _ShopsMapScreenState extends State<ShopsMapScreen> {
     }
   }
 
+  /// Applique un rayon de recherche. Sans position GPS, on utilise le centre
+  /// de la carte comme référence : le filtre reste donc toujours utilisable.
   void _selectRadius(double? radius) {
     if (_radiusKm == radius) {
       return;
     }
     setState(() {
       _radiusKm = radius;
+      _anchor = radius == null ? null : _position ?? _cameraCenter();
       _selected = null;
     });
-    _load();
+    _animateRadius();
+    if (radius != null && _position == null && !_locating) {
+      _locateInBackground();
+    }
+  }
+
+  /// Tente d'obtenir le GPS sans bloquer le choix du rayon ; en cas de succès,
+  /// le rayon se ré-ancre sur la position réelle.
+  Future<void> _locateInBackground() async {
+    _locating = true;
+    final located = await LocationService.locate();
+    _locating = false;
+    if (!mounted || !located.isSuccess || _radiusKm == null) {
+      return;
+    }
+    final geo = located.geo!;
+    setState(() {
+      _position = LatLng(geo.latitude, geo.longitude);
+      _anchor = _position;
+    });
+    _animateRadius();
+  }
+
+  void _animateRadius() {
+    final anchor = _anchor ?? _position ?? _cameraCenter();
+    _radiusFrom = _radiusMeters.value;
+    _radiusTo = _radiusKm == null ? 0 : _radiusKm! * 1000;
+    _zoomFrom = _cameraZoom();
+    _zoomTo = _radiusKm == null ? 13 : zoomForRadiusKm(_radiusKm!);
+    _centerFrom = _cameraCenter();
+    _centerTo = anchor;
+    _radiusAnim.forward(from: 0);
   }
 
   void _onSearchChanged(String value) {
@@ -248,13 +361,16 @@ class _ShopsMapScreenState extends State<ShopsMapScreen> {
     });
   }
 
-  void _recenter() {
-    try {
-      _mapController.move(_center, 14);
-    } catch (_) {
-      // Carte pas encore montée.
-    }
+  void _animateTo(LatLng target, double zoom) {
+    _radiusFrom = _radiusTo = _radiusMeters.value;
+    _zoomFrom = _cameraZoom();
+    _zoomTo = zoom;
+    _centerFrom = _cameraCenter();
+    _centerTo = target;
+    _radiusAnim.forward(from: 0);
   }
+
+  void _recenter() => _animateTo(_center, 14);
 
   void _openVendor(Vendor vendor) {
     setState(() => _selected = vendor);
@@ -328,10 +444,10 @@ class _ShopsMapScreenState extends State<ShopsMapScreen> {
               ),
             ),
           ),
-          _RadiusBar(
+          _RadiusSelector(
             selected: _radiusKm,
             options: _radiusOptions,
-            enabled: _position != null,
+            hasPosition: _position != null,
             onSelected: _selectRadius,
           ),
           _TypeAreaBar(
@@ -361,12 +477,46 @@ class _ShopsMapScreenState extends State<ShopsMapScreen> {
                               minZoom: 3,
                               maxZoom: 18,
                               backgroundColor: AppColors.surfaceVariant,
+                              // Sans GPS, le rayon suit le centre de la carte.
+                              onMapEvent: (event) {
+                                if (event is MapEventMoveEnd &&
+                                    _position == null &&
+                                    _radiusKm != null) {
+                                  setState(() => _anchor = event.camera.center);
+                                }
+                              },
                             ),
                             children: [
                               TileLayer(
                                 urlTemplate: AppConfig.mapTileUrl,
                                 userAgentPackageName: 'com.beninfood.beninfood',
                                 maxNativeZoom: 19,
+                              ),
+                              // Cercle de rayon animé autour du point de
+                              // référence (position ou centre de la carte).
+                              ValueListenableBuilder<double>(
+                                valueListenable: _radiusMeters,
+                                builder: (context, meters, _) {
+                                  final anchor = _anchor;
+                                  if (meters < 1 || anchor == null) {
+                                    return const SizedBox.shrink();
+                                  }
+                                  return CircleLayer(
+                                    circles: [
+                                      CircleMarker(
+                                        point: anchor,
+                                        radius: meters,
+                                        useRadiusInMeter: true,
+                                        color: AppColors.orange.withValues(
+                                          alpha: 0.08,
+                                        ),
+                                        borderColor: AppColors.orange
+                                            .withValues(alpha: 0.55),
+                                        borderStrokeWidth: 1.5,
+                                      ),
+                                    ],
+                                  );
+                                },
                               ),
                               MarkerLayer(
                                 markers: [
@@ -422,12 +572,25 @@ class _ShopsMapScreenState extends State<ShopsMapScreen> {
                               left: 12,
                               right: 12,
                               bottom: 12,
-                              child: _VendorSheet(
-                                vendor: _selected!,
-                                onClose: () =>
-                                    setState(() => _selected = null),
-                                onOpen: () => context.push(
-                                  '/client/shop/${_selected!.id}',
+                              child: TweenAnimationBuilder<double>(
+                                key: ValueKey(_selected!.id),
+                                tween: Tween(begin: 0, end: 1),
+                                duration: const Duration(milliseconds: 240),
+                                curve: Curves.easeOutCubic,
+                                builder: (context, t, child) => Opacity(
+                                  opacity: t,
+                                  child: Transform.translate(
+                                    offset: Offset(0, 18 * (1 - t)),
+                                    child: child,
+                                  ),
+                                ),
+                                child: _VendorSheet(
+                                  vendor: _selected!,
+                                  onClose: () =>
+                                      setState(() => _selected = null),
+                                  onOpen: () => context.push(
+                                    '/client/shop/${_selected!.id}',
+                                  ),
                                 ),
                               ),
                             )
@@ -448,8 +611,19 @@ class _ShopsMapScreenState extends State<ShopsMapScreen> {
                               top: 16,
                               child: _EmptyBanner(
                                 message: _vendors.isEmpty
-                                    ? 'Aucune boutique géolocalisée dans ce rayon.'
-                                    : 'Aucune boutique ne correspond à votre recherche.',
+                                    ? 'Aucune boutique géolocalisée pour le moment.'
+                                    : _radiusKm != null &&
+                                            !_vendors.any((vendor) =>
+                                                vendor.latitude != null &&
+                                                vendor.longitude != null)
+                                        ? 'Aucune boutique n’a encore publié sa '
+                                            'position : le filtre par distance '
+                                            'ne peut pas les situer.'
+                                        : _radiusKm != null
+                                            ? 'Aucune boutique dans un rayon de '
+                                                '${_radiusKm!.toStringAsFixed(0)} km. '
+                                                'Élargissez le rayon ou déplacez la carte.'
+                                            : 'Aucune boutique ne correspond à votre recherche.',
                               ),
                             ),
                         ],
@@ -461,17 +635,18 @@ class _ShopsMapScreenState extends State<ShopsMapScreen> {
   }
 }
 
-class _RadiusBar extends StatelessWidget {
-  const _RadiusBar({
+/// Sélecteur de rayon animé (pastille qui glisse) avec légende contextuelle.
+class _RadiusSelector extends StatelessWidget {
+  const _RadiusSelector({
     required this.selected,
     required this.options,
-    required this.enabled,
+    required this.hasPosition,
     required this.onSelected,
   });
 
   final double? selected;
   final List<double?> options;
-  final bool enabled;
+  final bool hasPosition;
   final ValueChanged<double?> onSelected;
 
   String _label(double? radius) =>
@@ -479,41 +654,132 @@ class _RadiusBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final index = options.indexOf(selected).clamp(0, options.length - 1);
+    final caption = selected == null
+        ? 'Toutes les boutiques ouvertes'
+        : hasPosition
+            ? 'Dans un rayon de ${selected!.toStringAsFixed(0)} km autour de vous'
+            : 'Dans un rayon de ${selected!.toStringAsFixed(0)} km '
+                'autour du centre de la carte';
+
     return Container(
       color: AppColors.surface,
       padding: const EdgeInsets.fromLTRB(
         AppDimens.pagePadding,
-        4,
-        AppDimens.pagePadding,
         10,
+        AppDimens.pagePadding,
+        4,
       ),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Row(
-          children: [
-            for (final option in options) ...[
-              ChoiceChip(
-                label: Text(_label(option)),
-                selected: selected == option,
-                onSelected: enabled ? (_) => onSelected(option) : null,
-                selectedColor: AppColors.orangeLight,
-                labelStyle: TextStyle(
-                  fontWeight: FontWeight.w700,
-                  color: selected == option
-                      ? AppColors.orangeDark
-                      : AppColors.textSecondary,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final segment = constraints.maxWidth / options.length;
+              return Container(
+                height: 42,
+                padding: const EdgeInsets.all(3),
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceVariant,
+                  borderRadius: BorderRadius.circular(999),
+                  border: Border.all(color: AppColors.border),
                 ),
-                side: BorderSide(
-                  color: selected == option
-                      ? AppColors.orange
-                      : AppColors.border,
+                child: Stack(
+                  children: [
+                    AnimatedPositioned(
+                      duration: const Duration(milliseconds: 320),
+                      curve: Curves.easeOutCubic,
+                      left: segment * index,
+                      top: 0,
+                      bottom: 0,
+                      width: segment,
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [AppColors.orange, AppColors.orangeDark],
+                          ),
+                          borderRadius: BorderRadius.circular(999),
+                          boxShadow: [
+                            BoxShadow(
+                              color: AppColors.orange.withValues(alpha: 0.32),
+                              blurRadius: 10,
+                              offset: const Offset(0, 3),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    Row(
+                      children: [
+                        for (final option in options)
+                          Expanded(
+                            child: GestureDetector(
+                              behavior: HitTestBehavior.opaque,
+                              onTap: () => onSelected(option),
+                              child: Center(
+                                child: AnimatedDefaultTextStyle(
+                                  duration: const Duration(milliseconds: 220),
+                                  curve: Curves.easeOut,
+                                  style: TextStyle(
+                                    fontSize: 12.5,
+                                    fontWeight: FontWeight.w800,
+                                    color: selected == option
+                                        ? Colors.white
+                                        : AppColors.textSecondary,
+                                  ),
+                                  child: Text(_label(option)),
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ],
                 ),
-                showCheckmark: false,
+              );
+            },
+          ),
+          const SizedBox(height: 6),
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 220),
+            switchInCurve: Curves.easeOutCubic,
+            switchOutCurve: Curves.easeInCubic,
+            transitionBuilder: (child, animation) => FadeTransition(
+              opacity: animation,
+              child: SlideTransition(
+                position: Tween<Offset>(
+                  begin: const Offset(0, -0.35),
+                  end: Offset.zero,
+                ).animate(animation),
+                child: child,
               ),
-              const SizedBox(width: 8),
-            ],
-          ],
-        ),
+            ),
+            child: Row(
+              key: ValueKey(caption),
+              children: [
+                Icon(
+                  selected == null
+                      ? Icons.public
+                      : Icons.radar,
+                  size: 14,
+                  color: AppColors.orange,
+                ),
+                const SizedBox(width: 5),
+                Flexible(
+                  child: Text(
+                    caption,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
