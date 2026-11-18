@@ -28,6 +28,15 @@ elif [ "${BENINFOOD_PUSH_ENABLED:-false}" = "true" ]; then
     echo "AVERTISSEMENT : BENINFOOD_PUSH_ENABLED=true mais /etc/secrets/firebase.json est absent ; les push FCM echoueront." >&2
 fi
 
+# Stockage médias externalisé (Cloudflare R2 / S3) : vérifier la configuration.
+if [ "${BENINFOOD_IMAGES_DISK:-public}" = "s3" ]; then
+    [ -n "${AWS_ACCESS_KEY_ID:-}" ] || echo "AVERTISSEMENT : BENINFOOD_IMAGES_DISK=s3 mais AWS_ACCESS_KEY_ID est vide." >&2
+    [ -n "${AWS_SECRET_ACCESS_KEY:-}" ] || echo "AVERTISSEMENT : BENINFOOD_IMAGES_DISK=s3 mais AWS_SECRET_ACCESS_KEY est vide." >&2
+    [ -n "${AWS_BUCKET:-}" ] || echo "AVERTISSEMENT : BENINFOOD_IMAGES_DISK=s3 mais AWS_BUCKET est vide." >&2
+    [ -n "${AWS_ENDPOINT:-}" ] || echo "AVERTISSEMENT : BENINFOOD_IMAGES_DISK=s3 mais AWS_ENDPOINT est vide." >&2
+    [ -n "${AWS_URL:-}" ] || echo "AVERTISSEMENT : BENINFOOD_IMAGES_DISK=s3 mais AWS_URL est vide ; les URLs des images seront invalides." >&2
+fi
+
 attempt=1
 until php artisan migrate --force --no-interaction; do
     if [ "$attempt" -ge 5 ]; then

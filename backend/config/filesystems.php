@@ -1,5 +1,25 @@
 <?php
 
+/*
+ * Configuration S3 partagée entre le disque `s3` et le disque `public`
+ * lorsque les médias sont externalisés (Cloudflare R2, Supabase Storage,
+ * AWS S3, MinIO…).
+ * R2 exige le mode path-style et ne supporte pas les ACL : la lecture
+ * publique se configure sur le bucket, pas via `visibility`.
+ */
+$s3 = [
+    'driver' => 's3',
+    'key' => env('AWS_ACCESS_KEY_ID'),
+    'secret' => env('AWS_SECRET_ACCESS_KEY'),
+    'region' => env('AWS_DEFAULT_REGION', 'auto'),
+    'bucket' => env('AWS_BUCKET'),
+    'url' => env('AWS_URL') ? rtrim(env('AWS_URL'), '/') : null,
+    'endpoint' => env('AWS_ENDPOINT') ? rtrim(env('AWS_ENDPOINT'), '/') : null,
+    'use_path_style_endpoint' => (bool) env('AWS_USE_PATH_STYLE_ENDPOINT', false),
+    'throw' => false,
+    'report' => false,
+];
+
 return [
 
     /*
@@ -38,14 +58,19 @@ return [
             'report' => false,
         ],
 
-        'public' => [
-            'driver' => 'local',
-            'root' => storage_path('app/public'),
-            'url' => rtrim(env('APP_URL', 'http://localhost'), '/').'/storage',
-            'visibility' => 'public',
-            'throw' => false,
-            'report' => false,
-        ],
+        // Médias publics : disque local en développement, S3/R2 en production
+        // (`BENINFOOD_IMAGES_DISK=s3`). Tous les `Storage::disk('public')`
+        // existants basculent sans modification du code appelant.
+        'public' => env('BENINFOOD_IMAGES_DISK', 'public') === 's3'
+            ? $s3
+            : [
+                'driver' => 'local',
+                'root' => storage_path('app/public'),
+                'url' => rtrim(env('APP_URL', 'http://localhost'), '/').'/storage',
+                'visibility' => 'public',
+                'throw' => false,
+                'report' => false,
+            ],
 
         'private' => [
             'driver' => 'local',
@@ -54,18 +79,7 @@ return [
             'report' => false,
         ],
 
-        's3' => [
-            'driver' => 's3',
-            'key' => env('AWS_ACCESS_KEY_ID'),
-            'secret' => env('AWS_SECRET_ACCESS_KEY'),
-            'region' => env('AWS_DEFAULT_REGION'),
-            'bucket' => env('AWS_BUCKET'),
-            'url' => env('AWS_URL'),
-            'endpoint' => env('AWS_ENDPOINT'),
-            'use_path_style_endpoint' => env('AWS_USE_PATH_STYLE_ENDPOINT', false),
-            'throw' => false,
-            'report' => false,
-        ],
+        's3' => $s3,
 
     ],
 
