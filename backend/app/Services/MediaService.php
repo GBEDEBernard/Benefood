@@ -3,10 +3,12 @@
 namespace App\Services;
 
 use App\Exceptions\DomainException;
+use GdImage;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use RuntimeException;
+use Throwable;
 
 /**
  * Pipeline médias (J34) : validation stricte (mime/taille par contenu),
@@ -47,9 +49,16 @@ class MediaService
     public function storeProductImage(UploadedFile $file, string $vendorId, string $productId): array
     {
         $this->assertValidImage($file);
+        $this->assertWebpSupported();
 
-        $cover = $this->resizeToWebp($file->getRealPath(), self::COVER_SIZE, self::COVER_SIZE);
-        $thumb = $this->resizeToWebp($file->getRealPath(), self::THUMB_SIZE, self::THUMB_SIZE);
+        $source = $this->openImage((string) $file->getRealPath());
+
+        try {
+            $cover = $this->encodeWebp($this->coverResize($source, self::COVER_SIZE, self::COVER_SIZE));
+            $thumb = $this->encodeWebp($this->coverResize($source, self::THUMB_SIZE, self::THUMB_SIZE));
+        } finally {
+            imagedestroy($source);
+        }
 
         $id = (string) Str::uuid();
         $dir = "products/{$vendorId}/{$productId}";
@@ -154,45 +163,116 @@ class MediaService
         }
     }
 
-    /**
-     * Redimensionne l'image source en WebP (couverture crop centrée).
-     */
-    private function resizeToWebp(string $sourcePath, int $targetWidth, int $targetHeight): string
+    private function assertWebpSupported(): void
     {
-        $info = getimagesize($sourcePath);
+        if (! function_exists('imagewebp') || ! function_exists('imagecreatefromwebp')) {
+            throw new DomainException(
+                'media.webp_unsupported',
+                'Le serveur ne supporte pas WebP. Activez GD avec le support WebP (--with-webp) ou Imagick.',
+                500,
+            );
+        }
+    }
+
+    /**
+     * Décode l'image source en ressource GD.
+     */
+    private function openImage(string $sourcePath): GdImage
+    {
+        $info = @getimagesize($sourcePath);
 
         if ($info === false) {
-            throw new RuntimeException('Image illisible.');
+            throw new DomainException('media.unreadable', 'Image illisible.', 422);
         }
 
-        [$srcWidth, $srcHeight, $type] = $info;
+        [$width, $height, $type] = $info;
 
-        $src = match ($type) {
-            IMAGETYPE_JPEG => imagecreatefromjpeg($sourcePath),
-            IMAGETYPE_PNG => imagecreatefrompng($sourcePath),
-            IMAGETYPE_WEBP => imagecreatefromwebp($sourcePath),
-            default => throw new RuntimeException('Format d\'image non supporté.'),
+        if ($width < 1 || $height < 1) {
+            throw new DomainException('media.unreadable', 'Dimensions d\'image invalides.', 422);
+        }
+
+        $source = match ($type) {
+            IMAGETYPE_JPEG => function_exists('imagecreatefromjpeg') ? @imagecreatefromjpeg($sourcePath) : false,
+            IMAGETYPE_PNG => function_exists('imagecreatefrompng') ? @imagecreatefrompng($sourcePath) : false,
+            IMAGETYPE_WEBP => function_exists('imagecreatefromwebp') ? @imagecreatefromwebp($sourcePath) : false,
+            default => false,
         };
 
-        if ($src === false) {
-            throw new RuntimeException('Impossible de décoder l\'image.');
+        if (! $source instanceof GdImage) {
+            throw new DomainException('media.unsupported_format', 'Format d\'image non supporté par le serveur.', 422);
         }
+
+        if (! imageistruecolor($source)) {
+            imagepalettetotruecolor($source);
+        }
+
+        imagealphablending($source, false);
+        imagesavealpha($source, true);
+
+        return $source;
+    }
+
+    /**
+     * Redimensionne l'image source en couverture crop centrée.
+     */
+    private function coverResize(GdImage $source, int $targetWidth, int $targetHeight): GdImage
+    {
+        $srcWidth = imagesx($source);
+        $srcHeight = imagesy($source);
 
         [$cropX, $cropY, $cropWidth, $cropHeight] = $this->coverCrop($srcWidth, $srcHeight, $targetWidth, $targetHeight);
 
-        $dst = imagecreatetruecolor($targetWidth, $targetHeight);
-        imagealphablending($dst, false);
-        imagesavealpha($dst, true);
-        $transparent = imagecolorallocatealpha($dst, 0, 0, 0, 127);
-        imagefill($dst, 0, 0, $transparent);
-        imagecopyresampled($dst, $src, 0, 0, $cropX, $cropY, $targetWidth, $targetHeight, $cropWidth, $cropHeight);
+        $destination = imagecreatetruecolor($targetWidth, $targetHeight);
 
+        if ($destination === false) {
+            throw new RuntimeException('Impossible de créer l\'image de destination.');
+        }
+
+        imagealphablending($destination, false);
+        imagesavealpha($destination, true);
+        $transparent = imagecolorallocatealpha($destination, 0, 0, 0, 127);
+
+        if ($transparent === false) {
+            imagedestroy($destination);
+
+            throw new RuntimeException('Impossible d\'allouer la couleur transparente.');
+        }
+
+        imagefill($destination, 0, 0, $transparent);
+
+        if (! imagecopyresampled($destination, $source, 0, 0, $cropX, $cropY, $targetWidth, $targetHeight, $cropWidth, $cropHeight)) {
+            imagedestroy($destination);
+
+            throw new RuntimeException('Impossible de redimensionner l\'image.');
+        }
+
+        return $destination;
+    }
+
+    /**
+     * Encode une ressource GD en WebP (qualité 85) et libère la ressource.
+     */
+    private function encodeWebp(GdImage $image): string
+    {
         ob_start();
-        imagewebp($dst, null, 85);
-        $blob = (string) ob_get_clean();
 
-        imagedestroy($src);
-        imagedestroy($dst);
+        try {
+            if (! imagewebp($image, null, 85)) {
+                throw new RuntimeException('Échec de l\'encodage WebP.');
+            }
+
+            $blob = (string) ob_get_clean();
+        } catch (Throwable $exception) {
+            ob_end_clean();
+
+            throw $exception;
+        } finally {
+            imagedestroy($image);
+        }
+
+        if ($blob === '') {
+            throw new RuntimeException('Échec de l\'encodage WebP.');
+        }
 
         return $blob;
     }

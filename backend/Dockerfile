@@ -38,15 +38,15 @@ RUN set -eux; \
     apt-get install -y --no-install-recommends \
         ca-certificates curl unzip git \
         nginx gettext-base supervisor \
-        libpng16-16 libjpeg62-turbo libfreetype6 libzip4 \
+        libpng16-16 libjpeg62-turbo libfreetype6 libwebp7 libzip4 \
         libicu72 libonig5 libxml2 \
-        libfreetype6-dev libjpeg62-turbo-dev libpng-dev \
+        libfreetype6-dev libjpeg62-turbo-dev libpng-dev libwebp-dev \
         libicu-dev libzip-dev libxml2-dev libonig-dev; \
-    docker-php-ext-configure gd --with-freetype --with-jpeg; \
+    docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp; \
     docker-php-ext-install -j"$(nproc)" \
         pdo_mysql mbstring intl zip gd bcmath pcntl opcache; \
     apt-get purge -y --auto-remove \
-        libfreetype6-dev libjpeg62-turbo-dev libpng-dev \
+        libfreetype6-dev libjpeg62-turbo-dev libpng-dev libwebp-dev \
         libicu-dev libzip-dev libxml2-dev libonig-dev; \
     rm -rf /var/lib/apt/lists/*; \
     mkdir -p /var/cache/nginx /var/log/supervisor; \
