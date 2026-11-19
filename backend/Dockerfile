@@ -12,7 +12,20 @@ COPY . .
 RUN npm run build
 
 # --- 2. Dépendances PHP ------------------------------------------------------
-FROM composer:2 AS vendor
+# Le tag flottant `composer:2` embeddait PHP 8.6 en 11/2026, alors que le lock
+# file plafonne les dépendances à PHP 8.5 et que l'image runtime est en 8.4.
+# On exécute donc le binaire Composer avec le PHP 8.4 (les extensions natives
+# requises par les dépendances, hors mbstring, sont déjà dans l'image cli).
+FROM php:8.4-cli-bookworm AS vendor
+
+COPY --from=composer:2 /usr/bin/composer /usr/local/bin/composer
+
+RUN set -eux; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends libonig-dev; \
+    docker-php-ext-install mbstring; \
+    apt-get purge -y --auto-remove libonig-dev; \
+    rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
