@@ -6,6 +6,7 @@ import '../../../core/errors/api_exception.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_dimens.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/formatters.dart';
 import '../../../shared/models/cart.dart';
 import '../../../shared/models/product.dart';
 import '../../../shared/models/vendor.dart';
@@ -613,17 +614,46 @@ class _DishCard extends StatelessWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(14),
-                child: SizedBox(
-                  width: 88,
-                  height: 88,
-                  child: AppNetworkImage(
-                    url: product.displayImageUrl,
-                    icon: Icons.fastfood,
+              Stack(
+                children: [
+                  ClipRRect(
                     borderRadius: BorderRadius.circular(14),
+                    child: SizedBox(
+                      width: 88,
+                      height: 88,
+                      child: AppNetworkImage(
+                        url: product.displayImageUrl,
+                        icon: Icons.fastfood,
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
                   ),
-                ),
+                  if (product.isOnPromo)
+                    Positioned(
+                      top: 4,
+                      right: 4,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 3,
+                        ),
+                        decoration: const BoxDecoration(
+                          color: AppColors.gold,
+                          borderRadius: BorderRadius.all(
+                            Radius.circular(AppDimens.radiusPill),
+                          ),
+                        ),
+                        child: Text(
+                          '−${product.displayedDiscountPercent} %',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -641,16 +671,24 @@ class _DishCard extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 6),
-                    if (canOrder)
-                      AmountText(
-                        product.price,
+                    if (product.isOnPromo)
+                      Text(
+                        formatAmount(product.price),
                         style: const TextStyle(
-                          color: AppColors.orange,
-                          fontWeight: FontWeight.w800,
-                          fontSize: 15,
+                          color: AppColors.textFaint,
+                          fontSize: 11.5,
+                          decoration: TextDecoration.lineThrough,
                         ),
-                      )
-                    else
+                      ),
+                    AmountText(
+                      product.displayedPrice,
+                      style: const TextStyle(
+                        color: AppColors.orange,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 15,
+                      ),
+                    ),
+                    if (!canOrder)
                       const Text(
                         'Rupture de stock',
                         style: TextStyle(

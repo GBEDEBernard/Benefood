@@ -53,10 +53,12 @@ class SearchScreen extends StatefulWidget {
     super.key,
     required this.marketplace,
     this.initialCategory,
+    this.initialOnPromo = false,
   });
 
   final MarketplaceApi marketplace;
   final String? initialCategory;
+  final bool initialOnPromo;
 
   @override
   State<SearchScreen> createState() => _SearchScreenState();
@@ -78,6 +80,7 @@ class _SearchScreenState extends State<SearchScreen> {
   double _radiusKm = 10;
   bool _byDistance = false;
   bool _locating = false;
+  late bool _onPromo;
 
   late Future<SearchResults> _future;
 
@@ -92,7 +95,8 @@ class _SearchScreenState extends State<SearchScreen> {
   void initState() {
     super.initState();
     _categoryId = widget.initialCategory ?? '';
-    if (widget.initialCategory != null) {
+    _onPromo = widget.initialOnPromo;
+    if (widget.initialCategory != null || widget.initialOnPromo) {
       _tab = _SearchTab.products;
     }
     _future = _load();
@@ -137,6 +141,7 @@ class _SearchScreenState extends State<SearchScreen> {
             longitude: useDistance ? _longitude : null,
             radiusKm: useDistance ? _radiusKm : null,
             sort: sort,
+            onPromo: _onPromo,
             perPage: 50,
           )
         : Future.value(const <Product>[]);
@@ -424,6 +429,31 @@ class _SearchScreenState extends State<SearchScreen> {
                 ),
               ],
             ],
+          ),
+          const SizedBox(height: 8),
+          FilterChip(
+            avatar: Icon(
+              Icons.local_offer_outlined,
+              size: 16,
+              color: _onPromo ? Colors.white : AppColors.goldDark,
+            ),
+            label: Text(
+              context.tr('En promo'),
+              style: TextStyle(
+                fontSize: 12.5,
+                fontWeight: FontWeight.w700,
+                color: _onPromo ? Colors.white : AppColors.textSecondary,
+              ),
+            ),
+            selected: _onPromo,
+            selectedColor: AppColors.gold,
+            checkmarkColor: Colors.white,
+            showCheckmark: false,
+            onSelected: (value) => setState(() {
+              _onPromo = value;
+              _tab = _SearchTab.products;
+              _future = _load();
+            }),
           ),
           if (_hasCoords) ...[
             const SizedBox(height: 8),

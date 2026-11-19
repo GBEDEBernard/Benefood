@@ -19,14 +19,17 @@ use App\Models\Vendor;
  */
 class CartService
 {
-    public function __construct(private readonly CatalogService $catalog) {}
+    public function __construct(
+        private readonly CatalogService $catalog,
+        private readonly PromotionService $promotions,
+    ) {}
 
     /**
      * Récupère le panier ouvert existant pour l'utilisateur.
      */
     public function getOpenCartForUser(User $user): ?Cart
     {
-        return $user->carts()->open()->with('items.product')->first();
+        return $user->carts()->open()->with('items.product.activePromotion')->first();
     }
 
     /**
@@ -52,14 +55,14 @@ class CartService
                 $existing->refresh();
             }
 
-            return $existing->load('items.product');
+            return $existing->load('items.product.activePromotion');
         }
 
         return Cart::create([
             'user_id' => $user->id,
             'vendor_id' => $vendor->id,
             'status' => CartStatus::Open->value,
-        ]);
+        ])->load('items.product.activePromotion');
     }
 
     /**
@@ -94,7 +97,7 @@ class CartService
 
         $this->assertStockSufficient($product, $newQty);
 
-        $unitPrice = (int) $product->price;
+        $unitPrice = $this->promotions->effectivePrice($product);
 
         if ($existingItem !== null) {
             $existingItem->update([
@@ -135,7 +138,7 @@ class CartService
 
         $this->assertStockSufficient($product, $quantity);
 
-        $unitPrice = (int) $product->price;
+        $unitPrice = $this->promotions->effectivePrice($product);
 
         $item->update([
             'quantity' => $quantity,
@@ -167,7 +170,7 @@ class CartService
     {
         $cart->loadMissing('items.product');
 
-        $subtotal = $cart->items->sum(fn (CartItem $item) => (int) $item->product->price * $item->quantity);
+        $subtotal = $cart->items->sum(fn (CartItem $item) => $this->promotions->effectivePrice($item->product) * $item->quantity);
 
         return [
             'subtotal' => $subtotal,

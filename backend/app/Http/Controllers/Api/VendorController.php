@@ -759,7 +759,7 @@ class VendorController extends Controller
             'hours',
             'products' => fn ($products) => $products
                 ->orderable()
-                ->with('images')
+                ->with(['images', 'activePromotion'])
                 ->withAvg('reviews as reviews_avg_rating', 'rating')
                 ->withCount(['reviews', 'favorites'])
                 ->orderBy('name'),
@@ -843,6 +843,7 @@ class VendorController extends Controller
 
         $products = $vendor->products()
             ->where('is_active', true)
+            ->with('activePromotion')
             ->orderBy('name')
             ->withAvg('reviews as reviews_avg_rating', 'rating')
             ->withCount(['reviews', 'favorites'])

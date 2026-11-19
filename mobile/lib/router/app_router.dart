@@ -173,9 +173,11 @@ GoRouter buildAppRouter(SessionProvider session, MarketplaceApi marketplace) {
                   extra['category'] is String) {
                 category = extra['category'] as String;
               }
+              final promoParam = state.uri.queryParameters['promo'];
               return SearchScreen(
                 marketplace: marketplace,
                 initialCategory: category,
+                initialOnPromo: promoParam == '1',
               );
             },
           ),

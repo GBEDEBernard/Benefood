@@ -11,6 +11,7 @@ import '../../../shared/widgets/beninfood_header.dart';
 import '../../../shared/widgets/feedback_widgets.dart';
 import '../account/vendor_account_screen.dart';
 import '../products/products_screen.dart';
+import '../promotions/promotions_screen.dart';
 import 'restaurant_palette.dart';
 import 'screens/activity_screen.dart';
 import 'screens/dashboard_screen.dart';
@@ -403,6 +404,20 @@ class _RestaurantShellScreenState extends State<RestaurantShellScreen> {
 
   void _openDrawer() => _scaffoldKey.currentState?.openDrawer();
 
+  /// Ouvre la gestion des promotions du vendeur connecté.
+  void _openPromotions() {
+    final api = widget.marketplace;
+    if (api == null) {
+      showToast(context, 'Les promotions sont disponibles en mode connecté.');
+      return;
+    }
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => PromotionsScreen(marketplace: api),
+      ),
+    );
+  }
+
   /// Ouvre le tableau de bord statistique du vendeur (`/vendor/stats`).
   /// En démonstration (sans API), l'action reste informative.
   void _openStatistics() {
@@ -671,6 +686,7 @@ class _RestaurantShellScreenState extends State<RestaurantShellScreen> {
           onOpenOrder: _openOrderDetail,
           onOpenOrders: () => _select(3),
           onOpenProducts: () => _select(2),
+          onOpenPromo: _openPromotions,
           onOpenStats: _openStatistics,
           onOpenReviews: () => _select(6),
           onRefresh: _reloadData,

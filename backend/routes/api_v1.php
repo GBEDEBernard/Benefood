@@ -29,6 +29,7 @@ use App\Http\Controllers\Api\ReviewController;
 use App\Http\Controllers\Api\RouteController;
 use App\Http\Controllers\Api\VendorController;
 use App\Http\Controllers\Api\VendorProductController;
+use App\Http\Controllers\Api\VendorPromotionController;
 use App\Http\Controllers\Api\VendorRevenueController;
 use App\Http\Controllers\Api\VendorReviewController;
 use App\Http\Controllers\Api\VendorStatsController;
@@ -103,6 +104,16 @@ Route::middleware('auth:sanctum')->group(function (): void {
         Route::delete('/products/{product}/images/{image}', [VendorProductController::class, 'removeImage'])->name('api.v1.vendors.me.products.images.destroy');
         Route::post('/products/{product}/video', [VendorProductController::class, 'uploadVideo'])->name('api.v1.vendors.me.products.video.store');
         Route::delete('/products/{product}/video', [VendorProductController::class, 'removeVideo'])->name('api.v1.vendors.me.products.video.destroy');
+
+        Route::prefix('promotions')->middleware('permission:vendor.products.manage')->group(function (): void {
+            Route::get('/', [VendorPromotionController::class, 'index'])->name('api.v1.vendors.me.promotions.index');
+            Route::post('/bulk', [VendorPromotionController::class, 'bulk'])->name('api.v1.vendors.me.promotions.bulk');
+            Route::post('/products/{product}', [VendorPromotionController::class, 'store'])->name('api.v1.vendors.me.promotions.store');
+            Route::patch('/{promotion}', [VendorPromotionController::class, 'update'])->name('api.v1.vendors.me.promotions.update');
+            Route::post('/{promotion}/toggle', [VendorPromotionController::class, 'toggle'])->name('api.v1.vendors.me.promotions.toggle');
+            Route::delete('/{promotion}', [VendorPromotionController::class, 'destroy'])->name('api.v1.vendors.me.promotions.destroy');
+        });
+
         Route::patch('/', [VendorController::class, 'updateProfile'])->name('api.v1.vendors.me.update');
         Route::put('/update-location', [VendorController::class, 'updateLocation'])->name('api.v1.vendors.me.update-location');
         Route::patch('/update-location', [VendorController::class, 'updateLocation'])->name('api.v1.vendors.me.update-location.patch');

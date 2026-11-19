@@ -13,6 +13,8 @@ import '../../shared/models/geo_point.dart';
 import '../../shared/models/neighborhood.dart';
 import '../../shared/models/parcel.dart';
 import '../../shared/models/product.dart';
+import '../../shared/models/product_promotion.dart';
+import '../../shared/models/product_promotion_batch.dart';
 import '../../shared/models/route_plan.dart';
 import '../../shared/models/user.dart';
 import '../../shared/models/vendor.dart';
@@ -66,6 +68,7 @@ class MarketplaceApi {
     String? city,
     String? area,
     bool? inStock,
+    bool onPromo = false,
     double? latitude,
     double? longitude,
     double? radiusKm,
@@ -81,6 +84,7 @@ class MarketplaceApi {
         if (city != null && city.isNotEmpty) 'city': city,
         if (area != null && area.isNotEmpty) 'area': area,
         if (inStock != null) 'in_stock': inStock.toString(),
+        if (onPromo) 'on_promo': '1',
         if (latitude != null) 'latitude': latitude.toString(),
         if (longitude != null) 'longitude': longitude.toString(),
         if (radiusKm != null) 'radius_km': radiusKm.toString(),
@@ -1190,6 +1194,95 @@ class MarketplaceApi {
   }
 
   // ------------------------------------------------------------------
+  // Vendeur : promotions
+  // ------------------------------------------------------------------
+
+  Future<List<ProductPromotion>> vendorPromotions() async {
+    final response = await _api.get('/vendors/me/promotions');
+    return _dataList(response).map(ProductPromotion.fromJson).toList();
+  }
+
+  Future<ProductPromotion> createPromotion({
+    required String productId,
+    required int promoPrice,
+    required DateTime startsAt,
+    required DateTime endsAt,
+    String? title,
+    bool isActive = true,
+  }) async {
+    final response = await _api.post(
+      '/vendors/me/promotions/products/$productId',
+      body: {
+        'promo_price': promoPrice,
+        'starts_at': startsAt.toIso8601String(),
+        'ends_at': endsAt.toIso8601String(),
+        if (title != null && title.trim().isNotEmpty) 'title': title.trim(),
+        'is_active': isActive,
+      },
+    );
+    return ProductPromotion.fromJson(_dataObject(response) ?? {});
+  }
+
+  Future<ProductPromotionBatch> createPromotionsFromPercent({
+    required int discountPercent,
+    List<String>? productIds,
+    bool allProducts = false,
+    required DateTime startsAt,
+    required DateTime endsAt,
+    String? title,
+    bool isActive = true,
+  }) async {
+    final response = await _api.post(
+      '/vendors/me/promotions/bulk',
+      body: {
+        'discount_percent': discountPercent,
+        if (allProducts) 'all_products': true,
+        if (!allProducts && productIds != null && productIds.isNotEmpty)
+          'product_ids': productIds,
+        'starts_at': startsAt.toIso8601String(),
+        'ends_at': endsAt.toIso8601String(),
+        if (title != null && title.trim().isNotEmpty) 'title': title.trim(),
+        'is_active': isActive,
+      },
+    );
+    return ProductPromotionBatch.fromJson(_dataObject(response) ?? {});
+  }
+
+  Future<ProductPromotion> updatePromotion(
+    String promotionId, {
+    int? promoPrice,
+    int? discountPercent,
+    DateTime? startsAt,
+    DateTime? endsAt,
+    String? title,
+    bool? isActive,
+  }) async {
+    final response = await _api.patch(
+      '/vendors/me/promotions/$promotionId',
+      body: {
+        if (discountPercent != null) 'discount_percent': discountPercent,
+        if (promoPrice != null && discountPercent == null)
+          'promo_price': promoPrice,
+        if (startsAt != null) 'starts_at': startsAt.toIso8601String(),
+        if (endsAt != null) 'ends_at': endsAt.toIso8601String(),
+        if (title != null) 'title': title.trim().isEmpty ? null : title.trim(),
+        if (isActive != null) 'is_active': isActive,
+      },
+    );
+    return ProductPromotion.fromJson(_dataObject(response) ?? {});
+  }
+
+  Future<ProductPromotion> togglePromotion(String promotionId) async {
+    final response =
+        await _api.post('/vendors/me/promotions/$promotionId/toggle');
+    return ProductPromotion.fromJson(_dataObject(response) ?? {});
+  }
+
+  Future<void> deletePromotion(String promotionId) async {
+    await _api.delete('/vendors/me/promotions/$promotionId');
+  }
+
+  // ------------------------------------------------------------------
   // Vendeur : commandes
   // ------------------------------------------------------------------
 
@@ -1846,11 +1939,13 @@ class HomeData {
   const HomeData({
     this.categories = const [],
     this.featuredProducts = const [],
+    this.promotions = const [],
     this.vendors = const [],
   });
 
   final List<Category> categories;
   final List<Product> featuredProducts;
+  final List<ProductPromotion> promotions;
   final List<HomeVendor> vendors;
 
   factory HomeData.fromJson(Map<String, dynamic> json) {
@@ -1860,6 +1955,7 @@ class HomeData {
         : json;
     final rawCategories = root['categories'];
     final rawProducts = root['featured_products'];
+    final rawPromotions = root['promotions'];
     final rawVendors = root['vendors'];
 
     return HomeData(
@@ -1873,6 +1969,12 @@ class HomeData {
           ? rawProducts
                 .whereType<Map<String, dynamic>>()
                 .map(Product.fromJson)
+                .toList()
+          : [],
+      promotions: rawPromotions is List
+          ? rawPromotions
+                .whereType<Map<String, dynamic>>()
+                .map(ProductPromotion.fromJson)
                 .toList()
           : [],
       vendors: rawVendors is List

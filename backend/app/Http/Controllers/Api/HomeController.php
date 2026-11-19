@@ -4,9 +4,11 @@ namespace App\Http\Controllers\Api;
 
 use App\Enums\VendorStatus;
 use App\Http\Controllers\Controller;
+use App\Http\Resources\ProductPromotionResource;
 use App\Http\Resources\ProductResource;
 use App\Models\Category;
 use App\Models\Product;
+use App\Models\ProductPromotion;
 use App\Models\Review;
 use App\Models\Vendor;
 use App\Support\Api;
@@ -36,7 +38,7 @@ class HomeController extends Controller
             ->values();
 
         $products = Product::query()
-            ->with(['vendor', 'category', 'images'])
+            ->with(['vendor', 'category', 'images', 'activePromotion'])
             ->withAvg('reviews as reviews_avg_rating', 'rating')
             ->withCount(['reviews', 'favorites'])
             ->orderable()
@@ -47,6 +49,23 @@ class HomeController extends Controller
             ->latest('products.created_at')
             ->limit(12)
             ->get();
+
+        $promotions = ProductPromotion::query()
+            ->with(['product' => fn ($product) => $product
+                ->with(['vendor', 'category', 'images', 'activePromotion'])
+                ->withAvg('reviews as reviews_avg_rating', 'rating')
+                ->withCount(['reviews', 'favorites'])])
+            ->currentlyActive()
+            ->whereHas('product', fn ($product) => $product
+                ->orderable()
+                ->whereHas('vendor', fn ($vendor) => $vendor
+                    ->where('status', VendorStatus::Active->value)
+                    ->whereNull('closed_at')))
+            ->orderBy('ends_at')
+            ->get()
+            ->sortByDesc(fn (ProductPromotion $promotion) => $promotion->discountPercent())
+            ->values()
+            ->take(6);
 
         $vendorRatings = Review::query()
             ->join('orders', 'orders.id', '=', 'reviews.order_id')
@@ -108,6 +127,7 @@ class HomeController extends Controller
         return Api::ok([
             'categories' => $categories,
             'featured_products' => ProductResource::collection($products)->resolve(),
+            'promotions' => ProductPromotionResource::collection($promotions)->resolve(),
             'vendors' => $vendors,
         ]);
     }

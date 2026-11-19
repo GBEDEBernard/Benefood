@@ -38,7 +38,7 @@ class CatalogController extends Controller
         $perPage = $perPage > 0 && $perPage <= 100 ? $perPage : 15;
 
         $query = Product::query()
-            ->with(['vendor', 'category', 'images'])
+            ->with(['vendor', 'category', 'images', 'activePromotion'])
             ->withAvg('reviews as reviews_avg_rating', 'rating')
             ->withCount(['reviews', 'favorites'])
             ->orderable()
@@ -81,6 +81,10 @@ class CatalogController extends Controller
         if ($request->filled('category_id')) {
             $ids = $this->categoryIdsRecursively((string) $request->query('category_id'));
             $query->whereIn('products.category_id', $ids);
+        }
+
+        if ($request->boolean('on_promo')) {
+            $query->whereHas('activePromotion');
         }
 
         if ($hasLocation && $request->filled('radius_km')) {
@@ -140,7 +144,7 @@ class CatalogController extends Controller
             return Api::error('Produit introuvable.', 'not_found', 404);
         }
 
-        $product->load(['vendor', 'category', 'images'])->loadCount(['favorites', 'reviews']);
+        $product->load(['vendor', 'category', 'images', 'activePromotion'])->loadCount(['favorites', 'reviews']);
 
         return Api::ok(new ProductResource($product));
     }

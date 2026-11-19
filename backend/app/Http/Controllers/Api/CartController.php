@@ -38,7 +38,7 @@ class CartController extends Controller
 
         $this->cartService->addItem($cart, $product, (int) ($data['quantity'] ?? 1));
 
-        return Api::ok(new CartResource($cart->load('items.product', 'vendor')));
+        return Api::ok(new CartResource($cart->load('items.product.activePromotion', 'vendor')));
     }
 
     public function updateItem(Request $request, CartItem $item): JsonResponse

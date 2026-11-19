@@ -275,14 +275,112 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                             ],
                           ),
                           const SizedBox(height: 10),
-                          Text(
-                            formatAmount(product.price),
-                            style: const TextStyle(
-                              fontSize: 24,
-                              fontWeight: FontWeight.w800,
-                              color: AppColors.orange,
+                          if (product.isOnPromo) ...[
+                            Container(
+                              padding: const EdgeInsets.all(14),
+                              decoration: BoxDecoration(
+                                gradient: const LinearGradient(
+                                  colors: [
+                                    AppColors.goldLight,
+                                    AppColors.orangeLight,
+                                  ],
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                ),
+                                borderRadius: BorderRadius.circular(
+                                  AppDimens.radiusLg,
+                                ),
+                                border: Border.all(
+                                  color: AppColors.gold.withValues(alpha: 0.5),
+                                ),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 10,
+                                          vertical: 5,
+                                        ),
+                                        decoration: const BoxDecoration(
+                                          color: AppColors.gold,
+                                          borderRadius: BorderRadius.all(
+                                            Radius.circular(
+                                              AppDimens.radiusPill,
+                                            ),
+                                          ),
+                                        ),
+                                        child: Text(
+                                          '−${product.displayedDiscountPercent} %',
+                                          style: const TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w800,
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 10),
+                                      const Text(
+                                        'Prix promo',
+                                        style: TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w800,
+                                          color: AppColors.goldDark,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 10),
+                                  Row(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.baseline,
+                                    textBaseline: TextBaseline.alphabetic,
+                                    children: [
+                                      Text(
+                                        formatAmount(product.price),
+                                        style: const TextStyle(
+                                          fontSize: 13,
+                                          color: AppColors.textFaint,
+                                          decoration:
+                                              TextDecoration.lineThrough,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 10),
+                                      Text(
+                                        formatAmount(product.displayedPrice),
+                                        style: const TextStyle(
+                                          fontSize: 24,
+                                          fontWeight: FontWeight.w800,
+                                          color: AppColors.orange,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    product.promotion?.title?.trim().isNotEmpty ==
+                                            true
+                                        ? product.promotion!.title!
+                                        : 'Vous économisez ${formatAmount(product.savings)} sur ce plat.',
+                                    style: const TextStyle(
+                                      fontSize: 12.5,
+                                      color: AppColors.textSecondary,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
-                          ),
+                          ] else
+                            Text(
+                              formatAmount(product.price),
+                              style: const TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.w800,
+                                color: AppColors.orange,
+                              ),
+                            ),
                           const SizedBox(height: 12),
                           _ProductStats(
                             product: product,

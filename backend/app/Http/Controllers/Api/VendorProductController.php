@@ -37,7 +37,7 @@ class VendorProductController extends Controller
 
         $query = $vendor->products()
             ->where('is_active', true)
-            ->with(['category', 'images'])
+            ->with(['category', 'images', 'activePromotion'])
             ->withAvg('reviews as reviews_avg_rating', 'rating')
             ->withCount(['reviews', 'favorites']);
 
@@ -130,7 +130,7 @@ class VendorProductController extends Controller
 
         $product = $this->catalog->storeProduct($vendor, $data, auth()->id());
 
-        return Api::created(new ProductResource($product->load(['vendor', 'category', 'images'])));
+        return Api::created(new ProductResource($product->load(['vendor', 'category', 'images', 'activePromotion'])));
     }
 
     public function update(Request $request, Product $product): JsonResponse
@@ -160,7 +160,7 @@ class VendorProductController extends Controller
 
         $product = $this->catalog->updateProduct($product, $data, auth()->id());
 
-        return Api::ok(new ProductResource($product->load(['vendor', 'category', 'images'])));
+        return Api::ok(new ProductResource($product->load(['vendor', 'category', 'images', 'activePromotion'])));
     }
 
     /**

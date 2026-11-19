@@ -9,7 +9,8 @@ class CartResource extends JsonResource
 {
     public function toArray(Request $request): array
     {
-        $subtotal = $this->items->sum(fn ($item) => (int) ($item->product?->price ?? $item->unit_price) * $item->quantity);
+        $subtotal = $this->items->sum(fn ($item) => ($item->product?->effectivePrice() ?? (int) $item->unit_price) * $item->quantity);
+        $originalSubtotal = $this->items->sum(fn ($item) => (int) ($item->product?->price ?? $item->unit_price) * $item->quantity);
 
         return [
             'id' => $this->id,
@@ -20,6 +21,8 @@ class CartResource extends JsonResource
             ]),
             'items' => CartItemResource::collection($this->whenLoaded('items')),
             'subtotal' => $subtotal,
+            'original_subtotal' => $originalSubtotal,
+            'savings' => $originalSubtotal - $subtotal,
             'currency' => 'XOF',
             'items_count' => $this->whenLoaded('items', fn () => $this->items->count()),
             'status' => $this->status?->value,

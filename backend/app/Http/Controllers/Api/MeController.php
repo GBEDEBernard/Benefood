@@ -251,7 +251,7 @@ class MeController extends Controller
     public function favorites(Request $request): JsonResponse
     {
         $favorites = $request->user()->favorites()
-            ->with(['product.vendor', 'product.category', 'product.images'])
+            ->with(['product.vendor', 'product.category', 'product.images', 'product.activePromotion'])
             ->latest()
             ->get();
 

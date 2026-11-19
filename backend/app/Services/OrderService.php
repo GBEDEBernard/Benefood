@@ -34,6 +34,7 @@ class OrderService
 {
     public function __construct(
         private readonly CartService $cartService,
+        private readonly PromotionService $promotions,
         private readonly DeliveryPricingService $delivery,
         private readonly CatalogService $catalog,
         private readonly RefundService $refunds,
@@ -57,7 +58,7 @@ class OrderService
     {
         $this->assertCartOpen($cart);
 
-        $cart->loadMissing('items.product', 'vendor', 'user');
+        $cart->loadMissing('items.product.activePromotion', 'vendor', 'user');
 
         $this->assertVendorSellable($cart->vendor);
         $this->assertItemsOrderable($cart->items);
@@ -66,19 +67,26 @@ class OrderService
 
         $entries = [];
         $subtotal = 0;
+        $originalSubtotal = 0;
 
         foreach ($cart->items as $item) {
-            $unitPrice = (int) $item->product->price;
+            $originalPrice = (int) $item->product->price;
+            $unitPrice = $this->promotions->effectivePrice($item->product);
             $lineSubtotal = $unitPrice * $item->quantity;
             $subtotal += $lineSubtotal;
+            $originalSubtotal += $originalPrice * $item->quantity;
             $entries[] = [
                 'product_id' => $item->product->id,
                 'name' => $item->product->name,
                 'quantity' => $item->quantity,
+                'original_price' => $originalPrice,
                 'unit_price' => $unitPrice,
+                'discount_percent' => $this->promotions->activeFor($item->product)?->discountPercent() ?? 0,
                 'subtotal' => $lineSubtotal,
             ];
         }
+
+        $discount = $originalSubtotal - $subtotal;
 
         $delivery = $this->deliveryQuote($cart, $options);
         $selectedDriver = $this->resolveCheckoutDriver(
@@ -99,6 +107,9 @@ class OrderService
             ],
             'items' => $entries,
             'subtotal' => $subtotal,
+            'original_subtotal' => $originalSubtotal,
+            'discount' => $discount,
+            'savings' => $discount,
             'delivery_fee' => $breakdown['delivery_fee'],
             'approach_fee' => $breakdown['approach_fee'],
             'delivery_total' => $breakdown['delivery_total'],
@@ -137,7 +148,7 @@ class OrderService
     {
         $this->assertCartOpen($cart);
 
-        $cart->loadMissing(['items.product', 'vendor']);
+        $cart->loadMissing(['items.product.activePromotion', 'vendor']);
 
         $vendor = $cart->vendor;
 
@@ -153,12 +164,14 @@ class OrderService
         $paymentMethod = $this->normalizePaymentMethod($paymentMethod);
 
         $subtotal = 0;
+        $discount = 0;
         $lines = [];
 
         foreach ($cart->items as $item) {
-            $unitPrice = (int) $item->product->price;
+            $unitPrice = $this->promotions->effectivePrice($item->product);
             $lineSubtotal = $unitPrice * $item->quantity;
             $subtotal += $lineSubtotal;
+            $discount += $this->promotions->savings($item->product, $item->quantity);
             $lines[] = [
                 'product' => $item->product,
                 'quantity' => $item->quantity,
@@ -179,7 +192,7 @@ class OrderService
 
         $confirmationCode = null;
 
-        $order = DB::transaction(function () use ($cart, $address, $notes, $delivery, $approach, $lines, $subtotal, $commissionRate, $breakdown, $deliveryFee, $total, $reference, $paymentMethod, $paymentDeadline, $preferredDriver, &$confirmationCode) {
+        $order = DB::transaction(function () use ($cart, $address, $notes, $delivery, $approach, $lines, $subtotal, $discount, $commissionRate, $breakdown, $deliveryFee, $total, $reference, $paymentMethod, $paymentDeadline, $preferredDriver, &$confirmationCode) {
             $order = Order::create([
                 'reference' => $reference,
                 'user_id' => $cart->user_id,
@@ -193,7 +206,7 @@ class OrderService
                     : PaymentMethod::Online->value,
                 'payment_status' => PaymentStatus::Initiated->value,
                 'subtotal' => $subtotal,
-                'discount' => 0,
+                'discount' => $discount,
                 'delivery_fee' => $deliveryFee,
                 'approach_fee' => (int) $breakdown['approach_fee'],
                 'approach_distance_km' => $approach['distance_km'],
@@ -230,7 +243,7 @@ class OrderService
 
             $order->financials()->create([
                 'subtotal' => $subtotal,
-                'discount' => 0,
+                'discount' => $discount,
                 'delivery_fee' => $deliveryFee,
                 'approach_fee' => (int) $breakdown['approach_fee'],
                 'delivery_total' => (int) $breakdown['delivery_total'],
@@ -685,7 +698,7 @@ class OrderService
                 if ($order->approach_payment_method?->isCash()
                     && ! $order->approachIsPaid()
                     && $order->delivery?->driverProfile !== null) {
-                    app(\App\Services\ApproachFeeService::class)->settleCash(
+                    app(ApproachFeeService::class)->settleCash(
                         $order->fresh('financials'),
                         $order->delivery->driverProfile,
                     );

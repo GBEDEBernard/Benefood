@@ -44,6 +44,7 @@ class DashboardScreen extends StatefulWidget {
     this.onOpenOrder,
     this.onOpenOrders,
     this.onOpenProducts,
+    this.onOpenPromo,
     this.onOpenStats,
     this.onOpenReviews,
     this.onRefresh,
@@ -74,6 +75,7 @@ class DashboardScreen extends StatefulWidget {
   final ValueChanged<Order>? onOpenOrder;
   final VoidCallback? onOpenOrders;
   final VoidCallback? onOpenProducts;
+  final VoidCallback? onOpenPromo;
   final VoidCallback? onOpenStats;
   final VoidCallback? onOpenReviews;
   final Future<void> Function()? onRefresh;
@@ -355,10 +357,15 @@ class _DashboardScreenState extends State<DashboardScreen>
 
   void _openPromo() {
     HapticFeedback.selectionClick();
-    showToast(
-      context,
-      'Bientôt : créez et programmez vos promotions directement ici.',
-    );
+    final callback = widget.onOpenPromo;
+    if (callback != null) {
+      callback();
+    } else {
+      showToast(
+        context,
+        'Les promotions sont disponibles une fois connecté.',
+      );
+    }
   }
 
   void _openReviews() {

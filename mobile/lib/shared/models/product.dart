@@ -1,3 +1,5 @@
+import 'product_promotion.dart';
+
 class ProductImage {
   const ProductImage({
     required this.id,
@@ -43,6 +45,9 @@ class Product {
     this.reviewsCount,
     this.likesCount,
     this.distanceKm,
+    this.effectivePrice = 0,
+    this.discountPercent = 0,
+    this.promotion,
   });
 
   final String id;
@@ -73,7 +78,37 @@ class Product {
   /// Distance au vendeur (renseignée par la recherche par proximité).
   final double? distanceKm;
 
+  /// Prix réellement facturé (prix promo si une offre est active).
+  final int effectivePrice;
+
+  /// Remise calculée par le backend, en pourcentage.
+  final int discountPercent;
+
+  /// Offre en cours, quand le produit est en promotion.
+  final ProductPromotion? promotion;
+
   bool get isOutOfStock => stockQty != null && stockQty == 0;
+
+  bool get isOnPromo =>
+      promotion != null || (effectivePrice > 0 && effectivePrice < price);
+
+  /// Prix à afficher sur les cartes, fiches et résultats de recherche.
+  int get displayedPrice =>
+      isOnPromo && effectivePrice > 0 ? effectivePrice : price;
+
+  /// Pourcentage de réduction affiché dans les badges.
+  int get displayedDiscountPercent {
+    if (discountPercent > 0) {
+      return discountPercent;
+    }
+    if (isOnPromo && price > 0) {
+      return ((price - displayedPrice) / price * 100).round();
+    }
+    return 0;
+  }
+
+  int get savings =>
+      isOnPromo && price > displayedPrice ? price - displayedPrice : 0;
 
   /// Distance à l'utilisateur, ex. « 2,3 km » ou « 850 m ».
   String? get distanceLabel {
@@ -142,10 +177,13 @@ class Product {
       reviewsCount: reviewsCount,
       likesCount: likesCount,
       distanceKm: distanceKm,
+      effectivePrice: effectivePrice,
+      discountPercent: discountPercent,
+      promotion: promotion,
     );
   }
 
-  String get displayPrice => price.toString();
+  String get displayPrice => displayedPrice.toString();
 
   factory Product.fromJson(Map<String, dynamic> json) {
     final rawImages = json['images'];
@@ -157,6 +195,23 @@ class Product {
           .toList();
     }
 
+    final basePrice = _i(json['price']);
+    final rawPromotion = json['promotion'];
+    final promotion = rawPromotion is Map<String, dynamic>
+        ? ProductPromotion.fromJson(rawPromotion)
+        : null;
+    final rawEffectivePrice = json['effective_price'];
+    final effectivePrice = rawEffectivePrice is num
+        ? rawEffectivePrice.toInt()
+        : (promotion?.promoPrice ?? basePrice);
+    final rawDiscount = json['discount_percent'];
+    final computedDiscount = basePrice > 0 && effectivePrice < basePrice
+        ? ((basePrice - effectivePrice) / basePrice * 100).round()
+        : 0;
+    final discountPercent = rawDiscount is num
+        ? rawDiscount.toInt()
+        : computedDiscount;
+
     return Product(
       id: _s(json['id']),
       vendorId: _s(json['vendor_id']),
@@ -165,7 +220,7 @@ class Product {
       description: json['description'] is String
           ? json['description'] as String
           : null,
-      price: _i(json['price']),
+      price: basePrice,
       currency: _s(json['currency'], 'XOF'),
       unit: _s(json['unit'], 'pce'),
       stockQty: json['stock_qty'] is int ? json['stock_qty'] as int : null,
@@ -190,6 +245,9 @@ class Product {
       reviewsCount: _i(json['reviews_count']),
       likesCount: _i(json['likes_count']),
       distanceKm: _d(json['distance_km']),
+      effectivePrice: effectivePrice,
+      discountPercent: discountPercent,
+      promotion: promotion,
     );
   }
 }

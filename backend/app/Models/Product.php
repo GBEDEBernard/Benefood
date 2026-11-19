@@ -49,6 +49,39 @@ class Product extends Model
         return $this->hasOne(ProductImage::class)->where('is_main', true);
     }
 
+    public function promotions(): HasMany
+    {
+        return $this->hasMany(ProductPromotion::class)->orderByDesc('starts_at');
+    }
+
+    /**
+     * Promotion en cours, utilisée pour le prix facturé et l'affichage client.
+     */
+    public function activePromotion(): HasOne
+    {
+        return $this->hasOne(ProductPromotion::class)
+            ->currentlyActive()
+            ->orderByDesc('starts_at');
+    }
+
+    /**
+     * Prix réellement facturé à l'instant présent (promo incluse).
+     */
+    public function effectivePrice(): int
+    {
+        if ($this->relationLoaded('activePromotion')) {
+            $active = $this->getRelation('activePromotion');
+
+            if ($active instanceof ProductPromotion) {
+                return (int) $active->promo_price;
+            }
+        }
+
+        $active = $this->activePromotion()->first();
+
+        return $active !== null ? (int) $active->promo_price : (int) $this->price;
+    }
+
     public function priceHistory(): HasMany
     {
         return $this->hasMany(ProductPriceHistory::class)->orderByDesc('changed_at');

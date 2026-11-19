@@ -4,6 +4,7 @@ import '../models/product.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_dimens.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/utils/formatters.dart';
 import 'amount_widgets.dart';
 import 'product_image_carousel.dart';
 
@@ -62,6 +63,28 @@ class ProductCardGrid extends StatelessWidget {
                         ),
                       ),
                     ),
+                  if (product.isOnPromo)
+                    Positioned(
+                      top: 8,
+                      right: 8,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: const BoxDecoration(
+                          color: AppColors.gold,
+                          borderRadius: BorderRadius.all(
+                            Radius.circular(AppDimens.radiusPill),
+                          ),
+                        ),
+                        child: Text(
+                          '−${product.displayedDiscountPercent} %',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                    ),
                 ],
               ),
             ),
@@ -101,12 +124,29 @@ class ProductCardGrid extends StatelessWidget {
                   Row(
                     children: [
                       Expanded(
-                        child: AmountText(
-                          product.price,
-                          style: theme.textTheme.titleSmall?.copyWith(
-                            color: AppColors.text,
-                            fontWeight: FontWeight.w800,
-                          ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (product.isOnPromo)
+                              Text(
+                                formatAmount(product.price),
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  color: AppColors.textFaint,
+                                  decoration: TextDecoration.lineThrough,
+                                ),
+                              ),
+                            AmountText(
+                              product.displayedPrice,
+                              style: theme.textTheme.titleSmall?.copyWith(
+                                color: product.isOnPromo
+                                    ? AppColors.orange
+                                    : AppColors.text,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                       if (onAdd != null)
@@ -168,16 +208,45 @@ class ProductListCard extends StatelessWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: SizedBox(
-                  width: dense ? 56 : 68,
-                  height: dense ? 56 : 68,
-                  child: ProductImageCarousel(
-                    imageUrls: product.galleryImageUrls,
-                    showCounter: false,
+              Stack(
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: SizedBox(
+                      width: dense ? 56 : 68,
+                      height: dense ? 56 : 68,
+                      child: ProductImageCarousel(
+                        imageUrls: product.galleryImageUrls,
+                        showCounter: false,
+                      ),
+                    ),
                   ),
-                ),
+                  if (product.isOnPromo)
+                    Positioned(
+                      top: 4,
+                      right: 4,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 5,
+                          vertical: 3,
+                        ),
+                        decoration: const BoxDecoration(
+                          color: AppColors.gold,
+                          borderRadius: BorderRadius.all(
+                            Radius.circular(AppDimens.radiusPill),
+                          ),
+                        ),
+                        child: Text(
+                          '−${product.displayedDiscountPercent} %',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 9,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -202,10 +271,21 @@ class ProductListCard extends StatelessWidget {
                     const SizedBox(height: 6),
                     _ProductSocialProof(product: product),
                     const SizedBox(height: 6),
+                    if (product.isOnPromo)
+                      Text(
+                        formatAmount(product.price),
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: AppColors.textFaint,
+                          decoration: TextDecoration.lineThrough,
+                        ),
+                      ),
                     AmountText(
-                      product.price,
+                      product.displayedPrice,
                       style: theme.textTheme.titleSmall?.copyWith(
-                        color: AppColors.text,
+                        color: product.isOnPromo
+                            ? AppColors.orange
+                            : AppColors.text,
                         fontWeight: FontWeight.w800,
                       ),
                     ),

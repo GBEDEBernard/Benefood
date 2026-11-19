@@ -34,12 +34,14 @@ class _MemoryTokenStore implements TokenStore {
 
 MockClient _mockBackend({
   bool unwrapHomeData = false,
+  String? customHomePayload,
   Future<http.Response>? pendingHome,
   void Function()? onHomeCalled,
 }) {
   final homeBody = File('test/fixtures/home.json').readAsStringSync();
   final homeMap = jsonDecode(homeBody) as Map<String, dynamic>;
-  final homePayload = unwrapHomeData ? jsonEncode(homeMap['data']) : homeBody;
+  final homePayload = customHomePayload ??
+      (unwrapHomeData ? jsonEncode(homeMap['data']) : homeBody);
 
   return MockClient((request) async {
     final path = request.url.path;
@@ -181,5 +183,45 @@ void main() {
     );
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
+  });
+
+  testWidgets('accueil met en avant les promotions créées par les vendeurs', (
+    tester,
+  ) async {
+    final homeMap =
+        jsonDecode(File('test/fixtures/home.json').readAsStringSync())
+            as Map<String, dynamic>;
+    final data = homeMap['data'] as Map<String, dynamic>;
+    final products = data['featured_products'] as List<dynamic>;
+    final product = products.first as Map<String, dynamic>;
+    final now = DateTime.now().toUtc();
+
+    data['promotions'] = [
+      {
+        'id': 'promo-home-test',
+        'product_id': product['id'],
+        'vendor_id': product['vendor_id'],
+        'title': 'Offre test du jour',
+        'promo_price': 300,
+        'original_price': product['price'],
+        'discount_percent': 33,
+        'starts_at': now.subtract(const Duration(hours: 1)).toIso8601String(),
+        'ends_at': now.add(const Duration(days: 2)).toIso8601String(),
+        'is_active': true,
+        'is_currently_active': true,
+        'product': product,
+      },
+    ];
+
+    await _pumpShell(
+      tester,
+      _mockBackend(customHomePayload: jsonEncode(homeMap)),
+    );
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('Offres du moment'), findsOneWidget);
+    expect(find.text('Offre test du jour'), findsOneWidget);
+    expect(find.text('−33 %'), findsWidgets);
+    expect(find.text('Voir l’offre'), findsOneWidget);
   });
 }

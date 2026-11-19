@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Models\ProductPromotion;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Facades\Storage;
@@ -17,6 +18,16 @@ class ProductResource extends JsonResource
             $imagePath = $primaryImage?->path ?? $imagePath;
         }
 
+        $promotion = $this->resource->relationLoaded('activePromotion')
+            ? $this->resource->getRelation('activePromotion')
+            : $this->activePromotion()->first();
+        $promotion = $promotion instanceof ProductPromotion ? $promotion : null;
+        $basePrice = (int) $this->price;
+        $effectivePrice = $promotion !== null ? (int) $promotion->promo_price : $basePrice;
+        $discountPercent = $promotion !== null && $basePrice > 0 && $effectivePrice < $basePrice
+            ? (int) round((($basePrice - $effectivePrice) / $basePrice) * 100)
+            : 0;
+
         return [
             'id' => $this->id,
             'vendor_id' => $this->vendor_id,
@@ -30,7 +41,19 @@ class ProductResource extends JsonResource
             'name' => $this->name,
             'description' => $this->description,
             'unit' => $this->unit,
-            'price' => $this->price,
+            'price' => $basePrice,
+            'effective_price' => $effectivePrice,
+            'discount_percent' => $discountPercent,
+            'promotion' => $promotion !== null ? [
+                'id' => $promotion->id,
+                'title' => $promotion->title,
+                'promo_price' => (int) $promotion->promo_price,
+                'original_price' => $basePrice,
+                'discount_percent' => $discountPercent,
+                'starts_at' => $promotion->starts_at?->toIso8601String(),
+                'ends_at' => $promotion->ends_at?->toIso8601String(),
+                'is_currently_active' => true,
+            ] : null,
             'currency' => 'XOF',
             'stock_qty' => $this->stock_qty,
             'image_main' => $this->image_main,

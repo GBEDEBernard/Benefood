@@ -63,6 +63,11 @@ class Vendor extends Model
         return $this->hasMany(Product::class);
     }
 
+    public function promotions(): HasMany
+    {
+        return $this->hasMany(ProductPromotion::class)->orderByDesc('starts_at');
+    }
+
     public function orders(): HasMany
     {
         return $this->hasMany(Order::class);
