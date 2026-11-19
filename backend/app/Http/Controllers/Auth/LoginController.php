@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Services\SocialAuthService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -17,9 +18,11 @@ use Illuminate\Support\Facades\Auth;
  */
 class LoginController extends Controller
 {
-    public function show(): View
+    public function show(SocialAuthService $socialAuth): View
     {
-        return view('auth.login');
+        return view('auth.login', [
+            'socialProviders' => $socialAuth->providersStatus()['supported'] ?? [],
+        ]);
     }
 
     public function store(Request $request): RedirectResponse

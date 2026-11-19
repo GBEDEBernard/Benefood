@@ -25,6 +25,7 @@ use App\Http\Controllers\Admin\UsersController;
 use App\Http\Controllers\Admin\VendorsController;
 use App\Http\Controllers\Api\HealthController;
 use App\Http\Controllers\Auth\LoginController;
+use App\Http\Controllers\Auth\SocialLoginController;
 use App\Models\User;
 use Illuminate\Support\Facades\Route;
 
@@ -45,6 +46,9 @@ Route::get('/admin/dev-login', function () {
 Route::get('/login', [LoginController::class, 'show'])->name('login');
 Route::post('/login', [LoginController::class, 'store'])->name('login.post');
 Route::post('/logout', [LoginController::class, 'destroy'])->name('logout');
+
+Route::get('/auth/{provider}/redirect', [SocialLoginController::class, 'redirect'])->name('auth.social.redirect');
+Route::get('/auth/{provider}/callback', [SocialLoginController::class, 'callback'])->name('auth.social.callback');
 
 // --- Back-office (auth required) ---
 Route::middleware('auth')->prefix('admin')->name('admin.')->group(function (): void {
@@ -182,4 +186,4 @@ Route::get('/backoffice', fn () => redirect()->route('admin.dashboard'))->name('
 // Health check utilisé par la plateforme d'hébergement (Render).
 Route::get('/healthz', [HealthController::class, 'index'])->name('healthz');
 
-Route::get('/', fn () => view('welcome'));
+Route::get('/', fn () => redirect()->route('login'));

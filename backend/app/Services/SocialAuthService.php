@@ -20,17 +20,42 @@ class SocialAuthService
     public const PROVIDERS = ['google', 'facebook', 'linkedin'];
 
     /**
-     * Connexion ou inscription via un fournisseur OAuth.
+     * Connexion ou inscription via un fournisseur OAuth (API/mobile : jeton + émission Sanctum).
      *
      * @param  array<string, mixed>  $data
      * @return array{user: User, access_token: string, token_type: string, expires_at: string, is_new: bool, linked_provider: string}
      */
     public function authenticate(string $provider, array $data): array
     {
+        $resolved = $this->resolveAuthenticatedUser($provider, $data);
+        $user = $resolved['user'];
+
+        $this->registerDevice($user, $data);
+        $tokenPayload = $this->issueToken($user, $data['device_name'] ?? 'mobile');
+
+        return [
+            'user' => $user->loadMissing('roles'),
+            'access_token' => $tokenPayload['access_token'],
+            'token_type' => $tokenPayload['token_type'],
+            'expires_at' => $tokenPayload['expires_at'],
+            'is_new' => $resolved['is_new'],
+            'linked_provider' => $resolved['linked_provider'],
+        ];
+    }
+
+    /**
+     * Résout (ou crée) l'utilisateur à partir d'un flux OAuth, sans émettre de jeton API.
+     * Utilisé par le flux web (session) et par l'API.
+     *
+     * @param  array<string, mixed>  $data
+     * @return array{user: User, is_new: bool, linked_provider: string}
+     */
+    public function resolveAuthenticatedUser(string $provider, array $data): array
+    {
         $provider = $this->normalizeProvider($provider);
         $profile = $this->fetchProfile($provider, $data);
 
-        return DB::transaction(function () use ($provider, $profile, $data): array {
+        return DB::transaction(function () use ($provider, $profile): array {
             $account = SocialAccount::query()
                 ->where('provider', $provider)
                 ->where('provider_user_id', $profile['id'])
@@ -50,14 +75,9 @@ class SocialAuthService
             }
 
             $this->touchLastUsedRole($user);
-            $this->registerDevice($user, $data);
-            $tokenPayload = $this->issueToken($user, $data['device_name'] ?? 'mobile');
 
             return [
-                'user' => $user->loadMissing('roles'),
-                'access_token' => $tokenPayload['access_token'],
-                'token_type' => $tokenPayload['token_type'],
-                'expires_at' => $tokenPayload['expires_at'],
+                'user' => $user,
                 'is_new' => $isNew,
                 'linked_provider' => $provider,
             ];
@@ -169,6 +189,87 @@ class SocialAuthService
         };
     }
 
+    /**
+     * Indique si le fournisseur est configuré pour le flux web (échange de code serveur).
+     */
+    public function isConfiguredForWeb(string $provider): bool
+    {
+        return match ($this->normalizeProvider($provider)) {
+            'google' => filled(config('services.google.client_id')) && filled(config('services.google.client_secret')),
+            'facebook' => filled(config('services.facebook.client_id')) && filled(config('services.facebook.client_secret')),
+            'linkedin' => (filled(config('services.linkedin-openid.client_id')) || filled(config('services.linkedin.client_id')))
+                && (filled(config('services.linkedin-openid.client_secret')) || filled(config('services.linkedin.client_secret'))),
+            default => false,
+        };
+    }
+
+    /**
+     * URL d'autorisation OAuth pour le flux web (redirection navigateur).
+     */
+    public function authorizationUrl(string $provider, string $state): string
+    {
+        $provider = $this->normalizeProvider($provider);
+
+        if (! $this->isConfiguredForWeb($provider)) {
+            throw new DomainException(
+                'auth.provider_not_configured',
+                'Le fournisseur '.$this->providerLabel($provider).' n’est pas configuré sur ce serveur.',
+                503,
+            );
+        }
+
+        $redirectUri = $this->webRedirectUri($provider);
+        if ($redirectUri === '') {
+            throw new DomainException(
+                'auth.provider_not_configured',
+                'La redirection OAuth de '.$this->providerLabel($provider).' n’est pas configurée.',
+                503,
+            );
+        }
+
+        return match ($provider) {
+            'google' => 'https://accounts.google.com/o/oauth2/v2/auth?'.http_build_query([
+                'client_id' => (string) config('services.google.client_id'),
+                'redirect_uri' => $redirectUri,
+                'response_type' => 'code',
+                'scope' => 'openid email profile',
+                'state' => $state,
+                'prompt' => 'select_account',
+            ]),
+            'facebook' => 'https://www.facebook.com/v19.0/dialog/oauth?'.http_build_query([
+                'client_id' => (string) config('services.facebook.client_id'),
+                'redirect_uri' => $redirectUri,
+                'response_type' => 'code',
+                'scope' => 'email,public_profile',
+                'state' => $state,
+            ]),
+            'linkedin' => 'https://www.linkedin.com/oauth/v2/authorization?'.http_build_query([
+                'response_type' => 'code',
+                'client_id' => (string) (config('services.linkedin-openid.client_id') ?: config('services.linkedin.client_id')),
+                'redirect_uri' => $redirectUri,
+                'state' => $state,
+                'scope' => 'openid profile email',
+            ]),
+        };
+    }
+
+    public function webRedirectUri(string $provider): string
+    {
+        $provider = $this->normalizeProvider($provider);
+        $configured = (string) match ($provider) {
+            'google' => config('services.google.redirect', ''),
+            'facebook' => config('services.facebook.redirect', ''),
+            'linkedin' => config('services.linkedin-openid.redirect') ?: config('services.linkedin.redirect', ''),
+        };
+
+        return trim($configured) !== '' ? trim($configured) : route('auth.social.callback', ['provider' => $provider]);
+    }
+
+    public function normalizeProviderName(string $provider): string
+    {
+        return $this->normalizeProvider($provider);
+    }
+
     private function normalizeProvider(string $provider): string
     {
         $provider = strtolower(trim($provider));
@@ -185,10 +286,27 @@ class SocialAuthService
      */
     private function fetchProfile(string $provider, array $data): array
     {
-        $token = trim((string) ($data['id_token'] ?? $data['access_token'] ?? $data['token'] ?? ''));
+        $code = trim((string) ($data['code'] ?? ''));
+        if ($code !== '') {
+            if (! $this->isConfiguredForWeb($provider)) {
+                throw new DomainException(
+                    'auth.provider_not_configured',
+                    'Le fournisseur '.$this->providerLabel($provider).' n’est pas configuré sur ce serveur.',
+                    503,
+                );
+            }
 
-        if ($token === '') {
-            throw new DomainException('auth.social_token_required', 'Le jeton du fournisseur est requis.', 422);
+            $redirectUri = trim((string) ($data['redirect_uri'] ?? ''));
+            $exchanged = $this->exchangeCode($provider, $code, $redirectUri);
+
+            return match ($provider) {
+                'google' => $this->fetchGoogleProfile(
+                    (string) ($exchanged['id_token'] ?? $exchanged['access_token'] ?? ''),
+                    isset($exchanged['id_token']) ? 'id_token' : 'access_token',
+                ),
+                'facebook' => $this->fetchFacebookProfile((string) ($exchanged['access_token'] ?? '')),
+                'linkedin' => $this->fetchLinkedInProfile((string) ($exchanged['access_token'] ?? '')),
+            };
         }
 
         if (! $this->isConfigured($provider)) {
@@ -199,11 +317,97 @@ class SocialAuthService
             );
         }
 
+        $token = trim((string) ($data['id_token'] ?? $data['access_token'] ?? $data['token'] ?? ''));
+
+        if ($token === '') {
+            throw new DomainException('auth.social_token_required', 'Le jeton du fournisseur est requis.', 422);
+        }
+
         return match ($provider) {
             'google' => $this->fetchGoogleProfile($token, (string) ($data['token_type'] ?? 'id_token')),
             'facebook' => $this->fetchFacebookProfile($token),
             'linkedin' => $this->fetchLinkedInProfile($token),
         };
+    }
+
+    /**
+     * Échange un code d'autorisation (flux web) contre des jetons.
+     *
+     * @return array<string, mixed>
+     */
+    private function exchangeCode(string $provider, string $code, string $redirectUri): array
+    {
+        if ($redirectUri === '') {
+            throw new DomainException('auth.social_redirect_required', 'La redirection OAuth est invalide.', 422);
+        }
+
+        return match ($provider) {
+            'google' => $this->exchangeGoogleCode($code, $redirectUri),
+            'facebook' => $this->exchangeFacebookCode($code, $redirectUri),
+            'linkedin' => $this->exchangeLinkedInCode($code, $redirectUri),
+        };
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function exchangeGoogleCode(string $code, string $redirectUri): array
+    {
+        $response = Http::timeout(10)->asForm()->acceptJson()->post('https://oauth2.googleapis.com/token', [
+            'code' => $code,
+            'client_id' => (string) config('services.google.client_id'),
+            'client_secret' => (string) config('services.google.client_secret'),
+            'redirect_uri' => $redirectUri,
+            'grant_type' => 'authorization_code',
+        ]);
+
+        if ($response->failed()) {
+            $this->throwInvalidProviderToken('google');
+        }
+
+        return is_array($response->json()) ? $response->json() : [];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function exchangeFacebookCode(string $code, string $redirectUri): array
+    {
+        $response = Http::timeout(10)->acceptJson()->get('https://graph.facebook.com/v19.0/oauth/access_token', [
+            'client_id' => (string) config('services.facebook.client_id'),
+            'client_secret' => (string) config('services.facebook.client_secret'),
+            'redirect_uri' => $redirectUri,
+            'code' => $code,
+        ]);
+
+        if ($response->failed()) {
+            $this->throwInvalidProviderToken('facebook');
+        }
+
+        return is_array($response->json()) ? $response->json() : [];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function exchangeLinkedInCode(string $code, string $redirectUri): array
+    {
+        $clientId = (string) (config('services.linkedin-openid.client_id') ?: config('services.linkedin.client_id'));
+        $clientSecret = (string) (config('services.linkedin-openid.client_secret') ?: config('services.linkedin.client_secret'));
+
+        $response = Http::timeout(10)->asForm()->acceptJson()->post('https://www.linkedin.com/oauth/v2/accessToken', [
+            'grant_type' => 'authorization_code',
+            'code' => $code,
+            'client_id' => $clientId,
+            'client_secret' => $clientSecret,
+            'redirect_uri' => $redirectUri,
+        ]);
+
+        if ($response->failed()) {
+            $this->throwInvalidProviderToken('linkedin');
+        }
+
+        return is_array($response->json()) ? $response->json() : [];
     }
 
     /**
