@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:http/http.dart' as http;
 
 import '../config/app_config.dart';
@@ -121,7 +122,7 @@ class ApiClient {
       if (response.statusCode == 401 && auth && await _refreshToken()) {
         response = await sendRequest();
       }
-      return await _decode(response);
+      return await _decode(response, method: method, uri: uri);
     } on TimeoutException {
       throw ApiException.timeout();
     } on http.ClientException catch (e) {
@@ -163,7 +164,7 @@ class ApiClient {
     }
 
     final response = await _send(request);
-    return _decode(response, attemptsLeft: auth ? 1 : 0);
+    return _decode(response, attemptsLeft: auth ? 1 : 0, method: method, uri: uri);
   }
 
   Future<http.Response> _send(http.Request request) async {
@@ -171,15 +172,23 @@ class ApiClient {
       final streamed = await _http.send(request).timeout(timeout);
       return await http.Response.fromStream(streamed).timeout(timeout);
     } on TimeoutException {
+      debugPrint('BENINFOOD_API TIMEOUT ${request.method} ${request.url}');
       throw ApiException.timeout();
     } on http.ClientException catch (e) {
+      debugPrint('BENINFOOD_API NETWORK ${request.method} ${request.url}: ${e.message}');
       throw ApiException.network(e.message);
     } catch (e) {
+      debugPrint('BENINFOOD_API NETWORK ${request.method} ${request.url}: $e');
       throw ApiException.network(e.toString());
     }
   }
 
-  Future<Map<String, dynamic>> _decode(http.Response response, {int attemptsLeft = 0}) async {
+  Future<Map<String, dynamic>> _decode(
+    http.Response response, {
+    int attemptsLeft = 0,
+    String? method,
+    Uri? uri,
+  }) async {
     if (response.statusCode == 401 && attemptsLeft > 0) {
       final refreshed = await _refreshToken();
       if (refreshed) {
@@ -202,7 +211,12 @@ class ApiClient {
       return {'data': decoded};
     }
 
-    throw ApiException.fromResponse(response);
+    final exception = ApiException.fromResponse(response);
+    debugPrint(
+      'BENINFOOD_API ERROR ${method ?? '?'} ${uri ?? response.request?.url} '
+      '-> ${exception.status} ${exception.code ?? 'no-code'}: ${exception.message}',
+    );
+    throw exception;
   }
 
   Object? _lastBody;

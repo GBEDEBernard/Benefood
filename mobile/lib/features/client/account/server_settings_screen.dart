@@ -46,26 +46,27 @@ class _ServerSettingsScreenState extends State<ServerSettingsScreen> {
       _testResult = null;
     });
 
+    final endpoint = Uri.parse('$url/api/v1/health');
     try {
       final response = await http
           .get(
-            Uri.parse('$url/api/v1/health'),
+            endpoint,
             headers: AppConfig.tunnelHeaders,
           )
           .timeout(const Duration(seconds: 6));
       if (mounted) {
         setState(() {
           _testResult = response.statusCode == 200
-              ? 'Connexion OK — le serveur répond.'
-              : 'Le serveur répond (HTTP ${response.statusCode}), mais l’API ne renvoie pas le statut attendu.';
+              ? 'Connexion OK — $endpoint'
+              : 'HTTP ${response.statusCode} sur $endpoint — l’API ne renvoie pas le statut attendu.';
         });
       }
     } catch (_) {
       if (mounted) {
         setState(() {
-          _testResult = 'Échec : serveur injoignable. Vérifiez l’adresse, que le '
-              'backend tourne (php -S 0.0.0.0:8000 server.php) et que le téléphone '
-              'et le poste sont sur le même réseau Wi-Fi.';
+          _testResult = 'Serveur injoignable sur $endpoint. Vérifiez l’adresse, '
+              'que le backend tourne (php -S 0.0.0.0:8000 server.php) et que le '
+              'téléphone et le poste sont sur le même réseau Wi-Fi.';
         });
       }
     } finally {
@@ -117,6 +118,14 @@ class _ServerSettingsScreenState extends State<ServerSettingsScreen> {
               '(http://127.0.0.1:8000). Sur un téléphone, renseignez l’IP du poste '
               'sur le même Wi-Fi, ex. http://192.168.1.102:8000.',
               style: theme.textTheme.bodySmall,
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'URL utilisée par l’application : ${AppConfig.apiUrl}',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.outline,
+              ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 24),

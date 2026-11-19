@@ -39,10 +39,7 @@ class ApiSettings {
   /// Nettoie une saisie utilisateur : retire les slashes de fin et l'éventuel
   /// suffixe `/api/v1` déjà saisi.
   static String? normalize(String raw) {
-    final value = raw.trim();
-    if (value.isEmpty) {
-      return null;
-    }
-    return value.replaceFirst(RegExp(r'/api/v1$'), '').replaceFirst(RegExp(r'/+$'), '');
+    final value = AppConfig.normalizeBaseUrl(raw);
+    return value.isEmpty ? null : value;
   }
 }

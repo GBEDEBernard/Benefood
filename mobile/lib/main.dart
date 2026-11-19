@@ -34,6 +34,8 @@ Future<void> main() async {
   debugPrint('main: calling ApiSettings.override()');
   AppConfig.apiBaseUrlOverride = await ApiSettings.override();
   debugPrint('main: apiBaseUrlOverride = ${AppConfig.apiBaseUrlOverride}');
+  debugPrint('main: apiBaseUrl = ${AppConfig.apiBaseUrl}');
+  debugPrint('main: apiUrl = ${AppConfig.apiUrl}');
 
   debugPrint('main: creating ApiClient and SessionProvider');
   final api = ApiClient(tokenStore: SecureTokenStore());

@@ -53,6 +53,38 @@ Le trafic HTTP local est bloqué par ATS par défaut. Ajoutez les exceptions dan
 </dict>
 ```
 
+## Build release (APK testeurs)
+
+```bash
+flutter build apk --release
+# ou, si besoin de forcer l'URL :
+flutter build apk --release --dart-define=API_BASE_URL=https://benefood.onrender.com
+```
+
+Ne mettez **pas** de slash final dans `API_BASE_URL` : `https://host/` produisait
+`https://host//api/v1` et le backend répondait 404 « Ressource introuvable. » à
+chaque appel. `AppConfig.normalizeBaseUrl()` corrige désormais ce cas, mais la
+forme sans slash reste la référence.
+
+## Voir les logs sur un téléphone
+
+Les `debugPrint` de l'app (y compris `main: apiUrl = ...` et les erreurs HTTP
+préfixées `BENINFOOD_API`) sont visibles en release via adb :
+
+```bash
+adb devices                       # vérifier que le téléphone est autorisé
+adb logcat -s flutter
+# ou, pour ne garder que les appels API :
+adb logcat | grep BENINFOOD_API
+```
+
+Ouvrez l'app et refaites la connexion : la ligne `main: apiUrl = ...` donne
+l'URL exacte utilisée, et chaque échec affiche `METHODE URL -> code statut code:
+message`. Sur un build distribué via Firebase App Distribution, ces logs ne
+sont pas remontés automatiquement : demandez la capture adb ou utilisez
+l'écran **Serveur → Tester la connexion**, qui affiche désormais l'URL et le
+statut HTTP obtenus.
+
 ## Structure
 
 ```

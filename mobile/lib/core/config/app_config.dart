@@ -31,6 +31,17 @@ class AppConfig {
 
   static String get apiBaseUrl => resolveBaseUrl(apiBaseUrlOverride);
 
+  /// Nettoie une URL de base saisie au build (`--dart-define`) ou dans
+  /// l'écran « Serveur ».
+  ///
+  /// Sans ce nettoyage, `https://host/` donne `https://host//api/v1` et
+  /// Laravel répond 404 « Ressource introuvable. » à toutes les requêtes.
+  static String normalizeBaseUrl(String raw) {
+    var value = raw.trim().replaceFirst(RegExp(r'/+$'), '');
+    value = value.replaceFirst(RegExp(r'/api(?:/v\d+)?$'), '');
+    return value.replaceFirst(RegExp(r'/+$'), '');
+  }
+
   /// Résout l'URL de base à partir d'une surcharge éventuelle.
   ///
   /// Les adresses de tunnels temporaires (Cloudflare `trycloudflare.com`,
@@ -40,9 +51,9 @@ class AppConfig {
   static String resolveBaseUrl(String? override) {
     final value = override?.trim();
     if (value != null && value.isNotEmpty && !_isStaleTunnelUrl(value)) {
-      return value;
+      return normalizeBaseUrl(value);
     }
-    return defaultApiBaseUrl;
+    return normalizeBaseUrl(defaultApiBaseUrl);
   }
 
   static bool _isStaleTunnelUrl(String url) {

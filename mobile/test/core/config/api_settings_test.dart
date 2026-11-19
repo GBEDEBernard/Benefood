@@ -23,6 +23,48 @@ void main() {
       expect(api.baseUrl, '${AppConfig.defaultApiBaseUrl}/api/v1');
     },
   );
+
+  test(
+    'normalizeBaseUrl removes trailing slashes and an existing api suffix',
+    () {
+      expect(
+        AppConfig.normalizeBaseUrl('https://benefood.onrender.com/'),
+        'https://benefood.onrender.com',
+      );
+      expect(
+        AppConfig.normalizeBaseUrl('https://benefood.onrender.com//'),
+        'https://benefood.onrender.com',
+      );
+      expect(
+        AppConfig.normalizeBaseUrl('https://benefood.onrender.com/api/v1'),
+        'https://benefood.onrender.com',
+      );
+      expect(
+        AppConfig.normalizeBaseUrl(' https://benefood.onrender.com/api/v1/ '),
+        'https://benefood.onrender.com',
+      );
+      expect(
+        AppConfig.normalizeBaseUrl('https://benefood.onrender.com//api/v1'),
+        'https://benefood.onrender.com',
+      );
+    },
+  );
+
+  test(
+    'a base URL with a trailing slash never produces //api/v1',
+    () async {
+      final api = ApiClient(tokenStore: _NoopTokenStore());
+
+      await ApiSettings.saveOverride('https://benefood.onrender.com/');
+      expect(api.baseUrl, 'https://benefood.onrender.com/api/v1');
+
+      await ApiSettings.saveOverride(null);
+      expect(
+        api.baseUrl,
+        '${AppConfig.normalizeBaseUrl(AppConfig.defaultApiBaseUrl)}/api/v1',
+      );
+    },
+  );
 }
 
 class _NoopTokenStore implements TokenStore {
