@@ -130,52 +130,52 @@ class AuthScaffold extends StatelessWidget {
                           ),
                         ],
                       ),
-                      child: Align(
-                        alignment: Alignment.topCenter,
-                        child: ConstrainedBox(
-                          constraints: const BoxConstraints(maxWidth: _contentMaxWidth),
-                          child: Padding(
-                            padding: EdgeInsets.fromLTRB(24, panelPadTop, 24, 24 + bottomInset),
-                            child: FittedBox(
-                              fit: BoxFit.scaleDown,
-                              alignment: Alignment.topCenter,
+                      child: ClipRRect(
+                        borderRadius: const BorderRadius.vertical(
+                          top: Radius.circular(_panelRadius),
+                        ),
+                        child: Align(
+                          alignment: Alignment.topCenter,
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: _contentMaxWidth),
+                            child: SingleChildScrollView(
+                              padding: EdgeInsets.fromLTRB(24, panelPadTop, 24, 24 + bottomInset),
                               child: SizedBox(
                                 width: contentW,
                                 child: _Reveal(
-                                    duration: const Duration(milliseconds: 650),
-                                    dy: 22,
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                                      children: [
-                                        if (hero) ...[
+                                  duration: const Duration(milliseconds: 650),
+                                  dy: 22,
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                                    children: [
+                                      if (hero) ...[
+                                        Text(
+                                          title,
+                                          textAlign: TextAlign.center,
+                                          style: const TextStyle(
+                                            fontSize: 28,
+                                            fontWeight: FontWeight.w900,
+                                            letterSpacing: -0.4,
+                                            color: AuthColors.ink,
+                                            height: 1.1,
+                                          ),
+                                        ),
+                                        if (subtitle != null) ...[
+                                          const SizedBox(height: 8),
                                           Text(
-                                            title,
+                                            subtitle!,
                                             textAlign: TextAlign.center,
                                             style: const TextStyle(
-                                              fontSize: 28,
-                                              fontWeight: FontWeight.w900,
-                                              letterSpacing: -0.4,
-                                              color: AuthColors.ink,
-                                              height: 1.1,
+                                              fontSize: 14.5,
+                                              color: AuthColors.muted,
+                                              height: 1.3,
                                             ),
                                           ),
-                                          if (subtitle != null) ...[
-                                            const SizedBox(height: 8),
-                                            Text(
-                                              subtitle!,
-                                              textAlign: TextAlign.center,
-                                              style: const TextStyle(
-                                                fontSize: 14.5,
-                                                color: AuthColors.muted,
-                                                height: 1.3,
-                                              ),
-                                            ),
-                                          ],
-                                          const SizedBox(height: 28),
                                         ],
-                                        child,
+                                        const SizedBox(height: 24),
                                       ],
-                                    ),
+                                      child,
+                                    ],
                                   ),
                                 ),
                               ),
@@ -184,6 +184,7 @@ class AuthScaffold extends StatelessWidget {
                         ),
                       ),
                     ),
+                  ),
                 ],
               ),
               if (hero)

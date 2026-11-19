@@ -123,15 +123,62 @@ class SessionProvider extends ChangeNotifier {
     return null;
   }
 
-  Future<void> login(String login, String password) async {
+  Future<LoginResult> login(String login, String password) async {
     final response = await _api.post(
       '/auth/login',
       body: {'login': login, 'password': password},
     );
 
     final payload = _dataOf(response);
-    await _tokenStore.write(payload);
+    if (payload['two_factor_required'] == true) {
+      return LoginResult.twoFactor(
+        challengeToken: payload['challenge_token']?.toString() ?? '',
+        expiresAt: payload['expires_at']?.toString(),
+        debugCode: payload['code']?.toString(),
+      );
+    }
 
+    await _applyAuthPayload(payload);
+    return const LoginResult.authenticated();
+  }
+
+  Future<void> verifyTwoFactor({
+    required String challengeToken,
+    required String code,
+  }) async {
+    final response = await _api.post(
+      '/auth/login/two-factor',
+      body: {'challenge_token': challengeToken, 'code': code},
+    );
+    await _applyAuthPayload(_dataOf(response));
+  }
+
+  Future<SocialLoginResult> loginWithSocial({
+    required String provider,
+    String? idToken,
+    String? accessToken,
+    String tokenType = 'id_token',
+  }) async {
+    final response = await _api.post(
+      '/auth/social/$provider',
+      body: {
+        if (idToken != null && idToken.isNotEmpty) 'id_token': idToken,
+        if (accessToken != null && accessToken.isNotEmpty) 'access_token': accessToken,
+        'token_type': tokenType,
+        'device_name': 'mobile',
+      },
+    );
+
+    final payload = _dataOf(response);
+    await _applyAuthPayload(payload);
+    return SocialLoginResult(
+      isNew: payload['is_new'] == true,
+      linkedProvider: payload['linked_provider']?.toString(),
+    );
+  }
+
+  Future<void> _applyAuthPayload(Map<String, dynamic> payload) async {
+    await _tokenStore.write(payload);
     final user = User.fromJson(payload['user'] as Map<String, dynamic>?);
     _setUser(user);
   }
@@ -156,11 +203,7 @@ class SessionProvider extends ChangeNotifier {
       },
     );
 
-    final payload = _dataOf(response);
-    await _tokenStore.write(payload);
-
-    final user = User.fromJson(payload['user'] as Map<String, dynamic>?);
-    _setUser(user);
+    await _applyAuthPayload(_dataOf(response));
   }
 
   Future<void> forgotPassword(String login) async {
@@ -295,4 +338,38 @@ Map<String, dynamic> _dataOf(Map<String, dynamic> response) {
     return {'list': data};
   }
   return response;
+}
+
+class LoginResult {
+  const LoginResult._({
+    required this.requiresTwoFactor,
+    this.challengeToken,
+    this.expiresAt,
+    this.debugCode,
+  });
+
+  const LoginResult.authenticated() : this._(requiresTwoFactor: false);
+
+  const LoginResult.twoFactor({
+    required String challengeToken,
+    String? expiresAt,
+    String? debugCode,
+  }) : this._(
+          requiresTwoFactor: true,
+          challengeToken: challengeToken,
+          expiresAt: expiresAt,
+          debugCode: debugCode,
+        );
+
+  final bool requiresTwoFactor;
+  final String? challengeToken;
+  final String? expiresAt;
+  final String? debugCode;
+}
+
+class SocialLoginResult {
+  const SocialLoginResult({this.isNew = false, this.linkedProvider});
+
+  final bool isNew;
+  final String? linkedProvider;
 }

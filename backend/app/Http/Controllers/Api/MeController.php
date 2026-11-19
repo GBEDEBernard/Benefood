@@ -170,7 +170,8 @@ class MeController extends Controller
 
         $user = $request->user();
 
-        if (! Hash::check($data['current_password'], $user->password)) {
+        $currentHash = $user->password;
+        if (! is_string($currentHash) || $currentHash === '' || ! Hash::check($data['current_password'], $currentHash)) {
             return Api::error('Le mot de passe actuel est incorrect.', 'validation_error', 422, [
                 'current_password' => 'Le mot de passe actuel est incorrect.',
             ]);

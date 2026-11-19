@@ -19,12 +19,18 @@ class UserResource extends JsonResource
             'locale' => $this->locale,
             'avatar_url' => $this->mediaUrl($this->avatar_path),
             'wallet_balance' => (int) $this->wallet_balance,
+            'email_verified_at' => $this->email_verified_at?->toIso8601String(),
             'phone_verified_at' => $this->phone_verified_at?->toIso8601String(),
             'created_at' => $this->created_at?->toIso8601String(),
             'roles' => $this->whenLoaded('roles', fn () => $this->roles->map(fn ($role) => [
                 'slug' => $role->slug,
                 'name' => $role->name,
                 'is_active' => (bool) $role->pivot->is_active,
+            ])->values()),
+            'social_accounts' => $this->whenLoaded('socialAccounts', fn () => $this->socialAccounts->map(fn ($account) => [
+                'provider' => $account->provider,
+                'email' => $account->provider_email,
+                'linked_at' => $account->created_at?->toIso8601String(),
             ])->values()),
         ];
     }

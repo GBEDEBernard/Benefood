@@ -22,6 +22,7 @@ use Laravel\Sanctum\HasApiTokens;
     'status',
     'locale',
     'phone_verified_at',
+    'email_verified_at',
     'avatar_path',
     'wallet_balance',
     'latitude',
@@ -76,6 +77,11 @@ class User extends Authenticatable
     public function devices(): HasMany
     {
         return $this->hasMany(UserDevice::class);
+    }
+
+    public function socialAccounts(): HasMany
+    {
+        return $this->hasMany(SocialAccount::class);
     }
 
     public function carts(): HasMany

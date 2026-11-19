@@ -5,14 +5,12 @@ import 'package:go_router/go_router.dart';
 import '../../../core/auth/session_provider.dart';
 import '../../../core/errors/api_exception.dart';
 import '../../../core/i18n/app_localizations.dart';
+import '../../../shared/models/user.dart';
 import '../../../shared/widgets/auth_kit.dart';
 import '../../../shared/widgets/feedback_widgets.dart';
+import '../../../shared/widgets/social_auth_buttons.dart';
 
-/// Inscription (J19 §2.4) : coordonnées sur 1 écran, envoi direct (OTP
-/// simplifié côté mobile : le rôle client est créé via POST /auth/register).
-///
-/// Design : en-tête orange compact (titre en blanc) + panneau blanc, mêmes
-/// champs et même bouton que la connexion.
+/// Inscription : création rapide via réseau social ou formulaire e-mail classique.
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key, required this.session});
 
@@ -48,6 +46,22 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
     final valid = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]{2,}$').hasMatch(email);
     return valid ? null : 'Adresse email invalide';
+  }
+
+  void _goAfterAuth() {
+    if (!mounted) {
+      return;
+    }
+    final role = widget.session.activeRole;
+    context.go(
+      role == null
+          ? '/choose-account'
+          : switch (role) {
+              AppContext.vendor => '/vendor',
+              AppContext.driver => '/driver',
+              _ => '/client',
+            },
+    );
   }
 
   Future<void> _submit() async {
@@ -91,13 +105,20 @@ class _RegisterScreenState extends State<RegisterScreen> {
   Widget build(BuildContext context) {
     return AuthScaffold(
       title: context.tr('Créer un compte'),
-      subtitle: context.tr('Rejoignez Béninfood en quelques secondes.'),
+      subtitle: context.tr('Inscrivez-vous en quelques secondes'),
       child: AutofillGroup(
         child: Form(
           key: _formKey,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              SocialAuthSection(
+                session: widget.session,
+                mode: SocialAuthMode.register,
+                compact: true,
+                onSuccess: _goAfterAuth,
+              ),
+              const SizedBox(height: 12),
               AuthField(
                 controller: _name,
                 label: context.tr('Nom complet'),
@@ -106,12 +127,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 textCapitalization: TextCapitalization.words,
                 textInputAction: TextInputAction.next,
                 autofillHints: const [AutofillHints.name],
-                validator: (v) =>
-                    (v == null || v.trim().isEmpty)
-                    ? context.tr('Requis')
-                    : null,
+                validator: (v) => (v == null || v.trim().isEmpty) ? context.tr('Requis') : null,
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
               AuthField(
                 controller: _phone,
                 label: context.tr('Téléphone'),
@@ -120,23 +138,19 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 keyboardType: TextInputType.phone,
                 textInputAction: TextInputAction.next,
                 autofillHints: const [AutofillHints.telephoneNumber],
-                inputFormatters: [
-                  FilteringTextInputFormatter.allow(RegExp(r'[0-9+ ]')),
-                ],
+                inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9+ ]'))],
                 validator: (v) {
                   if (v == null || v.trim().isEmpty) {
                     return context.tr('Requis');
                   }
                   final digits = v.replaceAll(RegExp(r'\D'), '');
-                  return digits.length >= 8
-                      ? null
-                      : context.tr('Numéro invalide');
+                  return digits.length >= 8 ? null : context.tr('Numéro invalide');
                 },
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
               AuthField(
                 controller: _email,
-                label: context.tr('Email'),
+                label: context.tr('Adresse e-mail'),
                 hint: 'nom@exemple.com',
                 icon: Icons.mail_outline_rounded,
                 keyboardType: TextInputType.emailAddress,
@@ -144,7 +158,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 autofillHints: const [AutofillHints.email],
                 validator: _emailValidator,
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
               AuthField(
                 controller: _password,
                 label: context.tr('Mot de passe'),
@@ -153,12 +167,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 isPassword: true,
                 textInputAction: TextInputAction.next,
                 autofillHints: const [AutofillHints.newPassword],
-                validator: (v) => (v == null || v.length < 8)
-                    ? context.tr('Au moins 8 caractères')
-                    : null,
+                validator: (v) => (v == null || v.length < 8) ? context.tr('Au moins 8 caractères') : null,
               ),
               _PasswordMeter(controller: _password),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
               AuthField(
                 controller: _confirm,
                 label: context.tr('Confirmer le mot de passe'),
@@ -168,29 +180,38 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 textInputAction: TextInputAction.done,
                 autofillHints: const [AutofillHints.newPassword],
                 onSubmitted: (_) => _submit(),
-                validator: (v) =>
-                    v == _password.text
-                    ? null
-                    : context.tr('Les mots de passe diffèrent'),
+                validator: (v) => v == _password.text ? null : context.tr('Les mots de passe diffèrent'),
               ),
-              const SizedBox(height: 28),
+              const SizedBox(height: 18),
               AuthPrimaryButton(
                 label: context.tr('Créer mon compte'),
                 icon: Icons.person_add_alt_1_rounded,
                 loading: _loading,
                 onPressed: _submit,
               ),
-              const SizedBox(height: 14),
-              Text(
-                context.tr('Vous choisirez ensuite le type de compte à créer.'),
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 13,
-                  color: AuthColors.muted,
-                  height: 1.3,
-                ),
+              const SizedBox(height: 12),
+              Wrap(
+                alignment: WrapAlignment.center,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  Text(
+                    context.tr('Vous avez déjà un compte ? '),
+                    style: const TextStyle(fontSize: 13.5, color: AuthColors.muted),
+                  ),
+                  GestureDetector(
+                    onTap: () => context.push('/login'),
+                    child: Text(
+                      context.tr('Se connecter'),
+                      style: const TextStyle(
+                        fontSize: 13.5,
+                        color: AuthColors.brand,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 22),
+              const SizedBox(height: 12),
               const AuthSecureNote(text: 'Vos informations restent privées'),
             ],
           ),
@@ -243,7 +264,7 @@ class _PasswordMeter extends StatelessWidget {
           const labels = ['Faible', 'Faible', 'Moyen', 'Bon', 'Très fort'];
           final color = colors[score];
           content = Padding(
-            padding: const EdgeInsets.only(top: 10, left: 2),
+            padding: const EdgeInsets.only(top: 8, left: 2),
             child: Row(
               children: [
                 for (var i = 0; i < 4; i++) ...[
@@ -259,16 +280,12 @@ class _PasswordMeter extends StatelessWidget {
                   ),
                   if (i < 3) const SizedBox(width: 6),
                 ],
-                const SizedBox(width: 12),
+                const SizedBox(width: 10),
                 SizedBox(
                   width: 62,
                   child: Text(
                     labels[score],
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      color: color,
-                    ),
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: color),
                   ),
                 ),
               ],

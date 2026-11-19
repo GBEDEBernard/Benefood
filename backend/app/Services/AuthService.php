@@ -64,7 +64,9 @@ class AuthService
             ? User::where('email', $login)->first()
             : User::where('phone', Phone::normalize($login))->first();
 
-        if ($user === null || ! Hash::check($password, $user->password)) {
+        $hashedPassword = $user?->password;
+
+        if ($user === null || ! is_string($hashedPassword) || $hashedPassword === '' || ! Hash::check($password, $hashedPassword)) {
             throw new DomainException('auth.invalid_credentials', 'Identifiants invalides.', 401);
         }
 

@@ -48,6 +48,10 @@ Route::prefix('auth')->middleware('throttle:auth')->group(function (): void {
     Route::post('/login/two-factor', [AuthController::class, 'verifyTwoFactor'])->name('api.v1.auth.login.two-factor');
     Route::post('/forgot-password', [AuthController::class, 'forgotPassword'])->name('api.v1.auth.forgot-password');
     Route::post('/reset-password', [AuthController::class, 'resetPassword'])->name('api.v1.auth.reset-password');
+
+    Route::get('/social/providers', [AuthController::class, 'socialProviders'])->name('api.v1.auth.social.providers');
+    Route::post('/social/{provider}', [AuthController::class, 'socialLogin'])->name('api.v1.auth.social.login');
+    Route::match(['get', 'post'], '/social/{provider}/callback', [AuthController::class, 'socialCallback'])->name('api.v1.auth.social.callback');
 });
 
 Route::middleware('auth:sanctum')->group(function (): void {
@@ -55,6 +59,8 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::post('/auth/refresh', [AuthController::class, 'refresh'])->name('api.v1.auth.refresh');
     Route::post('/auth/send-phone-code', [AuthController::class, 'sendPhoneCode'])->name('api.v1.auth.send-phone-code')->middleware('throttle:auth');
     Route::post('/auth/verify-phone', [AuthController::class, 'verifyPhone'])->name('api.v1.auth.verify-phone')->middleware('throttle:auth');
+    Route::post('/auth/social/{provider}/link', [AuthController::class, 'socialLink'])->name('api.v1.auth.social.link');
+    Route::delete('/auth/social/{provider}/link', [AuthController::class, 'socialUnlink'])->name('api.v1.auth.social.unlink');
 
     Route::get('/me', [MeController::class, 'show'])->name('api.v1.me.show');
     Route::get('/me/roles', [MeController::class, 'roles'])->name('api.v1.me.roles');
