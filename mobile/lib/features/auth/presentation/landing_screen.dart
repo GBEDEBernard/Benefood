@@ -6,6 +6,8 @@ import 'package:go_router/go_router.dart';
 import '../../../core/auth/session_provider.dart';
 import '../../../core/i18n/app_localizations.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../shared/models/user.dart';
+import '../../../shared/widgets/social_auth_buttons.dart';
 
 /// Couleurs relevées sur la maquette « écran chaleureux ».
 /// Le dégradé est plus clair en haut à droite et plus profond en bas à gauche.
@@ -80,7 +82,7 @@ class LandingScreen extends StatelessWidget {
                 right: 0,
                 bottom: 0,
                 height: panelH,
-                child: _ActionsPanel(width: w),
+                child: _ActionsPanel(width: w, session: session),
               ),
             ],
           );
@@ -237,15 +239,29 @@ class _Hero extends StatelessWidget {
 
 /// Panneau blanc du bas (grands coins supérieurs arrondis).
 class _ActionsPanel extends StatelessWidget {
-  const _ActionsPanel({required this.width});
+  const _ActionsPanel({required this.width, required this.session});
 
   final double width;
+  final SessionProvider session;
 
   @override
   Widget build(BuildContext context) {
     final cornerRadius = Radius.circular(width * 0.1);
     final hPad = width * 0.134;
     final buttonHeight = (width * 0.125).clamp(48.0, 56.0);
+
+    void goAfterAuth() {
+      final role = session.activeRole;
+      context.go(
+        role == null
+            ? '/context'
+            : switch (role) {
+                AppContext.vendor => '/vendor',
+                AppContext.driver => '/driver',
+                _ => '/client',
+              },
+      );
+    }
 
     return Container(
       decoration: BoxDecoration(
@@ -261,7 +277,7 @@ class _ActionsPanel extends StatelessWidget {
             const Positioned.fill(child: ColoredBox(color: Colors.white)),
             const Positioned.fill(child: CustomPaint(painter: _PanelDecorPainter())),
             SingleChildScrollView(
-              padding: EdgeInsets.fromLTRB(hPad, width * 0.17, hPad, 16),
+              padding: EdgeInsets.fromLTRB(hPad, width * 0.13, hPad, 16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 mainAxisSize: MainAxisSize.min,
@@ -293,6 +309,36 @@ class _ActionsPanel extends StatelessWidget {
                         fontSize: 15.5,
                         fontWeight: FontWeight.w600,
                       ),
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Container(
+                    padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFAFAFC),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: const Color(0xFFECECF1)),
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          context.tr('Continuer avec'),
+                          style: const TextStyle(
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF5F5F66),
+                            letterSpacing: 0.1,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        SocialAuthSection(
+                          session: session,
+                          onSuccess: goAfterAuth,
+                          variant: SocialAuthVariant.icons,
+                          showDivider: false,
+                        ),
+                      ],
                     ),
                   ),
                 ],

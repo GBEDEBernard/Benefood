@@ -6,7 +6,7 @@ import '../../core/errors/api_exception.dart';
 import 'auth_kit.dart';
 import 'feedback_widgets.dart';
 
-/// Section d'authentification sociale (Google, Facebook, LinkedIn) + séparateur.
+/// Section d'authentification sociale (Google, Facebook, LinkedIn).
 ///
 /// Les boutons déclenchent un échange de jeton réel avec le backend
 /// (`POST /api/v1/auth/social/{provider}`) lorsque l'application mobile est
@@ -21,6 +21,8 @@ class SocialAuthSection extends StatefulWidget {
     required this.onSuccess,
     this.mode = SocialAuthMode.login,
     this.compact = false,
+    this.variant = SocialAuthVariant.expanded,
+    this.showDivider = true,
   });
 
   final SessionProvider session;
@@ -28,11 +30,20 @@ class SocialAuthSection extends StatefulWidget {
   final SocialAuthMode mode;
   final bool compact;
 
+  /// `expanded` : grands boutons libellés (formulaires).
+  /// `icons` : rangée de logos seuls, idéale pour une carte « Continuer avec ».
+  final SocialAuthVariant variant;
+
+  /// Affiche le séparateur « ou » sous les boutons (variante `expanded`).
+  final bool showDivider;
+
   @override
   State<SocialAuthSection> createState() => _SocialAuthSectionState();
 }
 
 enum SocialAuthMode { login, register }
+
+enum SocialAuthVariant { expanded, icons }
 
 class _SocialAuthSectionState extends State<SocialAuthSection> {
   String? _loadingProvider;
@@ -222,6 +233,37 @@ class _SocialAuthSectionState extends State<SocialAuthSection> {
 
   @override
   Widget build(BuildContext context) {
+    if (widget.variant == SocialAuthVariant.icons) {
+      return Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          _IconBrandButton(
+            brand: _Brand.google,
+            tooltip: _cta('Google'),
+            loading: _loadingProvider == 'google',
+            disabled: _busy && _loadingProvider != 'google',
+            onPressed: () => _handle('google'),
+          ),
+          const SizedBox(width: 14),
+          _IconBrandButton(
+            brand: _Brand.facebook,
+            tooltip: _cta('Facebook'),
+            loading: _loadingProvider == 'facebook',
+            disabled: _busy && _loadingProvider != 'facebook',
+            onPressed: () => _handle('facebook'),
+          ),
+          const SizedBox(width: 14),
+          _IconBrandButton(
+            brand: _Brand.linkedin,
+            tooltip: _cta('LinkedIn'),
+            loading: _loadingProvider == 'linkedin',
+            disabled: _busy && _loadingProvider != 'linkedin',
+            onPressed: () => _handle('linkedin'),
+          ),
+        ],
+      );
+    }
+
     final gap = widget.compact ? 10.0 : 12.0;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -249,8 +291,10 @@ class _SocialAuthSectionState extends State<SocialAuthSection> {
           disabled: _busy && _loadingProvider != 'linkedin',
           onPressed: () => _handle('linkedin'),
         ),
-        SizedBox(height: widget.compact ? 14 : 18),
-        const _OrDivider(),
+        if (widget.showDivider) ...[
+          SizedBox(height: widget.compact ? 14 : 18),
+          const _OrDivider(),
+        ],
       ],
     );
   }
@@ -381,6 +425,84 @@ class _BrandStyle {
   final Color background;
   final Color foreground;
   final Color border;
+}
+
+class _IconBrandButton extends StatelessWidget {
+  const _IconBrandButton({
+    required this.brand,
+    required this.tooltip,
+    required this.onPressed,
+    this.loading = false,
+    this.disabled = false,
+  });
+
+  final _Brand brand;
+  final String tooltip;
+  final VoidCallback onPressed;
+  final bool loading;
+  final bool disabled;
+
+  @override
+  Widget build(BuildContext context) {
+    final style = switch (brand) {
+      _Brand.google => const _BrandStyle(
+          background: Colors.white,
+          foreground: Color(0xFF1F1F1F),
+          border: Color(0xFFE3E3E8),
+        ),
+      _Brand.facebook => const _BrandStyle(
+          background: Color(0xFF1877F2),
+          foreground: Colors.white,
+          border: Color(0xFF1877F2),
+        ),
+      _Brand.linkedin => const _BrandStyle(
+          background: Color(0xFF0A66C2),
+          foreground: Colors.white,
+          border: Color(0xFF0A66C2),
+        ),
+    };
+
+    final effective = disabled ? 0.45 : 1.0;
+
+    return Semantics(
+      button: true,
+      label: tooltip,
+      child: Tooltip(
+        message: tooltip,
+        child: Opacity(
+          opacity: effective,
+          child: Material(
+            color: style.background,
+            elevation: 0,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+              side: BorderSide(color: style.border, width: 1.2),
+            ),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(12),
+              onTap: (loading || disabled) ? null : onPressed,
+              child: SizedBox(
+                width: 48,
+                height: 48,
+                child: Center(
+                  child: loading
+                      ? SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.1,
+                            color: style.foreground,
+                          ),
+                        )
+                      : SizedBox(width: 22, height: 22, child: _BrandMark(brand: brand)),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _BrandMark extends StatelessWidget {

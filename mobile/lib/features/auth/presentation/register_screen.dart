@@ -10,7 +10,12 @@ import '../../../shared/widgets/auth_kit.dart';
 import '../../../shared/widgets/feedback_widgets.dart';
 import '../../../shared/widgets/social_auth_buttons.dart';
 
-/// Inscription : création rapide via réseau social ou formulaire e-mail classique.
+/// Inscription (J19 §2.4) : coordonnées sur 1 écran, envoi direct (OTP
+/// simplifié côté mobile : le rôle client est créé via POST /auth/register).
+///
+/// Design : en-tête orange compact (titre en blanc) + panneau blanc, mêmes
+/// champs et même bouton que la connexion. Inscription possible aussi via
+/// Google, Facebook ou LinkedIn.
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key, required this.session});
 
@@ -105,19 +110,50 @@ class _RegisterScreenState extends State<RegisterScreen> {
   Widget build(BuildContext context) {
     return AuthScaffold(
       title: context.tr('Créer un compte'),
-      subtitle: context.tr('Inscrivez-vous en quelques secondes'),
+      subtitle: context.tr('Rejoignez Béninfood en quelques secondes.'),
       child: AutofillGroup(
         child: Form(
           key: _formKey,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              Center(
+                child: Text(
+                  context.tr('Continuer avec'),
+                  style: const TextStyle(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w700,
+                    color: AuthColors.muted,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
               SocialAuthSection(
                 session: widget.session,
                 mode: SocialAuthMode.register,
-                compact: true,
                 onSuccess: _goAfterAuth,
+                variant: SocialAuthVariant.icons,
+                showDivider: false,
               ),
+              const SizedBox(height: 18),
+              const Row(
+                children: [
+                  Expanded(child: Divider(height: 1, color: Color(0xFFE8E8EC))),
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 12),
+                    child: Text(
+                      'ou avec e-mail',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: AuthColors.muted,
+                      ),
+                    ),
+                  ),
+                  Expanded(child: Divider(height: 1, color: Color(0xFFE8E8EC))),
+                ],
+              ),
+              const SizedBox(height: 18),
               const SizedBox(height: 12),
               AuthField(
                 controller: _name,

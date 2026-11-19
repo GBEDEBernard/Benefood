@@ -10,7 +10,11 @@ import '../../../shared/widgets/auth_kit.dart';
 import '../../../shared/widgets/feedback_widgets.dart';
 import '../../../shared/widgets/social_auth_buttons.dart';
 
-/// Connexion : Google, Facebook, LinkedIn ou e-mail / téléphone + mot de passe.
+/// Connexion (J19 §2.3) : téléphone OU email + mot de passe,
+/// ou via un réseau social (Google, Facebook, LinkedIn).
+///
+/// Design : bandeau orange dégradé, grand bol de légumes qui déborde sur le
+/// panneau blanc, formulaire épuré, rappel COMMANDEZ / PAYEZ / RECEVEZ.
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key, required this.session});
 
@@ -123,9 +127,9 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return AuthScaffold(
-      hero: false,
-      title: context.tr('Bienvenue !'),
-      subtitle: context.tr('Connectez-vous à votre compte'),
+      hero: true,
+      title: context.tr('Bon retour !'),
+      subtitle: context.tr('Connectez-vous pour continuer vos achats.'),
       onBack: _back,
       child: AutofillGroup(
         child: Form(
@@ -133,24 +137,18 @@ class _LoginScreenState extends State<LoginScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              SocialAuthSection(
-                session: widget.session,
-                mode: SocialAuthMode.login,
-                compact: true,
-                onSuccess: _goAfterAuth,
-              ),
-              const SizedBox(height: 14),
               AuthField(
                 controller: _login,
-                label: context.tr('Adresse e-mail ou téléphone'),
-                hint: context.tr('Votre e-mail ou numéro'),
-                icon: Icons.alternate_email_rounded,
+                label: context.tr('Téléphone ou email'),
+                hint: context.tr('Votre numéro ou votre email'),
+                icon: Icons.person_outline_rounded,
                 keyboardType: TextInputType.emailAddress,
                 textInputAction: TextInputAction.next,
                 autofillHints: const [AutofillHints.username, AutofillHints.email],
-                validator: (v) => (v == null || v.trim().isEmpty) ? context.tr('Requis') : null,
+                validator: (v) =>
+                    (v == null || v.trim().isEmpty) ? context.tr('Requis') : null,
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 16),
               AuthField(
                 controller: _password,
                 label: context.tr('Mot de passe'),
@@ -160,54 +158,65 @@ class _LoginScreenState extends State<LoginScreen> {
                 textInputAction: TextInputAction.done,
                 autofillHints: const [AutofillHints.password],
                 onSubmitted: (_) => _submit(),
-                validator: (v) => (v == null || v.isEmpty) ? context.tr('Requis') : null,
+                validator: (v) => (v == null || v.length < 6)
+                    ? context.tr('Au moins 6 caractères')
+                    : null,
               ),
               Align(
                 alignment: Alignment.centerRight,
                 child: TextButton(
-                  onPressed: () => context.push('/reset-password'),
+                  onPressed: () => context.go('/reset-password'),
                   style: TextButton.styleFrom(
                     foregroundColor: AuthColors.brand,
                     padding: const EdgeInsets.symmetric(horizontal: 4),
-                    minimumSize: const Size(0, 36),
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    minimumSize: const Size(0, 40),
                   ),
                   child: Text(
                     context.tr('Mot de passe oublié ?'),
-                    style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600),
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: 8),
               AuthPrimaryButton(
                 label: context.tr('Se connecter'),
                 icon: Icons.login_rounded,
                 loading: _loading,
                 onPressed: _submit,
               ),
-              const SizedBox(height: 14),
-              Wrap(
-                alignment: WrapAlignment.center,
-                crossAxisAlignment: WrapCrossAlignment.center,
+              const SizedBox(height: 18),
+              Row(
                 children: [
-                  Text(
-                    context.tr('Vous n’avez pas encore de compte ? '),
-                    style: const TextStyle(fontSize: 13.5, color: AuthColors.muted),
-                  ),
-                  GestureDetector(
-                    onTap: () => context.push('/register'),
+                  const Expanded(child: Divider(height: 1, color: Color(0xFFE8E8EC))),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
                     child: Text(
-                      context.tr('Créer un compte'),
+                      context.tr('Continuer avec'),
                       style: const TextStyle(
-                        fontSize: 13.5,
-                        color: AuthColors.brand,
-                        fontWeight: FontWeight.w700,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: AuthColors.muted,
                       ),
                     ),
                   ),
+                  const Expanded(child: Divider(height: 1, color: Color(0xFFE8E8EC))),
                 ],
               ),
               const SizedBox(height: 14),
+              SocialAuthSection(
+                session: widget.session,
+                onSuccess: _goAfterAuth,
+                variant: SocialAuthVariant.icons,
+                showDivider: false,
+              ),
+              const SizedBox(height: 24),
+              const Divider(height: 1, thickness: 1, color: Color(0xFFEDEDF0)),
+              const SizedBox(height: 22),
+              const AuthPromises(),
+              const SizedBox(height: 26),
               const AuthSecureNote(),
             ],
           ),
