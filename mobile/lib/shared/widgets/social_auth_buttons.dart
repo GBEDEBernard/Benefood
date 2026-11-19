@@ -244,7 +244,7 @@ class _SocialAuthSectionState extends State<SocialAuthSection> {
             disabled: _busy && _loadingProvider != 'google',
             onPressed: () => _handle('google'),
           ),
-          const SizedBox(width: 14),
+          const SizedBox(width: 12),
           _IconBrandButton(
             brand: _Brand.facebook,
             tooltip: _cta('Facebook'),
@@ -252,7 +252,7 @@ class _SocialAuthSectionState extends State<SocialAuthSection> {
             disabled: _busy && _loadingProvider != 'facebook',
             onPressed: () => _handle('facebook'),
           ),
-          const SizedBox(width: 14),
+          const SizedBox(width: 12),
           _IconBrandButton(
             brand: _Brand.linkedin,
             tooltip: _cta('LinkedIn'),
@@ -475,26 +475,26 @@ class _IconBrandButton extends StatelessWidget {
             color: style.background,
             elevation: 0,
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(11),
               side: BorderSide(color: style.border, width: 1.2),
             ),
             child: InkWell(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(11),
               onTap: (loading || disabled) ? null : onPressed,
               child: SizedBox(
-                width: 48,
-                height: 48,
+                width: 44,
+                height: 44,
                 child: Center(
                   child: loading
                       ? SizedBox(
-                          width: 20,
-                          height: 20,
+                          width: 18,
+                          height: 18,
                           child: CircularProgressIndicator(
-                            strokeWidth: 2.1,
+                            strokeWidth: 2.0,
                             color: style.foreground,
                           ),
                         )
-                      : SizedBox(width: 22, height: 22, child: _BrandMark(brand: brand)),
+                      : SizedBox(width: 20, height: 20, child: _BrandMark(brand: brand)),
                 ),
               ),
             ),
@@ -569,7 +569,7 @@ class _FacebookMark extends StatelessWidget {
         'f',
         style: TextStyle(
           color: Color(0xFF1877F2),
-          fontSize: 20,
+          fontSize: 18,
           fontWeight: FontWeight.w800,
           height: 1,
         ),
@@ -590,7 +590,7 @@ class _LinkedInMark extends StatelessWidget {
         'in',
         style: TextStyle(
           color: Color(0xFF0A66C2),
-          fontSize: 14,
+          fontSize: 12.5,
           fontWeight: FontWeight.w900,
           letterSpacing: -0.5,
           height: 1,
