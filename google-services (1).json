@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "9866494298",
+    "project_id": "beninfood-55730",
+    "storage_bucket": "beninfood-55730.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:9866494298:android:8e74a281f36ea68f837363",
+        "android_client_info": {
+          "package_name": "Beninfood.com"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAzfhu9jk8rkFd-9twh9urbH6Z8Hes5bcY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:9866494298:android:06b499aa6e3204b5837363",
+        "android_client_info": {
+          "package_name": "com.beninfood.beninfood"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAzfhu9jk8rkFd-9twh9urbH6Z8Hes5bcY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

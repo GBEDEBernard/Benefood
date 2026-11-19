@@ -80,8 +80,8 @@ class _HomeScreenState extends State<HomeScreen> {
   int _categoryIndex = 0;
   final Set<String> _favoriteVendorIds = <String>{};
 
-  /// Dernières catégories reçues (utilisées par le bouton de filtres).
-  List<Category> _lastCategories = const [];
+  /// Évite les rafraîchissements concurrents (tirages répétés du pull-refresh).
+  bool _refreshing = false;
 
   /// Recherche dynamique (plats + boutiques) directement sur l'accueil.
   final TextEditingController _searchController = TextEditingController();
@@ -108,6 +108,22 @@ class _HomeScreenState extends State<HomeScreen> {
       _future = widget.marketplace.home();
       _categoryIndex = 0;
     });
+  }
+
+  /// Un seul rafraîchissement à la fois. Le `FutureBuilder` conserve toujours
+  /// le même [_future] entre deux rebuilds, mais des tirages successifs ne
+  /// doivent pas lancer plusieurs appels réseau concurrents.
+  Future<void> _onRefresh() async {
+    if (_refreshing) {
+      return;
+    }
+    _refreshing = true;
+    _reload();
+    try {
+      await _future;
+    } finally {
+      _refreshing = false;
+    }
   }
 
   // ----------------------------------------------------- recherche dynamique
@@ -309,7 +325,7 @@ class _HomeScreenState extends State<HomeScreen> {
   // ------------------------------------------------------------------- interface
 
   /// Bloc blanc haut : barre de menu / logo / cloche, salutation et recherche.
-  Widget _topSection() {
+  Widget _topSection({required List<Category> categories}) {
     final firstName = (widget.session.user?.name ?? '').trim().split(' ').first;
     final greeting = firstName.isEmpty || firstName == 'null'
         ? context.tr('Le goût du Bénin, livré chez vous')
@@ -366,9 +382,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ),
                     const SizedBox(width: 10),
-                    _FilterButton(
-                      onPressed: () => _showFilters(_lastCategories),
-                    ),
+                    _FilterButton(onPressed: () => _showFilters(categories)),
                   ],
                 ),
                 if (_searchActive)
@@ -393,24 +407,34 @@ class _HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       body: RefreshIndicator(
         color: AppColors.orange,
-        onRefresh: () async {
-          _reload();
-          await _future;
-        },
+        onRefresh: _onRefresh,
         child: FutureBuilder<HomeData>(
           future: _future,
           builder: (context, snapshot) {
             if (snapshot.connectionState != ConnectionState.done) {
+              // Un seul loader centré : l'ancien `ListSkeleton` construisait
+              // six cartes, chacune avec son propre CircularProgressIndicator.
               return ListView(
                 padding: const EdgeInsets.only(bottom: 32),
-                children: [_topSection(), const ListSkeleton(shrinkWrap: true)],
+                children: [
+                  _topSection(categories: const []),
+                  const SizedBox(
+                    height: 260,
+                    child: Center(
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.5,
+                        color: AppColors.orange,
+                      ),
+                    ),
+                  ),
+                ],
               );
             }
             if (snapshot.hasError) {
               return ListView(
                 padding: const EdgeInsets.only(bottom: 32),
                 children: [
-                  _topSection(),
+                  _topSection(categories: const []),
                   SizedBox(
                     height: 300,
                     child: ErrorState(
@@ -425,7 +449,6 @@ class _HomeScreenState extends State<HomeScreen> {
             }
 
             final data = snapshot.data!;
-            _lastCategories = data.categories;
 
             final allProducts = data.featuredProducts;
             final selectedCategory =
@@ -449,7 +472,7 @@ class _HomeScreenState extends State<HomeScreen> {
             return ListView(
               padding: const EdgeInsets.only(bottom: 32),
               children: [
-                _topSection(),
+                _topSection(categories: data.categories),
 
                 // --- Bannière promotionnelle (carrousel) ---
                 _PromoBanner(
@@ -842,7 +865,11 @@ class _ShopTypeStrip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const types = [VendorType.restaurant, VendorType.boutique, VendorType.maquis];
+    const types = [
+      VendorType.restaurant,
+      VendorType.boutique,
+      VendorType.maquis,
+    ];
     return Padding(
       padding: const EdgeInsets.fromLTRB(
         AppDimens.pagePadding,
