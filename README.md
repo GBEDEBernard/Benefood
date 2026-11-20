@@ -7,7 +7,7 @@ Plateforme de marketplace transactionnelle : commande, paiement mobile money, li
 
 ```
 Béninfood/
-├── backend/          → API Laravel (/api/v1) + back-office web admin (Blade + template Mentor)
+├── backend/          → API Laravel (/api/v1) + back-office web admin (Blade (design inspiré de Mentor))
 ├── mobile/           → Application Flutter unique multi-rôles
 └── documentation/    → Livrables des phases (cadrage métier, UX, conception technique)
 ```
@@ -53,7 +53,7 @@ flutter run
 | Paiement | FedaPay via abstraction `PaymentGateway` |
 | Commission | Taux configurable par la porteuse, historisé et figé par commande |
 | Livraison | Livreur indépendant ou Béninfood, zones et tarifs configurables |
-| Administration | Back-office web intégré au backend (Blade + template Mentor) sur `/admin` ; aucun accès direct à la base de données |
+| Administration | Back-office web intégré au backend (Blade (design inspiré de Mentor)) sur `/admin` ; aucun accès direct à la base de données |
 
 ## Avancement
 
