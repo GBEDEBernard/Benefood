@@ -10,6 +10,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_dimens.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/formatters.dart';
+import '../../../shared/models/geo_reference.dart';
 import '../../../shared/models/parcel.dart';
 import '../../../shared/widgets/amount_widgets.dart';
 import '../../../shared/widgets/app_text_field.dart';
@@ -76,6 +77,8 @@ class _ParcelCreateScreenState extends State<ParcelCreateScreen> {
   double? _pickupLongitude;
   double? _dropoffLatitude;
   double? _dropoffLongitude;
+  GeoReferenceSelection? _pickupGeo;
+  GeoReferenceSelection? _dropoffGeo;
   bool _pickupLocating = false;
   bool _dropoffLocating = false;
 
@@ -121,6 +124,7 @@ class _ParcelCreateScreenState extends State<ParcelCreateScreen> {
     if (_pickupCity.text.trim().isNotEmpty) 'city': _pickupCity.text.trim(),
     if (_pickupLatitude != null) 'latitude': _pickupLatitude,
     if (_pickupLongitude != null) 'longitude': _pickupLongitude,
+    ...?_pickupGeo?.toJson(),
     if (_pickupContactName.text.trim().isNotEmpty)
       'contact_name': _pickupContactName.text.trim(),
     if (_pickupContactPhone.text.trim().isNotEmpty)
@@ -142,6 +146,7 @@ class _ParcelCreateScreenState extends State<ParcelCreateScreen> {
       if (_dropoffCity.text.trim().isNotEmpty) 'city': _dropoffCity.text.trim(),
       if (_dropoffLatitude != null) 'latitude': _dropoffLatitude,
       if (_dropoffLongitude != null) 'longitude': _dropoffLongitude,
+      ...?_dropoffGeo?.toJson(),
       if (_dropoffContactName.text.trim().isNotEmpty)
         'contact_name': _dropoffContactName.text.trim(),
       if (_dropoffContactPhone.text.trim().isNotEmpty)
@@ -191,49 +196,115 @@ class _ParcelCreateScreenState extends State<ParcelCreateScreen> {
       return;
     }
     final geo = result.geo;
+    if (geo == null) {
+      setState(() {
+        if (pickup) {
+          _pickupLocating = false;
+        } else {
+          _dropoffLocating = false;
+        }
+      });
+      showToast(
+        context,
+        _locationFailureMessage(result.failure),
+        isError: true,
+      );
+      return;
+    }
+
+    final reference = await _reverseReference(
+      latitude: geo.latitude,
+      longitude: geo.longitude,
+      source: geo.source,
+      accuracyM: geo.accuracyM,
+      recordedAt: geo.recordedAt,
+    );
+    if (!mounted) {
+      return;
+    }
     setState(() {
       if (pickup) {
         _pickupLocating = false;
       } else {
         _dropoffLocating = false;
       }
-      if (geo != null) {
-        final address = pickup ? _pickupAddress : _dropoffAddress;
-        final area = pickup ? _pickupArea : _dropoffArea;
-        final city = pickup ? _pickupCity : _dropoffCity;
-        if (pickup) {
-          _pickupLatitude = geo.latitude;
-          _pickupLongitude = geo.longitude;
-        } else {
-          _dropoffLatitude = geo.latitude;
-          _dropoffLongitude = geo.longitude;
+      final address = pickup ? _pickupAddress : _dropoffAddress;
+      final area = pickup ? _pickupArea : _dropoffArea;
+      final city = pickup ? _pickupCity : _dropoffCity;
+      if (pickup) {
+        _pickupLatitude = geo.latitude;
+        _pickupLongitude = geo.longitude;
+        _pickupGeo = reference;
+      } else {
+        _dropoffLatitude = geo.latitude;
+        _dropoffLongitude = geo.longitude;
+        _dropoffGeo = reference;
+      }
+      if (city.text.trim().isEmpty && geo.city != null) {
+        city.text = geo.city!;
+      }
+      if (geo.area != null) {
+        if (address.text.trim().isEmpty) {
+          address.text = geo.area!;
+        } else if (address == _dropoffAddress && _sameAsPickup) {
+          _sameAsPickup = false;
         }
-        if (city.text.trim().isEmpty && geo.city != null) {
-          city.text = geo.city!;
-        }
-        if (geo.area != null) {
-          if (address.text.trim().isEmpty) {
-            address.text = geo.area!;
-          } else if (address == _dropoffAddress && _sameAsPickup) {
-            _sameAsPickup = false;
-          }
-          if (area.text.trim().isEmpty) {
-            area.text = geo.area!;
-          }
+        if (area.text.trim().isEmpty) {
+          area.text = geo.area!;
         }
       }
     });
-    if (geo == null) {
-      if (mounted) {
-        showToast(
-          context,
-          _locationFailureMessage(result.failure),
-          isError: true,
-        );
-      }
+    showToast(context, 'Position GPS enregistrée.');
+  }
+
+  /// Attache le repère posé sur la carte à la hiérarchie officielle IGN.
+  Future<void> _onMapPoint(double latitude, double longitude, {required bool pickup}) async {
+    final reference = await _reverseReference(
+      latitude: latitude,
+      longitude: longitude,
+      source: 'map',
+    );
+    if (!mounted) {
       return;
     }
-    showToast(context, 'Position GPS enregistrée.');
+    setState(() {
+      if (pickup) {
+        _pickupLatitude = latitude;
+        _pickupLongitude = longitude;
+        _pickupGeo = reference;
+      } else {
+        _dropoffLatitude = latitude;
+        _dropoffLongitude = longitude;
+        _dropoffGeo = reference;
+      }
+    });
+  }
+
+  /// Géocodage inversé sans lieu inventé : `null` si le point est hors référentiel.
+  Future<GeoReferenceSelection?> _reverseReference({
+    required double latitude,
+    required double longitude,
+    required String source,
+    double? accuracyM,
+    DateTime? recordedAt,
+  }) async {
+    try {
+      final place = await widget.marketplace.geoReverse(latitude, longitude);
+      final base = place?.toSelection(null, source: source);
+      if (base == null) {
+        return null;
+      }
+      return GeoReferenceSelection(
+        countryCode: base.countryCode,
+        divisionId: base.divisionId,
+        localityId: base.localityId,
+        accuracyM: accuracyM,
+        source: source,
+        recordedAt: recordedAt,
+      );
+    } on ApiException {
+      return null;
+    }
   }
 
   void _clearLocation({required bool pickup}) {
@@ -590,6 +661,14 @@ class _ParcelCreateScreenState extends State<ParcelCreateScreen> {
               marketplace: widget.marketplace,
               cityController: _pickupCity,
               areaController: _pickupArea,
+              includeGps: true,
+              onChanged: (selection) => setState(() {
+                _pickupGeo = selection.geo;
+                if (selection.hasCoordinates) {
+                  _pickupLatitude = selection.latitude;
+                  _pickupLongitude = selection.longitude;
+                }
+              }),
             ),
             const SizedBox(height: AppDimens.md),
             AppTextField(
@@ -620,12 +699,11 @@ class _ParcelCreateScreenState extends State<ParcelCreateScreen> {
                   : null,
               height: 190,
               instruction: 'Touchez la carte pour placer le ramassage',
-              onChanged: (point) {
-                setState(() {
-                  _pickupLatitude = point.latitude;
-                  _pickupLongitude = point.longitude;
-                });
-              },
+              onChanged: (point) => _onMapPoint(
+                point.latitude,
+                point.longitude,
+                pickup: true,
+              ),
             ),
             _gpsStrip(
               latitude: _pickupLatitude,
@@ -680,6 +758,14 @@ class _ParcelCreateScreenState extends State<ParcelCreateScreen> {
                 marketplace: widget.marketplace,
                 cityController: _dropoffCity,
                 areaController: _dropoffArea,
+                includeGps: true,
+                onChanged: (selection) => setState(() {
+                  _dropoffGeo = selection.geo;
+                  if (selection.hasCoordinates) {
+                    _dropoffLatitude = selection.latitude;
+                    _dropoffLongitude = selection.longitude;
+                  }
+                }),
               ),
               const SizedBox(height: AppDimens.md),
               AppTextField(
@@ -710,12 +796,11 @@ class _ParcelCreateScreenState extends State<ParcelCreateScreen> {
                     : null,
                 height: 190,
                 instruction: 'Touchez la carte pour placer la livraison',
-                onChanged: (point) {
-                  setState(() {
-                    _dropoffLatitude = point.latitude;
-                    _dropoffLongitude = point.longitude;
-                  });
-                },
+                onChanged: (point) => _onMapPoint(
+                  point.latitude,
+                  point.longitude,
+                  pickup: false,
+                ),
               ),
               _gpsStrip(
                 latitude: _dropoffLatitude,

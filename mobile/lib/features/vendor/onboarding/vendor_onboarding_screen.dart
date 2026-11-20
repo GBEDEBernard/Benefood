@@ -7,6 +7,7 @@ import '../../../core/data/marketplace_api.dart';
 import '../../../core/errors/api_exception.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../shared/models/category.dart';
+import '../../../shared/models/geo_reference.dart';
 import '../../../shared/models/vendor.dart';
 import '../../../shared/widgets/feedback_widgets.dart';
 import 'steps/documents_step.dart';
@@ -56,6 +57,7 @@ class _VendorOnboardingScreenState extends State<VendorOnboardingScreen> {
   final _city = TextEditingController();
   final _area = TextEditingController();
   final _adresse = TextEditingController();
+  GeoReferenceSelection? _geo;
 
   // --- Étape 2 : documents ---
   final Set<String> _uploadedTypes = {};
@@ -242,7 +244,7 @@ class _VendorOnboardingScreenState extends State<VendorOnboardingScreen> {
     }
     try {
       final file = await ImagePicker().pickImage(source: source, imageQuality: 85);
-      return file?.readAsBytes();
+      return await file?.readAsBytes();
     } catch (_) {
       if (mounted) {
         showToast(context, 'Impossible de charger l\u2019image.', isError: true);
@@ -359,6 +361,7 @@ class _VendorOnboardingScreenState extends State<VendorOnboardingScreen> {
       city: _city.text.trim(),
       area: _area.text.trim(),
       address: _adresse.text.trim(),
+      geo: _geo,
     );
   }
 
@@ -372,6 +375,7 @@ class _VendorOnboardingScreenState extends State<VendorOnboardingScreen> {
       city: _city.text.trim(),
       area: _area.text.trim(),
       address: _adresse.text.trim(),
+      geo: _geo,
     );
   }
 
@@ -474,6 +478,8 @@ class _VendorOnboardingScreenState extends State<VendorOnboardingScreen> {
                   city: _city,
                   area: _area,
                   adresse: _adresse,
+                  onGeoChanged: (selection) =>
+                      setState(() => _geo = selection.geo),
                 ),
               ),
               OnboardingScaffold(

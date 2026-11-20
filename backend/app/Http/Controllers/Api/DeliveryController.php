@@ -50,14 +50,18 @@ class DeliveryController extends Controller
         $data = $request->validate([
             'latitude' => ['required', 'numeric', 'between:-90,90'],
             'longitude' => ['required', 'numeric', 'between:-180,180'],
+            'accuracy_m' => ['sometimes', 'nullable', 'numeric', 'min:0', 'max:10000'],
+            'gps_accuracy_m' => ['sometimes', 'nullable', 'numeric', 'min:0', 'max:10000'],
+            'speed_mps' => ['sometimes', 'nullable', 'numeric', 'min:0'],
+            'heading' => ['sometimes', 'nullable', 'numeric', 'min:0', 'max:360'],
+            'location_source' => ['sometimes', 'nullable', 'string', 'in:gps,network,manual'],
+            'source' => ['sometimes', 'nullable', 'string', 'in:gps,network,manual'],
+            'location_recorded_at' => ['sometimes', 'nullable', 'date'],
+            'delivery_id' => ['sometimes', 'nullable', 'string'],
+            'parcel_id' => ['sometimes', 'nullable', 'string'],
         ]);
 
-        $profile = $this->deliveryService->updateLocation($this->driverProfile($request), $data);
-
-        return Api::ok([
-            'latitude' => $profile->last_latitude,
-            'longitude' => $profile->last_longitude,
-        ]);
+        return Api::ok($this->deliveryService->updateLocation($this->driverProfile($request), $data));
     }
 
     public function availableOffers(Request $request): JsonResponse

@@ -162,10 +162,13 @@ class OrderDeliveryTrackingTest extends TestCase
         $this->assertNotNull($fresh->last_location_at);
 
         // Deuxième position (déplacement vers le nord) : le cap doit être calculé.
+        // On respecte l'intervalle minimal de 15 s hors mission.
+        $this->travel(16)->seconds();
+
         $this->patchJson('/api/v1/driver/me/availability/location', [
             'latitude' => 6.3845678,
             'longitude' => 2.3901234,
-        ])->assertOk();
+        ])->assertOk()->assertJsonPath('data.accepted', true);
 
         $moved = $fresh->fresh();
         $this->assertNotNull($moved->last_heading);
@@ -213,10 +216,13 @@ class OrderDeliveryTrackingTest extends TestCase
         ])->assertOk();
 
         // Second relevé : produit un cap exploitable pour orienter le marqueur.
+        // L'intervalle de 4 s en mission active est respecté.
+        $this->travel(5)->seconds();
+
         $this->patchJson('/api/v1/driver/me/availability/location', [
             'latitude' => 6.3722345,
             'longitude' => 2.3923456,
-        ])->assertOk();
+        ])->assertOk()->assertJsonPath('data.accepted', true);
 
         $this->assertDatabaseCount('delivery_locations', 2);
         $this->assertDatabaseHas('delivery_locations', [
@@ -239,8 +245,8 @@ class OrderDeliveryTrackingTest extends TestCase
             ->assertJsonPath('data.delivery.driver.avatar_url', fn ($url) => is_string($url) && str_contains($url, 'avatars/driver.jpg'))
             ->assertJsonPath('data.vendor.logo_url', fn ($url) => is_string($url) && str_contains($url, 'vendors/logo.jpg'))
             ->assertJsonPath('data.customer.avatar_url', fn ($url) => is_string($url) && str_contains($url, 'avatars/client.jpg'))
-            ->assertJsonPath('data.delivery.position.latitude', 6.372)
-            ->assertJsonPath('data.delivery.position.longitude', 2.392)
+            ->assertJsonPath('data.delivery.position.latitude', 6.372235)
+            ->assertJsonPath('data.delivery.position.longitude', 2.392346)
             ->assertJsonPath('data.delivery.position.last_location_at', $driver->fresh()->last_location_at?->toIso8601String())
             ->assertJsonPath('data.delivery.position.age_seconds', fn ($age) => is_int($age) && $age >= 0);
 

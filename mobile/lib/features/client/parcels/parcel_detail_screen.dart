@@ -12,6 +12,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_dimens.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../core/utils/geo.dart';
+import '../../../shared/models/delivery_tracking.dart';
 import '../../../shared/models/driver_selection.dart';
 import '../../../shared/models/geo_point.dart';
 import '../../../shared/models/parcel.dart';
@@ -63,6 +64,7 @@ class _ParcelDetailScreenState extends State<ParcelDetailScreen> {
 
   Timer? _pollTimer;
   bool _polling = false;
+  DeliveryTrackingSnapshot? _tracking;
   late final RoutePlanner _routePlanner;
   RoutePlan? _route;
   bool _routeInFlight = false;
@@ -80,9 +82,14 @@ class _ParcelDetailScreenState extends State<ParcelDetailScreen> {
     super.dispose();
   }
 
-  bool get _shouldPoll =>
-      (_parcel?.isTrackingActive ?? false) ||
-      (_parcel?.isWaitingDriver ?? false);
+  bool get _shouldPoll {
+    final parcel = _parcel;
+    if (parcel == null) {
+      return false;
+    }
+    return (_tracking?.active ?? parcel.isTrackingActive) ||
+        parcel.isWaitingDriver;
+  }
 
   void _schedulePolling() {
     _pollTimer?.cancel();
@@ -91,20 +98,49 @@ class _ParcelDetailScreenState extends State<ParcelDetailScreen> {
     }
   }
 
+  ParcelPosition? _parcelPosition(Parcel parcel) {
+    final legacy = _tracking?.legacyPosition;
+    if (legacy != null) {
+      return ParcelPosition.fromJson(legacy);
+    }
+    return parcel.position;
+  }
+
+  Future<void> _fetchFullDetail() async {
+    final parcel = await widget.marketplace.parcel(widget.parcelId);
+    if (mounted) {
+      setState(() {
+        _parcel = parcel;
+        _tracking = null;
+        _error = null;
+      });
+      _updateRoute();
+    }
+  }
+
+  /// Endpoint léger pendant la course ; détail complet à l'ouverture et à la fin.
   Future<void> _refreshSilently() async {
     if (_polling) {
       return;
     }
     _polling = true;
     try {
-      final parcel = await widget.marketplace.parcel(widget.parcelId);
-      if (mounted) {
-        setState(() {
-          _parcel = parcel;
-          _error = null;
-        });
-        _updateRoute();
+      final parcel = _parcel;
+      if (parcel == null || !parcel.isTrackingActive) {
+        await _fetchFullDetail();
+        return;
       }
+      final payload = await widget.marketplace.parcelTracking(widget.parcelId);
+      if (!mounted) {
+        return;
+      }
+      final snapshot = DeliveryTrackingSnapshot.fromJson(payload);
+      setState(() => _tracking = snapshot.active ? snapshot : null);
+      if (!snapshot.active) {
+        await _fetchFullDetail();
+        return;
+      }
+      _updateRoute();
     } on ApiException {
       // Silence : on conserve la dernière position connue.
     } finally {
@@ -120,17 +156,22 @@ class _ParcelDetailScreenState extends State<ParcelDetailScreen> {
     if (parcel == null) {
       return null;
     }
+    final role = parcel.isPickupPhase ? 'shop' : 'client';
+    final point = _tracking?.pointLocation(role);
+    if (point != null) {
+      return GeoPoint(point.latitude, point.longitude);
+    }
     return parcel.isPickupPhase ? parcel.pickupPoint : parcel.dropoffPoint;
   }
 
   Future<void> _updateRoute() async {
     final parcel = _parcel;
-    final position = parcel?.position?.point;
+    final position = parcel == null ? null : _parcelPosition(parcel)?.point;
     final target = _trackingTarget;
     if (parcel == null ||
         position == null ||
         target == null ||
-        !parcel.isTrackingActive) {
+        !(parcel.isTrackingActive || (_tracking?.active ?? false))) {
       return;
     }
     if (_routeInFlight) {
@@ -156,14 +197,10 @@ class _ParcelDetailScreenState extends State<ParcelDetailScreen> {
       _error = null;
     });
     try {
-      final parcel = await widget.marketplace.parcel(widget.parcelId);
+      await _fetchFullDetail();
       if (mounted) {
-        setState(() {
-          _parcel = parcel;
-          _loading = false;
-        });
+        setState(() => _loading = false);
         _schedulePolling();
-        _updateRoute();
       }
     } on ApiException catch (e) {
       if (mounted) {
@@ -177,7 +214,7 @@ class _ParcelDetailScreenState extends State<ParcelDetailScreen> {
   }
 
   String _trackingLabel(Parcel parcel) {
-    final position = parcel.position!;
+    final position = _parcelPosition(parcel)!;
     final target = _trackingTarget;
     final km = target == null
         ? position.distanceKm
@@ -187,7 +224,9 @@ class _ParcelDetailScreenState extends State<ParcelDetailScreen> {
     if (stale) {
       return label;
     }
-    final minutes = _route?.etaMinutes ?? estimateMinutes(km ?? 0);
+    final minutes = _tracking?.etaAvailable == true
+        ? _tracking?.etaMinutes
+        : (_route?.etaMinutes ?? estimateMinutes(km ?? 0));
     return minutes == null ? label : '$label · ~${formatEta(minutes)}';
   }
 
@@ -287,7 +326,7 @@ class _ParcelDetailScreenState extends State<ParcelDetailScreen> {
     if (parcel == null) {
       return;
     }
-    final point = parcel.position?.point ?? parcel.dropoffPoint;
+    final point = _parcelPosition(parcel)?.point ?? parcel.dropoffPoint;
     if (point == null) {
       showToast(
         context,
@@ -332,13 +371,14 @@ class _ParcelDetailScreenState extends State<ParcelDetailScreen> {
         return;
       }
 
+      final livePosition = _parcelPosition(parcel);
       setState(() => _actionId = 'reassign');
       final result = await widget.marketplace.reassignParcel(
         parcel.id,
         driverProfileId: choice.id,
         reason: reason,
-        latitude: parcel.position?.latitude,
-        longitude: parcel.position?.longitude,
+        latitude: livePosition?.latitude,
+        longitude: livePosition?.longitude,
       );
       if (!mounted) {
         return;
@@ -668,6 +708,7 @@ class _ParcelDetailScreenState extends State<ParcelDetailScreen> {
       return ErrorState(message: _error!, onRetry: _load);
     }
     final parcel = _parcel!;
+    final livePosition = _parcelPosition(parcel);
     final theme = Theme.of(context);
     final palette = BadgePalette.parcel(parcel.status);
 
@@ -728,10 +769,10 @@ class _ParcelDetailScreenState extends State<ParcelDetailScreen> {
           const SizedBox(height: AppDimens.md),
           if (_trackingTarget != null) ...[
             AppMap(
-              origin: parcel.position?.point,
+              origin: livePosition?.point,
               originLabel: parcel.driver?.name ?? 'Livreur',
               originImageUrl: parcel.driver?.avatarUrl,
-              originHeading: parcel.position?.heading,
+              originHeading: livePosition?.heading,
               target: _trackingTarget,
               targetLabel: parcel.isPickupPhase ? 'Ramassage' : 'Livraison',
               targetImageUrl: parcel.isPickupPhase
@@ -752,11 +793,11 @@ class _ParcelDetailScreenState extends State<ParcelDetailScreen> {
               route: _route?.latLng,
               routeColor: AppColors.orange,
               height: 200,
-              initialZoom: parcel.position != null ? 14 : 12,
-              followOrigin: parcel.position != null,
+              initialZoom: livePosition != null ? 14 : 12,
+              followOrigin: livePosition != null,
               openInMaps: false,
             ),
-            if (parcel.position != null) ...[
+            if (livePosition != null) ...[
               const SizedBox(height: AppDimens.sm),
               Row(
                 children: [
@@ -779,11 +820,11 @@ class _ParcelDetailScreenState extends State<ParcelDetailScreen> {
                 ],
               ),
             ],
-            if ((parcel.position?.ageSeconds ?? 0) >=
+            if ((livePosition?.ageSeconds ?? 0) >=
                 AppConfig.staleWarnSeconds) ...[
               const SizedBox(height: AppDimens.xs),
               Text(
-                'Dernière position reçue il y a ${parcel.position!.ageSeconds} s.',
+                'Dernière position reçue il y a ${livePosition!.ageSeconds} s.',
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: AppColors.goldDark,
                   fontWeight: FontWeight.w600,

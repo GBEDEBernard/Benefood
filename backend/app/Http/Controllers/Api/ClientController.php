@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\ClientProfile;
 use App\Services\ClientOnboardingService;
 use App\Support\Api;
+use App\Support\GeoFields;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -21,19 +22,35 @@ class ClientController extends Controller
     {
         $this->authorize('create', ClientProfile::class);
 
-        $data = $request->validate([
+        $data = $request->validate(array_merge([
             'full_name' => ['sometimes', 'nullable', 'string', 'max:255'],
             'phone' => ['sometimes', 'nullable', 'string', 'max:20'],
             'address' => ['sometimes', 'nullable', 'string', 'max:255'],
             'city' => ['sometimes', 'nullable', 'string', 'max:120'],
             'area' => ['sometimes', 'nullable', 'string', 'max:120'],
-        ]);
+            'latitude' => ['sometimes', 'nullable', 'numeric', 'between:-90,90'],
+            'longitude' => ['sometimes', 'nullable', 'numeric', 'between:-180,180'],
+        ], GeoFields::rules()));
 
-        $profile = $this->clientService->onboard($request->user(), $data);
+        $user = $request->user();
+        $geo = GeoFields::resolve($data, ['current' => $user]);
+        unset($data['country_code']);
+
+        $profile = $this->clientService->onboard($user, $data);
+
+        if ($geo !== []) {
+            if (in_array($geo['location_source'] ?? null, ['gps', 'map'], true)
+                && array_key_exists('latitude', $data)
+                && ! array_key_exists('location_recorded_at', $geo)) {
+                $geo['location_recorded_at'] = now();
+            }
+            $user->update($geo);
+        }
 
         return Api::created([
             'id' => $profile->id,
             'status' => $profile->status,
+            'geo' => GeoFields::payload($user->fresh()->loadMissing(['country', 'division', 'locality'])),
         ]);
     }
 

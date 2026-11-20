@@ -14,6 +14,7 @@ import '../../../core/theme/app_dimens.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../core/utils/geo.dart';
+import '../../../shared/models/delivery_tracking.dart';
 import '../../../shared/models/driver_selection.dart';
 import '../../../shared/models/geo_point.dart';
 import '../../../shared/models/order.dart';
@@ -61,6 +62,9 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
   Timer? _pollTimer;
   bool _polling = false;
 
+  /// Dernier payload léger reçu pendant une mission active.
+  DeliveryTrackingSnapshot? _tracking;
+
   /// Position GPS du client (pour se situer par rapport à la boutique).
   GeoPoint? _selfPosition;
   StreamSubscription<GeoResult>? _positionSub;
@@ -102,13 +106,39 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
     );
   }
 
-  /// Point de la boutique (point de collecte) depuis le vendeur de la commande.
-  GeoPoint? _shopPoint(Order order) => order.vendor?.point;
+  /// Position renvoyée par le suivi léger, ou par la ressource détaillée.
+  OrderDeliveryPosition? _deliveryPosition(Order order) {
+    final legacy = _tracking?.legacyPosition;
+    if (legacy != null) {
+      return OrderDeliveryPosition.fromJson(legacy);
+    }
+    return order.delivery?.position;
+  }
+
+  bool _missionActive(Order order) =>
+      _tracking?.active ?? (order.delivery?.isActive ?? false);
+
+  GeoPoint? _clientPoint(Order order) {
+    final point = _tracking?.pointLocation('client');
+    if (point != null) {
+      return GeoPoint(point.latitude, point.longitude);
+    }
+    return order.dropoffPoint;
+  }
+
+  /// Point de la boutique : position officielle du suivi, puis vendeur.
+  GeoPoint? _shopPoint(Order order) {
+    final point = _tracking?.pointLocation('shop');
+    if (point != null) {
+      return GeoPoint(point.latitude, point.longitude);
+    }
+    return order.vendor?.point;
+  }
 
   /// Extrémités du tracé : livreur → adresse pendant la course, sinon moi → boutique.
   List<GeoPoint>? _routeEndpoints(Order order) {
-    final driver = order.delivery?.position?.point;
-    final dropoff = order.dropoffPoint;
+    final driver = _deliveryPosition(order)?.point;
+    final dropoff = _clientPoint(order);
     if (driver != null && dropoff != null) {
       return [driver, dropoff];
     }
@@ -128,7 +158,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
 
     // Tronçon boutique → client (indépendant de la position affichée).
     final shop = _shopPoint(order);
-    final dropoff = order.dropoffPoint;
+    final dropoff = _clientPoint(order);
     if (shop != null && dropoff != null) {
       final leg = await _routePlanner.plan([shop, dropoff]);
       if (!mounted) {
@@ -148,9 +178,13 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
     setState(() => _route = plan);
   }
 
-  bool get _shouldPoll =>
-      (_order?.delivery?.isActive ?? false) ||
-      (_order?.isWaitingDriver ?? false);
+  bool get _shouldPoll {
+    final order = _order;
+    if (order == null) {
+      return false;
+    }
+    return _missionActive(order) || order.isWaitingDriver;
+  }
 
   void _schedulePolling() {
     _pollTimer?.cancel();
@@ -159,22 +193,44 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
     }
   }
 
+  Future<void> _fetchFullDetail() async {
+    final order = await widget.marketplace.order(widget.orderId);
+    if (mounted) {
+      setState(() {
+        _order = order;
+        _tracking = null;
+        _error = null;
+      });
+      _updateRoute();
+    }
+  }
+
+  /// Polling haute fréquence : endpoint léger pendant la mission, détail complet
+  /// uniquement à l'ouverture et à la fin de mission.
   Future<void> _refreshSilently() async {
     if (_polling) {
       return;
     }
     _polling = true;
     try {
-      final order = await widget.marketplace.order(widget.orderId);
-      if (mounted) {
-        setState(() {
-          _order = order;
-          _error = null;
-        });
-        _updateRoute();
+      final order = _order;
+      if (order == null || order.delivery == null) {
+        await _fetchFullDetail();
+        return;
       }
+      final payload = await widget.marketplace.orderTracking(widget.orderId);
+      if (!mounted) {
+        return;
+      }
+      final snapshot = DeliveryTrackingSnapshot.fromJson(payload);
+      setState(() => _tracking = snapshot.active ? snapshot : null);
+      if (!snapshot.active) {
+        await _fetchFullDetail();
+        return;
+      }
+      _updateRoute();
     } on ApiException {
-      // Silence : on ne coupe pas le suivi si un rafraîchissement échoue.
+      // Silence : on conserve la dernière position connue.
     } finally {
       _polling = false;
       if (mounted) {
@@ -372,14 +428,10 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
       _error = null;
     });
     try {
-      final order = await widget.marketplace.order(widget.orderId);
+      await _fetchFullDetail();
       if (mounted) {
-        setState(() {
-          _order = order;
-          _loading = false;
-        });
+        setState(() => _loading = false);
         _schedulePolling();
-        _updateRoute();
       }
     } on ApiException catch (e) {
       if (mounted) {
@@ -461,10 +513,11 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
       return;
     }
     final beforePickup = order.status == 'assigned';
-    final driverPoint = order.delivery?.position?.point;
+    final driverPoint = _deliveryPosition(order)?.point;
+    final clientPoint = _clientPoint(order);
     final searchPoint = beforePickup
-        ? (order.vendor?.point ?? driverPoint ?? order.dropoffPoint)
-        : (driverPoint ?? order.dropoffPoint);
+        ? (_shopPoint(order) ?? driverPoint ?? clientPoint)
+        : (driverPoint ?? clientPoint);
     if (searchPoint == null) {
       showToast(
         context,
@@ -757,8 +810,9 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
   /// - Pendant la course : position du livreur (moto) → adresse de livraison,
   ///   tracé routier réel et mise à jour toutes les 4 s.
   Widget _liveTrackingMap(Order order) {
-    final driver = order.delivery?.position?.point;
-    final dropoff = order.dropoffPoint;
+    final position = _deliveryPosition(order);
+    final driver = position?.point;
+    final dropoff = _clientPoint(order);
     final shop = _shopPoint(order);
     final self = _selfPosition;
 
@@ -767,7 +821,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
         origin: driver,
         originLabel: order.delivery?.driver?.name ?? 'Livreur',
         originImageUrl: order.delivery?.driver?.avatarUrl,
-        originHeading: order.delivery?.position?.heading,
+        originHeading: position?.heading,
         target: dropoff,
         targetLabel: 'Vous',
         targetImageUrl: order.customerAvatarUrl,
@@ -842,7 +896,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
   Widget? _trackingCard(Order order) {
     final delivery = order.delivery;
     final driver = delivery?.driver;
-    final position = delivery?.position;
+    final position = _deliveryPosition(order);
     if (delivery == null || driver == null) {
       return null;
     }
@@ -1047,11 +1101,11 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
   /// L'ETA privilégie l'itinéraire routier réel (`_route`) quand il est connu,
   /// sinon retombe sur l'estimation à vol d'oiseau.
   String _distanceLabel(Order order) {
-    final position = order.delivery?.position;
+    final position = _deliveryPosition(order);
     if (position == null) {
       return '—';
     }
-    final dropoff = order.dropoffPoint;
+    final dropoff = _clientPoint(order);
     final km =
         position.distanceKm ??
         (dropoff == null
@@ -1061,7 +1115,9 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
     if (_etaIsHidden(position)) {
       return label;
     }
-    final routeMinutes = _route?.etaMinutes;
+    final routeMinutes = _tracking?.etaAvailable == true
+        ? _tracking?.etaMinutes
+        : _route?.etaMinutes;
     final minutes = routeMinutes ?? estimateMinutes(km ?? 0);
     return minutes == null ? label : '$label · ~${formatEta(minutes)}';
   }

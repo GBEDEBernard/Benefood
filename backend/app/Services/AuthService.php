@@ -231,11 +231,32 @@ class AuthService
             }
         }
 
-        $user->update(array_filter([
+        $profile = [
             'name' => $data['name'] ?? null,
             'email' => $data['email'] ?? null,
             'locale' => $data['locale'] ?? null,
-        ], fn ($value) => $value !== null));
+        ];
+
+        foreach ([
+            'latitude', 'longitude', 'country_id', 'division_id', 'locality_id',
+            'gps_accuracy_m', 'location_source', 'location_recorded_at',
+            'adresse_texte', 'address_text',
+        ] as $geoField) {
+            if (array_key_exists($geoField, $data)) {
+                $profile[$geoField] = $data[$geoField];
+            }
+        }
+
+        $clearableGeoFields = [
+            'country_id', 'division_id', 'locality_id', 'gps_accuracy_m',
+            'location_source', 'location_recorded_at', 'adresse_texte', 'address_text',
+        ];
+
+        $user->update(array_filter(
+            $profile,
+            fn ($value, string $key): bool => $value !== null || in_array($key, $clearableGeoFields, true),
+            ARRAY_FILTER_USE_BOTH,
+        ));
 
         return $user->fresh();
     }

@@ -2,8 +2,7 @@
 
 namespace App\Http\Resources;
 
-use App\Enums\ParcelStatus;
-use App\Services\DeliveryPricingService;
+use App\Services\DeliveryTrackingService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Facades\Storage;
@@ -84,7 +83,7 @@ class ParcelResource extends JsonResource
                 'vehicle' => $this->driverProfile->vehicle,
                 'rating' => $this->driverProfile->rating,
             ]),
-            'position' => $this->positionPayload(),
+            'position' => app(DeliveryTrackingService::class)->positionForParcel($this->resource),
             'payment' => $this->whenLoaded('payment', fn () => $this->payment === null ? null : [
                 'id' => $this->payment->id,
                 'reference' => $this->payment->reference,
@@ -113,55 +112,6 @@ class ParcelResource extends JsonResource
             'cancellation_reason' => $this->cancellation_reason,
             'created_at' => $this->created_at?->toIso8601String(),
         ];
-    }
-
-    /**
-     * Position du livreur, uniquement pendant la course active (J178).
-     *
-     * @return array<string, mixed>|null
-     */
-    private function positionPayload(): ?array
-    {
-        $active = in_array($this->status, [
-            ParcelStatus::Assigned,
-            ParcelStatus::EnRoutePickup,
-            ParcelStatus::PickedUp,
-            ParcelStatus::InDelivery,
-        ], true);
-        $driver = $this->relationLoaded('driverProfile') ? $this->driverProfile : null;
-
-        if (! $active || $driver === null || $driver->last_latitude === null || $driver->last_longitude === null) {
-            return null;
-        }
-
-        return [
-            'latitude' => round((float) $driver->last_latitude, 3),
-            'longitude' => round((float) $driver->last_longitude, 3),
-            'heading' => $driver->last_heading !== null ? (float) $driver->last_heading : null,
-            'last_location_at' => $driver->last_location_at?->toIso8601String(),
-            'age_seconds' => $driver->last_location_at !== null
-                ? max(0, (int) $driver->last_location_at->diffInSeconds(now()))
-                : null,
-            'distance_km' => $this->distanceToDropoff($driver),
-        ];
-    }
-
-    private function distanceToDropoff($driver): ?float
-    {
-        $dropoff = $this->dropoff_snapshot ?? [];
-        $lat = $dropoff['latitude'] ?? null;
-        $lng = $dropoff['longitude'] ?? null;
-
-        if ($lat === null || $lng === null) {
-            return null;
-        }
-
-        return round(app(DeliveryPricingService::class)->distanceKm(
-            $driver->last_latitude,
-            $driver->last_longitude,
-            $lat,
-            $lng,
-        ), 3);
     }
 
     private function mediaUrl(?string $path): ?string

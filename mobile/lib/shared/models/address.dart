@@ -1,3 +1,5 @@
+import 'geo_reference.dart';
+
 class Address {
   const Address({
     required this.id,
@@ -10,6 +12,7 @@ class Address {
     this.longitude,
     this.city,
     this.area,
+    this.geo,
     this.isDefault = false,
     this.createdAt,
     this.updatedAt,
@@ -25,6 +28,7 @@ class Address {
   final double? longitude;
   final String? city;
   final String? area;
+  final GeoReferenceSelection? geo;
   final bool isDefault;
   final String? createdAt;
   final String? updatedAt;
@@ -42,6 +46,7 @@ class Address {
         longitude: _d(json['longitude']),
         city: json['city'] is String ? json['city'] as String : null,
         area: json['area'] is String ? json['area'] as String : null,
+        geo: GeoReferenceSelection.fromApiPayload(json),
         isDefault: json['is_default'] == true,
         createdAt: json['created_at'] is String ? json['created_at'] as String : null,
         updatedAt: json['updated_at'] is String ? json['updated_at'] as String : null,

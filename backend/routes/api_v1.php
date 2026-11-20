@@ -10,12 +10,14 @@ use App\Http\Controllers\Api\ClientController;
 use App\Http\Controllers\Api\ComplaintController;
 use App\Http\Controllers\Api\DeliveryController;
 use App\Http\Controllers\Api\DeliveryQuoteController;
+use App\Http\Controllers\Api\DeliveryTrackingController;
 use App\Http\Controllers\Api\DeliveryZoneController;
 use App\Http\Controllers\Api\DriverController;
 use App\Http\Controllers\Api\DriverFloatController;
 use App\Http\Controllers\Api\DriverSelectionController;
 use App\Http\Controllers\Api\DriverStatsController;
 use App\Http\Controllers\Api\FavoriteDriverController;
+use App\Http\Controllers\Api\GeoController;
 use App\Http\Controllers\Api\HealthController;
 use App\Http\Controllers\Api\HomeController;
 use App\Http\Controllers\Api\LanguageController;
@@ -246,6 +248,10 @@ Route::middleware('auth:sanctum')->group(function (): void {
         Route::post('/{order}/dispute', [OrderController::class, 'dispute'])->name('api.v1.orders.dispute')->middleware('permission:client.orders.manage');
     });
 
+    // Suivi haute fréquence : lecture unique, limitée à la commande ou au colis concerné.
+    Route::get('orders/{order}/tracking', [DeliveryTrackingController::class, 'order'])->name('api.v1.orders.tracking');
+    Route::get('parcels/{parcel}/tracking', [DeliveryTrackingController::class, 'parcel'])->name('api.v1.parcels.tracking');
+
     // Dépôt d'avis client (vendeur + livreur) après livraison.
     Route::post('orders/{order}/review', [ReviewController::class, 'store'])->name('api.v1.orders.review')->middleware('permission:client.orders.manage');
 
@@ -328,6 +334,18 @@ Route::get('/driver/me/documents/{document}/download', [DriverController::class,
     ->name('api.v1.driver.me.documents.download');
 
 Route::get('/categories', [CatalogController::class, 'categories'])->name('api.v1.categories.index');
+
+// Référentiel géographique centralisé : une seule source pour le mobile, les
+// boutiques, les adresses et le suivi. /locations reste pour compatibilité.
+Route::prefix('geo')->group(function (): void {
+    Route::get('/countries', [GeoController::class, 'countries'])->name('api.v1.geo.countries.index');
+    Route::get('/divisions', [GeoController::class, 'divisions'])->name('api.v1.geo.divisions.index');
+    Route::get('/localities', [GeoController::class, 'localities'])->name('api.v1.geo.localities.index');
+    Route::get('/search', [GeoController::class, 'search'])->name('api.v1.geo.search');
+    Route::post('/geocode', [GeoController::class, 'geocode'])->name('api.v1.geo.geocode');
+    Route::post('/reverse', [GeoController::class, 'reverse'])->name('api.v1.geo.reverse');
+});
+
 Route::get('/locations', [LocationController::class, 'index'])->name('api.v1.locations.index');
 Route::get('/products', [CatalogController::class, 'index'])->name('api.v1.products.index');
 Route::get('/products/{product}', [CatalogController::class, 'show'])->name('api.v1.products.show');

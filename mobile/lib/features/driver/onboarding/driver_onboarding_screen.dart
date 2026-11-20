@@ -8,6 +8,7 @@ import '../../../core/navigation/notification_router.dart';
 import '../../../core/errors/api_exception.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/formatters.dart';
+import '../../../shared/models/geo_reference.dart';
 import '../../../shared/widgets/app_button.dart';
 import '../../../shared/widgets/app_text_field.dart';
 import '../../../shared/widgets/beninfood_header.dart';
@@ -60,6 +61,7 @@ class _DriverOnboardingScreenState extends State<DriverOnboardingScreen> {
   final _vehicle = TextEditingController();
   final _city = TextEditingController();
   final _area = TextEditingController();
+  GeoReferenceSelection? _geo;
   bool _submitting = false;
   String? _uploadingType;
 
@@ -74,6 +76,14 @@ class _DriverOnboardingScreenState extends State<DriverOnboardingScreen> {
     _vehicle.text = widget.profile?['vehicle'] as String? ?? '';
     _city.text = widget.profile?['city'] as String? ?? '';
     _area.text = widget.profile?['area'] as String? ?? '';
+    if (widget.profile != null) {
+      final restored = GeoReferenceSelection.fromApiPayload(
+        Map<String, dynamic>.from(widget.profile!),
+      );
+      if (restored.hasReference) {
+        _geo = restored;
+      }
+    }
     _restoreUploads();
     // Dossier déjà commencé (inscription ou documents envoyés) : on reprend
     // directement sur la page Documents au lieu de la bienvenue.
@@ -132,6 +142,7 @@ class _DriverOnboardingScreenState extends State<DriverOnboardingScreen> {
         vehicle: _vehicle.text.trim(),
         city: _city.text.trim(),
         area: _area.text.trim(),
+        geo: _geo,
       );
       } on ApiException catch (e) {
         if (!e.isConflict) {
@@ -241,6 +252,7 @@ class _DriverOnboardingScreenState extends State<DriverOnboardingScreen> {
                 previews: _previews,
                 onSubmitVehicle: _submitVehicle,
                 onPickDocument: _pickDocument,
+                onGeoChanged: (geo) => setState(() => _geo = geo),
                 docLabel: _docLabel,
               ),
             ],
@@ -358,6 +370,7 @@ class _DocumentsPage extends StatelessWidget {
     required this.previews,
     required this.onSubmitVehicle,
     required this.onPickDocument,
+    required this.onGeoChanged,
     required this.docLabel,
   });
 
@@ -376,6 +389,7 @@ class _DocumentsPage extends StatelessWidget {
   final Map<String, Uint8List> previews;
   final VoidCallback? onSubmitVehicle;
   final void Function(String type, String label) onPickDocument;
+  final ValueChanged<GeoReferenceSelection?> onGeoChanged;
   final String Function(String type) docLabel;
 
   IconData _statusIcon(dynamic status) => switch (status) {
@@ -436,6 +450,7 @@ class _DocumentsPage extends StatelessWidget {
             cityController: city,
             areaController: area,
             enabled: !hasProfile,
+            onChanged: (selection) => onGeoChanged(selection.geo),
           ),
           const SizedBox(height: 12),
           AppButton(

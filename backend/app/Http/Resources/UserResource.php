@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Support\GeoFields;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Facades\Storage;
@@ -10,6 +11,8 @@ class UserResource extends JsonResource
 {
     public function toArray(Request $request): array
     {
+        $geo = GeoFields::payload($this->resource);
+
         return [
             'id' => $this->id,
             'name' => $this->name,
@@ -21,6 +24,11 @@ class UserResource extends JsonResource
             'wallet_balance' => (int) $this->wallet_balance,
             'email_verified_at' => $this->email_verified_at?->toIso8601String(),
             'phone_verified_at' => $this->phone_verified_at?->toIso8601String(),
+            'latitude' => $this->latitude,
+            'longitude' => $this->longitude,
+            'adresse_texte' => $this->adresse_texte,
+            'geo' => $geo,
+            'geographic_path' => $geo['geographic_path'],
             'created_at' => $this->created_at?->toIso8601String(),
             'roles' => $this->whenLoaded('roles', fn () => $this->roles->map(fn ($role) => [
                 'slug' => $role->slug,

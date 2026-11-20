@@ -10,6 +10,7 @@ use App\Exceptions\DomainException;
 use App\Models\User;
 use App\Models\Vendor;
 use App\Models\VendorDocument;
+use App\Support\GeoFields;
 use App\Support\Phone;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -40,6 +41,18 @@ class VendorOnboardingService
             'city' => $data['city'] ?? null,
             'area' => $data['area'] ?? null,
             'address' => $data['address'] ?? null,
+            'latitude' => $data['latitude'] ?? null,
+            'longitude' => $data['longitude'] ?? null,
+            'pickup_latitude' => $data['pickup_latitude'] ?? null,
+            'pickup_longitude' => $data['pickup_longitude'] ?? null,
+            'country_id' => $data['country_id'] ?? null,
+            'division_id' => $data['division_id'] ?? null,
+            'locality_id' => $data['locality_id'] ?? null,
+            'pickup_division_id' => $data['pickup_division_id'] ?? null,
+            'pickup_locality_id' => $data['pickup_locality_id'] ?? null,
+            'gps_accuracy_m' => $data['gps_accuracy_m'] ?? null,
+            'pickup_gps_accuracy_m' => $data['pickup_gps_accuracy_m'] ?? null,
+            'location_source' => $data['location_source'] ?? null,
             'category_id' => $data['category_id'] ?? null,
             'status' => VendorStatus::Registered->value,
         ]);
@@ -83,7 +96,15 @@ class VendorOnboardingService
 
     public function getStatus(Vendor $vendor): array
     {
-        $vendor->load(['documents', 'hours']);
+        $vendor->load([
+            'documents',
+            'hours',
+            'country',
+            'division',
+            'locality',
+            'pickupDivision',
+            'pickupLocality',
+        ]);
 
         return [
             'vendor' => [
@@ -96,6 +117,12 @@ class VendorOnboardingService
                 'email' => $vendor->email,
                 'city' => $vendor->city,
                 'address' => $vendor->address,
+                'latitude' => $vendor->latitude,
+                'longitude' => $vendor->longitude,
+                'pickup_latitude' => $vendor->pickup_latitude,
+                'pickup_longitude' => $vendor->pickup_longitude,
+                'geo' => GeoFields::payload($vendor),
+                'pickup_geo' => GeoFields::payload($vendor, 'pickup_'),
                 'category_id' => $vendor->category_id,
                 'logo_url' => $this->mediaUrl($vendor->logo_url),
                 'cover_url' => $this->mediaUrl($vendor->cover_url),

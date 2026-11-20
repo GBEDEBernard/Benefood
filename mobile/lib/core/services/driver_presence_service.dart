@@ -90,7 +90,18 @@ class DriverPresenceService {
         return;
       }
       final geo = result.geo!;
-      await api.updateDriverLocation(geo.latitude, geo.longitude);
+      await api.updateDriverLocation(
+        geo.latitude,
+        geo.longitude,
+        accuracyM: geo.accuracyM,
+        speedMps: geo.speedMps,
+        heading: geo.heading,
+        source: geo.source,
+        recordedAt: geo.recordedAt,
+      );
+      if (!geo.isPrecise && kDebugMode) {
+        debugPrint('[driver_presence] position imprécise (${geo.accuracyM} m)');
+      }
       online.value = true;
     } catch (error) {
       // Réseau ou GPS indisponible : le prochain battement réessaiera.

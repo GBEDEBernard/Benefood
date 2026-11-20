@@ -24,6 +24,8 @@ class DeliveryLocation extends Model
             'latitude' => 'float',
             'longitude' => 'float',
             'heading' => 'float',
+            'accuracy_m' => 'float',
+            'speed_mps' => 'float',
             'recorded_at' => 'datetime',
         ];
     }

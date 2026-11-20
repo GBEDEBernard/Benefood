@@ -109,9 +109,11 @@ void main() {
   testWidgets('inscription : email obligatoire et valide', (tester) async {
     await _pump(tester, login: false);
 
-    expect(find.text('Email'), findsOneWidget);
-    expect(find.text('Email (facultatif)'), findsNothing);
+    expect(find.text('Adresse e-mail'), findsOneWidget);
+    expect(find.text('Adresse e-mail (facultatif)'), findsNothing);
 
+    await tester.ensureVisible(find.text('Créer mon compte'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Créer mon compte'));
     await tester.pump();
 

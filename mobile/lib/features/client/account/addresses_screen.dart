@@ -6,6 +6,7 @@ import '../../../core/errors/api_exception.dart';
 import '../../../core/services/location_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../shared/models/address.dart';
+import '../../../shared/models/geo_reference.dart';
 import '../../../shared/widgets/app_button.dart';
 import '../../../shared/widgets/app_text_field.dart';
 import '../../../shared/widgets/beninfood_header.dart';
@@ -256,12 +257,14 @@ class _AddressLocationSheetState extends State<_AddressLocationSheet> {
   bool _locating = false;
   double? _latitude;
   double? _longitude;
+  GeoReferenceSelection? _geo;
 
   @override
   void initState() {
     super.initState();
     _latitude = widget.address.latitude;
     _longitude = widget.address.longitude;
+    _geo = widget.address.geo;
   }
 
   Future<void> _locate() async {
@@ -271,15 +274,28 @@ class _AddressLocationSheetState extends State<_AddressLocationSheet> {
       return;
     }
     final geo = result.geo;
-    setState(() {
-      _locating = false;
-      if (geo != null) {
-        _latitude = geo.latitude;
-        _longitude = geo.longitude;
-      }
-    });
+    setState(() => _locating = false);
+    if (geo != null) {
+      await _applyCoordinates(geo.latitude, geo.longitude);
+    }
     if (geo == null) {
       showToast(context, 'Position introuvable. Touchez la carte pour placer le repère.', isError: true);
+    }
+  }
+
+  Future<void> _applyCoordinates(double latitude, double longitude) async {
+    setState(() {
+      _latitude = latitude;
+      _longitude = longitude;
+    });
+    try {
+      final place = await widget.marketplace.geoReverse(latitude, longitude);
+      if (!mounted || place == null) {
+        return;
+      }
+      setState(() => _geo = place.toSelection(null, source: 'gps'));
+    } catch (_) {
+      // Sans rattachement officiel, on conserve la référence existante.
     }
   }
 
@@ -300,6 +316,7 @@ class _AddressLocationSheetState extends State<_AddressLocationSheet> {
         contactPhone: widget.address.contactPhone,
         latitude: _latitude,
         longitude: _longitude,
+        geo: _geo,
       );
       if (mounted) {
         Navigator.of(context).pop(updated);
@@ -342,12 +359,10 @@ class _AddressLocationSheetState extends State<_AddressLocationSheet> {
                     : null,
                 onLocate: _locate,
                 locating: _locating,
-                onChanged: (point) {
-                  setState(() {
-                    _latitude = point.latitude;
-                    _longitude = point.longitude;
-                  });
-                },
+                onChanged: (point) => _applyCoordinates(
+                  point.latitude,
+                  point.longitude,
+                ),
               ),
               const SizedBox(height: 16),
               AppButton(
@@ -384,6 +399,7 @@ class _AddAddressSheetState extends State<_AddAddressSheet> {
   bool _locating = false;
   double? _latitude;
   double? _longitude;
+  GeoReferenceSelection? _geo;
 
   @override
   void dispose() {
@@ -422,6 +438,31 @@ class _AddAddressSheetState extends State<_AddAddressSheet> {
     });
     if (geo == null) {
       showToast(context, _locationFailureMessage(result.failure), isError: true);
+      return;
+    }
+
+    try {
+      final place = await widget.marketplace.geoReverse(
+        geo.latitude,
+        geo.longitude,
+      );
+      if (!mounted || place == null) {
+        return;
+      }
+      setState(() => _geo = place.toSelection(null, source: 'gps'));
+      final path = place.path;
+      if (place.isLocality && path.length > 1) {
+        setState(() {
+          if (_city.text.trim().isEmpty) {
+            _city.text = path[path.length - 2];
+          }
+          if (_area.text.trim().isEmpty) {
+            _area.text = place.name;
+          }
+        });
+      }
+    } catch (_) {
+      // Les coordonnées brutes restent valides sans référentiel officiel.
     }
   }
 
@@ -454,6 +495,7 @@ class _AddAddressSheetState extends State<_AddAddressSheet> {
         contactPhone: _contactPhone.text.trim(),
         latitude: _latitude,
         longitude: _longitude,
+        geo: _geo,
       );
       if (mounted) {
         Navigator.of(context).pop(address);
@@ -538,6 +580,14 @@ class _AddAddressSheetState extends State<_AddAddressSheet> {
                     marketplace: widget.marketplace,
                     cityController: _city,
                     areaController: _area,
+                    includeGps: true,
+                    onChanged: (selection) => setState(() {
+                      _geo = selection.geo;
+                      if (selection.hasCoordinates) {
+                        _latitude = selection.latitude;
+                        _longitude = selection.longitude;
+                      }
+                    }),
                   ),
                   const SizedBox(height: 12),
                   AppTextField(

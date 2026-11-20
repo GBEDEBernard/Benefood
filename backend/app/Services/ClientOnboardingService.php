@@ -9,6 +9,7 @@ use App\Exceptions\DomainException;
 use App\Models\ClientDocument;
 use App\Models\ClientProfile;
 use App\Models\User;
+use App\Support\GeoFields;
 use Illuminate\Http\UploadedFile;
 
 /**
@@ -94,7 +95,7 @@ class ClientOnboardingService
 
     public function getStatus(ClientProfile $profile): array
     {
-        $profile->load('documents');
+        $profile->load(['documents', 'user.country', 'user.division', 'user.locality']);
 
         $submitted = $profile->documents->pluck('type')->all();
 
@@ -108,6 +109,7 @@ class ClientOnboardingService
                 'address' => $profile->address,
                 'city' => $profile->city,
                 'area' => $profile->area,
+                'geo' => $profile->user === null ? null : GeoFields::payload($profile->user),
                 'created_at' => $profile->created_at?->toIso8601String(),
             ],
             'documents' => $profile->documents->map(fn (ClientDocument $document) => [

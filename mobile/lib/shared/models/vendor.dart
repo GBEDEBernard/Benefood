@@ -1,3 +1,5 @@
+import 'geo_reference.dart';
+
 enum VendorType {
   boutique('boutique', 'Boutique'),
   restaurant('restaurant', 'Restaurant'),
@@ -31,10 +33,12 @@ class Vendor {
     this.city,
     this.area,
     this.address,
+    this.geo,
     this.pickupAddress,
     this.pickupLandmark,
     this.pickupLatitude,
     this.pickupLongitude,
+    this.pickupGeo,
     this.deliveryInstructions,
     this.status = 'active',
     this.logoUrl,
@@ -62,10 +66,12 @@ class Vendor {
   final String? city;
   final String? area;
   final String? address;
+  final GeoReferenceSelection? geo;
   final String? pickupAddress;
   final String? pickupLandmark;
   final double? pickupLatitude;
   final double? pickupLongitude;
+  final GeoReferenceSelection? pickupGeo;
   final String? deliveryInstructions;
   final String status;
   final String? logoUrl;
@@ -117,10 +123,12 @@ class Vendor {
         city: json['city'] is String ? json['city'] as String : null,
         area: json['area'] is String ? json['area'] as String : null,
         address: json['address'] is String ? json['address'] as String : null,
+        geo: GeoReferenceSelection.fromApiPayload(json),
         pickupAddress: json['pickup_address'] is String ? json['pickup_address'] as String : null,
         pickupLandmark: json['pickup_landmark'] is String ? json['pickup_landmark'] as String : null,
         pickupLatitude: _d(json['pickup_latitude']),
         pickupLongitude: _d(json['pickup_longitude']),
+        pickupGeo: GeoReferenceSelection.fromApiPayload(json, prefix: 'pickup_'),
         deliveryInstructions:
             json['delivery_instructions'] is String ? json['delivery_instructions'] as String : null,
         status: _s(json['status'], 'active'),

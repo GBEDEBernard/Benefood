@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\AddressResource;
 use App\Models\Address;
 use App\Support\Api;
+use App\Support\GeoFields;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -45,7 +46,7 @@ class AddressController extends Controller
             return Api::error('Ressource introuvable.', 'not_found', 404);
         }
 
-        $data = $this->validated($request);
+        $data = $this->validated($request, $address);
 
         if (! empty($data['is_default'])) {
             $request->user()->addresses()
@@ -72,9 +73,9 @@ class AddressController extends Controller
     /**
      * @return array<string, mixed>
      */
-    private function validated(Request $request): array
+    private function validated(Request $request, ?Address $address = null): array
     {
-        return $request->validate([
+        $validated = $request->validate(array_merge([
             'label' => ['sometimes', 'nullable', 'string', 'max:100'],
             'zone_id' => ['sometimes', 'nullable', 'uuid', 'exists:delivery_zones,id'],
             'full_address' => ['required', 'string', 'max:500'],
@@ -85,6 +86,16 @@ class AddressController extends Controller
             'latitude' => ['sometimes', 'nullable', 'numeric', 'between:-90,90'],
             'longitude' => ['sometimes', 'nullable', 'numeric', 'between:-180,180'],
             'is_default' => ['sometimes', 'boolean'],
-        ]);
+        ], GeoFields::rules()));
+
+        $legacy = array_intersect_key($validated, array_flip([
+            'label', 'zone_id', 'full_address', 'landmark', 'contact_phone',
+            'city', 'area', 'latitude', 'longitude', 'is_default',
+        ]));
+
+        $geo = GeoFields::resolve($validated, ['current' => $address]);
+        unset($geo['location_recorded_at']);
+
+        return array_merge($legacy, $geo);
     }
 }

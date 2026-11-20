@@ -130,6 +130,12 @@ class BackgroundLocationService {
             body: jsonEncode({
               'latitude': position.latitude,
               'longitude': position.longitude,
+              if (position.accuracy.isFinite && position.accuracy <= 100)
+                'accuracy_m': position.accuracy,
+              if (position.speed.isFinite) 'speed_mps': position.speed,
+              if (position.heading.isFinite) 'heading': position.heading,
+              'location_source': 'gps',
+              'location_recorded_at': position.timestamp.toIso8601String(),
             }),
           )
           .timeout(const Duration(seconds: 10));

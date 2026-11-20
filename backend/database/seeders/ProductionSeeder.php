@@ -6,6 +6,7 @@ use App\Models\Category;
 use App\Models\CommissionRate;
 use App\Models\DeliveryZone;
 use App\Models\DistancePricingRule;
+use App\Models\GeoCountry;
 use App\Models\Neighborhood;
 use App\Models\NotificationTemplate;
 use App\Models\Role;
@@ -25,6 +26,10 @@ class ProductionSeeder extends Seeder
     {
         if (! Role::query()->exists()) {
             $this->call(RolesAndPermissionsSeeder::class);
+        }
+
+        if (! GeoCountry::query()->exists()) {
+            $this->call(GeoReferenceSeeder::class);
         }
 
         if (! CommissionRate::query()->exists()) {

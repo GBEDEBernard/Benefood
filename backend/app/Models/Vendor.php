@@ -30,7 +30,34 @@ class Vendor extends Model
             'longitude' => 'float',
             'pickup_latitude' => 'float',
             'pickup_longitude' => 'float',
+            'gps_accuracy_m' => 'float',
+            'pickup_gps_accuracy_m' => 'float',
         ];
+    }
+
+    public function country(): BelongsTo
+    {
+        return $this->belongsTo(GeoCountry::class, 'country_id');
+    }
+
+    public function division(): BelongsTo
+    {
+        return $this->belongsTo(GeoDivision::class, 'division_id');
+    }
+
+    public function locality(): BelongsTo
+    {
+        return $this->belongsTo(GeoLocality::class, 'locality_id');
+    }
+
+    public function pickupDivision(): BelongsTo
+    {
+        return $this->belongsTo(GeoDivision::class, 'pickup_division_id');
+    }
+
+    public function pickupLocality(): BelongsTo
+    {
+        return $this->belongsTo(GeoLocality::class, 'pickup_locality_id');
     }
 
     public function user(): BelongsTo

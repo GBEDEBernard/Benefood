@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
@@ -29,6 +30,12 @@ use Laravel\Sanctum\HasApiTokens;
     'longitude',
     'adresse_texte',
     'address_text',
+    'country_id',
+    'division_id',
+    'locality_id',
+    'gps_accuracy_m',
+    'location_source',
+    'location_recorded_at',
 ])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
@@ -49,7 +56,24 @@ class User extends Authenticatable
             'password' => 'hashed',
             'latitude' => 'float',
             'longitude' => 'float',
+            'gps_accuracy_m' => 'float',
+            'location_recorded_at' => 'datetime',
         ];
+    }
+
+    public function country(): BelongsTo
+    {
+        return $this->belongsTo(GeoCountry::class, 'country_id');
+    }
+
+    public function division(): BelongsTo
+    {
+        return $this->belongsTo(GeoDivision::class, 'division_id');
+    }
+
+    public function locality(): BelongsTo
+    {
+        return $this->belongsTo(GeoLocality::class, 'locality_id');
     }
 
     public function roles(): BelongsToMany

@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Support\GeoFields;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Facades\Storage;
@@ -10,6 +11,9 @@ class VendorResource extends JsonResource
 {
     public function toArray(Request $request): array
     {
+        $geo = GeoFields::payload($this->resource);
+        $pickupGeo = GeoFields::payload($this->resource, 'pickup_');
+
         return [
             'id' => $this->id,
             'user_id' => $this->user_id,
@@ -29,6 +33,10 @@ class VendorResource extends JsonResource
             'pickup_landmark' => $this->pickup_landmark,
             'pickup_latitude' => $this->pickup_latitude,
             'pickup_longitude' => $this->pickup_longitude,
+            'geo' => $geo,
+            'pickup_geo' => $pickupGeo,
+            'geographic_path' => $geo['geographic_path'],
+            'pickup_geographic_path' => $pickupGeo['geographic_path'],
             'delivery_instructions' => $this->delivery_instructions,
             'category_id' => $this->category_id,
             'logo_url' => $this->mediaUrl($this->logo_url),

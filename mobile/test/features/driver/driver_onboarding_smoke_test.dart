@@ -167,7 +167,10 @@ void main() {
     await tester.pumpAndSettle();
     expect(log.where((e) => e.endsWith('/driver/me/onboarding')), isEmpty);
 
-    final field = find.widgetWithText(TextFormField, 'Véhicule');
+    final field = find.widgetWithText(
+      TextFormField,
+      'Véhicule et immatriculation',
+    );
     await tester.enterText(field, 'Moto Bajaj Boxer');
 
     // Zone d'activité du livreur (ville + quartier via le sélecteur).

@@ -280,6 +280,47 @@ return [
         'arrival_radius_m' => (int) env('BENINFOOD_ARRIVAL_RADIUS_M', 120),
         'max_active_missions' => (int) env('BENINFOOD_MAX_ACTIVE_MISSIONS', 2),
         'history_retention_days' => (int) env('BENINFOOD_HISTORY_RETENTION_DAYS', 30),
+        // Hors mission, le heartbeat de présence peut être plus espacé : on ne
+        // conserve pas le même rythme que pour un suivi client en direct.
+        'idle_min_interval_s' => (int) env('BENINFOOD_TRACKING_IDLE_MIN_INTERVAL_S', 15),
+        // Événement broadcast-ready pour une activation Reverb ultérieure.
+        // FCM + polling restent le canal temps réel actif par défaut.
+        'broadcast_enabled' => (bool) env('BENINFOOD_TRACKING_BROADCAST_ENABLED', false),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Référentiel géographique centralisé
+    |--------------------------------------------------------------------------
+    | Source administrative : IGN Bénin, GeoJSON WGS84, licence Etalab 2.0.
+    | Le fournisseur de géocodage est interchangeable : aucune clé n'est
+    | exposée au client mobile.
+    */
+    'geography' => [
+        'source' => 'IGN Bénin',
+        'source_url' => 'https://ign.bj/donnees',
+        'data_updated_at' => '2026-09-20',
+        'data_path' => database_path('seeders/data/geo'),
+        'cache_ttl' => (int) env('BENINFOOD_GEO_CACHE_TTL', 3600),
+        'search_per_page' => (int) env('BENINFOOD_GEO_SEARCH_PER_PAGE', 20),
+        'geocoding' => [
+            'provider' => env('BENINFOOD_GEOCODING_PROVIDER', 'nominatim'),
+            'nominatim_url' => rtrim((string) env('BENINFOOD_NOMINATIM_URL', 'https://nominatim.openstreetmap.org'), '/'),
+            'user_agent' => env('BENINFOOD_NOMINATIM_USER_AGENT', 'Beninfood/1.0 (contact@beninfood.bj)'),
+            'mapbox_token' => env('MAPBOX_ACCESS_TOKEN'),
+            'mapbox_url' => rtrim((string) env('BENINFOOD_MAPBOX_GEOCODING_URL', 'https://api.mapbox.com/geocoding/v5/mapbox.places'), '/'),
+            'google_key' => env('GOOGLE_GEOCODING_API_KEY'),
+            'google_url' => rtrim((string) env('BENINFOOD_GOOGLE_GEOCODING_URL', 'https://maps.googleapis.com/maps/api/geocode/json'), '/'),
+            'timeout' => (int) env('BENINFOOD_GEOCODING_TIMEOUT', 5),
+            'cache_ttl' => (int) env('BENINFOOD_GEOCODING_CACHE_TTL', 86400),
+            // Politique Nominatim : au maximum une requête par seconde.
+            'min_interval_ms' => (int) env('BENINFOOD_GEOCODING_MIN_INTERVAL_MS', 1100),
+        ],
+        'tracking' => [
+            'min_interval_s' => (int) env('BENINFOOD_TRACKING_MIN_INTERVAL_S', 4),
+            'max_accuracy_m' => (int) env('BENINFOOD_TRACKING_MAX_ACCURACY_M', 100),
+            'max_speed_mps' => (float) env('BENINFOOD_TRACKING_MAX_SPEED_MPS', 40),
+        ],
     ],
 
     /*

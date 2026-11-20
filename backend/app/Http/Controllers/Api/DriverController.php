@@ -9,6 +9,7 @@ use App\Models\DriverProfile;
 use App\Models\User;
 use App\Services\DriverOnboardingService;
 use App\Support\Api;
+use App\Support\GeoFields;
 use App\Support\Phone;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -22,18 +23,34 @@ class DriverController extends Controller
     {
         $this->authorize('create', DriverProfile::class);
 
-        $data = $request->validate([
+        $data = $request->validate(array_merge([
             'vehicle' => ['sometimes', 'nullable', 'string', 'max:255'],
             'city' => ['sometimes', 'nullable', 'string', 'max:120'],
             'area' => ['sometimes', 'nullable', 'string', 'max:120'],
-        ]);
+            'latitude' => ['sometimes', 'nullable', 'numeric', 'between:-90,90'],
+            'longitude' => ['sometimes', 'nullable', 'numeric', 'between:-180,180'],
+        ], GeoFields::rules()));
 
-        $profile = $this->driverService->candidacy($request->user(), $data);
+        $user = $request->user();
+        $geo = GeoFields::resolve($data, ['current' => $user]);
+        unset($data['country_code']);
+
+        $profile = $this->driverService->candidacy($user, $data);
+
+        if ($geo !== []) {
+            if (in_array($geo['location_source'] ?? null, ['gps', 'map'], true)
+                && array_key_exists('latitude', $data)
+                && ! array_key_exists('location_recorded_at', $geo)) {
+                $geo['location_recorded_at'] = now();
+            }
+            $user->update($geo);
+        }
 
         return Api::created([
             'id' => $profile->id,
             'type' => $profile->type,
             'status' => $profile->status,
+            'geo' => GeoFields::payload($user->fresh()->loadMissing(['country', 'division', 'locality'])),
         ]);
     }
 

@@ -66,6 +66,7 @@ class _MissionNavigationScreenState extends State<MissionNavigationScreen> {
   bool _actionLoading = false;
 
   GeoPoint? _position;
+  GeoResult? _lastGeo;
   LocationFailure? _locationFailure;
   bool _locating = false;
 
@@ -123,6 +124,7 @@ class _MissionNavigationScreenState extends State<MissionNavigationScreen> {
         final geo = result.geo!;
         setState(() {
           _position = GeoPoint(geo.latitude, geo.longitude);
+          _lastGeo = geo;
           _locationFailure = null;
           _locating = false;
         });
@@ -183,6 +185,7 @@ class _MissionNavigationScreenState extends State<MissionNavigationScreen> {
     final position = GeoPoint(geo.latitude, geo.longitude);
     setState(() {
       _position = position;
+      _lastGeo = geo;
       _locationFailure = null;
     });
     _refreshGuidance();
@@ -194,6 +197,7 @@ class _MissionNavigationScreenState extends State<MissionNavigationScreen> {
     setState(() {
       _locationFailure = null;
       _position = null;
+      _lastGeo = null;
     });
     await _startTracking();
   }
@@ -240,13 +244,21 @@ class _MissionNavigationScreenState extends State<MissionNavigationScreen> {
     }
     _sendingLocation = true;
     try {
+      final geo = _lastGeo;
       final position = _position;
-      if (position == null) {
+      if (geo == null || position == null) {
         return;
       }
       await widget.marketplace.updateDriverLocation(
         position.latitude,
         position.longitude,
+        accuracyM: geo.accuracyM,
+        speedMps: geo.speedMps,
+        heading: geo.heading,
+        source: geo.source,
+        recordedAt: geo.recordedAt,
+        deliveryId: _mission.isParcel ? null : _mission.id,
+        parcelId: _mission.isParcel ? _mission.id : null,
       );
     } catch (_) {
       // Réseau indisponible : le prochain tick réessaiera.

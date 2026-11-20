@@ -10,6 +10,7 @@ use App\Models\PaymentMethod;
 use App\Models\Product;
 use App\Services\AuthService;
 use App\Support\Api;
+use App\Support\GeoFields;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -26,7 +27,7 @@ class MeController extends Controller
 
     public function show(Request $request): JsonResponse
     {
-        return Api::ok(new UserResource($request->user()->loadMissing('roles')));
+        return Api::ok(new UserResource($request->user()->loadMissing(['roles', 'country', 'division', 'locality'])));
     }
 
     public function roles(Request $request): JsonResponse
@@ -63,7 +64,7 @@ class MeController extends Controller
             $this->auth->assignRole($user, $slug, isActive: false);
         }
 
-        return Api::ok(new UserResource($user->fresh()->loadMissing('roles')));
+        return Api::ok(new UserResource($user->fresh()->loadMissing(['roles', 'country', 'division', 'locality'])));
     }
 
     public function activeRole(Request $request): JsonResponse
@@ -82,15 +83,29 @@ class MeController extends Controller
 
     public function update(Request $request): JsonResponse
     {
-        $data = $request->validate([
+        $data = $request->validate(array_merge([
             'name' => ['sometimes', 'string', 'max:255'],
             'email' => ['sometimes', 'nullable', 'email', 'max:255'],
             'locale' => ['sometimes', 'string', 'in:fr,en,fon'],
-        ]);
+            'latitude' => ['sometimes', 'nullable', 'numeric', 'between:-90,90'],
+            'longitude' => ['sometimes', 'nullable', 'numeric', 'between:-180,180'],
+            'adresse_texte' => ['sometimes', 'nullable', 'string'],
+            'address_text' => ['sometimes', 'nullable', 'string'],
+        ], GeoFields::rules()));
 
-        $user = $this->auth->updateProfile($request->user(), $data);
+        $user = $request->user();
+        $geo = GeoFields::resolve($data, ['current' => $user]);
+        unset($data['country_code']);
 
-        return Api::ok(new UserResource($user->loadMissing('roles')));
+        if (in_array($geo['location_source'] ?? null, ['gps', 'map'], true)
+            && array_key_exists('latitude', $data)
+            && ! array_key_exists('location_recorded_at', $geo)) {
+            $geo['location_recorded_at'] = now();
+        }
+
+        $user = $this->auth->updateProfile($user, array_merge($data, $geo));
+
+        return Api::ok(new UserResource($user->loadMissing(['roles', 'country', 'division', 'locality'])));
     }
 
     public function devices(Request $request): JsonResponse
@@ -157,7 +172,7 @@ class MeController extends Controller
 
         $user->update(['avatar_path' => $path]);
 
-        return Api::ok(new UserResource($user->fresh()->loadMissing('roles')));
+        return Api::ok(new UserResource($user->fresh()->loadMissing(['roles', 'country', 'division', 'locality'])));
     }
 
     /** Changement de mot de passe : révocation des autres jetons. */

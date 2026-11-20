@@ -269,6 +269,17 @@ void main() {
     expect(find.text(formatAmount(700)), findsOneWidget);
     expect(find.text(formatAmount(150)), findsOneWidget);
 
+    // Les cartes de statistiques sont construites plus bas dans la ListView.
+    await tester.drag(
+      find
+          .byWidgetPredicate(
+            (widget) => widget is Scrollable && widget.axis == Axis.vertical,
+          )
+          .first,
+      const Offset(0, -650),
+    );
+    await tester.pumpAndSettle();
+
     expect(find.text('Missions'), findsWidgets);
     expect(find.text('3'), findsOneWidget);
     expect(find.text('Terminées'), findsOneWidget);

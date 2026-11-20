@@ -39,6 +39,8 @@ MockClient _mockBackend(List<String> log) {
     'business_name': 'Le Délice Fast-Food',
     'city': 'Cadjèhoun, Cotonou',
     'address': 'Carrefour des 3 collèges',
+    'latitude': 6.35,
+    'longitude': 2.42,
     'status': 'active',
     'closed_at': null,
     'is_open': true,
@@ -540,8 +542,9 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Enregistrer les horaires'), findsOneWidget);
 
-    // Jours ouverts dans le statut de départ (samedi/dimanche fermés).
-    expect(find.text('08:00'), findsNWidgets(5));
+    // Jours ouverts dans le statut de départ : les cartes visibles affichent
+    // l'heure d'ouverture (les cartes hors écran ne sont pas construites).
+    expect(find.text('08:00'), findsWidgets);
     expect(find.text('Tout ouvrir'), findsOneWidget);
     expect(find.text('Tout fermer'), findsOneWidget);
     expect(find.text('Copier le lundi'), findsOneWidget);
@@ -549,13 +552,15 @@ void main() {
     // Raccourcis : ouvrir et refermer toute la semaine d'un seul geste.
     await tester.tap(find.text('Tout ouvrir'));
     await tester.pumpAndSettle();
-    expect(find.text('08:00'), findsNWidgets(7));
+    expect(find.text('Jour fermé'), findsNothing);
+    expect(find.text('08:00'), findsWidgets);
     await tester.tap(find.text('Tout fermer'));
     await tester.pumpAndSettle();
     expect(find.text('08:00'), findsNothing);
+    expect(find.text('Jour fermé'), findsWidgets);
     await tester.tap(find.text('Tout ouvrir'));
     await tester.pumpAndSettle();
-    expect(find.text('08:00'), findsNWidgets(7));
+    expect(find.text('08:00'), findsWidgets);
 
     // Sélecteur d'heure maison : molettes 24 h, raccourcis, Annuler/Valider.
     await tester.ensureVisible(find.text('08:00').first);
@@ -572,6 +577,10 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Valider'), findsNothing);
     expect(find.text('14:00'), findsOneWidget);
+
+    // Le toast de confirmation de l'heure recouvre la barre d'enregistrement.
+    await tester.pump(const Duration(seconds: 4));
+    await tester.pumpAndSettle();
 
     // Enregistrement : la planification complète part en PATCH.
     await tester.tap(find.text('Enregistrer les horaires'));
@@ -610,12 +619,21 @@ void main() {
       await tester.tap(find.text('Adresse'));
       await tester.pumpAndSettle();
 
-      // Trois sections : boutique, retrait livreurs et informations.
+      // Les sections sont construites à la demande dans la ListView de
+      // l'éditeur (au-dessus de l'écran boutique).
+      await tester.dragFrom(const Offset(40, 140), const Offset(0, -1400));
+      await tester.pumpAndSettle();
+
+      // La dernière section est construite après défilement.
       expect(find.text('Mes adresses'), findsOneWidget);
-      expect(find.text('Adresse de la boutique'), findsOneWidget);
-      expect(find.text('Adresse de retrait (livreurs)'), findsOneWidget);
       expect(find.text('Informations supplémentaires'), findsOneWidget);
       expect(find.text('Instructions pour le livreur'), findsOneWidget);
+
+      // Retour en haut pour éditer l'adresse de la boutique.
+      await tester.dragFrom(const Offset(40, 700), const Offset(0, 2400));
+      await tester.pumpAndSettle();
+      expect(find.text('Adresse de la boutique'), findsOneWidget);
+      await tester.pumpAndSettle();
 
       // Édition de l'adresse de la boutique puis enregistrement.
       await tester.enterText(

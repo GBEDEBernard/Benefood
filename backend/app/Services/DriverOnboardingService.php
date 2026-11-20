@@ -11,6 +11,7 @@ use App\Exceptions\DomainException;
 use App\Models\DriverDocument;
 use App\Models\DriverProfile;
 use App\Models\User;
+use App\Support\GeoFields;
 use App\Support\Phone;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\URL;
@@ -112,7 +113,7 @@ class DriverOnboardingService
 
     public function getStatus(DriverProfile $profile): array
     {
-        $profile->load('documents');
+        $profile->load(['documents', 'user.country', 'user.division', 'user.locality']);
 
         return [
             'profile' => [
@@ -125,6 +126,7 @@ class DriverOnboardingService
                 'area' => $profile->area,
                 'available' => $profile->available,
                 'rating' => $profile->rating,
+                'geo' => $profile->user === null ? null : GeoFields::payload($profile->user),
                 'created_at' => $profile->created_at?->toIso8601String(),
             ],
             'documents' => $profile->documents

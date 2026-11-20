@@ -1,4 +1,5 @@
 import '../../core/http/api_client.dart';
+import '../errors/api_exception.dart';
 import '../../shared/models/address.dart';
 import '../../shared/models/category.dart';
 import '../../shared/models/cart.dart';
@@ -10,6 +11,7 @@ import '../../shared/models/driver_selection.dart';
 import '../../shared/models/favorite_driver.dart';
 import '../../shared/models/order.dart';
 import '../../shared/models/geo_point.dart';
+import '../../shared/models/geo_reference.dart';
 import '../../shared/models/neighborhood.dart';
 import '../../shared/models/parcel.dart';
 import '../../shared/models/product.dart';
@@ -170,9 +172,158 @@ class MarketplaceApi {
   }
 
   /// Référentiel des villes et de leurs quartiers (GET /locations).
+  ///
+  /// Conservé pour compatibilité avec les anciens écrans ; le sélecteur
+  /// hiérarchique utilise désormais les endpoints `/geo/*`.
   Future<List<LocationCity>> locations() async {
     final response = await _api.get('/locations');
     return _dataList(response).map(LocationCity.fromJson).toList();
+  }
+
+  /// Pays disponibles et hiérarchie administrative configurable.
+  Future<List<GeoCountry>> geoCountries() async {
+    final response = await _api.get('/geo/countries');
+    return _dataList(response).map(GeoCountry.fromJson).toList();
+  }
+
+  /// Subdivisions d'un pays, avec recherche et pagination serveur.
+  Future<GeoPage<GeoDivision>> geoDivisions({
+    String? country,
+    String? level,
+    String? parentId,
+    String? q,
+    int perPage = 100,
+    int page = 1,
+  }) async {
+    final response = await _api.get(
+      '/geo/divisions',
+      query: {
+        if (country != null && country.isNotEmpty) 'country': country,
+        if (level != null && level.isNotEmpty) 'level': level,
+        if (parentId != null && parentId.isNotEmpty) 'parent_id': parentId,
+        if (q != null && q.isNotEmpty) 'q': q,
+        'per_page': '$perPage',
+        'page': '$page',
+      },
+    );
+    return GeoPage(
+      items: _dataList(response).map(GeoDivision.fromJson).toList(),
+      meta: GeoPageMeta.fromJson(response['meta'] is Map
+          ? Map<String, dynamic>.from(response['meta'] as Map)
+          : null),
+    );
+  }
+
+  /// Localités officielles d'une subdivision (villages, quartiers, hameaux…).
+  Future<GeoPage<GeoLocality>> geoLocalities({
+    String? country,
+    String? divisionId,
+    String? kind,
+    String? q,
+    int perPage = 100,
+    int page = 1,
+  }) async {
+    final response = await _api.get(
+      '/geo/localities',
+      query: {
+        if (country != null && country.isNotEmpty) 'country': country,
+        if (divisionId != null && divisionId.isNotEmpty)
+          'division_id': divisionId,
+        if (kind != null && kind.isNotEmpty) 'kind': kind,
+        if (q != null && q.isNotEmpty) 'q': q,
+        'per_page': '$perPage',
+        'page': '$page',
+      },
+    );
+    return GeoPage(
+      items: _dataList(response).map(GeoLocality.fromJson).toList(),
+      meta: GeoPageMeta.fromJson(response['meta'] is Map
+          ? Map<String, dynamic>.from(response['meta'] as Map)
+          : null),
+    );
+  }
+
+  /// Recherche textuelle dans le référentiel officiel (autocomplétion).
+  Future<List<GeoPlace>> geoSearch(
+    String query, {
+    String? country,
+    String? level,
+    String? parentId,
+    String? divisionId,
+    int limit = 20,
+  }) async {
+    final response = await _api.get(
+      '/geo/search',
+      query: {
+        'q': query,
+        if (country != null && country.isNotEmpty) 'country': country,
+        if (level != null && level.isNotEmpty) 'level': level,
+        if (parentId != null && parentId.isNotEmpty) 'parent_id': parentId,
+        if (divisionId != null && divisionId.isNotEmpty)
+          'division_id': divisionId,
+        'limit': '$limit',
+      },
+    );
+    return _dataList(response).map(GeoPlace.fromJson).toList();
+  }
+
+  /// Géocodage d'une adresse libre. Aucune clé n'est exposée à l'application.
+  Future<GeoGeocodeResult> geoGeocode(
+    String query, {
+    String? country,
+    double? latitude,
+    double? longitude,
+  }) async {
+    final response = await _api.post(
+      '/geo/geocode',
+      body: {
+        'q': query,
+        if (country != null && country.isNotEmpty) 'country': country,
+        if (latitude != null) 'latitude': latitude,
+        if (longitude != null) 'longitude': longitude,
+      },
+    );
+    return GeoGeocodeResult.fromJson(_dataObject(response) ?? {});
+  }
+
+  /// Géocodage inversé : rattachement administratif officiel d'un point GPS.
+  ///
+  /// Renvoie `null` lorsque le point est hors référentiel (jamais de lieu
+  /// inventé pour masquer un cas non résolu).
+  Future<GeoPlace?> geoReverse(
+    double latitude,
+    double longitude, {
+    String? country,
+  }) async {
+    try {
+      final response = await _api.post(
+        '/geo/reverse',
+        body: {
+          'latitude': latitude,
+          'longitude': longitude,
+          if (country != null && country.isNotEmpty) 'country': country,
+        },
+      );
+      final data = _dataObject(response);
+      return data == null ? null : GeoPlace.fromJson(data);
+    } on ApiException catch (error) {
+      if (error.status == 404) {
+        return null;
+      }
+      rethrow;
+    }
+  }
+
+  /// Suivi léger d'une commande (3 positions, distances et ETA).
+  Future<Map<String, dynamic>> orderTracking(String orderId) async {
+    final response = await _api.get('/orders/$orderId/tracking');
+    return _dataObject(response) ?? {};
+  }
+
+  /// Suivi léger d'un colis.
+  Future<Map<String, dynamic>> parcelTracking(String parcelId) async {
+    final response = await _api.get('/parcels/$parcelId/tracking');
+    return _dataObject(response) ?? {};
   }
 
   Future<ShopDetail> vendor(String id) async {
@@ -217,6 +368,7 @@ class MarketplaceApi {
     double? latitude,
     double? longitude,
     bool? isDefault,
+    GeoReferenceSelection? geo,
   }) async {
     final response = await _api.post(
       '/addresses',
@@ -231,6 +383,7 @@ class MarketplaceApi {
         'latitude': ?latitude,
         'longitude': ?longitude,
         if (isDefault ?? false) 'is_default': true,
+        ...?geo?.toJson(),
       },
     );
     return Address.fromJson(_dataObject(response) ?? {});
@@ -248,6 +401,7 @@ class MarketplaceApi {
     double? latitude,
     double? longitude,
     bool? isDefault,
+    GeoReferenceSelection? geo,
   }) async {
     final response = await _api.patch(
       '/addresses/$id',
@@ -262,6 +416,7 @@ class MarketplaceApi {
         'latitude': ?latitude,
         'longitude': ?longitude,
         if (isDefault != null) 'is_default': isDefault,
+        ...?geo?.toJson(),
       },
     );
     return Address.fromJson(_dataObject(response) ?? {});
@@ -728,13 +883,36 @@ class MarketplaceApi {
     return RoutePlan.fromJson(_dataObject(response) ?? {});
   }
 
+  /// Dépose une position livreur avec ses métadonnées GPS.
+  ///
+  /// La fréquence et la précision sont validées côté serveur ; en mission,
+  /// [deliveryId] ou [parcelId] rattache le relevé à la mission active.
   Future<Map<String, dynamic>> updateDriverLocation(
     double latitude,
-    double longitude,
-  ) async {
+    double longitude, {
+    double? accuracyM,
+    double? speedMps,
+    double? heading,
+    String? source,
+    DateTime? recordedAt,
+    String? deliveryId,
+    String? parcelId,
+  }) async {
     final response = await _api.patch(
       '/driver/me/availability/location',
-      body: {'latitude': latitude, 'longitude': longitude},
+      body: {
+        'latitude': latitude,
+        'longitude': longitude,
+        // Au-delà de 100 m le serveur refuse le relevé : on omet la précision
+        // plutôt que d'envoyer une position qui serait rejetée.
+        if (accuracyM != null && accuracyM <= 100) 'accuracy_m': accuracyM,
+        if (speedMps != null) 'speed_mps': speedMps,
+        if (heading != null) 'heading': heading,
+        if (source != null && source.isNotEmpty) 'location_source': source,
+        if (recordedAt != null) 'location_recorded_at': recordedAt.toIso8601String(),
+        if (deliveryId != null && deliveryId.isNotEmpty) 'delivery_id': deliveryId,
+        if (parcelId != null && parcelId.isNotEmpty) 'parcel_id': parcelId,
+      },
     );
     return _dataObject(response) ?? {};
   }
@@ -766,6 +944,7 @@ class MarketplaceApi {
     String? address,
     String? categoryId,
     VendorType? type,
+    GeoReferenceSelection? geo,
   }) async {
     await _api.post(
       '/vendors/me/onboarding',
@@ -783,6 +962,7 @@ class MarketplaceApi {
         if (categoryId != null && categoryId.isNotEmpty)
           'category_id': categoryId,
         if (type != null) 'type': type.apiValue,
+        ...?geo?.toJson(),
       },
     );
   }
@@ -802,6 +982,7 @@ class MarketplaceApi {
     String? address,
     String? categoryId,
     VendorType? type,
+    GeoReferenceSelection? geo,
   }) async {
     await _api.patch(
       '/vendors/me',
@@ -819,6 +1000,7 @@ class MarketplaceApi {
         if (categoryId != null && categoryId.isNotEmpty)
           'category_id': categoryId,
         if (type != null) 'type': type.apiValue,
+        ...?geo?.toJson(),
       },
     );
   }
@@ -843,6 +1025,8 @@ class MarketplaceApi {
     double? pickupLongitude,
     String? deliveryInstructions,
     List<OpeningHour>? hours,
+    GeoReferenceSelection? geo,
+    GeoReferenceSelection? pickupGeo,
   }) async {
     await _api.patch(
       '/vendors/me',
@@ -871,6 +1055,8 @@ class MarketplaceApi {
               ? null
               : deliveryInstructions.trim(),
         if (hours != null) 'hours': hours.map((h) => h.toJson()).toList(),
+        ...?geo?.toJson(),
+        ...?pickupGeo?.toPickupJson(),
       },
     );
   }
@@ -961,6 +1147,7 @@ class MarketplaceApi {
     required String vehicle,
     String? city,
     String? area,
+    GeoReferenceSelection? geo,
   }) async {
     await _api.post(
       '/driver/me/onboarding',
@@ -968,6 +1155,7 @@ class MarketplaceApi {
         'vehicle': vehicle,
         if (city != null && city.isNotEmpty) 'city': city,
         if (area != null && area.isNotEmpty) 'area': area,
+        ...?geo?.toJson(),
       },
     );
   }
@@ -978,6 +1166,7 @@ class MarketplaceApi {
     String? address,
     String? city,
     String? area,
+    GeoReferenceSelection? geo,
   }) async {
     await _api.post(
       '/client/me/onboarding',
@@ -987,6 +1176,7 @@ class MarketplaceApi {
         if (address != null && address.isNotEmpty) 'address': address,
         if (city != null && city.isNotEmpty) 'city': city,
         if (area != null && area.isNotEmpty) 'area': area,
+        ...?geo?.toJson(),
       },
     );
   }

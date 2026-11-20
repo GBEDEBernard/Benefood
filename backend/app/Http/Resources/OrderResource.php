@@ -2,10 +2,8 @@
 
 namespace App\Http\Resources;
 
-use App\Enums\DeliveryStatus;
-use App\Models\DriverProfile;
 use App\Models\OrderItem;
-use App\Services\DeliveryPricingService;
+use App\Services\DeliveryTrackingService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Facades\Storage;
@@ -207,12 +205,6 @@ class OrderResource extends JsonResource
         $delivery = $this->delivery;
         $driver = $delivery->driverProfile;
 
-        $active = in_array(
-            $delivery->status,
-            [DeliveryStatus::Assigned, DeliveryStatus::EnRoutePickup, DeliveryStatus::PickedUp, DeliveryStatus::InDelivery],
-            true,
-        );
-
         $payload = [
             'id' => $delivery->id,
             'status' => $delivery->status?->value,
@@ -251,43 +243,11 @@ class OrderResource extends JsonResource
                         'created_at' => $delivery->incidents->firstWhere('status', 'open')->created_at?->toIso8601String(),
                     ])
                 : null,
-            'position' => null,
-        ];
-
-        if (! $active || $driver === null || $driver->last_latitude === null || $driver->last_longitude === null) {
-            return $payload;
-        }
-
-        $payload['position'] = [
-            'latitude' => round((float) $driver->last_latitude, 3),
-            'longitude' => round((float) $driver->last_longitude, 3),
-            'heading' => $driver->last_heading !== null ? (float) $driver->last_heading : null,
-            'last_location_at' => $driver->last_location_at?->toIso8601String(),
-            'age_seconds' => $driver->last_location_at !== null
-                ? max(0, (int) $driver->last_location_at->diffInSeconds(now()))
-                : null,
-            'distance_km' => $this->distanceToClient($driver),
+            // Position calculée par le service central de suivi : mêmes champs
+            // que l'endpoint dédié, sans appel réseau supplémentaire.
+            'position' => app(DeliveryTrackingService::class)->positionForDelivery($delivery),
         ];
 
         return $payload;
-    }
-
-    /** Distance entre le livreur et l'adresse de livraison (ha versine). */
-    private function distanceToClient(DriverProfile $driver): ?float
-    {
-        $address = $this->address_snapshot;
-        $lat = $address['latitude'] ?? null;
-        $lng = $address['longitude'] ?? null;
-
-        if ($lat === null || $lng === null) {
-            return null;
-        }
-
-        return app(DeliveryPricingService::class)->distanceKm(
-            $driver->last_latitude,
-            $driver->last_longitude,
-            $lat,
-            $lng,
-        );
     }
 }

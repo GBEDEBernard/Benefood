@@ -521,7 +521,13 @@ class _SaveBar extends StatelessWidget {
               : const Row(mainAxisSize: MainAxisSize.min, children: [
                   Icon(Icons.save_rounded, size: 20),
                   SizedBox(width: 8),
-                  Text('Enregistrer les horaires', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800)),
+                  Flexible(
+                    child: Text(
+                      'Enregistrer les horaires',
+                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
                 ]),
         ),
       ),

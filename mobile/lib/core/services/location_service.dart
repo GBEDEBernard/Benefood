@@ -9,12 +9,59 @@ class GeoResult {
     required this.longitude,
     this.city,
     this.area,
+    this.accuracyM,
+    this.speedMps,
+    this.heading,
+    this.source = 'gps',
+    this.recordedAt,
   });
 
   final double latitude;
   final double longitude;
   final String? city;
   final String? area;
+
+  /// Précision horizontale en mètres (fournie par le système GPS).
+  final double? accuracyM;
+
+  /// Vitesse instantanée en mètres/seconde.
+  final double? speedMps;
+
+  /// Cap en degrés (0 = nord).
+  final double? heading;
+
+  /// Origine du relevé : `gps`, `network` ou `manual`.
+  final String source;
+  final DateTime? recordedAt;
+
+  /// Une position trop imprécise ne doit pas être transmise comme suivi direct.
+  bool get isPrecise => accuracyM == null || accuracyM! <= 100;
+
+  /// Métadonnées acceptées par `PATCH /driver/me/availability/location`.
+  Map<String, dynamic> get trackingFields => {
+        if (accuracyM != null && isPrecise) 'accuracy_m': accuracyM,
+        if (speedMps != null) 'speed_mps': speedMps,
+        if (heading != null) 'heading': heading,
+        'location_source': source,
+        if (recordedAt != null) 'location_recorded_at': recordedAt!.toIso8601String(),
+      };
+
+  GeoResult copyWithMetadata({
+    String? city,
+    String? area,
+    String? source,
+  }) =>
+      GeoResult(
+        latitude: latitude,
+        longitude: longitude,
+        city: city ?? this.city,
+        area: area ?? this.area,
+        accuracyM: accuracyM,
+        speedMps: speedMps,
+        heading: heading,
+        source: source ?? this.source,
+        recordedAt: recordedAt,
+      );
 }
 
 /// Cause d'échec d'une localisation (J179 — absence GPS / autorisations).
@@ -125,14 +172,7 @@ class LocationService {
       // Géocodage optionnel : on garde les coordonnées brutes
     }
 
-    return LocateResult.success(
-      GeoResult(
-        latitude: position.latitude,
-        longitude: position.longitude,
-        city: city,
-        area: area,
-      ),
-    );
+    return LocateResult.success(_fromPosition(position, city: city, area: area));
   }
 
   /// Position brute, sans géocodage inverse (battement de présence livreur).
@@ -156,18 +196,14 @@ class LocationService {
         ),
       );
 
-      return LocateResult.success(
-        GeoResult(latitude: position.latitude, longitude: position.longitude),
-      );
+      return LocateResult.success(_fromPosition(position));
     } catch (_) {
       final last = await Geolocator.getLastKnownPosition();
       if (last == null) {
         return const LocateResult.failure(LocationFailure.unavailable);
       }
 
-      return LocateResult.success(
-        GeoResult(latitude: last.latitude, longitude: last.longitude),
-      );
+      return LocateResult.success(_fromPosition(last));
     }
   }
 
@@ -181,11 +217,28 @@ class LocationService {
       accuracy: LocationAccuracy.high,
       distanceFilter: distanceFilter,
     );
-    return Geolocator.getPositionStream(locationSettings: settings).map(
-      (position) => GeoResult(
-        latitude: position.latitude,
-        longitude: position.longitude,
-      ),
+    return Geolocator.getPositionStream(locationSettings: settings)
+        .map((position) => _fromPosition(position));
+  }
+
+  /// Convertit une position système en résultat enrichi (précision, cap, date).
+  static GeoResult _fromPosition(
+    Position position, {
+    String? city,
+    String? area,
+  }) {
+    final speed = position.speed;
+    final heading = position.heading;
+    return GeoResult(
+      latitude: position.latitude,
+      longitude: position.longitude,
+      city: city,
+      area: area,
+      accuracyM: position.accuracy.isFinite ? position.accuracy : null,
+      speedMps: speed.isFinite ? speed : null,
+      heading: heading.isFinite ? heading : null,
+      source: 'gps',
+      recordedAt: position.timestamp,
     );
   }
 

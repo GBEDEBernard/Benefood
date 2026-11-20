@@ -11,6 +11,7 @@ use App\Services\DriverSelectionService;
 use App\Services\ParcelReassignmentService;
 use App\Services\ParcelService;
 use App\Support\Api;
+use App\Support\GeoFields;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -294,7 +295,7 @@ class ParcelController extends Controller
      */
     private function validateAddresses(Request $request): array
     {
-        return $request->validate([
+        $rules = [
             'pickup' => ['required', 'array'],
             'pickup.label' => ['sometimes', 'nullable', 'string', 'max:100'],
             'pickup.address_text' => ['sometimes', 'nullable', 'string', 'max:255'],
@@ -316,7 +317,23 @@ class ParcelController extends Controller
             'dropoff.contact_name' => ['sometimes', 'nullable', 'string', 'max:120'],
             'dropoff.contact_phone' => ['sometimes', 'nullable', 'string', 'max:30'],
             'description' => ['sometimes', 'nullable', 'string', 'max:255'],
-        ]);
+        ];
+
+        foreach (GeoFields::rules() as $field => $fieldRules) {
+            $rules['pickup.'.$field] = $fieldRules;
+            $rules['dropoff.'.$field] = $fieldRules;
+        }
+
+        $validated = $request->validate($rules);
+
+        foreach (['pickup', 'dropoff'] as $addressKey) {
+            $validated[$addressKey] = array_merge(
+                $validated[$addressKey],
+                GeoFields::resolve($validated[$addressKey]),
+            );
+        }
+
+        return $validated;
     }
 
     private function driverProfile(Request $request): DriverProfile

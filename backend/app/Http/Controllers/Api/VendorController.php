@@ -18,7 +18,9 @@ use App\Services\VendorActivityService;
 use App\Services\VendorOnboardingService;
 use App\Support\Api;
 use App\Support\Geo;
+use App\Support\GeoFields;
 use App\Support\Phone;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -36,7 +38,7 @@ class VendorController extends Controller
     {
         $this->authorize('create', Vendor::class);
 
-        $data = $request->validate([
+        $data = $request->validate(array_merge([
             'business_name' => ['required', 'string', 'max:255'],
             'legal_name' => ['sometimes', 'nullable', 'string', 'max:255'],
             'ifu' => ['sometimes', 'nullable', 'string', 'max:30'],
@@ -52,8 +54,9 @@ class VendorController extends Controller
             'pickup_latitude' => ['sometimes', 'nullable', 'numeric', 'between:-90,90'],
             'pickup_longitude' => ['sometimes', 'nullable', 'numeric', 'between:-180,180'],
             'category_id' => ['sometimes', 'nullable', 'uuid', 'exists:categories,id'],
-        ]);
+        ], GeoFields::rules(), GeoFields::pickupRules()));
 
+        $data = $this->withResolvedGeo($data, $request->user());
         $data['phone'] = Phone::normalize($data['phone']);
         $data['email'] = mb_strtolower(trim((string) $data['email']));
         $vendor = $this->vendorService->onboard($request->user(), $data);
@@ -170,7 +173,7 @@ class VendorController extends Controller
             return Api::error('Accès refusé.', 'forbidden', 403);
         }
 
-        $data = $request->validate([
+        $data = $request->validate(array_merge([
             'business_name' => ['sometimes', 'string', 'max:255'],
             'legal_name' => ['sometimes', 'nullable', 'string', 'max:255'],
             'ifu' => ['sometimes', 'nullable', 'string', 'max:30'],
@@ -200,7 +203,9 @@ class VendorController extends Controller
             'hours.*.opens_at' => ['nullable', 'date_format:H:i'],
             'hours.*.closes_at' => ['nullable', 'date_format:H:i'],
             'hours.*.is_closed' => ['boolean'],
-        ]);
+        ], GeoFields::rules(), GeoFields::pickupRules()));
+
+        $data = $this->withResolvedGeo($data, $vendor);
 
         // Handle image uploads
         if ($request->hasFile('logo')) {
@@ -234,7 +239,15 @@ class VendorController extends Controller
         $hours = $data['hours'] ?? null;
         unset($data['closed_at'], $data['closed_reason'], $data['hours']);
 
-        $vendor->update(array_filter($data, fn ($v) => $v !== null && $v !== []));
+        $clearableGeoFields = [
+            'country_id', 'division_id', 'locality_id', 'pickup_division_id',
+            'pickup_locality_id', 'gps_accuracy_m', 'pickup_gps_accuracy_m', 'location_source',
+        ];
+        $vendor->update(array_filter(
+            $data,
+            fn ($value, string $key): bool => ($value !== null && $value !== []) || in_array($key, $clearableGeoFields, true),
+            ARRAY_FILTER_USE_BOTH,
+        ));
 
         if ($closedAtProvided) {
             // Réouverture : le motif de fermeture n'a plus lieu d'être.
@@ -528,6 +541,7 @@ class VendorController extends Controller
             ->whereNull('closed_at')
             ->whereNotNull('latitude')
             ->whereNotNull('longitude')
+            ->with(['country', 'division', 'locality', 'pickupDivision', 'pickupLocality'])
             ->get();
 
         $items = $vendors->map(function (Vendor $vendor) use ($latitude, $longitude) {
@@ -566,6 +580,8 @@ class VendorController extends Controller
                 'adresse_texte' => $vendor->adresse_texte ?? $vendor->address_text,
                 'latitude' => $vendor->latitude,
                 'longitude' => $vendor->longitude,
+                'geo' => GeoFields::payload($vendor),
+                'pickup_geo' => GeoFields::payload($vendor, 'pickup_'),
                 'is_open' => $vendor->isOpenNow(),
                 'distance_km' => $item['distance_km'] !== null ? round($item['distance_km'], 2) : null,
             ];
@@ -586,22 +602,36 @@ class VendorController extends Controller
             return Api::error('Aucun profil vendeur associé à ce compte.', 'vendor.not_onboarded', 404);
         }
 
-        $data = $request->validate([
+        $data = $request->validate(array_merge([
             'latitude' => ['required', 'numeric', 'between:-90,90'],
             'longitude' => ['required', 'numeric', 'between:-180,180'],
+            'pickup_latitude' => ['sometimes', 'nullable', 'numeric', 'between:-90,90'],
+            'pickup_longitude' => ['sometimes', 'nullable', 'numeric', 'between:-180,180'],
             'adresse_texte' => ['sometimes', 'nullable', 'string'],
             'address_text' => ['sometimes', 'nullable', 'string'],
             'address' => ['sometimes', 'nullable', 'string'],
-        ]);
+        ], GeoFields::rules(), GeoFields::pickupRules()));
+
+        $data = $this->withResolvedGeo($data, $vendor);
 
         $adresseTexte = $data['adresse_texte'] ?? $data['address_text'] ?? $data['address'] ?? null;
 
         $vendor->update([
             'latitude' => $data['latitude'],
             'longitude' => $data['longitude'],
+            'pickup_latitude' => array_key_exists('pickup_latitude', $data) ? $data['pickup_latitude'] : $vendor->pickup_latitude,
+            'pickup_longitude' => array_key_exists('pickup_longitude', $data) ? $data['pickup_longitude'] : $vendor->pickup_longitude,
             'adresse_texte' => $adresseTexte,
             'address_text' => $adresseTexte,
             'address' => $adresseTexte ?? $vendor->address,
+            'country_id' => array_key_exists('country_id', $data) ? $data['country_id'] : $vendor->country_id,
+            'division_id' => array_key_exists('division_id', $data) ? $data['division_id'] : $vendor->division_id,
+            'locality_id' => array_key_exists('locality_id', $data) ? $data['locality_id'] : $vendor->locality_id,
+            'pickup_division_id' => array_key_exists('pickup_division_id', $data) ? $data['pickup_division_id'] : $vendor->pickup_division_id,
+            'pickup_locality_id' => array_key_exists('pickup_locality_id', $data) ? $data['pickup_locality_id'] : $vendor->pickup_locality_id,
+            'gps_accuracy_m' => array_key_exists('gps_accuracy_m', $data) ? $data['gps_accuracy_m'] : $vendor->gps_accuracy_m,
+            'pickup_gps_accuracy_m' => array_key_exists('pickup_gps_accuracy_m', $data) ? $data['pickup_gps_accuracy_m'] : $vendor->pickup_gps_accuracy_m,
+            'location_source' => array_key_exists('location_source', $data) ? $data['location_source'] : $vendor->location_source,
         ]);
 
         return Api::ok(new VendorResource($vendor->fresh()));
@@ -619,7 +649,7 @@ class VendorController extends Controller
             ->groupBy('orders.vendor_id');
 
         $query = Vendor::query()
-            ->with(['settings', 'hours'])
+            ->with(['settings', 'hours', 'country', 'division', 'locality', 'pickupDivision', 'pickupLocality'])
             ->leftJoinSub($vendorRatings, 'vendor_ratings', fn ($join) => $join->on('vendors.id', '=', 'vendor_ratings.vendor_id'))
             ->select('vendors.*')
             ->addSelect([
@@ -740,6 +770,8 @@ class VendorController extends Controller
             'address' => $vendor->address,
             'latitude' => $vendor->latitude,
             'longitude' => $vendor->longitude,
+            'geo' => GeoFields::payload($vendor),
+            'pickup_geo' => GeoFields::payload($vendor, 'pickup_'),
             'is_open' => $vendor->isOpenNow(),
             'rating' => $vendor->average_rating !== null ? round((float) $vendor->average_rating, 1) : null,
             'reviews_count' => (int) ($vendor->reviews_count ?? 0),
@@ -757,6 +789,11 @@ class VendorController extends Controller
         $vendor->load([
             'settings',
             'hours',
+            'country',
+            'division',
+            'locality',
+            'pickupDivision',
+            'pickupLocality',
             'products' => fn ($products) => $products
                 ->orderable()
                 ->with(['images', 'activePromotion'])
@@ -796,6 +833,8 @@ class VendorController extends Controller
             'address' => $vendor->address,
             'latitude' => $vendor->latitude,
             'longitude' => $vendor->longitude,
+            'geo' => GeoFields::payload($vendor),
+            'pickup_geo' => GeoFields::payload($vendor, 'pickup_'),
             'is_open' => $vendor->isOpenNow(),
             'rating' => $stats?->average_rating !== null ? round((float) $stats->average_rating, 1) : null,
             'reviews_count' => $stats !== null ? (int) $stats->reviews_count : 0,
@@ -809,6 +848,23 @@ class VendorController extends Controller
             ])->values(),
             'products' => ProductResource::collection($vendor->products)->resolve(),
         ];
+    }
+
+    /**
+     * Ajoute les colonnes géographiques résolues aux données validées.
+     *
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    private function withResolvedGeo(array $data, ?Model $current): array
+    {
+        unset($data['country_code']);
+
+        $geo = GeoFields::resolve($data, ['current' => $current]);
+        $pickup = GeoFields::resolve($data, ['prefix' => 'pickup_', 'current' => $current]);
+        unset($geo['location_recorded_at'], $pickup['location_recorded_at']);
+
+        return array_merge($data, $geo, $pickup);
     }
 
     /**

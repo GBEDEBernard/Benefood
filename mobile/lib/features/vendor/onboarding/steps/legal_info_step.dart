@@ -19,6 +19,7 @@ class LegalInfoStep extends StatelessWidget {
     required this.city,
     required this.area,
     required this.adresse,
+    this.onGeoChanged,
   });
 
   final MarketplaceApi marketplace;
@@ -30,6 +31,7 @@ class LegalInfoStep extends StatelessWidget {
   final TextEditingController city;
   final TextEditingController area;
   final TextEditingController adresse;
+  final ValueChanged<CityAreaSelection>? onGeoChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -81,13 +83,14 @@ class LegalInfoStep extends StatelessWidget {
             marketplace: marketplace,
             cityController: city,
             areaController: area,
+            onChanged: onGeoChanged,
           ),
           const SizedBox(height: 14),
           CustomTextField(
             label: context.tr('Adresse complète'),
             required: true,
             controller: adresse,
-            hint: 'Cadjèhoun, Cotonou, Bénin',
+            hint: 'Numéro, rue, repère près de votre boutique',
             maxLines: 3,
             validator: (v) => _required(v, 'Indiquez l\u2019adresse de la boutique'),
           ),

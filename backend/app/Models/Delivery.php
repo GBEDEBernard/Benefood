@@ -27,6 +27,11 @@ class Delivery extends Model
             'pickup_longitude' => 'float',
             'dropoff_latitude' => 'float',
             'dropoff_longitude' => 'float',
+            'last_latitude' => 'float',
+            'last_longitude' => 'float',
+            'last_accuracy_m' => 'float',
+            'last_heading' => 'float',
+            'last_speed_mps' => 'float',
             'assigned_at' => 'datetime',
             'picked_up_at' => 'datetime',
             'delivered_at' => 'datetime',
@@ -34,7 +39,18 @@ class Delivery extends Model
             'pickup_code_expires_at' => 'datetime',
             'pickup_code_attempts' => 'integer',
             'pickup_code_confirmed_at' => 'datetime',
+            'last_location_at' => 'datetime',
         ];
+    }
+
+    public function isTrackingActive(): bool
+    {
+        return in_array($this->status?->value ?? $this->status, [
+            DeliveryStatus::Assigned->value,
+            DeliveryStatus::EnRoutePickup->value,
+            DeliveryStatus::PickedUp->value,
+            DeliveryStatus::InDelivery->value,
+        ], true);
     }
 
     public function order(): BelongsTo

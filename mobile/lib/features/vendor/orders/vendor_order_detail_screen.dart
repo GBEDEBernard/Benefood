@@ -10,6 +10,7 @@ import '../../../core/services/route_planner.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../core/utils/geo.dart';
+import '../../../shared/models/delivery_tracking.dart';
 import '../../../shared/models/geo_point.dart';
 import '../../../shared/models/order.dart';
 import '../../../shared/models/route_plan.dart';
@@ -51,6 +52,7 @@ class _VendorOrderDetailScreenState extends State<VendorOrderDetailScreen> {
 
   Timer? _pollTimer;
   bool _polling = false;
+  DeliveryTrackingSnapshot? _tracking;
 
   late final RoutePlanner _routePlanner;
   RoutePlan? _route;
@@ -70,12 +72,38 @@ class _VendorOrderDetailScreenState extends State<VendorOrderDetailScreen> {
     super.dispose();
   }
 
-  bool get _shouldPoll => _order?.delivery?.isActive ?? false;
+  bool get _shouldPoll {
+    final order = _order;
+    if (order == null) {
+      return false;
+    }
+    return _tracking?.active ?? (order.delivery?.isActive ?? false);
+  }
 
   void _schedulePolling() {
     _pollTimer?.cancel();
     if (_shouldPoll) {
       _pollTimer = Timer.periodic(_pollInterval, (_) => _refreshSilently());
+    }
+  }
+
+  OrderDeliveryPosition? _deliveryPosition(Order order) {
+    final legacy = _tracking?.legacyPosition;
+    if (legacy != null) {
+      return OrderDeliveryPosition.fromJson(legacy);
+    }
+    return order.delivery?.position;
+  }
+
+  Future<void> _fetchFullDetail() async {
+    final order = await widget.marketplace.vendorOrder(widget.order.id);
+    if (mounted) {
+      setState(() {
+        _order = order;
+        _tracking = null;
+        _error = null;
+      });
+      _updateRoute();
     }
   }
 
@@ -85,16 +113,24 @@ class _VendorOrderDetailScreenState extends State<VendorOrderDetailScreen> {
     }
     _polling = true;
     try {
-      final order = await widget.marketplace.vendorOrder(widget.order.id);
-      if (mounted) {
-        setState(() {
-          _order = order;
-          _error = null;
-        });
-        _updateRoute();
+      final order = _order;
+      if (order == null || order.delivery == null) {
+        await _fetchFullDetail();
+        return;
       }
+      final payload = await widget.marketplace.orderTracking(widget.order.id);
+      if (!mounted) {
+        return;
+      }
+      final snapshot = DeliveryTrackingSnapshot.fromJson(payload);
+      setState(() => _tracking = snapshot.active ? snapshot : null);
+      if (!snapshot.active) {
+        await _fetchFullDetail();
+        return;
+      }
+      _updateRoute();
     } on ApiException {
-      // Silence : on ne coupe pas le suivi si un rafraîchissement échoue.
+      // Silence : on conserve la dernière position connue.
     } finally {
       _polling = false;
       if (mounted) {
@@ -109,14 +145,10 @@ class _VendorOrderDetailScreenState extends State<VendorOrderDetailScreen> {
       _error = null;
     });
     try {
-      final order = await widget.marketplace.vendorOrder(widget.order.id);
+      await _fetchFullDetail();
       if (mounted) {
-        setState(() {
-          _order = order;
-          _loading = false;
-        });
+        setState(() => _loading = false);
         _schedulePolling();
-        _updateRoute();
       }
     } on ApiException catch (e) {
       if (mounted) {
@@ -131,23 +163,32 @@ class _VendorOrderDetailScreenState extends State<VendorOrderDetailScreen> {
 
   GeoPoint? get _trackingTarget {
     final order = _order;
-    final delivery = order?.delivery;
-    if (order == null || delivery == null) {
+    if (order == null) {
       return null;
     }
-    return delivery.status == 'assigned' || delivery.status == 'en_route_pickup'
-        ? order.vendor?.point
-        : order.dropoffPoint;
+    final role = _trackingTargetRole(order) == 'shop' ? 'shop' : 'client';
+    final point = _tracking?.pointLocation(role);
+    if (point != null) {
+      return GeoPoint(point.latitude, point.longitude);
+    }
+    return role == 'shop' ? order.vendor?.point : order.dropoffPoint;
+  }
+
+  String _trackingTargetRole(Order order) {
+    final status = _tracking?.status ?? order.delivery?.status;
+    return status == 'assigned' || status == 'en_route_pickup'
+        ? 'shop'
+        : 'client';
   }
 
   Future<void> _updateRoute() async {
     final order = _order;
-    final position = order?.delivery?.position?.point;
+    final position = order == null ? null : _deliveryPosition(order)?.point;
     final target = _trackingTarget;
     if (order == null ||
         position == null ||
         target == null ||
-        !(order.delivery?.isActive ?? false)) {
+        !_shouldPoll) {
       return;
     }
     if (_routeInFlight) {
@@ -293,10 +334,9 @@ class _VendorOrderDetailScreenState extends State<VendorOrderDetailScreen> {
   Widget _trackingCard(Order order) {
     final delivery = order.delivery!;
     final driver = delivery.driver;
-    final position = delivery.position;
+    final position = _deliveryPosition(order);
     final target = _trackingTarget;
-    final isPickup =
-        delivery.status == 'assigned' || delivery.status == 'en_route_pickup';
+    final isPickup = _trackingTargetRole(order) == 'shop';
     final stale = (position?.ageSeconds ?? 0) >= AppConfig.staleWarnSeconds;
     final hideEta =
         (position?.ageSeconds ?? 0) >= AppConfig.staleHideEtaSeconds;
@@ -437,7 +477,9 @@ class _VendorOrderDetailScreenState extends State<VendorOrderDetailScreen> {
     if (hideEta) {
       return label;
     }
-    final minutes = _route?.etaMinutes ?? estimateMinutes(km);
+    final minutes = _tracking?.etaAvailable == true
+        ? _tracking?.etaMinutes
+        : (_route?.etaMinutes ?? estimateMinutes(km));
     return minutes == null ? label : '$label · ~${formatEta(minutes)}';
   }
 

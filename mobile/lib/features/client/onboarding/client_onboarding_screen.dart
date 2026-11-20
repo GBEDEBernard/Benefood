@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../../core/data/marketplace_api.dart';
 import '../../../core/errors/api_exception.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../shared/models/geo_reference.dart';
 import '../../../shared/models/user.dart';
 import '../../../shared/widgets/app_button.dart';
 import '../../../shared/widgets/beninfood_header.dart';
@@ -61,6 +62,7 @@ class _ClientOnboardingScreenState extends State<ClientOnboardingScreen> {
   final _city = TextEditingController();
   final _area = TextEditingController();
   final _address = TextEditingController();
+  GeoReferenceSelection? _geo;
 
   bool _profileCreated = false;
   bool _submitting = false;
@@ -73,6 +75,7 @@ class _ClientOnboardingScreenState extends State<ClientOnboardingScreen> {
     super.initState();
     _name.text = widget.user?.name ?? '';
     _phone.text = widget.user?.phone ?? '';
+    _geo = widget.user?.geo;
     _restore();
   }
 
@@ -113,6 +116,10 @@ class _ClientOnboardingScreenState extends State<ClientOnboardingScreen> {
         _city.text = profile['city'] as String? ?? '';
         _area.text = profile['area'] as String? ?? '';
         _address.text = profile['address'] as String? ?? '';
+        final restoredGeo = GeoReferenceSelection.fromApiPayload(profile);
+        if (restoredGeo.hasReference) {
+          _geo = restoredGeo;
+        }
         _profileCreated = true;
       }
       setState(() => _uploadedTypes.addAll(uploaded));
@@ -230,6 +237,7 @@ class _ClientOnboardingScreenState extends State<ClientOnboardingScreen> {
         address: _address.text.trim(),
         city: _city.text.trim(),
         area: _area.text.trim(),
+        geo: _geo,
       );
       if (mounted) {
         setState(() => _profileCreated = true);
@@ -336,6 +344,7 @@ class _ClientOnboardingScreenState extends State<ClientOnboardingScreen> {
               onBack: () => _goTo(0),
               onCreateProfile: _createProfile,
               onPickDocument: _pickDocument,
+              onGeoChanged: (geo) => setState(() => _geo = geo),
               onFinish: _finish,
             ),
           ],
@@ -460,6 +469,7 @@ class _DocumentsPage extends StatelessWidget {
     required this.onBack,
     required this.onCreateProfile,
     required this.onPickDocument,
+    required this.onGeoChanged,
     required this.onFinish,
   });
 
@@ -479,6 +489,7 @@ class _DocumentsPage extends StatelessWidget {
   final VoidCallback onBack;
   final VoidCallback onCreateProfile;
   final ValueChanged<String> onPickDocument;
+  final ValueChanged<GeoReferenceSelection?> onGeoChanged;
   final VoidCallback onFinish;
 
   @override
@@ -532,6 +543,7 @@ class _DocumentsPage extends StatelessWidget {
                 cityController: city,
                 areaController: area,
                 enabled: !profileCreated,
+                onChanged: (selection) => onGeoChanged(selection.geo),
               ),
               const SizedBox(height: 12),
               AppTextField(

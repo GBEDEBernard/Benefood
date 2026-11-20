@@ -1,3 +1,5 @@
+import 'geo_reference.dart';
+
 /// Rôle dans l'application (client/vendeur/livreur).
 class UserRole {
   const UserRole({required this.slug, required this.name, this.isActive = false});
@@ -55,6 +57,8 @@ class User {
     this.phoneVerifiedAt,
     this.createdAt,
     this.roles = const [],
+    this.geo,
+    this.geographicPath,
   });
 
   final String id;
@@ -68,6 +72,8 @@ class User {
   final String? phoneVerifiedAt;
   final String? createdAt;
   final List<UserRole> roles;
+  final GeoReferenceSelection? geo;
+  final String? geographicPath;
 
   bool get isActive => status == 'active';
   bool get isSuspended => status == 'suspended';
@@ -118,6 +124,10 @@ class User {
       phoneVerifiedAt: _nullableString(json['phone_verified_at']),
       createdAt: _nullableString(json['created_at']),
       roles: roles,
+      geo: json['geo'] is Map<String, dynamic>
+          ? GeoReferenceSelection.fromApiPayload(json)
+          : null,
+      geographicPath: _nullableString(json['geographic_path']),
     );
   }
 
@@ -154,6 +164,8 @@ class User {
         phoneVerifiedAt: phoneVerifiedAt,
         createdAt: createdAt,
         roles: roles,
+        geo: geo,
+        geographicPath: geographicPath,
       );
 }
 

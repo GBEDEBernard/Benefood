@@ -30,6 +30,7 @@ class DeliveryService
         private readonly DeliveryAssignmentService $assignments,
         private readonly NotificationService $notifications,
         private readonly ConfirmationCodeService $confirmationCodes,
+        private readonly DeliveryTrackingService $tracking,
     ) {}
 
     /**
@@ -95,91 +96,16 @@ class DeliveryService
     /**
      * Met à jour la position GPS du livreur (J175).
      *
-     * Le cap (`last_heading`) est déduit du déplacement depuis la position
-     * précédente, pour orienter le marqueur côté client. Il est conservé si le
-     * livreur ne s'est pas déplacé de manière significative.
+     * La validation métier, le throttling et la propagation aux missions actives
+     * sont centralisés dans `DeliveryTrackingService`. Ce wrapper conserve la
+     * signature historique utilisée par d'autres services.
      *
-     * @param  array{latitude: float, longitude: float}  $location
+     * @param  array<string, mixed>  $location
+     * @return array<string, mixed>
      */
-    public function updateLocation(DriverProfile $profile, array $location): DriverProfile
+    public function updateLocation(DriverProfile $profile, array $location): array
     {
-        $heading = $this->headingBetween(
-            $profile->last_latitude !== null ? (float) $profile->last_latitude : null,
-            $profile->last_longitude !== null ? (float) $profile->last_longitude : null,
-            $location['latitude'],
-            $location['longitude'],
-        );
-
-        $profile->update([
-            'last_latitude' => $location['latitude'],
-            'last_longitude' => $location['longitude'],
-            'last_location_at' => now(),
-            'last_heading' => $heading ?? $profile->last_heading,
-        ]);
-
-        $this->recordLocations($profile, $location);
-
-        return $profile->fresh();
-    }
-
-    /**
-     * Journalise le relevé GPS pour chaque course active du livreur
-     * (historique de suivi, purgé par `deliveries:purge-locations`).
-     *
-     * @param  array{latitude: float, longitude: float}  $location
-     */
-    private function recordLocations(DriverProfile $profile, array $location): void
-    {
-        $activeDeliveries = $profile->deliveries()
-            ->whereIn('status', [
-                DeliveryStatus::Assigned,
-                DeliveryStatus::EnRoutePickup,
-                DeliveryStatus::PickedUp,
-                DeliveryStatus::InDelivery,
-            ])
-            ->get();
-
-        if ($activeDeliveries->isEmpty()) {
-            return;
-        }
-
-        $recordedAt = now();
-
-        foreach ($activeDeliveries as $delivery) {
-            $delivery->locations()->create([
-                'driver_profile_id' => $profile->id,
-                'latitude' => $location['latitude'],
-                'longitude' => $location['longitude'],
-                'heading' => $profile->last_heading,
-                'recorded_at' => $recordedAt,
-            ]);
-        }
-    }
-
-    /**
-     * Cap en degrés (0 = Nord) entre deux positions, ou `null` si le déplacement
-     * est trop faible pour être significatif (< ~5 m).
-     */
-    private function headingBetween(?float $fromLat, ?float $fromLng, float $toLat, float $toLng): ?float
-    {
-        if ($fromLat === null || $fromLng === null) {
-            return null;
-        }
-
-        $dLat = $toLat - $fromLat;
-        $dLng = $toLng - $fromLng;
-        if (abs($dLat) < 0.000045 && abs($dLng) < 0.000045) {
-            return null;
-        }
-
-        $fromLatRad = deg2rad($fromLat);
-        $toLatRad = deg2rad($toLat);
-        $dLngRad = deg2rad($dLng);
-
-        $y = sin($dLngRad) * cos($toLatRad);
-        $x = cos($fromLatRad) * sin($toLatRad) - sin($fromLatRad) * cos($toLatRad) * cos($dLngRad);
-
-        return round((rad2deg(atan2($y, $x)) + 360) % 360, 2);
+        return $this->tracking->recordLocation($profile, $location);
     }
 
     /**

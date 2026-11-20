@@ -91,6 +91,22 @@ MockClient _backend({
         headers: headers,
       );
     }
+    if (request.method == 'GET' && path.endsWith('/parcels/p1/tracking')) {
+      return http.Response(
+        jsonEncode({
+          'data': {
+            'active': false,
+            'status': 'delivered',
+            'points': const {},
+            'distances': {'straight_km': const {}},
+            'eta': const {'available': false},
+            'legacy_position': null,
+          },
+        }),
+        200,
+        headers: headers,
+      );
+    }
     if (path.endsWith('/parcels/p1')) {
       return http.Response(
         jsonEncode({'data': _parcel}),
