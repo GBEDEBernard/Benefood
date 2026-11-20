@@ -1690,13 +1690,15 @@ class _ProgressStepper extends StatelessWidget {
   final Order order;
   final Color accent;
 
-  static const _steps = ['Confirmation', 'Préparation', 'Livraison'];
+  List<String> get _steps => order.isSelfPickup
+      ? const ['Confirmation', 'Préparation', 'Retrait']
+      : const ['Confirmation', 'Préparation', 'Livraison'];
 
   int get _currentIndex {
     return switch (order.status) {
       'awaiting_payment' => 0,
       'paid' || 'accepted' || 'preparing' => 1,
-      'ready' || 'assigned' || 'out_for_delivery' => 2,
+      'ready' || 'assigned' || 'out_for_delivery' || 'picked_up' => 2,
       'delivered' => _steps.length,
       _ => 0,
     };

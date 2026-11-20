@@ -199,8 +199,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         _creating = false;
       });
       if (order.isCash) {
-        // Paiement à la livraison : aucun règlement en ligne, la commande part
-        // chez le vendeur et sera encaissée par le livreur.
+        // Aucun règlement en ligne : la commande part chez le vendeur et sera
+        // encaissée par le livreur (livraison) ou par le vendeur (retrait).
         _goToTracking(order, success: true);
         return;
       }
