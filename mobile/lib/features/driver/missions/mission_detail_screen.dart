@@ -864,7 +864,7 @@ class _ActionHint extends StatelessWidget {
     final message = switch (status) {
       'assigned' => 'Confirmez votre départ vers le point de collecte.',
       'en_route_pickup' =>
-        'La confirmation de collecte se fait dans la navigation.',
+        'Dans la navigation, saisissez le code de collecte à 6 chiffres remis par le vendeur.',
       'picked_up' => 'Démarrez la livraison après la collecte.',
       'in_delivery' => 'Le client vous donnera son code pour confirmer.',
       _ => '',
@@ -1225,7 +1225,11 @@ class _StopTile extends StatelessWidget {
             ),
           ),
           if (phone.isNotEmpty)
-            CallButton(label: context.tr('Appeler'), phone: phone, compact: true),
+            CallButton(
+              label: context.tr('Appeler'),
+              phone: phone,
+              compact: true,
+            ),
         ],
       ),
     );

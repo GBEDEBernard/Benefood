@@ -46,6 +46,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   /// (espèces remises au livreur — cahier de conception v1.0).
   String _paymentMethod = 'online';
 
+  /// Mode de remise : `delivery` (livraison à domicile) ou `pickup` (retrait
+  /// sur place chez le vendeur, sans frais de livraison ni livreur).
+  String _fulfillmentMethod = 'delivery';
+
   /// Livreur choisi au checkout : son approche est intégrée au total avant
   /// le paiement et il sera sollicité en priorité pour la course.
   NearbyDriver? _selectedDriver;
@@ -73,7 +77,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           _selectedAddress = addresses.first;
         }
       });
-      if (_selectedAddress != null) {
+      if (_selectedAddress != null || _fulfillmentMethod == 'pickup') {
         await _loadSummary();
       }
     } on ApiException catch (e) {
@@ -88,17 +92,20 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
   Future<void> _loadSummary() async {
     final address = _selectedAddress;
-    if (address == null) {
-      return;
-    }
-    if (!address.hasCoordinates) {
-      setState(() {
-        _summaryLoading = false;
-        _summary = null;
-        _summaryError =
-            'Positionnez cette adresse sur la carte pour calculer la livraison.';
-      });
-      return;
+    final isPickup = _fulfillmentMethod == 'pickup';
+    if (!isPickup) {
+      if (address == null) {
+        return;
+      }
+      if (!address.hasCoordinates) {
+        setState(() {
+          _summaryLoading = false;
+          _summary = null;
+          _summaryError =
+              'Positionnez cette adresse sur la carte pour calculer la livraison.';
+        });
+        return;
+      }
     }
     setState(() {
       _summaryLoading = true;
@@ -107,8 +114,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     });
     try {
       final summary = await widget.marketplace.orderSummary(
-        address.id,
+        isPickup ? null : address?.id,
         driverProfileId: _selectedDriver?.id,
+        fulfillmentMethod: _fulfillmentMethod,
       );
       if (mounted) {
         setState(() => _summary = summary);
@@ -158,17 +166,30 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     await _loadSummary();
   }
 
+  Future<void> _changeFulfillment(String method) async {
+    if (method == _fulfillmentMethod) {
+      return;
+    }
+    setState(() {
+      _fulfillmentMethod = method;
+      _selectedDriver = null;
+    });
+    await _loadSummary();
+  }
+
   Future<void> _createOrder() async {
     final address = _selectedAddress;
-    if (address == null) {
+    final isPickup = _fulfillmentMethod == 'pickup';
+    if (!isPickup && address == null) {
       return;
     }
     setState(() => _creating = true);
     try {
       final order = await widget.marketplace.createOrder(
-        address.id,
+        isPickup ? null : address?.id,
         paymentMethod: _paymentMethod,
         driverProfileId: _selectedDriver?.id,
+        fulfillmentMethod: _fulfillmentMethod,
       );
       if (!mounted) {
         return;
@@ -327,97 +348,139 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             padding: const EdgeInsets.all(16),
             children: [
               _SectionTitle(
-                icon: Icons.location_on_outlined,
-                title: context.tr('Adresse de livraison'),
+                icon: Icons.storefront_outlined,
+                title: context.tr('Mode de remise'),
               ),
               const SizedBox(height: 12),
-              if (_addresses.isEmpty)
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(20),
-                    child: Column(
-                      children: [
-                        Icon(
-                          Icons.add_location_alt_outlined,
-                          size: 36,
-                          color: AppColors.textSecondary,
+              Card(
+                child: RadioGroup<String>(
+                  groupValue: _fulfillmentMethod,
+                  onChanged: (value) => _changeFulfillment(value ?? 'delivery'),
+                  child: Column(
+                    children: [
+                      RadioListTile<String>(
+                        value: 'delivery',
+                        activeColor: AppColors.orange,
+                        title: Text(context.tr('Livraison')),
+                        subtitle: const Text(
+                          'Un livreur apporte la commande chez vous',
                         ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Aucune adresse enregistrée.',
-                          style: TextStyle(color: AppColors.textSecondary),
+                        secondary: const Icon(
+                          Icons.delivery_dining_outlined,
+                          color: AppColors.orange,
                         ),
-                      ],
-                    ),
+                      ),
+                      RadioListTile<String>(
+                        value: 'pickup',
+                        activeColor: AppColors.orange,
+                        title: Text(context.tr('Retrait sur place')),
+                        subtitle: const Text(
+                          'Retirez votre commande chez le vendeur, sans frais de livraison',
+                        ),
+                        secondary: const Icon(
+                          Icons.storefront_outlined,
+                          color: AppColors.orange,
+                        ),
+                      ),
+                    ],
                   ),
-                )
-              else ...[
-                for (final a in _addresses)
-                  _AddressCard(
-                    address: a,
-                    selected: _selectedAddress?.id == a.id,
-                    onTap: () => _selectAddress(a),
-                  ),
-                if (_selectedAddress != null &&
-                    !_selectedAddress!.hasCoordinates)
+                ),
+              ),
+              const SizedBox(height: 24),
+              if (_fulfillmentMethod != 'pickup') ...[
+                _SectionTitle(
+                  icon: Icons.location_on_outlined,
+                  title: context.tr('Adresse de livraison'),
+                ),
+                const SizedBox(height: 12),
+                if (_addresses.isEmpty)
                   Card(
-                    margin: const EdgeInsets.only(bottom: 8),
-                    color: AppColors.orangeLight,
                     child: Padding(
-                      padding: const EdgeInsets.all(12),
-                      child: Row(
+                      padding: const EdgeInsets.all(20),
+                      child: Column(
                         children: [
-                          const Icon(
-                            Icons.location_off_outlined,
-                            color: AppColors.orangeDark,
+                          Icon(
+                            Icons.add_location_alt_outlined,
+                            size: 36,
+                            color: AppColors.textSecondary,
                           ),
-                          const SizedBox(width: 8),
-                          const Expanded(
-                            child: Text(
-                              'Cette adresse n’a pas de repère GPS. Positionnez-la sur la carte avant de commander.',
-                              style: TextStyle(
-                                fontSize: 12.5,
-                                color: AppColors.orangeDark,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                          TextButton(
-                            onPressed: _pinSelectedAddress,
-                            child: Text(context.tr('Positionner')),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Aucune adresse enregistrée.',
+                            style: TextStyle(color: AppColors.textSecondary),
                           ),
                         ],
                       ),
                     ),
+                  )
+                else ...[
+                  for (final a in _addresses)
+                    _AddressCard(
+                      address: a,
+                      selected: _selectedAddress?.id == a.id,
+                      onTap: () => _selectAddress(a),
+                    ),
+                  if (_selectedAddress != null &&
+                      !_selectedAddress!.hasCoordinates)
+                    Card(
+                      margin: const EdgeInsets.only(bottom: 8),
+                      color: AppColors.orangeLight,
+                      child: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.location_off_outlined,
+                              color: AppColors.orangeDark,
+                            ),
+                            const SizedBox(width: 8),
+                            const Expanded(
+                              child: Text(
+                                'Cette adresse n’a pas de repère GPS. Positionnez-la sur la carte avant de commander.',
+                                style: TextStyle(
+                                  fontSize: 12.5,
+                                  color: AppColors.orangeDark,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                            TextButton(
+                              onPressed: _pinSelectedAddress,
+                              child: Text(context.tr('Positionner')),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  const SizedBox(height: 4),
+                ],
+                OutlinedButton.icon(
+                  onPressed: () async {
+                    final created = await showAddAddressSheet(
+                      context,
+                      widget.marketplace,
+                    );
+                    if (created != null && mounted) {
+                      setState(() {
+                        _addresses = [created, ..._addresses];
+                        _selectedAddress = created;
+                        _selectedDriver = null;
+                      });
+                      await _loadSummary();
+                    }
+                  },
+                  icon: const Icon(Icons.add_location_alt_outlined),
+                  label: Text(context.tr('Ajouter une nouvelle adresse')),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.orange,
+                    side: BorderSide(
+                      color: AppColors.orange.withValues(alpha: 0.5),
+                    ),
+                    minimumSize: const Size.fromHeight(48),
                   ),
-                const SizedBox(height: 4),
-              ],
-              OutlinedButton.icon(
-                onPressed: () async {
-                  final created = await showAddAddressSheet(
-                    context,
-                    widget.marketplace,
-                  );
-                  if (created != null && mounted) {
-                    setState(() {
-                      _addresses = [created, ..._addresses];
-                      _selectedAddress = created;
-                      _selectedDriver = null;
-                    });
-                    await _loadSummary();
-                  }
-                },
-                icon: const Icon(Icons.add_location_alt_outlined),
-                label: Text(context.tr('Ajouter une nouvelle adresse')),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: AppColors.orange,
-                  side: BorderSide(
-                    color: AppColors.orange.withValues(alpha: 0.5),
-                  ),
-                  minimumSize: const Size.fromHeight(48),
                 ),
-              ),
-              const SizedBox(height: 24),
+                const SizedBox(height: 24),
+              ],
               if (_summaryError != null)
                 Card(
                   color: Theme.of(context).colorScheme.errorContainer,
@@ -433,7 +496,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
-                            'Livraison impossible : $_summaryError',
+                            '${_fulfillmentMethod == 'pickup' ? 'Commande impossible' : 'Livraison impossible'} : $_summaryError',
                             style: TextStyle(
                               color: Theme.of(
                                 context,
@@ -462,77 +525,79 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                           label: context.tr('Sous-total'),
                           amount: _summary!.subtotal,
                         ),
-                        _SummaryRow(
-                          label: context.tr('Livraison (base)'),
-                          amount: _summary!.deliveryFee,
-                        ),
-                        if (_summary!.approachFee > 0)
+                        if (!_summary!.isPickup) ...[
                           _SummaryRow(
-                            label: context.tr('Approche livreur'),
-                            amount: _summary!.approachFee,
+                            label: context.tr('Livraison (base)'),
+                            amount: _summary!.deliveryFee,
                           ),
-                        if (_summary!.deliveryDistanceKm != null)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 2, bottom: 6),
-                            child: Align(
-                              alignment: Alignment.centerRight,
-                              child: Text(
-                                'Trajet boutique → vous : ${_summary!.deliveryDistanceKm!.toStringAsFixed(2)} km',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Theme.of(
-                                    context,
-                                  ).colorScheme.onSurfaceVariant,
-                                ),
-                              ),
+                          if (_summary!.approachFee > 0)
+                            _SummaryRow(
+                              label: context.tr('Approche livreur'),
+                              amount: _summary!.approachFee,
                             ),
-                          ),
-                        if (_summary!.approachDistanceKm != null)
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 6),
-                            child: Align(
-                              alignment: Alignment.centerRight,
-                              child: Text(
-                                'Approche livreur : ${formatDistance(_summary!.approachDistanceKm)}',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Theme.of(
-                                    context,
-                                  ).colorScheme.onSurfaceVariant,
-                                ),
-                              ),
-                            ),
-                          ),
-                        if (_summary!.serviceFee > 0)
-                          _SummaryRow(
-                            label: context.tr('Commission client'),
-                            amount: _summary!.serviceFee,
-                          ),
-                        if (_summary!.deliveryZoneName != null)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 2),
-                            child: Align(
-                              alignment: Alignment.centerRight,
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 10,
-                                  vertical: 4,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: AppColors.greenLight,
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
+                          if (_summary!.deliveryDistanceKm != null)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 2, bottom: 6),
+                              child: Align(
+                                alignment: Alignment.centerRight,
                                 child: Text(
-                                  'Zone : ${_summary!.deliveryZoneName}',
+                                  'Trajet boutique → vous : ${_summary!.deliveryDistanceKm!.toStringAsFixed(2)} km',
                                   style: TextStyle(
                                     fontSize: 12,
-                                    fontWeight: FontWeight.w600,
-                                    color: AppColors.green,
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.onSurfaceVariant,
                                   ),
                                 ),
                               ),
                             ),
-                          ),
+                          if (_summary!.approachDistanceKm != null)
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 6),
+                              child: Align(
+                                alignment: Alignment.centerRight,
+                                child: Text(
+                                  'Approche livreur : ${formatDistance(_summary!.approachDistanceKm)}',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.onSurfaceVariant,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          if (_summary!.serviceFee > 0)
+                            _SummaryRow(
+                              label: context.tr('Commission client'),
+                              amount: _summary!.serviceFee,
+                            ),
+                          if (_summary!.deliveryZoneName != null)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 2),
+                              child: Align(
+                                alignment: Alignment.centerRight,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                    vertical: 4,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.greenLight,
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Text(
+                                    'Zone : ${_summary!.deliveryZoneName}',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      color: AppColors.green,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                        ],
                         const Divider(height: 24),
                         _SummaryRow(
                           label: context.tr('Total'),
@@ -571,8 +636,16 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                         RadioListTile<String>(
                           value: 'cash',
                           activeColor: AppColors.orange,
-                          title: Text(context.tr('Paiement à la livraison')),
-                          subtitle: Text(context.tr('Vous payez le livreur en espèces')),
+                          title: Text(
+                            _fulfillmentMethod == 'pickup'
+                                ? context.tr('Paiement au retrait')
+                                : context.tr('Paiement à la livraison'),
+                          ),
+                          subtitle: Text(
+                            _fulfillmentMethod == 'pickup'
+                                ? 'Vous payez le vendeur en espèces'
+                                : 'Vous payez le livreur en espèces',
+                          ),
                           secondary: Icon(
                             Icons.payments_outlined,
                             color: AppColors.orange,
@@ -592,7 +665,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                 const SizedBox(width: 8),
                                 Expanded(
                                   child: Text(
-                                    'Prévoyez ${formatAmount(_summary!.total)} en espèces pour le livreur.',
+                                    'Prévoyez ${formatAmount(_summary!.total)} en espèces pour ${_fulfillmentMethod == 'pickup' ? 'le vendeur' : 'le livreur'}.',
                                     style: Theme.of(
                                       context,
                                     ).textTheme.bodySmall,
@@ -605,45 +678,49 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                     ),
                   ),
                 ),
-                const SizedBox(height: 20),
-                _SectionTitle(
-                  icon: Icons.delivery_dining_outlined,
-                  title: context.tr('Votre livreur'),
-                ),
-                const SizedBox(height: 8),
-                Card(
-                  margin: EdgeInsets.zero,
-                  child: ListTile(
-                    onTap: _pickDriver,
-                    leading: const Icon(
-                      Icons.delivery_dining_outlined,
-                      color: AppColors.orange,
-                    ),
-                    title: Text(
-                      _selectedDriver?.displayName ?? 'Aucun livreur choisi',
-                    ),
-                    subtitle: Text(
-                      _selectedDriver == null
-                          ? 'La course sera proposée à tous les livreurs disponibles.'
-                          : 'Approche ${formatDistance(_selectedDriver!.distanceToPickupKm)}'
-                                '${_selectedDriver!.approachFee != null ? ' · ${formatAmount(_selectedDriver!.approachFee!)}' : ''}',
-                    ),
-                    trailing: _selectedDriver == null
-                        ? const Icon(Icons.chevron_right)
-                        : IconButton(
-                            tooltip: context.tr('Retirer le livreur'),
-                            onPressed: () {
-                              setState(() => _selectedDriver = null);
-                              _loadSummary();
-                            },
-                            icon: const Icon(Icons.close),
-                          ),
+                if (_fulfillmentMethod != 'pickup') ...[
+                  const SizedBox(height: 20),
+                  _SectionTitle(
+                    icon: Icons.delivery_dining_outlined,
+                    title: context.tr('Votre livreur'),
                   ),
-                ),
+                  const SizedBox(height: 8),
+                  Card(
+                    margin: EdgeInsets.zero,
+                    child: ListTile(
+                      onTap: _pickDriver,
+                      leading: const Icon(
+                        Icons.delivery_dining_outlined,
+                        color: AppColors.orange,
+                      ),
+                      title: Text(
+                        _selectedDriver?.displayName ?? 'Aucun livreur choisi',
+                      ),
+                      subtitle: Text(
+                        _selectedDriver == null
+                            ? 'La course sera proposée à tous les livreurs disponibles.'
+                            : 'Approche ${formatDistance(_selectedDriver!.distanceToPickupKm)}'
+                                  '${_selectedDriver!.approachFee != null ? ' · ${formatAmount(_selectedDriver!.approachFee!)}' : ''}',
+                      ),
+                      trailing: _selectedDriver == null
+                          ? const Icon(Icons.chevron_right)
+                          : IconButton(
+                              tooltip: context.tr('Retirer le livreur'),
+                              onPressed: () {
+                                setState(() => _selectedDriver = null);
+                                _loadSummary();
+                              },
+                              icon: const Icon(Icons.close),
+                            ),
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 20),
                 AppButton(
                   label: _paymentMethod == 'cash'
-                      ? 'Commander et payer à la livraison'
+                      ? (_fulfillmentMethod == 'pickup'
+                            ? 'Commander et payer au retrait'
+                            : 'Commander et payer à la livraison')
                       : 'Commander',
                   icon: Icons.shopping_bag_outlined,
                   onPressed: _creating ? null : _createOrder,
@@ -702,21 +779,26 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                     ),
                   ),
                 const Divider(height: 24),
-                _SummaryRow(label: context.tr('Sous-total'), amount: order.subtotal),
                 _SummaryRow(
-                  label: context.tr('Livraison (base)'),
-                  amount: order.deliveryFee,
+                  label: context.tr('Sous-total'),
+                  amount: order.subtotal,
                 ),
-                if (order.approachFee > 0)
+                if (!order.isSelfPickup) ...[
                   _SummaryRow(
-                    label: context.tr('Approche livreur'),
-                    amount: order.approachFee,
+                    label: context.tr('Livraison (base)'),
+                    amount: order.deliveryFee,
                   ),
-                if ((order.financials?.serviceFee ?? 0) > 0)
-                  _SummaryRow(
-                    label: context.tr('Commission client'),
-                    amount: order.financials!.serviceFee!,
-                  ),
+                  if (order.approachFee > 0)
+                    _SummaryRow(
+                      label: context.tr('Approche livreur'),
+                      amount: order.approachFee,
+                    ),
+                  if ((order.financials?.serviceFee ?? 0) > 0)
+                    _SummaryRow(
+                      label: context.tr('Commission client'),
+                      amount: order.financials!.serviceFee!,
+                    ),
+                ],
                 const SizedBox(height: 4),
                 _SummaryRow(
                   label: context.tr('Total à payer'),

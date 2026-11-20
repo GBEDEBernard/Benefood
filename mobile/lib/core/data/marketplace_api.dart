@@ -302,14 +302,18 @@ class MarketplaceApi {
   }
 
   Future<OrderSummary> orderSummary(
-    String addressId, {
+    String? addressId, {
     String? driverProfileId,
+    String fulfillmentMethod = 'delivery',
   }) async {
     final response = await _api.post(
       '/orders/summary',
       body: {
-        'address_id': addressId,
-        if (driverProfileId != null && driverProfileId.isNotEmpty)
+        'fulfillment_method': fulfillmentMethod,
+        if (addressId != null && addressId.isNotEmpty) 'address_id': addressId,
+        if (fulfillmentMethod != 'pickup' &&
+            driverProfileId != null &&
+            driverProfileId.isNotEmpty)
           'driver_profile_id': driverProfileId,
       },
     );
@@ -388,18 +392,21 @@ class MarketplaceApi {
   /// [paymentMethod] : `online` (Mobile Money) ou `cash` (paiement à la
   /// livraison) — cahier de conception v1.0.
   Future<Order> createOrder(
-    String addressId, {
+    String? addressId, {
     String? notes,
     String paymentMethod = 'online',
     String? driverProfileId,
+    String fulfillmentMethod = 'delivery',
   }) async {
     final response = await _api.post(
       '/orders',
       body: {
-        'address_id': addressId,
+        'fulfillment_method': fulfillmentMethod,
+        if (addressId != null && addressId.isNotEmpty) 'address_id': addressId,
         'payment_method': paymentMethod,
         if (notes != null && notes.isNotEmpty) 'notes': notes,
-        'driver_profile_id': ?driverProfileId,
+        if (fulfillmentMethod != 'pickup')
+          'driver_profile_id': ?driverProfileId,
       },
     );
     return Order.fromJson(_dataObject(response) ?? {});
@@ -459,6 +466,18 @@ class MarketplaceApi {
     final response = await _api.post(
       '/orders/$orderId/cancel',
       body: {'reason': reason},
+    );
+    return Order.fromJson(_dataObject(response) ?? {});
+  }
+
+  /// Retrait sur place : le client présente son code au vendeur.
+  Future<Order> confirmOrderPickup(
+    String orderId, {
+    required String confirmationCode,
+  }) async {
+    final response = await _api.post(
+      '/orders/$orderId/confirm-pickup',
+      body: {'confirmation_code': confirmationCode},
     );
     return Order.fromJson(_dataObject(response) ?? {});
   }
@@ -625,8 +644,14 @@ class MarketplaceApi {
     return Delivery.fromJson(_dataObject(response) ?? {});
   }
 
-  Future<Delivery> markPickedUp(String id) async {
-    final response = await _api.post('/driver/me/deliveries/$id/pickup');
+  Future<Delivery> markPickedUp(String id, {String? vendorPickupCode}) async {
+    final response = await _api.post(
+      '/driver/me/deliveries/$id/pickup',
+      body: {
+        if (vendorPickupCode != null && vendorPickupCode.isNotEmpty)
+          'pickup_code': vendorPickupCode,
+      },
+    );
     return Delivery.fromJson(_dataObject(response) ?? {});
   }
 
@@ -977,10 +1002,7 @@ class MarketplaceApi {
   }
 
   Future<void> unregisterDevice({required String fcmToken}) async {
-    await _api.delete(
-      '/me/devices',
-      body: {'fcm_token': fcmToken},
-    );
+    await _api.delete('/me/devices', body: {'fcm_token': fcmToken});
   }
 
   /// Référentiel public des langues (`GET /languages`).
@@ -1273,8 +1295,9 @@ class MarketplaceApi {
   }
 
   Future<ProductPromotion> togglePromotion(String promotionId) async {
-    final response =
-        await _api.post('/vendors/me/promotions/$promotionId/toggle');
+    final response = await _api.post(
+      '/vendors/me/promotions/$promotionId/toggle',
+    );
     return ProductPromotion.fromJson(_dataObject(response) ?? {});
   }
 

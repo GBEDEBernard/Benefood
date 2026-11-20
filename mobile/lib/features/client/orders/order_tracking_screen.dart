@@ -391,6 +391,34 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
     }
   }
 
+  /// Retrait sur place : le client confirme au vendeur la remise de la commande
+  /// en présentant son propre code de confirmation (même code que le QR).
+  Future<void> _confirmPickup() async {
+    final order = _order;
+    if (order == null || order.confirmationCode == null) {
+      return;
+    }
+    setState(() => _actionLoading = true);
+    try {
+      final updated = await widget.marketplace.confirmOrderPickup(
+        order.id,
+        confirmationCode: order.confirmationCode!,
+      );
+      if (mounted) {
+        setState(() => _order = updated);
+        showToast(context, 'Retrait confirmé. Bon appétit !');
+      }
+    } on ApiException catch (e) {
+      if (mounted) {
+        showToast(context, e.message, isError: true);
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _actionLoading = false);
+      }
+    }
+  }
+
   Future<void> _cancel() async {
     final reason = await _askCancelReason();
     if (reason == null || !mounted) {
@@ -508,7 +536,11 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(context.tr('Code de remise à communiquer au nouveau livreur :')),
+                Text(
+                  context.tr(
+                    'Code de remise à communiquer au nouveau livreur :',
+                  ),
+                ),
                 const SizedBox(height: 12),
                 SelectableText(
                   code,
@@ -672,8 +704,17 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
 
   String _statusLabel(Order order) {
     if (order.isCash && order.isAwaitingPayment) {
-      // Commande en espèces : rien à régler en ligne, le livreur encaisse.
-      return 'Paiement à la livraison';
+      // Commande en espèces : rien à régler en ligne, le vendeur encaisse.
+      return order.isSelfPickup
+          ? 'Paiement au retrait'
+          : 'Paiement à la livraison';
+    }
+    if (order.isSelfPickup && order.status == 'ready') {
+      return 'Prête à être retirée';
+    }
+    if (order.isSelfPickup &&
+        ['picked_up', 'in_delivery', 'delivered'].contains(order.status)) {
+      return 'Retirée';
     }
 
     return switch (order.status) {
@@ -684,6 +725,8 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
       'ready' => 'Prête',
       'assigned' => 'Livreur assigné',
       'out_for_delivery' => 'En livraison',
+      'picked_up' => 'Collectée',
+      'in_delivery' => 'En livraison',
       'delivered' => 'Livrée',
       'cancelled' => 'Annulée',
       'refunded' => 'Remboursée',
@@ -1068,8 +1111,10 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
             label: _statusLabel(order),
             onCancel: order.canCancel ? _cancel : null,
           ),
-          const SizedBox(height: 16),
-          _liveTrackingMap(order),
+          if (!order.isSelfPickup) ...[
+            const SizedBox(height: 16),
+            _liveTrackingMap(order),
+          ],
           const SizedBox(height: 16),
           if (_driverSelectionCard(order) != null) ...[
             _driverSelectionCard(order)!,
@@ -1111,6 +1156,9 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
             _ConfirmationCodeCard(
               reference: order.reference,
               code: order.confirmationCode!,
+              isPickup: order.isSelfPickup,
+              onConfirm: order.canConfirmPickup ? _confirmPickup : null,
+              confirmLoading: _actionLoading,
             ),
             const SizedBox(height: 12),
           ],
@@ -1136,21 +1184,26 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                       trailing: formatAmount(item.subtotal, showSymbol: false),
                     ),
                   const Divider(height: 24),
-                  _SummaryRow(label: context.tr('Sous-total'), amount: order.subtotal),
                   _SummaryRow(
-                    label: context.tr('Livraison (base)'),
-                    amount: order.deliveryFee,
+                    label: context.tr('Sous-total'),
+                    amount: order.subtotal,
                   ),
-                  if (order.approachFee > 0)
+                  if (!order.isSelfPickup) ...[
                     _SummaryRow(
-                      label: context.tr('Approche livreur'),
-                      amount: order.approachFee,
+                      label: context.tr('Livraison (base)'),
+                      amount: order.deliveryFee,
                     ),
-                  if ((order.financials?.serviceFee ?? 0) > 0)
-                    _SummaryRow(
-                      label: context.tr('Commission client'),
-                      amount: order.financials!.serviceFee!,
-                    ),
+                    if (order.approachFee > 0)
+                      _SummaryRow(
+                        label: context.tr('Approche livreur'),
+                        amount: order.approachFee,
+                      ),
+                    if ((order.financials?.serviceFee ?? 0) > 0)
+                      _SummaryRow(
+                        label: context.tr('Commission client'),
+                        amount: order.financials!.serviceFee!,
+                      ),
+                  ],
                   const SizedBox(height: 4),
                   _SummaryRow(
                     label: context.tr('Total'),
@@ -1161,7 +1214,8 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
               ),
             ),
           ),
-          if (order.deliveryAddress != null &&
+          if (!order.isSelfPickup &&
+              order.deliveryAddress != null &&
               order.deliveryAddress!.isNotEmpty) ...[
             const SizedBox(height: 12),
             Card(
@@ -1172,7 +1226,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
               ),
             ),
           ],
-          if (_trackingCard(order) != null) ...[
+          if (!order.isSelfPickup && _trackingCard(order) != null) ...[
             const SizedBox(height: 12),
             _trackingCard(order)!,
           ],
@@ -2198,7 +2252,10 @@ class _ReviewDialogState extends State<_ReviewDialog> {
         ),
       ),
       actions: [
-        TextButton(onPressed: widget.onCancel, child: Text(context.tr('Plus tard'))),
+        TextButton(
+          onPressed: widget.onCancel,
+          child: Text(context.tr('Plus tard')),
+        ),
         FilledButton(onPressed: _submit, child: Text(context.tr('Envoyer'))),
       ],
     );
@@ -2254,10 +2311,19 @@ class _StarsInput extends StatelessWidget {
 }
 
 class _ConfirmationCodeCard extends StatelessWidget {
-  const _ConfirmationCodeCard({required this.reference, required this.code});
+  const _ConfirmationCodeCard({
+    required this.reference,
+    required this.code,
+    this.isPickup = false,
+    this.onConfirm,
+    this.confirmLoading = false,
+  });
 
   final String reference;
   final String code;
+  final bool isPickup;
+  final VoidCallback? onConfirm;
+  final bool confirmLoading;
 
   @override
   Widget build(BuildContext context) {
@@ -2270,12 +2336,17 @@ class _ConfirmationCodeCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                const Icon(Icons.lock_outline, color: AppColors.goldDark),
+                Icon(
+                  isPickup ? Icons.storefront_outlined : Icons.lock_outline,
+                  color: AppColors.goldDark,
+                ),
                 const SizedBox(width: 8),
-                const Expanded(
+                Expanded(
                   child: Text(
-                    'Code de confirmation',
-                    style: TextStyle(
+                    isPickup
+                        ? context.tr('Code de retrait')
+                        : context.tr('Code de confirmation'),
+                    style: const TextStyle(
                       fontWeight: FontWeight.w800,
                       color: AppColors.goldDark,
                     ),
@@ -2316,14 +2387,40 @@ class _ConfirmationCodeCard extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 10),
-            const Text(
-              'À la réception, présentez ce QR au livreur pour le scan ou communiquez-lui le PIN à 6 chiffres. Le QR est propre à cette commande.',
-              style: TextStyle(
+            Text(
+              isPickup
+                  ? 'Chez le vendeur, présentez ce QR ou communiquez-lui le PIN à 6 chiffres pour récupérer votre commande.'
+                  : 'À la réception, présentez ce QR au livreur pour le scan ou communiquez-lui le PIN à 6 chiffres. Le QR est propre à cette commande.',
+              style: const TextStyle(
                 fontSize: 12,
                 height: 1.4,
                 color: AppColors.goldDark,
               ),
             ),
+            if (onConfirm != null) ...[
+              const SizedBox(height: 14),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: confirmLoading ? null : onConfirm,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.orange,
+                    foregroundColor: Colors.white,
+                  ),
+                  icon: confirmLoading
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Icon(Icons.check_circle_outline),
+                  label: Text(context.tr('Confirmer le retrait')),
+                ),
+              ),
+            ],
           ],
         ),
       ),

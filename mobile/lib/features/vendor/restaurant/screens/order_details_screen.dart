@@ -37,7 +37,8 @@ class OrderDetailsScreen extends StatefulWidget {
   final Future<bool> Function(Order order) onPrepare;
   final Future<bool> Function(Order order) onReady;
   final Future<bool> Function(Order order)? onConfirmDelivery;
-  final Future<bool> Function(Order order, String subject, String description)? onReportIncident;
+  final Future<bool> Function(Order order, String subject, String description)?
+  onReportIncident;
   final bool busy;
 
   /// API de la cloche de notification (nullable : en-tête sans cloche).
@@ -94,7 +95,10 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
 
   /// Exécute une action puis applique le statut résultant localement (le
   /// shell reste la source de vérité pour la liste).
-  Future<void> _run(Future<bool> Function(Order) action, String nextStatus) async {
+  Future<void> _run(
+    Future<bool> Function(Order) action,
+    String nextStatus,
+  ) async {
     if (_busy) return;
     setState(() => _busy = true);
     var ok = false;
@@ -131,10 +135,12 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                   ],
                   _buildCustomerCard(),
                   const SizedBox(height: 12),
+                  _buildFulfillmentCard(),
                   _buildItemsCard(),
                   const SizedBox(height: 12),
                   _buildPaymentCard(),
-                  if (_order.notes != null && _order.notes!.trim().isNotEmpty) ...[
+                  if (_order.notes != null &&
+                      _order.notes!.trim().isNotEmpty) ...[
                     const SizedBox(height: 12),
                     _buildNotesCard(),
                   ],
@@ -201,8 +207,99 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
     );
   }
 
+  /// Retrait sur place : consigne pour le vendeur. Livraison : PIN de collecte
+  /// à communiquer au livreur (généré quand la commande passe en `ready`).
+  Widget _buildFulfillmentCard() {
+    if (_order.isSelfPickup) {
+      return Container(
+        clipBehavior: Clip.antiAlias,
+        decoration: RestaurantPalette.cardDecoration,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              const Icon(
+                Icons.storefront_outlined,
+                color: RestaurantPalette.orange,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Retrait sur place',
+                      style: TextStyle(
+                        color: RestaurantPalette.darkText,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Le client viendra retirer sa commande. Vérifiez son code de retrait à 6 chiffres avant de remettre les articles.',
+                      style: TextStyle(
+                        color: RestaurantPalette.grayText,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    final code = _order.vendorPickupCode;
+    if (code == null || code.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    return Container(
+      clipBehavior: Clip.antiAlias,
+      decoration: RestaurantPalette.cardDecoration,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Code de collecte du livreur',
+              style: TextStyle(
+                color: RestaurantPalette.darkText,
+                fontSize: 14,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const SizedBox(height: 10),
+            Center(
+              child: SelectableText(
+                code,
+                style: const TextStyle(
+                  color: RestaurantPalette.forest,
+                  fontSize: 28,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 8,
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Communiquez ce code au livreur lorsqu\'il vient récupérer la commande. La collecte sera refusée sans ce code.',
+              style: TextStyle(color: RestaurantPalette.grayText, fontSize: 12),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildCustomerCard() {
-    final address = _order.deliveryAddress ?? _order.deliveryAddressSnapshot?.display ?? '—';
+    final address =
+        _order.deliveryAddress ??
+        _order.deliveryAddressSnapshot?.display ??
+        '—';
     return Container(
       clipBehavior: Clip.antiAlias,
       decoration: RestaurantPalette.cardDecoration,
@@ -237,9 +334,11 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                 value: _order.customerPhone!,
               ),
             _DetailLine(
-              icon: Icons.location_on_outlined,
+              icon: _order.isSelfPickup
+                  ? Icons.storefront_outlined
+                  : Icons.location_on_outlined,
               iconColor: RestaurantPalette.orange,
-              value: address,
+              value: _order.isSelfPickup ? 'Retrait sur place' : address,
             ),
           ],
         ),
@@ -293,10 +392,21 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
               const SizedBox(height: 10),
             ],
             const Divider(height: 16, color: RestaurantPalette.borderColor),
-            _SummaryRow(label: context.tr('Sous-total'), value: formatAmount(_order.subtotal)),
-            _SummaryRow(label: context.tr('Livraison'), value: formatAmount(_order.deliveryFee)),
-            if ((_order.financials?.serviceFee ?? 0) > 0)
-              _SummaryRow(label: context.tr('Commission client'), value: formatAmount(_order.financials!.serviceFee!)),
+            _SummaryRow(
+              label: context.tr('Sous-total'),
+              value: formatAmount(_order.subtotal),
+            ),
+            if (!_order.isSelfPickup) ...[
+              _SummaryRow(
+                label: context.tr('Livraison'),
+                value: formatAmount(_order.deliveryFee),
+              ),
+              if ((_order.financials?.serviceFee ?? 0) > 0)
+                _SummaryRow(
+                  label: context.tr('Commission client'),
+                  value: formatAmount(_order.financials!.serviceFee!),
+                ),
+            ],
             const SizedBox(height: 4),
             Row(
               children: [
@@ -335,12 +445,17 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
         padding: const EdgeInsets.all(16),
         child: Row(
           children: [
-            const Icon(Icons.account_balance_wallet_outlined,
-                size: 20, color: RestaurantPalette.forest),
+            const Icon(
+              Icons.account_balance_wallet_outlined,
+              size: 20,
+              color: RestaurantPalette.forest,
+            ),
             const SizedBox(width: 10),
             Expanded(
               child: Text(
-                paid ? 'Déjà payé en ligne' : 'Paiement à la livraison (Espèces)',
+                paid
+                    ? 'Déjà payé en ligne'
+                    : 'Paiement à la livraison (Espèces)',
                 style: const TextStyle(
                   color: RestaurantPalette.darkText,
                   fontSize: 14,
@@ -365,8 +480,11 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
           children: [
             const Row(
               children: [
-                Icon(Icons.sticky_note_2_outlined,
-                    size: 18, color: RestaurantPalette.orange),
+                Icon(
+                  Icons.sticky_note_2_outlined,
+                  size: 18,
+                  color: RestaurantPalette.orange,
+                ),
                 SizedBox(width: 8),
                 Text(
                   'Notes du client',
@@ -452,13 +570,25 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
               ),
             ),
             const SizedBox(height: 12),
-            _SummaryRow(label: context.tr('Base commissionnable'), value: formatAmount(_order.subtotal)),
+            _SummaryRow(
+              label: context.tr('Base commissionnable'),
+              value: formatAmount(_order.subtotal),
+            ),
             if (f.commissionRate != null)
-              _SummaryRow(label: context.tr('Taux commission'), value: '${f.commissionRate} %'),
+              _SummaryRow(
+                label: context.tr('Taux commission'),
+                value: '${f.commissionRate} %',
+              ),
             if (f.commissionAmount != null)
-              _SummaryRow(label: context.tr('Commission plateforme'), value: '- ${formatAmount(f.commissionAmount!)}'),
-            if (f.deliveryPartnerAmount != null)
-              _SummaryRow(label: context.tr('Part livraison'), value: formatAmount(f.deliveryPartnerAmount!)),
+              _SummaryRow(
+                label: context.tr('Commission plateforme'),
+                value: '- ${formatAmount(f.commissionAmount!)}',
+              ),
+            if (!_order.isSelfPickup && f.deliveryPartnerAmount != null)
+              _SummaryRow(
+                label: context.tr('Part livraison'),
+                value: formatAmount(f.deliveryPartnerAmount!),
+              ),
             const Divider(height: 16, color: RestaurantPalette.borderColor),
             Row(
               children: [
@@ -513,7 +643,11 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                 children: [
                   const Padding(
                     padding: EdgeInsets.only(top: 4),
-                    child: Icon(Icons.circle, size: 8, color: RestaurantPalette.orange),
+                    child: Icon(
+                      Icons.circle,
+                      size: 8,
+                      color: RestaurantPalette.orange,
+                    ),
                   ),
                   const SizedBox(width: 10),
                   Expanded(
@@ -528,7 +662,10 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                   ),
                   Text(
                     formatDateTime(history[i].createdAt),
-                    style: const TextStyle(color: RestaurantPalette.grayText, fontSize: 12),
+                    style: const TextStyle(
+                      color: RestaurantPalette.grayText,
+                      fontSize: 12,
+                    ),
                   ),
                 ],
               ),
@@ -569,14 +706,24 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
     setState(() => _busy = true);
     var ok = false;
     try {
-      ok = await widget.onReportIncident!(_order, 'Problème commande ${_order.reference}', description);
+      ok = await widget.onReportIncident!(
+        _order,
+        'Problème commande ${_order.reference}',
+        description,
+      );
     } catch (_) {
       ok = false;
     }
     if (!mounted) return;
     setState(() => _busy = false);
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(ok ? 'Signalement envoyé au support.' : 'Échec de l\'envoi du signalement.')),
+      SnackBar(
+        content: Text(
+          ok
+              ? 'Signalement envoyé au support.'
+              : 'Échec de l\'envoi du signalement.',
+        ),
+      ),
     );
   }
 
@@ -668,7 +815,11 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
         child: const Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.delivery_dining_outlined, size: 17, color: RestaurantPalette.ready),
+            Icon(
+              Icons.delivery_dining_outlined,
+              size: 17,
+              color: RestaurantPalette.ready,
+            ),
             SizedBox(width: 8),
             Flexible(
               child: Text(
@@ -717,7 +868,11 @@ String _statusLabel(String status) {
 }
 
 class _DetailLine extends StatelessWidget {
-  const _DetailLine({required this.icon, required this.iconColor, required this.value});
+  const _DetailLine({
+    required this.icon,
+    required this.iconColor,
+    required this.value,
+  });
 
   final IconData icon;
   final Color iconColor;
@@ -763,7 +918,10 @@ class _SummaryRow extends StatelessWidget {
           Expanded(
             child: Text(
               label,
-              style: const TextStyle(color: RestaurantPalette.grayText, fontSize: 13.5),
+              style: const TextStyle(
+                color: RestaurantPalette.grayText,
+                fontSize: 13.5,
+              ),
             ),
           ),
           Text(
@@ -781,7 +939,11 @@ class _SummaryRow extends StatelessWidget {
 }
 
 class _FooterButton extends StatelessWidget {
-  const _FooterButton({required this.label, required this.color, required this.onPressed});
+  const _FooterButton({
+    required this.label,
+    required this.color,
+    required this.onPressed,
+  });
 
   final String label;
   final Color color;

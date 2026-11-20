@@ -195,17 +195,21 @@ void main() {
     expect(find.text('Confirmer la collecte ?'), findsOneWidget);
     expect(find.text('Poulet braisé'), findsOneWidget);
 
+    // Le vendeur remet un PIN de collecte à 6 chiffres au livreur.
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Code de collecte du vendeur'),
+      '123456',
+    );
+    await tester.pump();
     await tester.tap(find.widgetWithText(FilledButton, 'Confirmer'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 200));
 
     expect(find.text('Démarrer la livraison'), findsOneWidget);
-    expect(
-      backend.requests.any(
-        (r) => r.method == 'POST' && r.url.path.endsWith('/d-1/pickup'),
-      ),
-      isTrue,
+    final pickupRequest = backend.requests.firstWhere(
+      (r) => r.method == 'POST' && r.url.path.endsWith('/d-1/pickup'),
     );
+    expect(jsonDecode(pickupRequest.body)['pickup_code'], '123456');
 
     await _tap(tester, 'Démarrer la livraison');
     expect(find.text('Saisir le code de livraison'), findsOneWidget);

@@ -16,8 +16,14 @@ class OrderSummary {
     this.commissionRate,
     this.commissionAmount,
     this.deliveryZoneName,
+    this.fulfillmentMethod = 'delivery',
     this.currency = 'XOF',
   });
+
+  /// `delivery` (défaut) ou `pickup` (retrait sur place).
+  final String fulfillmentMethod;
+
+  bool get isPickup => fulfillmentMethod == 'pickup';
 
   final List<SummaryItem> items;
   final int subtotal;
@@ -101,6 +107,7 @@ class OrderSummary {
       commissionRate: rate,
       commissionAmount: amount,
       deliveryZoneName: zoneName,
+      fulfillmentMethod: _s(json['fulfillment_method'], 'delivery'),
       currency: _s(json['currency'], 'XOF'),
     );
   }

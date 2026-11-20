@@ -480,11 +480,13 @@ class _MissionNavigationScreenState extends State<MissionNavigationScreen> {
     if (_actionLoading) {
       return;
     }
-    final confirmed = await showDialog<bool>(
+    // Pour une commande, le dialogue renvoie le PIN de collecte remis par le
+    // vendeur (obligatoire). Pour un colis, renvoie une chaîne vide.
+    final pickupCode = await showDialog<String>(
       context: context,
       builder: (_) => _PickupConfirmationDialog(mission: _mission),
     );
-    if (confirmed != true || !mounted) {
+    if (pickupCode == null || !mounted) {
       return;
     }
 
@@ -493,7 +495,10 @@ class _MissionNavigationScreenState extends State<MissionNavigationScreen> {
       if (_mission.isParcel) {
         await widget.marketplace.pickupParcelDelivery(_mission.id);
       } else {
-        await widget.marketplace.markPickedUp(_mission.id);
+        await widget.marketplace.markPickedUp(
+          _mission.id,
+          vendorPickupCode: pickupCode.isEmpty ? null : pickupCode,
+        );
       }
       if (!mounted) {
         return;
@@ -1134,7 +1139,11 @@ class _BottomMissionPanel extends StatelessWidget {
                     ),
                     if (phone.isNotEmpty) ...[
                       const SizedBox(width: 6),
-                      CallButton(label: context.tr('Appeler'), phone: phone, compact: true),
+                      CallButton(
+                        label: context.tr('Appeler'),
+                        phone: phone,
+                        compact: true,
+                      ),
                     ],
                   ],
                 ),
@@ -1458,14 +1467,32 @@ class _RouteFallbackBanner extends StatelessWidget {
   }
 }
 
-class _PickupConfirmationDialog extends StatelessWidget {
+class _PickupConfirmationDialog extends StatefulWidget {
   const _PickupConfirmationDialog({required this.mission});
 
   final DriverMission mission;
 
   @override
+  State<_PickupConfirmationDialog> createState() =>
+      _PickupConfirmationDialogState();
+}
+
+class _PickupConfirmationDialogState extends State<_PickupConfirmationDialog> {
+  final _codeController = TextEditingController();
+
+  @override
+  void dispose() {
+    _codeController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final mission = widget.mission;
+    final isOrder = !mission.isParcel;
     final phone = mission.pickup.contactPhone?.trim() ?? '';
+    final code = _codeController.text.trim();
+    final canConfirm = !isOrder || code.length == 6;
 
     return AlertDialog(
       shape: RoundedRectangleBorder(
@@ -1478,7 +1505,7 @@ class _PickupConfirmationDialog extends StatelessWidget {
         style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
       ),
       content: ConstrainedBox(
-        constraints: const BoxConstraints(maxHeight: 340),
+        constraints: const BoxConstraints(maxHeight: 440),
         child: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -1494,6 +1521,37 @@ class _PickupConfirmationDialog extends StatelessWidget {
                   color: AppColors.textSecondary,
                 ),
               ),
+              if (isOrder) ...[
+                const SizedBox(height: 16),
+                TextField(
+                  controller: _codeController,
+                  autofocus: true,
+                  keyboardType: TextInputType.number,
+                  maxLength: 6,
+                  textAlign: TextAlign.center,
+                  onChanged: (_) => setState(() {}),
+                  decoration: const InputDecoration(
+                    labelText: 'Code de collecte du vendeur',
+                    hintText: 'PIN à 6 chiffres',
+                    prefixIcon: Icon(Icons.pin_outlined),
+                    counterText: '',
+                  ),
+                  style: const TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 6,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                const Text(
+                  'Demandez au vendeur le code à 6 chiffres généré lorsque la commande était prête. Sans ce code, la collecte sera refusée.',
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    height: 1.4,
+                    color: AppColors.goldDark,
+                  ),
+                ),
+              ],
               if (mission.items.isNotEmpty) ...[
                 const SizedBox(height: 12),
                 Container(
@@ -1552,7 +1610,11 @@ class _PickupConfirmationDialog extends StatelessWidget {
                     ),
                   ),
                   if (phone.isNotEmpty)
-                    CallButton(label: context.tr('Appeler'), phone: phone, compact: true),
+                    CallButton(
+                      label: context.tr('Appeler'),
+                      phone: phone,
+                      compact: true,
+                    ),
                 ],
               ),
             ],
@@ -1561,11 +1623,11 @@ class _PickupConfirmationDialog extends StatelessWidget {
       ),
       actions: [
         TextButton(
-          onPressed: () => Navigator.of(context).pop(false),
+          onPressed: () => Navigator.of(context).pop(),
           child: Text(context.tr('Pas encore')),
         ),
         FilledButton(
-          onPressed: () => Navigator.of(context).pop(true),
+          onPressed: canConfirm ? () => Navigator.of(context).pop(code) : null,
           style: FilledButton.styleFrom(
             backgroundColor: AppColors.green,
             foregroundColor: Colors.white,

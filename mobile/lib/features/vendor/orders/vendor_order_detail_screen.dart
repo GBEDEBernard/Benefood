@@ -25,13 +25,18 @@ import '../../../core/i18n/app_localizations.dart';
 
 /// Détail d'une commande vendeur (J156) : articles, totaux, adresse, actions.
 class VendorOrderDetailScreen extends StatefulWidget {
-  const VendorOrderDetailScreen({super.key, required this.marketplace, required this.order});
+  const VendorOrderDetailScreen({
+    super.key,
+    required this.marketplace,
+    required this.order,
+  });
 
   final MarketplaceApi marketplace;
   final Order order;
 
   @override
-  State<VendorOrderDetailScreen> createState() => _VendorOrderDetailScreenState();
+  State<VendorOrderDetailScreen> createState() =>
+      _VendorOrderDetailScreenState();
 }
 
 class _VendorOrderDetailScreenState extends State<VendorOrderDetailScreen> {
@@ -162,20 +167,29 @@ class _VendorOrderDetailScreenState extends State<VendorOrderDetailScreen> {
     });
   }
 
-  Future<void> _runAction(Future<Order> Function() call, {required String successLabel}) async {
+  Future<void> _runAction(
+    Future<Order> Function() call, {
+    required String successLabel,
+  }) async {
     setState(() => _actionLoading = true);
     try {
       final updated = await call();
       if (mounted) {
         setState(() => _order = updated);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(successLabel), behavior: SnackBarBehavior.floating),
+          SnackBar(
+            content: Text(successLabel),
+            behavior: SnackBarBehavior.floating,
+          ),
         );
       }
     } on ApiException catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.message), behavior: SnackBarBehavior.floating),
+          SnackBar(
+            content: Text(e.message),
+            behavior: SnackBarBehavior.floating,
+          ),
         );
       }
     } finally {
@@ -217,7 +231,10 @@ class _VendorOrderDetailScreenState extends State<VendorOrderDetailScreen> {
 
   Future<void> _accept() async {
     final order = _order ?? widget.order;
-    await _runAction(() => widget.marketplace.vendorAccept(order.id), successLabel: 'Commande acceptée');
+    await _runAction(
+      () => widget.marketplace.vendorAccept(order.id),
+      successLabel: 'Commande acceptée',
+    );
   }
 
   Future<void> _refuse() async {
@@ -226,12 +243,18 @@ class _VendorOrderDetailScreenState extends State<VendorOrderDetailScreen> {
     if (reason == null || !mounted) {
       return;
     }
-    await _runAction(() => widget.marketplace.vendorRefuse(order.id, reason: reason), successLabel: 'Commande refusée');
+    await _runAction(
+      () => widget.marketplace.vendorRefuse(order.id, reason: reason),
+      successLabel: 'Commande refusée',
+    );
   }
 
   Future<void> _prepare() async {
     final order = _order ?? widget.order;
-    await _runAction(() => widget.marketplace.vendorPreparing(order.id), successLabel: 'Préparation commencée');
+    await _runAction(
+      () => widget.marketplace.vendorPreparing(order.id),
+      successLabel: 'Préparation commencée',
+    );
   }
 
   Future<void> _ready() async {
@@ -245,7 +268,10 @@ class _VendorOrderDetailScreenState extends State<VendorOrderDetailScreen> {
       return;
     }
     await _runAction(
-      () => widget.marketplace.vendorReady(order.id, favoriteDriverId: choice.driverId),
+      () => widget.marketplace.vendorReady(
+        order.id,
+        favoriteDriverId: choice.driverId,
+      ),
       successLabel: choice.isNone
           ? 'Commande marquée prête'
           : 'Commande prête — offre réservée à ${choice.label}',
@@ -258,7 +284,10 @@ class _VendorOrderDetailScreenState extends State<VendorOrderDetailScreen> {
     if (reason == null || !mounted) {
       return;
     }
-    await _runAction(() => widget.marketplace.vendorCancel(order.id, reason: reason), successLabel: 'Commande annulée');
+    await _runAction(
+      () => widget.marketplace.vendorCancel(order.id, reason: reason),
+      successLabel: 'Commande annulée',
+    );
   }
 
   Widget _trackingCard(Order order) {
@@ -337,17 +366,16 @@ class _VendorOrderDetailScreenState extends State<VendorOrderDetailScreen> {
                 targetImageUrl: isPickup
                     ? order.vendor?.logoUrl
                     : order.customerAvatarUrl,
-                targetIcon:
-                    isPickup ? Icons.storefront_outlined : Icons.place,
+                targetIcon: isPickup ? Icons.storefront_outlined : Icons.place,
                 targetColor: isPickup ? AppColors.gold : AppColors.orange,
-                secondary:
-                    isPickup ? order.dropoffPoint : order.vendor?.point,
+                secondary: isPickup ? order.dropoffPoint : order.vendor?.point,
                 secondaryLabel: isPickup ? 'Client' : 'Votre boutique',
                 secondaryImageUrl: isPickup
                     ? order.customerAvatarUrl
                     : order.vendor?.logoUrl,
-                secondaryIcon:
-                    isPickup ? Icons.place : Icons.storefront_outlined,
+                secondaryIcon: isPickup
+                    ? Icons.place
+                    : Icons.storefront_outlined,
                 secondaryColor: isPickup ? AppColors.orange : AppColors.gold,
                 route: _route?.latLng,
                 routeColor: AppColors.orange,
@@ -455,7 +483,13 @@ class _VendorOrderDetailScreenState extends State<VendorOrderDetailScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Commande ${order.reference}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                    Text(
+                      'Commande ${order.reference}',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
                     Text(
                       formatDateTime(order.createdAt, fallback: ''),
                       style: Theme.of(context).textTheme.bodySmall,
@@ -463,21 +497,91 @@ class _VendorOrderDetailScreenState extends State<VendorOrderDetailScreen> {
                   ],
                 ),
               ),
-              if (palette != null) StatusBadge(label: palette.$1, color: palette.$2),
+              if (palette != null)
+                StatusBadge(label: palette.$1, color: palette.$2),
             ],
           ),
           if (order.cancelledBy != null) ...[
             const SizedBox(height: 6),
             Text(
               'Annulée par : ${order.cancelledBy}',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ),
           ],
           if (order.cancellationReason != null) ...[
             const SizedBox(height: 6),
             Text(
               'Motif : ${order.cancellationReason}',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Theme.of(context).colorScheme.error),
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: Theme.of(context).colorScheme.error,
+              ),
+            ),
+          ],
+          if (order.isSelfPickup) ...[
+            const SizedBox(height: 12),
+            Card(
+              color: AppColors.orangeLight,
+              child: ListTile(
+                leading: const Icon(
+                  Icons.storefront_outlined,
+                  color: AppColors.orangeDark,
+                ),
+                title: Text(context.tr('Retrait sur place')),
+                subtitle: const Text(
+                  'Le client viendra retirer sa commande. Vérifiez son code de retrait à 6 chiffres avant de lui remettre les articles.',
+                ),
+              ),
+            ),
+          ],
+          if (!order.isSelfPickup &&
+              (order.vendorPickupCode?.isNotEmpty ?? false)) ...[
+            const SizedBox(height: 12),
+            Card(
+              color: AppColors.greenLight,
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(Icons.pin_outlined, color: AppColors.green),
+                        const SizedBox(width: 8),
+                        Text(
+                          context.tr('Code de collecte du livreur'),
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.green,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    Center(
+                      child: SelectableText(
+                        order.vendorPickupCode!,
+                        style: const TextStyle(
+                          fontSize: 30,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 8,
+                          color: AppColors.green,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Communiquez ce code au livreur lorsqu\'il vient récupérer la commande. La collecte sera refusée sans ce code.',
+                      style: TextStyle(
+                        fontSize: 12,
+                        height: 1.4,
+                        color: AppColors.green,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
           ],
           if ((order.delivery?.isActive ?? false) &&
@@ -492,7 +596,10 @@ class _VendorOrderDetailScreenState extends State<VendorOrderDetailScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Articles', style: TextStyle(fontWeight: FontWeight.bold)),
+                  const Text(
+                    'Articles',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
                   const SizedBox(height: 4),
                   for (final item in order.items)
                     PackageItemTile(
@@ -502,18 +609,39 @@ class _VendorOrderDetailScreenState extends State<VendorOrderDetailScreen> {
                       trailing: formatAmount(item.subtotal, showSymbol: false),
                     ),
                   const Divider(height: 24),
-                  _SummaryRow(label: context.tr('Sous-total'), amount: order.subtotal),
-                  _SummaryRow(label: context.tr('Livraison'), amount: order.deliveryFee),
-                  if ((order.financials?.serviceFee ?? 0) > 0)
-                    _SummaryRow(label: context.tr('Commission client'), amount: order.financials!.serviceFee!),
-                  if (order.discount > 0) _SummaryRow(label: context.tr('Remise'), amount: -order.discount),
+                  _SummaryRow(
+                    label: context.tr('Sous-total'),
+                    amount: order.subtotal,
+                  ),
+                  if (!order.isSelfPickup) ...[
+                    _SummaryRow(
+                      label: context.tr('Livraison'),
+                      amount: order.deliveryFee,
+                    ),
+                    if ((order.financials?.serviceFee ?? 0) > 0)
+                      _SummaryRow(
+                        label: context.tr('Commission client'),
+                        amount: order.financials!.serviceFee!,
+                      ),
+                  ],
+                  if (order.discount > 0)
+                    _SummaryRow(
+                      label: context.tr('Remise'),
+                      amount: -order.discount,
+                    ),
                   const SizedBox(height: 4),
-                  _SummaryRow(label: context.tr('Total'), amount: order.total, emphasized: true),
+                  _SummaryRow(
+                    label: context.tr('Total'),
+                    amount: order.total,
+                    emphasized: true,
+                  ),
                 ],
               ),
             ),
           ),
-          if (order.deliveryAddress != null && order.deliveryAddress!.isNotEmpty) ...[
+          if (!order.isSelfPickup &&
+              order.deliveryAddress != null &&
+              order.deliveryAddress!.isNotEmpty) ...[
             const SizedBox(height: 12),
             Card(
               child: ListTile(
@@ -530,10 +658,19 @@ class _VendorOrderDetailScreenState extends State<VendorOrderDetailScreen> {
             icon: Icons.refresh,
             onPressed: _actionLoading ? null : _load,
           ),
-          if (order.canVendorAccept || order.canVendorRefuse || order.canVendorPrepare || order.canVendorReady || order.canCancel) ...[
+          if (order.canVendorAccept ||
+              order.canVendorRefuse ||
+              order.canVendorPrepare ||
+              order.canVendorReady ||
+              order.canCancel) ...[
             const SizedBox(height: 12),
             if (order.canVendorAccept) ...[
-              AppButton(label: context.tr('Accepter la commande'), icon: Icons.check, onPressed: _actionLoading ? null : _accept, loading: _actionLoading),
+              AppButton(
+                label: context.tr('Accepter la commande'),
+                icon: Icons.check,
+                onPressed: _actionLoading ? null : _accept,
+                loading: _actionLoading,
+              ),
               const SizedBox(height: 8),
             ],
             if (order.canVendorRefuse)
@@ -552,7 +689,12 @@ class _VendorOrderDetailScreenState extends State<VendorOrderDetailScreen> {
               ),
             ],
             if (order.canVendorReady) ...[
-              AppButton(label: context.tr('Marquer prête'), icon: Icons.check_circle_outline, onPressed: _actionLoading ? null : _ready, loading: _actionLoading),
+              AppButton(
+                label: context.tr('Marquer prête'),
+                icon: Icons.check_circle_outline,
+                onPressed: _actionLoading ? null : _ready,
+                loading: _actionLoading,
+              ),
               const SizedBox(height: 8),
             ],
             if (order.canCancel) ...[
@@ -572,7 +714,11 @@ class _VendorOrderDetailScreenState extends State<VendorOrderDetailScreen> {
 }
 
 class _SummaryRow extends StatelessWidget {
-  const _SummaryRow({required this.label, this.amount, this.emphasized = false});
+  const _SummaryRow({
+    required this.label,
+    this.amount,
+    this.emphasized = false,
+  });
 
   final String label;
   final int? amount;
@@ -581,7 +727,9 @@ class _SummaryRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final style = emphasized
-        ? Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)
+        ? Theme.of(
+            context,
+          ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)
         : Theme.of(context).textTheme.bodyMedium;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),

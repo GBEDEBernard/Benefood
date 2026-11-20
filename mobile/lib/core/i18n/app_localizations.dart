@@ -93,8 +93,7 @@ class AppLocalizations extends InheritedWidget {
     'Client': 'Customer',
     'Vendeur': 'Vendor',
     'Livreur': 'Deliverer',
-    'Commander chez les vendeurs Béninfood':
-        'Order from Béninfood vendors',
+    'Commander chez les vendeurs Béninfood': 'Order from Béninfood vendors',
     'Gérer ma boutique, mes produits et mes commandes':
         'Manage my shop, products and orders',
     'Recevoir des missions et livrer': 'Receive missions and deliver',
@@ -137,8 +136,7 @@ class AppLocalizations extends InheritedWidget {
     'Compte et préférences': 'Account and preferences',
     'OUVERTE': 'OPEN',
     'FERMÉE': 'CLOSED',
-    'Voulez-vous vraiment vous déconnecter ?':
-        'Do you really want to log out?',
+    'Voulez-vous vraiment vous déconnecter ?': 'Do you really want to log out?',
     'Déconnecter': 'Log out',
     'Livreur vérifié Béninfood': 'Verified Béninfood deliverer',
     'Réglages du serveur': 'Server settings',
@@ -213,10 +211,8 @@ class AppLocalizations extends InheritedWidget {
     'Commandez, ': 'Order, ',
     'on livre': 'we deliver',
     ' chez vous': ' to your door',
-    'Suivez votre commande en temps réel':
-        'Track your order in real time',
-    'Rechercher un plat, un resto...':
-        'Search for a dish, a restaurant...',
+    'Suivez votre commande en temps réel': 'Track your order in real time',
+    'Rechercher un plat, un resto...': 'Search for a dish, a restaurant...',
     'Boutiques les mieux notées': 'Top-rated shops',
     'Plats du jour les mieux notés': 'Top-rated dishes of the day',
     'Voir tout': 'See all',
@@ -224,11 +220,10 @@ class AppLocalizations extends InheritedWidget {
     'Aucun plat dans cette catégorie pour le moment.':
         'No dish in this category yet.',
     'Aucune boutique pour le moment': 'No shop yet',
-    'Le goût du Bénin, livré chez vous':
-        'The taste of Benin, delivered to you',
+    'Le goût du Bénin, livré chez vous': 'The taste of Benin, delivered to you',
     'Bonjour, {name} 👋 Que mangerez-vous aujourd’hui ?':
         'Hello, {name} 👋 What will you eat today?',
-      'Acceptation automatique': 'Automatic acceptance',
+    'Acceptation automatique': 'Automatic acceptance',
     'Accepter': 'Accept',
     'Adresse': 'Address',
     'Adresse de livraison': 'Delivery address',
@@ -244,7 +239,8 @@ class AppLocalizations extends InheritedWidget {
     'Aucun appareil enregistré': 'No registered device',
     'Aucun document fourni': 'No document provided',
     'Aucune': 'None',
-    'Aucun lieu disponible pour le moment.': 'No location available at the moment.',
+    'Aucun lieu disponible pour le moment.':
+        'No location available at the moment.',
     'Aucun quartier ne correspond.': 'No neighbourhood matches.',
     'Autour de moi': 'Around me',
     'Carte bancaire': 'Bank card',
@@ -253,7 +249,19 @@ class AppLocalizations extends InheritedWidget {
     'Choisir dans la galerie': 'Choose from gallery',
     'Choisir mon livreur': 'Choose my driver',
     'Code de confirmation': 'Confirmation code',
-    'Code de remise à communiquer au nouveau livreur :': 'Handover code to give to the new driver:',
+    'Code de retrait': 'Pickup code',
+    'Code de collecte du livreur': 'Driver pickup code',
+    'Code de collecte du vendeur': 'Vendor pickup code',
+    'Confirmer le retrait': 'Confirm pickup',
+    'Retrait sur place': 'Self pickup',
+    'Mode de remise': 'Fulfillment method',
+    'Paiement en espèces': 'Cash payment',
+    'Paiement au retrait': 'Pay on pickup',
+    'Prête à être retirée': 'Ready for pickup',
+    'Retirée': 'Picked up',
+    'Commander et payer au retrait': 'Order and pay on pickup',
+    'Code de remise à communiquer au nouveau livreur :':
+        'Handover code to give to the new driver:',
     'Commande concernée': 'Related order',
     'Commencer la préparation': 'Start preparing',
     'Compris': 'Got it',
@@ -278,7 +286,8 @@ class AppLocalizations extends InheritedWidget {
     'IFU et registre de commerce attendus.': 'IFU and trade register required.',
     'Incident signalé': 'Incident reported',
     'J’ai terminé le paiement': 'I have completed the payment',
-    'Les commandes payées sont acceptées sans action manuelle': 'Paid orders are accepted automatically',
+    'Les commandes payées sont acceptées sans action manuelle':
+        'Paid orders are accepted automatically',
     'Ma position': 'My location',
     'Marquer prête': 'Mark ready',
     'Mobile Money (en ligne)': 'Mobile Money (online)',
@@ -335,8 +344,10 @@ class AppLocalizations extends InheritedWidget {
     'Ajouter la couverture': 'Ajouter la couverture',
     'Ajouter le logo': 'Ajouter le logo',
     'Ajouter un produit': 'Ajouter un produit',
-    'Ajoutez les livreurs qui vous ont déjà livré. Ils recevront une demande.': 'Ajoutez les livreurs qui vous ont déjà livré. Ils recevront une demande.',
-    'Ajoutez une adresse pour vos livraisons.': 'Ajoutez une adresse pour vos livraisons.',
+    'Ajoutez les livreurs qui vous ont déjà livré. Ils recevront une demande.':
+        'Ajoutez les livreurs qui vous ont déjà livré. Ils recevront une demande.',
+    'Ajoutez une adresse pour vos livraisons.':
+        'Ajoutez une adresse pour vos livraisons.',
     'Annulées': 'Annulées',
     'Appeler': 'Appeler',
     'Appeler la boutique': 'Appeler la boutique',
@@ -357,7 +368,8 @@ class AppLocalizations extends InheritedWidget {
     'Béninfood': 'Béninfood',
     'Cartes, mobile money...': 'Cartes, mobile money...',
     'Celtiis': 'Celtiis',
-    'Ce montant correspond aux ventes validées sur la période.': 'Ce montant correspond aux ventes validées sur la période.',
+    'Ce montant correspond aux ventes validées sur la période.':
+        'Ce montant correspond aux ventes validées sur la période.',
     'Choisir le nouveau livreur': 'Choisir le nouveau livreur',
     'Classés par quantité vendue': 'Classés par quantité vendue',
     'Clients': 'Clients',
@@ -367,7 +379,8 @@ class AppLocalizations extends InheritedWidget {
     'Commande collectée': 'Commande collectée',
     'Commander': 'Commander',
     'Commandes, alertes, offres...': 'Commandes, alertes, offres...',
-    'Commandes et colis livrés sur la période': 'Commandes et colis livrés sur la période',
+    'Commandes et colis livrés sur la période':
+        'Commandes et colis livrés sur la période',
     'Commandes par statut': 'Commandes par statut',
     'Commandes totales': 'Commandes totales',
     'Commencer': 'Commencer',
@@ -407,10 +420,13 @@ class AppLocalizations extends InheritedWidget {
     'En préparation': 'En préparation',
     'Enregistrer la position': 'Enregistrer la position',
     'Enregistrer mes informations': 'Enregistrer mes informations',
-    'Envoyer et suivre vos expéditions...': 'Envoyer et suivre vos expéditions...',
-    'Envoyez les justificatifs demandés pour la vérification.': 'Envoyez les justificatifs demandés pour la vérification.',
+    'Envoyer et suivre vos expéditions...':
+        'Envoyer et suivre vos expéditions...',
+    'Envoyez les justificatifs demandés pour la vérification.':
+        'Envoyez les justificatifs demandés pour la vérification.',
     'Équivalent indicatif': 'Équivalent indicatif',
-    'Essayez d’autres mots-clés ou élargissez la zone.': 'Essayez d’autres mots-clés ou élargissez la zone.',
+    'Essayez d’autres mots-clés ou élargissez la zone.':
+        'Essayez d’autres mots-clés ou élargissez la zone.',
     'Ex. +229 96 00 00 00': 'Ex. +229 96 00 00 00',
     'Fermer le menu': 'Fermer le menu',
     'Fermeture': 'Fermeture',
@@ -420,21 +436,27 @@ class AppLocalizations extends InheritedWidget {
     'Frais de livraison': 'Frais de livraison',
     'Frais de livraison client': 'Frais de livraison client',
     'Gain moyen / mission': 'Gain moyen / mission',
-    'Gains, missions et dernières livraisons': 'Gains, missions et dernières livraisons',
+    'Gains, missions et dernières livraisons':
+        'Gains, missions et dernières livraisons',
     'Horaires': 'Horaires',
     'Horaires d’ouverture': 'Horaires d’ouverture',
     'Informations': 'Informations',
-    'Informations issues de votre dossier livreur.': 'Informations issues de votre dossier livreur.',
+    'Informations issues de votre dossier livreur.':
+        'Informations issues de votre dossier livreur.',
     'Informations légales': 'Informations légales',
     'Informations personnelles': 'Informations personnelles',
     'Instructions au livreur': 'Instructions au livreur',
     'Instructions pour le livreur': 'Instructions pour le livreur',
     'Jours ouverts': 'Jours ouverts',
-    'La photo de couverture en haut de la fiche boutique': 'La photo de couverture en haut de la fiche boutique',
+    'La photo de couverture en haut de la fiche boutique':
+        'La photo de couverture en haut de la fiche boutique',
     'Le Délice Fast-Food': 'Le Délice Fast-Food',
-    'Le logo est affiché dans le catalogue': 'Le logo est affiché dans le catalogue',
-    'Les indicateurs se recalculent sur la période choisie.': 'Les indicateurs se recalculent sur la période choisie.',
-    'Le trajet déjà effectué est partagé au prorata. Aucun frais supplémentaire ne vous sera facturé.': 'Le trajet déjà effectué est partagé au prorata. Aucun frais supplémentaire ne vous sera facturé.',
+    'Le logo est affiché dans le catalogue':
+        'Le logo est affiché dans le catalogue',
+    'Les indicateurs se recalculent sur la période choisie.':
+        'Les indicateurs se recalculent sur la période choisie.',
+    'Le trajet déjà effectué est partagé au prorata. Aucun frais supplémentaire ne vous sera facturé.':
+        'Le trajet déjà effectué est partagé au prorata. Aucun frais supplémentaire ne vous sera facturé.',
     'Libellé': 'Libellé',
     'Livraison': 'Livraison',
     'Livraison (base)': 'Livraison (base)',
@@ -443,7 +465,8 @@ class AppLocalizations extends InheritedWidget {
     'Livrées': 'Livrées',
     'Livreur favori': 'Livreur favori',
     'Livreur favori (optionnel)': 'Livreur favori (optionnel)',
-    'Livreurs favoris pour vos commandes et colis...': 'Livreurs favoris pour vos commandes et colis...',
+    'Livreurs favoris pour vos commandes et colis...':
+        'Livreurs favoris pour vos commandes et colis...',
     'Logo': 'Logo',
     'Ma carte de contact (QR code)': 'Ma carte de contact (QR code)',
     'Maison, travail, autres...': 'Maison, travail, autres...',
@@ -472,7 +495,8 @@ class AppLocalizations extends InheritedWidget {
     'Moov': 'Moov',
     'Mot de passe actuel': 'Mot de passe actuel',
     'Mot de passe, appareils...': 'Mot de passe, appareils...',
-    'Mot de passe et appareils connectés': 'Mot de passe et appareils connectés',
+    'Mot de passe et appareils connectés':
+        'Mot de passe et appareils connectés',
     'Motif (facultatif)': 'Motif (facultatif)',
     'MTN': 'MTN',
     'Net vendeur': 'Net vendeur',
@@ -491,9 +515,11 @@ class AppLocalizations extends InheritedWidget {
     'Ouverture': 'Ouverture',
     'Ouvrir dans Google Maps': 'Ouvrir dans Google Maps',
     'Ouvrir la boutique': 'Ouvrir la boutique',
-    'Paiement en ligne sécurisé via FedaPay.': 'Paiement en ligne sécurisé via FedaPay.',
+    'Paiement en ligne sécurisé via FedaPay.':
+        'Paiement en ligne sécurisé via FedaPay.',
     'Panier moyen': 'Panier moyen',
-    'Parcourez les boutiques pour ajouter des produits.': 'Parcourez les boutiques pour ajouter des produits.',
+    'Parcourez les boutiques pour ajouter des produits.':
+        'Parcourez les boutiques pour ajouter des produits.',
     'Par semaine': 'Par semaine',
     'Part livraison': 'Part livraison',
     'Payée le': 'Payée le',
@@ -501,7 +527,8 @@ class AppLocalizations extends InheritedWidget {
     'Payer maintenant': 'Payer maintenant',
     'Performance': 'Performance',
     'Période': 'Période',
-    'Personnalisez la vitrine de votre boutique.': 'Personnalisez la vitrine de votre boutique.',
+    'Personnalisez la vitrine de votre boutique.':
+        'Personnalisez la vitrine de votre boutique.',
     'Pertinence': 'Pertinence',
     'Photo de couverture': 'Photo de couverture',
     'Poids (kg)': 'Poids (kg)',
@@ -514,17 +541,21 @@ class AppLocalizations extends InheritedWidget {
     'Produits les plus vendus': 'Produits les plus vendus',
     'Proximité': 'Proximité',
     'Questions fréquentes et contact': 'Questions fréquentes et contact',
-    'Questions fréquentes, nous contacter...': 'Questions fréquentes, nous contacter...',
+    'Questions fréquentes, nous contacter...':
+        'Questions fréquentes, nous contacter...',
     'Rafraîchir': 'Rafraîchir',
     'Raison sociale': 'Raison sociale',
     'Ramassage': 'Ramassage',
     'Récapitulatif': 'Récapitulatif',
-    'Rechercher un plat, un restaurant...': 'Rechercher un plat, un restaurant...',
-    'Rechercher un plat, un restaurant, une boutique…': 'Rechercher un plat, un restaurant, une boutique…',
+    'Rechercher un plat, un restaurant...':
+        'Rechercher un plat, un restaurant...',
+    'Rechercher un plat, un restaurant, une boutique…':
+        'Rechercher un plat, un restaurant, une boutique…',
     'Rechercher un produit...': 'Rechercher un produit...',
     'Refuser la commande': 'Refuser la commande',
     'Remise': 'Remise',
-    'Renseignez les informations légales de votre entreprise.': 'Renseignez les informations légales de votre entreprise.',
+    'Renseignez les informations légales de votre entreprise.':
+        'Renseignez les informations légales de votre entreprise.',
     'Répartition des missions': 'Répartition des missions',
     'Répartition sur la période': 'Répartition sur la période',
     'Retirer des favoris': 'Retirer des favoris',
@@ -535,12 +566,14 @@ class AppLocalizations extends InheritedWidget {
     'Retrait demandé': 'Retrait demandé',
     'Retrait min.': 'Retrait min.',
     'Retrait minimum': 'Retrait minimum',
-    'Reversement, notifications, langue...': 'Reversement, notifications, langue...',
+    'Reversement, notifications, langue...':
+        'Reversement, notifications, langue...',
     'Sécurité': 'Sécurité',
     'Séquestre': 'Séquestre',
     'Solde dispo.': 'Solde dispo.',
     'Solde disponible': 'Solde disponible',
-    'Solde disponible, séquestre et historique': 'Solde disponible, séquestre et historique',
+    'Solde disponible, séquestre et historique':
+        'Solde disponible, séquestre et historique',
     'Sous-total': 'Sous-total',
     'Statut': 'Statut',
     'Statut de la boutique': 'Statut de la boutique',
@@ -555,7 +588,8 @@ class AppLocalizations extends InheritedWidget {
     'Taux de réussite': 'Taux de réussite',
     'Téléphone du contact': 'Téléphone du contact',
     'Téléphone du destinataire': 'Téléphone du destinataire',
-    'Téléphone du destinataire (optionnel)': 'Téléphone du destinataire (optionnel)',
+    'Téléphone du destinataire (optionnel)':
+        'Téléphone du destinataire (optionnel)',
     'Terminées': 'Terminées',
     'Total': 'Total',
     'Total à payer': 'Total à payer',
@@ -564,29 +598,36 @@ class AppLocalizations extends InheritedWidget {
     'Tout fermer': 'Tout fermer',
     'Tout ouvrir': 'Tout ouvrir',
     'Unité': 'Unité',
-    'Un souci avec une commande ? Faites-le nous savoir.': 'Un souci avec une commande ? Faites-le nous savoir.',
+    'Un souci avec une commande ? Faites-le nous savoir.':
+        'Un souci avec une commande ? Faites-le nous savoir.',
     'URL de base': 'URL de base',
     'Valider la commande': 'Valider la commande',
     'Véhicule': 'Véhicule',
     'Véhicule & documents': 'Véhicule & documents',
     'Véhicule et immatriculation': 'Véhicule et immatriculation',
-    'Ventes, commandes et meilleurs produits...': 'Ventes, commandes et meilleurs produits...',
+    'Ventes, commandes et meilleurs produits...':
+        'Ventes, commandes et meilleurs produits...',
     'Ville': 'Ville',
     'Voir': 'Voir',
     'Voir détails': 'Voir détails',
     'Voir les statistiques': 'Voir les statistiques',
     'Vos 5 dernières missions terminées': 'Vos 5 dernières missions terminées',
     'Vos commandes apparaîtront ici.': 'Vos commandes apparaîtront ici.',
-    'Vos livreurs favoris, contactables...': 'Vos livreurs favoris, contactables...',
-    'Votre boutique reçoit-elle des commandes en ce moment ?': 'Votre boutique reçoit-elle des commandes en ce moment ?',
+    'Vos livreurs favoris, contactables...':
+        'Vos livreurs favoris, contactables...',
+    'Votre boutique reçoit-elle des commandes en ce moment ?':
+        'Votre boutique reçoit-elle des commandes en ce moment ?',
     'Votre chiffre d’affaires': 'Votre chiffre d’affaires',
     'Votre commentaire (optionnel)': 'Votre commentaire (optionnel)',
     'Votre gain': 'Votre gain',
     'Votre livreur': 'Votre livreur',
     'Votre panier est vide': 'Votre panier est vide',
-    'Vous acceptez de nouvelles commandes.': 'Vous acceptez de nouvelles commandes.',
-    'Vous remettez le montant total au livreur à la réception.': 'Vous remettez le montant total au livreur à la réception.',
-    'Vous suspendez temporairement les commandes.': 'Vous suspendez temporairement les commandes.',
+    'Vous acceptez de nouvelles commandes.':
+        'Vous acceptez de nouvelles commandes.',
+    'Vous remettez le montant total au livreur à la réception.':
+        'Vous remettez le montant total au livreur à la réception.',
+    'Vous suspendez temporairement les commandes.':
+        'Vous suspendez temporairement les commandes.',
     'Zones desservies': 'Zones desservies',
   };
 
@@ -642,13 +683,11 @@ class AppLocalizations extends InheritedWidget {
         'Kpé nɔ xɔ̀ ce, nù ce lɛ kpo nùxɔ̀ ce lɛ kpo',
     'Recevoir des missions et livrer': 'Mɔ azɔ̌ lɛ bo ná nùgbɔ̀',
     // Tiroirs latéraux
-    'Restaurants, produits et offres':
-        'Restorán lɛ, nù lɛ kpo nùɖéɖé lɛ kpo',
+    'Restaurants, produits et offres': 'Restorán lɛ, nù lɛ kpo nùɖéɖé lɛ kpo',
     'Tout le catalogue Béninfood': 'Béninfood nù lɛ katá',
     'Articles en attente de paiement': 'Nù e ɖò kwɛ́ xɔ̀mɛ lɛ',
     'Suivre mes livraisons': 'Kpɔ́n nùgbɔ̀ ce lɛ',
-    'Profil, adresses et réglages':
-        'Mɛɖeɖe, adrɛ́si lɛ kpo ɖoɖó lɛ kpo',
+    'Profil, adresses et réglages': 'Mɛɖeɖe, adrɛ́si lɛ kpo ɖoɖó lɛ kpo',
     'NAVIGATION': 'XWÉGBÈ',
     'ACCÈS RAPIDES': 'ALƆ KUNKÚN LƐ',
     'Courses en cours et à venir': 'Azɔ̌ e ɖò yìyì lɛ kpo e jɛ́ lɛ kpo',
@@ -692,8 +731,7 @@ class AppLocalizations extends InheritedWidget {
     'Créer un compte': 'Dà kɔ́ntu ɖé',
     'Mot de passe oublié ?': 'A wɔ́n pásíwɔ́dù vɔ́?',
     'Bon retour !': 'Kúabɔ̀ lɛ́!',
-    'Connectez-vous pour continuer vos achats.':
-        'Byɔ́ xwé bo ná yì nùxɔ̀ wu.',
+    'Connectez-vous pour continuer vos achats.': 'Byɔ́ xwé bo ná yì nùxɔ̀ wu.',
     'Téléphone ou email': 'Tɛlɛ́fɔ́n alǒ email',
     'Votre numéro ou votre email': 'Nɔ́mba towe alǒ email towe',
     'Mot de passe': 'Pásíwɔ́dù',
@@ -740,8 +778,7 @@ class AppLocalizations extends InheritedWidget {
         'A ná sɔ́ kɔ́ntu tɛ́ a jló ná dà ɖò nukɔ́n mɛ.',
     '6 chiffres': 'Wékwín 6',
     'Code de 6 chiffres': 'Kódù wékwín 6',
-    'Retapez le nouveau mot de passe':
-        'Lɛ́ wlán pásíwɔ́dù yɔ́yɔ́ lɔ',
+    'Retapez le nouveau mot de passe': 'Lɛ́ wlán pásíwɔ́dù yɔ́yɔ́ lɔ',
     'Des repas ': 'Nùɖuɖu ',
     'savoureux': 'jɔ́ lɛ',
     ' livrés chez vous !': ' e ná wá xwé towe!',
@@ -762,8 +799,7 @@ class AppLocalizations extends InheritedWidget {
         'Kpɔ́n nùxɔ̀ towe ɖò hwenu kokooko mɛ',
     'Rechercher un plat, un resto...': 'Wá nùɖuɖu alǒ restorán...',
     'Boutiques les mieux notées': 'Xɔ̀ e ɖó nùkɔ́n jɔ́ lɛ',
-    'Plats du jour les mieux notés':
-        'Nùɖuɖu egbe lɛ e ɖó nùkɔ́n jɔ́ lɛ',
+    'Plats du jour les mieux notés': 'Nùɖuɖu egbe lɛ e ɖó nùkɔ́n jɔ́ lɛ',
     'Voir tout': 'Kpɔ́n nù lɛ katá',
     'Tous': 'Lɛ katá',
     'Aucun plat dans cette catégorie pour le moment.':
@@ -773,7 +809,7 @@ class AppLocalizations extends InheritedWidget {
         'Bénin nùɖuɖu jɔ́ lɔ, e ná wá xwé towe',
     'Bonjour, {name} 👋 Que mangerez-vous aujourd’hui ?':
         'Kúabɔ̀, {name} 👋 Nù tɛ́ a ná ɖu egbe?',
-      'Acceptation automatique': 'Kɛ́nkwé ɖò wɛ̀',
+    'Acceptation automatique': 'Kɛ́nkwé ɖò wɛ̀',
     'Accepter': 'Kɛ́n',
     'Adresse': 'Adrɛ́si',
     'Adresse de livraison': 'Adrɛ́si hɛnwlɛ́',
@@ -798,7 +834,19 @@ class AppLocalizations extends InheritedWidget {
     'Choisir dans la galerie': 'Sɔ́ ɖò galrí mɛ',
     'Choisir mon livreur': 'Sɔ́ nùgbɔ́tɔ́ ce',
     'Code de confirmation': 'Kód kɛ́nkɛ́n',
-    'Code de remise à communiquer au nouveau livreur :': 'Kód hɛnwlɛ́ tɔn ná ɖɔ nùgbɔ́tɔ́ yɔ̀yɔ́ ɔ:',
+    'Code de retrait': 'Kód nùsɔ́ tɔn',
+    'Code de collecte du livreur': 'Kód nùgbɔ́tɔ́ tɔn',
+    'Code de collecte du vendeur': 'Kód nùxɔ́tɔ́ tɔn',
+    'Confirmer le retrait': 'Kɛ́n nùsɔ́ ɔ',
+    'Retrait sur place': 'Nùsɔ́ ɖò fítɛ́ ɔ',
+    'Mode de remise': 'Wegbɛn nùhɛnwlɛ́ tɔn',
+    'Paiement en espèces': 'Kwɛ́n ɖò akwɛ́ mɛ',
+    'Paiement au retrait': 'Kwɛ́n ɖò nùsɔ́ mɛ',
+    'Prête à être retirée': 'Sɔ́ dó wɛ̀',
+    'Retirée': 'Nùsɔ́ ná',
+    'Commander et payer au retrait': 'Kɔmándi bo sú kwɛ́n ɖò nùsɔ́ mɛ',
+    'Code de remise à communiquer au nouveau livreur :':
+        'Kód hɛnwlɛ́ tɔn ná ɖɔ nùgbɔ́tɔ́ yɔ̀yɔ́ ɔ:',
     'Commande concernée': 'Kɔmándi ɔ',
     'Commencer la préparation': 'Bɛ̀ bló',
     'Compris': 'A sè é',
@@ -820,10 +868,12 @@ class AppLocalizations extends InheritedWidget {
     'Envoyer un colis': 'Sɛ́n kɔ́li ɖé',
     'Espèces à la livraison': 'Kwɛ́ dó hɛnwlɛ́mɛ',
     'Fermer': 'Sú',
-    'IFU et registre de commerce attendus.': 'IFU kpódó rejisrɛ tɔn lɛ́ kpó ɖò kpɔ́n.',
+    'IFU et registre de commerce attendus.':
+        'IFU kpódó rejisrɛ tɔn lɛ́ kpó ɖò kpɔ́n.',
     'Incident signalé': 'Xó gangan ɖɔ́',
     'J’ai terminé le paiement': 'Kwɛ́ ɔ́ súsú',
-    'Les commandes payées sont acceptées sans action manuelle': 'Kɔmándi kwɛ́ súsú lɛ́ kɛ́nkwé ɖò wɛ̀.',
+    'Les commandes payées sont acceptées sans action manuelle':
+        'Kɔmándi kwɛ́ súsú lɛ́ kɛ́nkwé ɖò wɛ̀.',
     'Ma position': 'Tɛ́n ce',
     'Marquer prête': 'Ðó ɖò gbɔ̀n',
     'Mobile Money (en ligne)': 'Mobile Money (ɛ́nláyìn)',

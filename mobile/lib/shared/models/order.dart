@@ -335,6 +335,8 @@ class Order {
     required this.status,
     required this.paymentStatus,
     this.paymentMethod,
+    this.fulfillmentMethod = 'delivery',
+    this.vendorPickupCode,
     required this.items,
     required this.subtotal,
     required this.deliveryFee,
@@ -381,6 +383,15 @@ class Order {
   /// Mode de règlement de la commande : `online` (Mobile Money) ou `cash`
   /// (espèces remises au livreur, cahier de conception v1.0).
   final String? paymentMethod;
+
+  /// `delivery` (défaut) ou `pickup` (retrait sur place chez le vendeur).
+  final String fulfillmentMethod;
+
+  /// PIN remis par le vendeur au livreur (visible uniquement par le vendeur).
+  final String? vendorPickupCode;
+
+  bool get isSelfPickup => fulfillmentMethod == 'pickup';
+
   final List<OrderItem> items;
   final int subtotal;
   final int deliveryFee;
@@ -461,6 +472,9 @@ class Order {
     final hasSelectedDriver =
         approachDriverId != null || preferredDriverId != null;
     final hasActiveRequest = driverRequest != null && driverRequest!.isPending;
+    if (isSelfPickup) {
+      return false;
+    }
     return assignable &&
         delivery?.driver == null &&
         !hasActiveRequest &&
@@ -473,7 +487,7 @@ class Order {
 
   bool get hasApproachFee => approachFee > 0;
 
-  int get deliveryTotal => deliveryFee + approachFee;
+  int get deliveryTotal => isSelfPickup ? 0 : deliveryFee + approachFee;
 
   bool get canCancel =>
       status == 'awaiting_payment' ||
@@ -488,6 +502,13 @@ class Order {
   bool get canVendorReady => status == 'preparing';
   bool get canVendorRefuse => status == 'awaiting_payment' || status == 'paid';
 
+  /// Retrait sur place : le client confirme la remise avec son propre code
+  /// dès que la commande est prête chez le vendeur.
+  bool get canConfirmPickup =>
+      isSelfPickup &&
+      status == 'ready' &&
+      (confirmationCode?.isNotEmpty ?? false);
+
   /// Copie de la commande avec un nouveau statut : utilisé par les actions
   /// du vendeur pour mettre à jour l'état local (mode démo et mise à jour
   /// optimiste) sans reconstruire toute la liste.
@@ -497,6 +518,8 @@ class Order {
     status: status,
     paymentStatus: paymentStatus,
     paymentMethod: paymentMethod,
+    fulfillmentMethod: fulfillmentMethod,
+    vendorPickupCode: vendorPickupCode,
     items: items,
     subtotal: subtotal,
     deliveryFee: deliveryFee,
@@ -599,6 +622,8 @@ class Order {
       status: _s(json['status']),
       paymentStatus: _s(json['payment_status']),
       paymentMethod: _stringOrNull(json['payment_method']),
+      fulfillmentMethod: _s(json['fulfillment_method'], 'delivery'),
+      vendorPickupCode: _stringOrNull(json['vendor_pickup_code']),
       items: items,
       subtotal: _i(json['subtotal']),
       deliveryFee: _i(json['delivery_fee']),
