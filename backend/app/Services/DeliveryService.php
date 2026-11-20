@@ -29,6 +29,7 @@ class DeliveryService
         private readonly DriverSelectionService $driverSelection,
         private readonly DeliveryAssignmentService $assignments,
         private readonly NotificationService $notifications,
+        private readonly ConfirmationCodeService $confirmationCodes,
     ) {}
 
     /**
@@ -331,8 +332,11 @@ class DeliveryService
 
     /**
      * Confirme le ramassage (assigned ou en_route_pickup → picked_up).
+     *
+     * Le vendeur remet un PIN au livreur lors de la collecte : sans ce code,
+     * la course ne peut pas passer en picked_up.
      */
-    public function markPickedUp(Delivery $delivery, DriverProfile $driver): Delivery
+    public function markPickedUp(Delivery $delivery, DriverProfile $driver, ?string $pickupCode = null): Delivery
     {
         $this->assertDeliveryOwned($delivery, $driver);
         $this->assertAssignmentActive($delivery, $driver);
@@ -345,6 +349,12 @@ class DeliveryService
             );
         }
 
+        $hasPickupCode = $delivery->pickup_code !== null && $delivery->pickup_code !== '';
+
+        if ($hasPickupCode) {
+            $this->confirmationCodes->validate($delivery, $pickupCode, 'delivery', 'pickup_code');
+        }
+
         $from = $delivery->status;
 
         $delivery->order->load('delivery');
@@ -355,9 +365,13 @@ class DeliveryService
             'from_status' => $from->value,
             'to_status' => DeliveryStatus::PickedUp->value,
             'actor' => 'driver',
-            'reason' => null,
+            'reason' => $hasPickupCode ? 'Code de collecte validé' : null,
             'created_at' => now(),
         ]);
+
+        if ($hasPickupCode) {
+            $this->confirmationCodes->markConfirmed($delivery, 'pickup_code');
+        }
 
         return $delivery->fresh(['order.vendor', 'order.user', 'order.financials', 'vendor', 'driverProfile.user']);
     }

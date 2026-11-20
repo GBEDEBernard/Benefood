@@ -12,6 +12,7 @@ use App\Models\Product;
 use App\Models\Role;
 use App\Models\User;
 use App\Models\Vendor;
+use App\Services\OrderService;
 use App\Services\ParcelService;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -157,6 +158,8 @@ class FavoriteDriversTest extends TestCase
 
         $order = Order::where('reference', $reference)->firstOrFail();
         $this->assertSame($driver->id, $order->preferred_driver_profile_id);
+
+        app(OrderService::class)->confirmPayment($order->fresh(), (int) $order->total);
 
         $this->actAs($vendorUser);
         $this->postJson("/api/v1/vendors/me/orders/{$order->id}/accept")->assertOk();

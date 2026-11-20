@@ -107,7 +107,15 @@ class DeliveryController extends Controller
 
     public function pickup(Request $request, Delivery $delivery): JsonResponse
     {
-        $delivery = $this->deliveryService->markPickedUp($delivery, $this->driverProfile($request));
+        $data = $request->validate([
+            'pickup_code' => ['sometimes', 'nullable', 'string', 'max:10'],
+        ]);
+
+        $delivery = $this->deliveryService->markPickedUp(
+            $delivery,
+            $this->driverProfile($request),
+            $data['pickup_code'] ?? null,
+        );
 
         return Api::ok(new DeliveryResource($delivery));
     }

@@ -12,6 +12,7 @@ use App\Models\Product;
 use App\Models\Role;
 use App\Models\User;
 use App\Models\Vendor;
+use App\Services\OrderService;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
@@ -20,6 +21,8 @@ use Tests\TestCase;
 class OrderDeliveryTrackingTest extends TestCase
 {
     use RefreshDatabase;
+
+    private ?string $pickupCode = null;
 
     protected function setUp(): void
     {
@@ -116,6 +119,8 @@ class OrderDeliveryTrackingTest extends TestCase
     /** Achemine la commande jusqu'au statut "prête" (création de la course). */
     private function readyOrder(Order $order, User $vendorUser, Vendor $vendor, Product $product): void
     {
+        app(OrderService::class)->confirmPayment($order->fresh(), (int) $order->total);
+
         $this->actAs($vendorUser);
 
         $this->postJson("/api/v1/vendors/me/orders/{$order->id}/accept")
@@ -124,10 +129,19 @@ class OrderDeliveryTrackingTest extends TestCase
         $this->postJson("/api/v1/vendors/me/orders/{$order->id}/preparing")
             ->assertJsonPath('data.status', 'preparing');
 
-        $this->postJson("/api/v1/vendors/me/orders/{$order->id}/ready")
+        $ready = $this->postJson("/api/v1/vendors/me/orders/{$order->id}/ready")
             ->assertJsonPath('data.status', 'ready');
 
+        $this->pickupCode = $ready->json('data.vendor_pickup_code');
+        $this->assertNotBlankPickupCode($this->pickupCode);
+
         $this->assertDatabaseHas('deliveries', ['order_id' => $order->id, 'status' => 'assigned']);
+    }
+
+    private function assertNotBlankPickupCode(?string $code): void
+    {
+        $this->assertNotNull($code);
+        $this->assertMatchesRegularExpression('/^\d{6}$/', $code);
     }
 
     public function test_driver_can_update_location_and_goes_offline_purges_it(): void
@@ -210,7 +224,7 @@ class OrderDeliveryTrackingTest extends TestCase
             'driver_profile_id' => $driver->id,
         ]);
 
-        $this->postJson("/api/v1/driver/me/deliveries/{$deliveryId}/pickup")
+        $this->postJson("/api/v1/driver/me/deliveries/{$deliveryId}/pickup", ['pickup_code' => $this->pickupCode])
             ->assertOk();
         $this->postJson("/api/v1/driver/me/deliveries/{$deliveryId}/start")
             ->assertOk();
@@ -280,7 +294,7 @@ class OrderDeliveryTrackingTest extends TestCase
         // La commande reste affectée tant que la collecte n'est pas confirmée.
         $this->assertSame('assigned', $order->fresh()->status->value);
 
-        $this->postJson("/api/v1/driver/me/deliveries/{$deliveryId}/pickup")
+        $this->postJson("/api/v1/driver/me/deliveries/{$deliveryId}/pickup", ['pickup_code' => $this->pickupCode])
             ->assertOk()
             ->assertJsonPath('data.status', 'picked_up');
 

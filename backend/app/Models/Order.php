@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\FulfillmentMethod;
 use App\Enums\OrderStatus;
 use App\Enums\PaymentMethod;
 use App\Enums\PaymentPurpose;
@@ -29,6 +30,7 @@ class Order extends Model
     {
         return [
             'status' => OrderStatus::class,
+            'fulfillment_method' => FulfillmentMethod::class,
             'payment_method' => PaymentMethod::class,
             'payment_status' => PaymentStatus::class,
             'subtotal' => 'integer',

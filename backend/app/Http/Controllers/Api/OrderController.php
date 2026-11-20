@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Enums\FulfillmentMethod;
 use App\Enums\OrderStatus;
 use App\Enums\VendorStatus;
 use App\Http\Controllers\Controller;
@@ -16,6 +17,7 @@ use App\Services\OrderService;
 use App\Support\Api;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 /**
  * Commandes client et vendeur (M5 — J82 à J85).
@@ -31,16 +33,22 @@ class OrderController extends Controller
 
     public function summary(Request $request): JsonResponse
     {
+        $fulfillment = FulfillmentMethod::tryFrom((string) $request->input('fulfillment_method', 'delivery'))
+            ?? FulfillmentMethod::Delivery;
+
         $data = $request->validate([
-            'address_id' => ['required', 'uuid', 'exists:addresses,id'],
+            'fulfillment_method' => ['sometimes', 'string', Rule::enum(FulfillmentMethod::class)],
+            'address_id' => [$fulfillment->isPickup() ? 'sometimes' : 'required', 'nullable', 'uuid', 'exists:addresses,id'],
             'payment_method' => ['sometimes', 'string', 'in:online,cash'],
             'driver_profile_id' => ['sometimes', 'nullable', 'uuid', 'exists:driver_profiles,id'],
         ]);
 
-        $address = $this->userAddress($request, $data['address_id']);
+        $address = $fulfillment->isPickup()
+            ? null
+            : $this->userAddress($request, (string) ($data['address_id'] ?? ''));
         $cart = $this->userOpenCart($request);
 
-        if ($address === null) {
+        if (! $fulfillment->isPickup() && $address === null) {
             return Api::error('Adresse introuvable.', 'not_found', 404);
         }
 
@@ -51,7 +59,8 @@ class OrderController extends Controller
         return Api::ok($this->orders->summary($cart, [
             'address' => $address,
             'payment_method' => $data['payment_method'] ?? 'online',
-            'driver_profile_id' => $data['driver_profile_id'] ?? null,
+            'driver_profile_id' => $fulfillment->isPickup() ? null : ($data['driver_profile_id'] ?? null),
+            'fulfillment_method' => $fulfillment,
         ]));
     }
 
@@ -104,18 +113,24 @@ class OrderController extends Controller
 
     public function store(Request $request): JsonResponse
     {
+        $fulfillment = FulfillmentMethod::tryFrom((string) $request->input('fulfillment_method', 'delivery'))
+            ?? FulfillmentMethod::Delivery;
+
         $data = $request->validate([
-            'address_id' => ['required', 'uuid', 'exists:addresses,id'],
+            'fulfillment_method' => ['sometimes', 'string', Rule::enum(FulfillmentMethod::class)],
+            'address_id' => [$fulfillment->isPickup() ? 'sometimes' : 'required', 'nullable', 'uuid', 'exists:addresses,id'],
             'notes' => ['sometimes', 'nullable', 'string', 'max:1000'],
             'payment_method' => ['sometimes', 'string', 'in:online,cash'],
             'favorite_driver_id' => ['sometimes', 'nullable', 'uuid', 'exists:driver_profiles,id'],
             'driver_profile_id' => ['sometimes', 'nullable', 'uuid', 'exists:driver_profiles,id'],
         ]);
 
-        $address = $this->userAddress($request, $data['address_id']);
+        $address = $fulfillment->isPickup()
+            ? null
+            : $this->userAddress($request, (string) ($data['address_id'] ?? ''));
         $cart = $this->userOpenCart($request);
 
-        if ($address === null) {
+        if (! $fulfillment->isPickup() && $address === null) {
             return Api::error('Adresse introuvable.', 'not_found', 404);
         }
 
@@ -128,8 +143,9 @@ class OrderController extends Controller
             $address,
             $data['notes'] ?? null,
             $data['payment_method'] ?? 'online',
-            $data['driver_profile_id'] ?? $data['favorite_driver_id'] ?? null,
-            array_key_exists('driver_profile_id', $data),
+            $fulfillment->isPickup() ? null : ($data['driver_profile_id'] ?? $data['favorite_driver_id'] ?? null),
+            ! $fulfillment->isPickup() && array_key_exists('driver_profile_id', $data),
+            $fulfillment,
         );
 
         return Api::created(new OrderResource($order));
@@ -202,7 +218,11 @@ class OrderController extends Controller
 
     public function accept(Request $request, Order $order): JsonResponse
     {
-        if (! $this->isOwnVendorOrder($request, $order) || ! in_array($order->status, [OrderStatus::AwaitingPayment, OrderStatus::Paid])) {
+        $canBeAccepted = $order->payment_method?->isCash()
+            ? in_array($order->status, [OrderStatus::AwaitingPayment, OrderStatus::Paid], true)
+            : $order->status === OrderStatus::Paid;
+
+        if (! $this->isOwnVendorOrder($request, $order) || ! $canBeAccepted) {
             return Api::error('Ressource introuvable.', 'not_found', 404);
         }
 
@@ -359,7 +379,7 @@ class OrderController extends Controller
             $request->has('favorite_driver_id'),
         );
 
-        return Api::ok(new OrderResource($order->load(['statusHistory', 'delivery'])));
+        return Api::ok(new OrderResource($order->load(['statusHistory', 'delivery', 'vendor'])));
     }
 
     public function confirmDelivery(Request $request, Order $order): JsonResponse
@@ -375,6 +395,21 @@ class OrderController extends Controller
         $order = $this->orders->confirmDelivery($order, 'client', $request->user()->id, $data['proof_code']);
 
         return Api::ok(new OrderResource($order->load(['statusHistory', 'delivery'])));
+    }
+
+    public function confirmPickup(Request $request, Order $order): JsonResponse
+    {
+        if ($order->user_id !== $request->user()->id) {
+            return Api::error('Ressource introuvable.', 'not_found', 404);
+        }
+
+        $data = $request->validate([
+            'confirmation_code' => ['required', 'string', 'max:10'],
+        ]);
+
+        $order = $this->orders->confirmPickupByClient($order, $data['confirmation_code'], $request->user()->id);
+
+        return Api::ok(new OrderResource($order->load(['statusHistory', 'delivery', 'vendor'])));
     }
 
     public function dispute(Request $request, Order $order): JsonResponse

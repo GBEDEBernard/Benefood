@@ -29,6 +29,7 @@ class OrderResource extends JsonResource
             'id' => $this->id,
             'reference' => $this->reference,
             'status' => $this->status?->value,
+            'fulfillment_method' => $this->fulfillment_method?->value,
             'payment_status' => $this->payment_status?->value,
             'payment_method' => $this->payment_method?->value,
             'preferred_driver_id' => $this->preferred_driver_profile_id,
@@ -60,6 +61,11 @@ class OrderResource extends JsonResource
                 'avatar_url' => $this->mediaUrl($this->user?->avatar_path),
             ],
             'notes' => $this->notes,
+            // PIN de collecte : visible uniquement par le vendeur, jamais par le livreur.
+            'vendor_pickup_code' => $this->when(
+                $this->relationLoaded('delivery') && $request->user()?->id === $this->vendor?->user_id,
+                fn () => $this->delivery?->pickup_code,
+            ),
             'delivery' => $this->whenLoaded('delivery', fn () => $this->deliveryPayload()),
             'driver_request' => $this->whenLoaded('driverAssignmentRequest', fn () => $this->driverAssignmentRequest === null
                 ? null

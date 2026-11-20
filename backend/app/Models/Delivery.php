@@ -30,6 +30,10 @@ class Delivery extends Model
             'assigned_at' => 'datetime',
             'picked_up_at' => 'datetime',
             'delivered_at' => 'datetime',
+            'pickup_code' => 'encrypted',
+            'pickup_code_expires_at' => 'datetime',
+            'pickup_code_attempts' => 'integer',
+            'pickup_code_confirmed_at' => 'datetime',
         ];
     }
 

@@ -242,6 +242,7 @@ Route::middleware('auth:sanctum')->group(function (): void {
         Route::post('/{order}/incident', [OrderController::class, 'reportIncident'])->name('api.v1.orders.incident')->middleware('permission:client.orders.manage');
         Route::post('/{order}/reassign', [OrderController::class, 'reassign'])->name('api.v1.orders.reassign')->middleware('permission:client.orders.manage');
         Route::post('/{order}/confirm-delivery', [OrderController::class, 'confirmDelivery'])->name('api.v1.orders.confirm-delivery')->middleware('permission:client.orders.manage');
+        Route::post('/{order}/confirm-pickup', [OrderController::class, 'confirmPickup'])->name('api.v1.orders.confirm-pickup')->middleware('permission:client.orders.manage');
         Route::post('/{order}/dispute', [OrderController::class, 'dispute'])->name('api.v1.orders.dispute')->middleware('permission:client.orders.manage');
     });
 

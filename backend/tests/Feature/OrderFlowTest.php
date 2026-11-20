@@ -14,6 +14,7 @@ use App\Models\ProductImage;
 use App\Models\Role;
 use App\Models\User;
 use App\Models\Vendor;
+use App\Services\OrderService;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
@@ -335,6 +336,8 @@ class OrderFlowTest extends TestCase
         $accepted = Order::where('reference', $acceptedRef)->first();
         $refused = Order::where('reference', $refusedRef)->first();
 
+        app(OrderService::class)->confirmPayment($accepted->fresh(), (int) $accepted->total);
+
         $this->actAs($vendorUser);
         $this->postJson("/api/v1/vendors/me/orders/{$accepted->id}/accept")
             ->assertOk()
@@ -380,6 +383,8 @@ class OrderFlowTest extends TestCase
         $this->addToCart($client, $product);
         $reference = $this->placeOrder($client, $address);
         $order = Order::where('reference', $reference)->first();
+
+        app(OrderService::class)->confirmPayment($order->fresh(), (int) $order->total);
 
         $otherVendorUser = $this->actingUser('vendor');
         $this->activeVendor($otherVendorUser);

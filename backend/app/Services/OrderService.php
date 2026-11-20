@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Enums\DeliveryStatus;
 use App\Enums\DriverAssignmentRequestStatus;
+use App\Enums\FulfillmentMethod;
 use App\Enums\OrderStatus;
 use App\Enums\PaymentMethod;
 use App\Enums\PaymentPurpose;
@@ -51,7 +52,7 @@ class OrderService
     /**
      * Résumé calculé serveur pour un panier : sous-total, livraison, commission et total.
      *
-     * @param  array{address?: Address, addressData?: array<string, mixed>}  $options
+     * @param  array{address?: Address, addressData?: array<string, mixed>, fulfillment_method?: FulfillmentMethod}  $options
      * @return array<string, mixed>
      */
     public function summary(Cart $cart, array $options = []): array
@@ -64,6 +65,8 @@ class OrderService
         $this->assertItemsOrderable($cart->items);
 
         $paymentMethod = $this->normalizePaymentMethod($options['payment_method'] ?? 'online');
+        $fulfillment = $options['fulfillment_method'] ?? FulfillmentMethod::Delivery;
+        $isPickup = $fulfillment->isPickup();
 
         $entries = [];
         $subtotal = 0;
@@ -88,23 +91,34 @@ class OrderService
 
         $discount = $originalSubtotal - $subtotal;
 
-        $delivery = $this->deliveryQuote($cart, $options);
-        $selectedDriver = $this->resolveCheckoutDriver(
-            $cart,
-            $cart->vendor,
-            isset($options['driver_profile_id']) ? (string) $options['driver_profile_id'] : null,
-            true,
-        );
-        $approach = $this->approachQuote($cart->vendor, $selectedDriver);
+        $delivery = $isPickup
+            ? ['fee' => 0, 'zone_id' => null, 'rate_snapshot' => [], 'distance_km' => null]
+            : $this->deliveryQuote($cart, $options);
+        $selectedDriver = $isPickup
+            ? null
+            : $this->resolveCheckoutDriver(
+                $cart,
+                $cart->vendor,
+                isset($options['driver_profile_id']) ? (string) $options['driver_profile_id'] : null,
+                true,
+            );
+        $approach = $isPickup
+            ? ['fee' => 0, 'distance_km' => null, 'snapshot' => null]
+            : $this->approachQuote($cart->vendor, $selectedDriver);
 
         $commissionRate = $this->resolveCommissionRate($cart->vendor);
         $breakdown = $this->finance->breakdown($subtotal, (int) $delivery['fee'], $commissionRate, (int) $approach['fee']);
+
+        if ($isPickup) {
+            $breakdown = $this->withoutDeliveryCosts($breakdown, $subtotal);
+        }
 
         return [
             'vendor' => [
                 'id' => $cart->vendor->id,
                 'business_name' => $cart->vendor->business_name,
             ],
+            'fulfillment_method' => $fulfillment->value,
             'items' => $entries,
             'subtotal' => $subtotal,
             'original_subtotal' => $originalSubtotal,
@@ -144,7 +158,7 @@ class OrderService
      *
      * @throws DomainException order.*  si une contrainte n'est pas satisfaite
      */
-    public function createFromCart(Cart $cart, Address $address, ?string $notes = null, string $paymentMethod = 'online', ?string $preferredDriverProfileId = null, bool $allowNearbyDriver = false): Order
+    public function createFromCart(Cart $cart, ?Address $address, ?string $notes = null, string $paymentMethod = 'online', ?string $preferredDriverProfileId = null, bool $allowNearbyDriver = false, FulfillmentMethod $fulfillment = FulfillmentMethod::Delivery): Order
     {
         $this->assertCartOpen($cart);
 
@@ -156,11 +170,19 @@ class OrderService
         $this->assertItemsOrderable($cart->items);
         $this->assertItemsStocked($cart->items);
 
-        $cart->loadMissing('user');
-        $preferredDriver = $this->resolveCheckoutDriver($cart, $vendor, $preferredDriverProfileId, $allowNearbyDriver);
+        $isPickup = $fulfillment->isPickup();
 
-        $delivery = $this->deliveryQuote($cart, ['address' => $address]);
-        $approach = $this->approachQuote($vendor, $preferredDriver);
+        $cart->loadMissing('user');
+        $preferredDriver = $isPickup
+            ? null
+            : $this->resolveCheckoutDriver($cart, $vendor, $preferredDriverProfileId, $allowNearbyDriver);
+
+        $delivery = $isPickup
+            ? ['fee' => 0, 'zone_id' => null, 'rate_snapshot' => null]
+            : $this->deliveryQuote($cart, ['address' => $address]);
+        $approach = $isPickup
+            ? ['fee' => 0, 'distance_km' => null, 'snapshot' => null]
+            : $this->approachQuote($vendor, $preferredDriver);
         $paymentMethod = $this->normalizePaymentMethod($paymentMethod);
 
         $subtotal = 0;
@@ -183,6 +205,11 @@ class OrderService
 
         $commissionRate = $this->resolveCommissionRate($vendor);
         $breakdown = $this->finance->breakdown($subtotal, (int) $delivery['fee'], $commissionRate, (int) $approach['fee']);
+
+        if ($isPickup) {
+            $breakdown = $this->withoutDeliveryCosts($breakdown, $subtotal);
+        }
+
         $deliveryFee = $breakdown['delivery_fee'];
         $total = $breakdown['total_client'];
 
@@ -192,13 +219,14 @@ class OrderService
 
         $confirmationCode = null;
 
-        $order = DB::transaction(function () use ($cart, $address, $notes, $delivery, $approach, $lines, $subtotal, $discount, $commissionRate, $breakdown, $deliveryFee, $total, $reference, $paymentMethod, $paymentDeadline, $preferredDriver, &$confirmationCode) {
+        $order = DB::transaction(function () use ($cart, $address, $notes, $delivery, $approach, $lines, $subtotal, $discount, $commissionRate, $breakdown, $deliveryFee, $total, $reference, $paymentMethod, $paymentDeadline, $preferredDriver, $fulfillment, $isPickup, &$confirmationCode) {
             $order = Order::create([
                 'reference' => $reference,
                 'user_id' => $cart->user_id,
                 'vendor_id' => $cart->vendor_id,
                 'cart_id' => $cart->id,
-                'zone_id' => $delivery['zone_id'],
+                'zone_id' => $isPickup ? null : $delivery['zone_id'],
+                'fulfillment_method' => $fulfillment->value,
                 'preferred_driver_profile_id' => $preferredDriver?->id,
                 'status' => OrderStatus::AwaitingPayment->value,
                 'payment_method' => $paymentMethod->isCash()
@@ -220,8 +248,8 @@ class OrderService
                 'approach_driver_profile_id' => $preferredDriver?->id,
                 'approach_paid_at' => $preferredDriver !== null && (int) $breakdown['approach_fee'] === 0 ? now() : null,
                 'total' => $total,
-                'address_snapshot' => $this->snapshotAddress($address, $notes),
-                'delivery_rate_snapshot' => $delivery['rate_snapshot'],
+                'address_snapshot' => $isPickup ? null : $this->snapshotAddress($address, $notes),
+                'delivery_rate_snapshot' => $isPickup ? null : $delivery['rate_snapshot'],
                 'notes' => $notes,
                 'payment_deadline_at' => $paymentDeadline,
             ]);
@@ -299,9 +327,16 @@ class OrderService
     }
 
     // ------------------------------------------------------------------ J85
-    /** Le vendeur valide la commande (awaiting_payment/paid → accepted). */
+    /** Le vendeur valide une commande déjà payée (paid → accepted). */
     public function acceptVendorOrder(Order $order, ?string $actorId = null): Order
     {
+        // Une commande cash est encaissée sur place : aucun paiement en ligne
+        // n'est exigé avant l'acceptation. Tout paiement en ligne doit être
+        // confirmé avant que le vendeur ne puisse accepter la commande.
+        if (! $order->payment_method?->isCash() && $order->status !== OrderStatus::Paid) {
+            throw new DomainException('order.not_paid', 'La commande doit être payée avant d\'être acceptée.', 409);
+        }
+
         $this->assertTransition($order, OrderStatus::Accepted);
 
         $from = $order->status;
@@ -438,42 +473,59 @@ class OrderService
         return $order->fresh('statusHistory');
     }
 
-    /** Le vendeur signale la commande prête (preparing → ready) et ouvre une course. */
+    /** Le vendeur signale la commande prête (preparing → ready) et ouvre une course pour la livraison. */
     public function markReady(Order $order, ?string $actorId = null, ?string $targetDriverProfileId = null, bool $overrideDriver = false): Order
     {
         $this->assertTransition($order, OrderStatus::Ready);
 
         $from = $order->status;
+        $isPickup = $order->fulfillment_method === FulfillmentMethod::Pickup;
+        $target = $isPickup ? null : $this->resolveTargetDriver($order, $targetDriverProfileId, $overrideDriver);
 
-        $target = $this->resolveTargetDriver($order, $targetDriverProfileId, $overrideDriver);
-
-        DB::transaction(function () use ($order, $from, $actorId, $target): void {
+        DB::transaction(function () use ($order, $from, $actorId, $target, $isPickup): void {
             $order->update(['status' => OrderStatus::Ready->value]);
 
-            $this->logTransition($order, $from, OrderStatus::Ready, 'vendor', $actorId, null);
+            $this->logTransition(
+                $order,
+                $from,
+                OrderStatus::Ready,
+                'vendor',
+                $actorId,
+                $isPickup ? 'Commande prête pour retrait' : null,
+            );
 
-            if ($order->delivery()->doesntExist()) {
-                $order->loadMissing(['vendor', 'user']);
-                $address = $order->address_snapshot ?? [];
-
-                $order->delivery()->create([
-                    'driver_profile_id' => null,
-                    'targeted_driver_profile_id' => $target?->id,
-                    'vendor_id' => $order->vendor_id,
-                    'zone_id' => $order->zone_id,
-                    'status' => DeliveryStatus::Assigned->value,
-                    'fee' => (int) $order->delivery_fee + (int) $order->approach_fee,
-                    'partner_amount' => (int) ($order->financials?->delivery_partner_amount ?? 0),
-                    'pickup_latitude' => $order->vendor?->pickup_latitude ?? $order->vendor?->latitude,
-                    'pickup_longitude' => $order->vendor?->pickup_longitude ?? $order->vendor?->longitude,
-                    'dropoff_latitude' => $address['latitude'] ?? null,
-                    'dropoff_longitude' => $address['longitude'] ?? null,
-                    'dropoff_landmark' => $address['landmark'] ?? null,
-                    'dropoff_phone' => $address['contact_phone'] ?? $order->user?->phone,
-                    'assigned_at' => now(),
-                ]);
+            // Un retrait sur place n'ouvre aucune course et n'implique aucun livreur.
+            if ($isPickup || $order->delivery()->exists()) {
+                return;
             }
+
+            $order->loadMissing(['vendor', 'user']);
+            $address = $order->address_snapshot ?? [];
+
+            $delivery = $order->delivery()->create([
+                'driver_profile_id' => null,
+                'targeted_driver_profile_id' => $target?->id,
+                'vendor_id' => $order->vendor_id,
+                'zone_id' => $order->zone_id,
+                'status' => DeliveryStatus::Assigned->value,
+                'fee' => (int) $order->delivery_fee + (int) $order->approach_fee,
+                'partner_amount' => (int) ($order->financials?->delivery_partner_amount ?? 0),
+                'pickup_latitude' => $order->vendor?->pickup_latitude ?? $order->vendor?->latitude,
+                'pickup_longitude' => $order->vendor?->pickup_longitude ?? $order->vendor?->longitude,
+                'dropoff_latitude' => $address['latitude'] ?? null,
+                'dropoff_longitude' => $address['longitude'] ?? null,
+                'dropoff_landmark' => $address['landmark'] ?? null,
+                'dropoff_phone' => $address['contact_phone'] ?? $order->user?->phone,
+                'assigned_at' => now(),
+            ]);
+
+            // PIN remis par le vendeur au livreur pour prouver la collecte.
+            $this->confirmationCodes->generate($delivery, 'delivery', 'pickup_code');
         });
+
+        if ($isPickup) {
+            return $order->fresh(['statusHistory', 'delivery']);
+        }
 
         $this->driverSelection->markOfferedForOrder($order);
 
@@ -484,6 +536,53 @@ class OrderService
                 'delivery_id' => $order->delivery()->value('id'),
             ]);
         }
+
+        return $order->fresh(['statusHistory', 'delivery']);
+    }
+
+    /**
+     * Retrait sur place : le client présente son code au vendeur, qui valide
+     * la remise effective. La commande passe en livrée et les fonds sont libérés.
+     */
+    public function confirmPickupByClient(Order $order, ?string $confirmationCode, ?string $actorId = null): Order
+    {
+        if ($order->fulfillment_method !== FulfillmentMethod::Pickup) {
+            throw new DomainException('order.not_pickup', 'Cette commande n\'est pas à retirer sur place.', 422);
+        }
+
+        if ($order->status !== OrderStatus::Ready) {
+            throw new DomainException('order.pickup_not_ready', 'La commande n\'est pas encore prête pour le retrait.', 409);
+        }
+
+        $this->confirmationCodes->validate($order, $confirmationCode, 'order');
+
+        DB::transaction(function () use ($order, $actorId): void {
+            $order->update(['status' => OrderStatus::PickedUp->value]);
+            $this->logTransition($order, OrderStatus::Ready, OrderStatus::PickedUp, 'client', $actorId, 'Code de retrait validé');
+
+            $isCash = (bool) $order->payment_method?->isCash();
+
+            $order->update([
+                'status' => OrderStatus::Delivered->value,
+                'delivered_at' => now(),
+                'delivery_confirmed_at' => $isCash ? null : now(),
+                'auto_confirm_at' => null,
+            ]);
+
+            $this->logTransition($order, OrderStatus::PickedUp, OrderStatus::Delivered, 'client', $actorId, 'Colis récupéré sur place');
+
+            if (! $isCash) {
+                $this->finance->releaseOrderFunds($order->fresh(['financials', 'vendor', 'delivery.driverProfile']));
+            }
+
+            $this->confirmationCodes->markConfirmed($order);
+        });
+
+        $this->notifications->notifyEvent('order.delivered', [$order->user], [
+            'reference' => $order->reference,
+            'order_id' => $order->id,
+            'image_url' => $this->firstItemImageUrl($order),
+        ]);
 
         return $order->fresh(['statusHistory', 'delivery']);
     }
@@ -1188,9 +1287,9 @@ class OrderService
             OrderStatus::Paid->value => [OrderStatus::Accepted->value, OrderStatus::Cancelled->value],
             OrderStatus::Accepted->value => [OrderStatus::Preparing->value, OrderStatus::Cancelled->value],
             OrderStatus::Preparing->value => [OrderStatus::Ready->value, OrderStatus::Cancelled->value],
-            OrderStatus::Ready->value => [OrderStatus::Assigned->value, OrderStatus::Cancelled->value],
+            OrderStatus::Ready->value => [OrderStatus::Assigned->value, OrderStatus::PickedUp->value, OrderStatus::Cancelled->value],
             OrderStatus::Assigned->value => [OrderStatus::Ready->value, OrderStatus::PickedUp->value, OrderStatus::Cancelled->value],
-            OrderStatus::PickedUp->value => [OrderStatus::InDelivery->value, OrderStatus::Cancelled->value],
+            OrderStatus::PickedUp->value => [OrderStatus::InDelivery->value, OrderStatus::Delivered->value, OrderStatus::Cancelled->value],
             OrderStatus::InDelivery->value => [OrderStatus::Delivered->value, OrderStatus::Cancelled->value],
             OrderStatus::Delivered->value => [OrderStatus::Refunded->value],
         ];
@@ -1240,6 +1339,30 @@ class OrderService
                 $this->catalog->adjustStock($item->product, $item->quantity, 'order_cancelled', 'order', $order->id);
             }
         }
+    }
+
+    /**
+     * Retrait sur place : le client ne règle que la valeur des produits.
+     * Aucun frais de livraison, d'approche ni de service n'est facturé.
+     *
+     * @param  array<string, int>  $breakdown
+     * @return array<string, int>
+     */
+    private function withoutDeliveryCosts(array $breakdown, int $subtotal): array
+    {
+        $breakdown['delivery_fee'] = 0;
+        $breakdown['approach_fee'] = 0;
+        $breakdown['delivery_total'] = 0;
+        $breakdown['service_fee'] = 0;
+        $breakdown['payment_fee'] = 0;
+        $breakdown['delivery_commission_amount'] = 0;
+        $breakdown['delivery_partner_amount'] = 0;
+        $breakdown['base_partner_amount'] = 0;
+        $breakdown['approach_partner_amount'] = 0;
+        $breakdown['platform_amount'] = $breakdown['commission_amount'];
+        $breakdown['total_client'] = $subtotal;
+
+        return $breakdown;
     }
 
     private function generateReference(): string
