@@ -234,7 +234,13 @@ class FedaPayConnector implements PaymentGateway
                 'meta' => $metadata,
             ];
         } catch (\Throwable $e) {
-            Log::warning('FedaPay transaction creation failed', ['error' => $e->getMessage()]);
+            Log::warning('FedaPay transaction creation failed', [
+                'error' => $e->getMessage(),
+                'exception' => $e::class,
+                'sandbox' => (bool) config('fedapay.sandbox', true),
+                'api_base' => (string) (config('fedapay.api_base') ?: FedaPay::getApiBase()),
+                'callback_url' => $params['callback_url'] ?? null,
+            ]);
 
             return [
                 'provider' => 'fedapay',
